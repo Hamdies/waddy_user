@@ -6,6 +6,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
 import 'package:sixam_mart/features/store/domain/models/recommended_product_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_banner_model.dart';
+import 'package:sixam_mart/features/store/domain/models/store_bundle_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
 import 'package:sixam_mart/features/store/domain/repositories/store_repository_interface.dart';
@@ -93,6 +94,16 @@ class StoreService implements StoreServiceInterface {
       }
     }
     return moduleList;
+  }
+
+  @override
+  Future<List<Store>?> getSimilarStoreList(int? storeId, {int offset = 1, int limit = 10}) async {
+    return await storeRepositoryInterface.getSimilarStoreList(storeId, offset: offset, limit: limit);
+  }
+
+  @override
+  Future<List<StoreBundleModel>?> getStoreBundleList(int? storeId, {int offset = 1, int limit = 10}) async {
+    return await storeRepositoryInterface.getStoreBundleList(storeId, offset: offset, limit: limit);
   }
 
   @override

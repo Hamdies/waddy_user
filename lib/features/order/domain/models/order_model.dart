@@ -13,7 +13,10 @@ class PaginatedOrderModel {
   PaginatedOrderModel.fromJson(Map<String, dynamic> json) {
     totalSize = json['total_size'];
     limit = json['limit'].toString();
-    offset = (json['offset'] != null && json['offset'].toString().trim().isNotEmpty) ? int.parse(json['offset'].toString()) : null;
+    offset =
+        (json['offset'] != null && json['offset'].toString().trim().isNotEmpty)
+            ? int.parse(json['offset'].toString())
+            : null;
     if (json['orders'] != null) {
       orders = [];
       json['orders'].forEach((v) {
@@ -32,7 +35,6 @@ class PaginatedOrderModel {
     }
     return data;
   }
-
 }
 
 class OrderModel {
@@ -43,6 +45,8 @@ class OrderModel {
   String? couponDiscountTitle;
   String? paymentStatus;
   String? orderStatus;
+  String? subStatus;
+  String? subStatusUpdatedAt;
   double? totalTaxAmount;
   String? paymentMethod;
   String? couponCode;
@@ -86,6 +90,7 @@ class OrderModel {
   bool? cutlery;
   String? unavailableItemNote;
   String? deliveryInstruction;
+  String? voiceInstructionFullUrl;
   double? taxPercentage;
   double? additionalCharge;
   double? partiallyPaidAmount;
@@ -97,68 +102,71 @@ class OrderModel {
   double? extraPackagingAmount;
   double? referrerBonusAmount;
 
-  OrderModel(
-      {this.id,
-        this.userId,
-        this.orderAmount,
-        this.couponDiscountAmount,
-        this.couponDiscountTitle,
-        this.paymentStatus,
-        this.orderStatus,
-        this.totalTaxAmount,
-        this.paymentMethod,
-        this.couponCode,
-        this.orderNote,
-        this.orderType,
-        this.createdAt,
-        this.updatedAt,
-        this.deliveryCharge,
-        this.scheduleAt,
-        this.otp,
-        this.pending,
-        this.accepted,
-        this.confirmed,
-        this.processing,
-        this.handover,
-        this.pickedUp,
-        this.delivered,
-        this.canceled,
-        this.refundRequested,
-        this.refunded,
-        this.scheduled,
-        this.storeDiscountAmount,
-        this.failed,
-        this.detailsCount,
-        this.chargePayer,
-        this.moduleType,
-        this.deliveryMan,
-        this.deliveryAddress,
-        this.receiverDetails,
-        this.parcelCategory,
-        this.store,
-        this.orderAttachmentFullUrl,
-        this.dmTips,
-        this.refundCancellationNote,
-        this.refundCustomerNote,
-        this.refund,
-        this.prescriptionOrder,
-        this.taxStatus,
-        this.cancellationReason,
-        this.processingTime,
-        this.cutlery,
-        this.unavailableItemNote,
-        this.deliveryInstruction,
-        this.taxPercentage,
-        this.additionalCharge,
-        this.partiallyPaidAmount,
-        this.payments,
-        this.orderProofFullUrl,
-        this.offlinePayment,
-        this.flashAdminDiscountAmount,
-        this.flashStoreDiscountAmount,
-        this.extraPackagingAmount,
-        this.referrerBonusAmount,
-      });
+  OrderModel({
+    this.id,
+    this.userId,
+    this.orderAmount,
+    this.couponDiscountAmount,
+    this.couponDiscountTitle,
+    this.paymentStatus,
+    this.orderStatus,
+    this.subStatus,
+    this.subStatusUpdatedAt,
+    this.totalTaxAmount,
+    this.paymentMethod,
+    this.couponCode,
+    this.orderNote,
+    this.orderType,
+    this.createdAt,
+    this.updatedAt,
+    this.deliveryCharge,
+    this.scheduleAt,
+    this.otp,
+    this.pending,
+    this.accepted,
+    this.confirmed,
+    this.processing,
+    this.handover,
+    this.pickedUp,
+    this.delivered,
+    this.canceled,
+    this.refundRequested,
+    this.refunded,
+    this.scheduled,
+    this.storeDiscountAmount,
+    this.failed,
+    this.detailsCount,
+    this.chargePayer,
+    this.moduleType,
+    this.deliveryMan,
+    this.deliveryAddress,
+    this.receiverDetails,
+    this.parcelCategory,
+    this.store,
+    this.orderAttachmentFullUrl,
+    this.dmTips,
+    this.refundCancellationNote,
+    this.refundCustomerNote,
+    this.refund,
+    this.prescriptionOrder,
+    this.taxStatus,
+    this.cancellationReason,
+    this.processingTime,
+    this.cutlery,
+    this.unavailableItemNote,
+    this.deliveryInstruction,
+    this.voiceInstructionFullUrl,
+    this.taxPercentage,
+    this.additionalCharge,
+    this.partiallyPaidAmount,
+    this.payments,
+    this.orderProofFullUrl,
+    this.offlinePayment,
+    this.flashAdminDiscountAmount,
+    this.flashStoreDiscountAmount,
+    this.extraPackagingAmount,
+    this.referrerBonusAmount,
+  });
 
   OrderModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -168,6 +176,8 @@ class OrderModel {
     couponDiscountTitle = json['coupon_discount_title'];
     paymentStatus = json['payment_status'];
     orderStatus = json['order_status'];
+    subStatus = json['sub_status'];
+    subStatusUpdatedAt = json['sub_status_updated_at'];
     totalTaxAmount = json['total_tax_amount'].toDouble();
     paymentMethod = json['payment_method'];
     couponCode = json['coupon_code'];
@@ -200,11 +210,23 @@ class OrderModel {
     }
     chargePayer = json['charge_payer'];
     moduleType = json['module_type'];
-    deliveryMan = json['delivery_man'] != null ? DeliveryMan.fromJson(json['delivery_man']) : null;
+    deliveryMan =
+        json['delivery_man'] != null
+            ? DeliveryMan.fromJson(json['delivery_man'])
+            : null;
     store = json['store'] != null ? Store.fromJson(json['store']) : null;
-    deliveryAddress = json['delivery_address'] != null ? AddressModel.fromJson(json['delivery_address']) : null;
-    receiverDetails = json['receiver_details'] != null ? AddressModel.fromJson(json['receiver_details']) : null;
-    parcelCategory = json['parcel_category'] != null ? ParcelCategoryModel.fromJson(json['parcel_category']) : null;
+    deliveryAddress =
+        json['delivery_address'] != null
+            ? AddressModel.fromJson(json['delivery_address'])
+            : null;
+    receiverDetails =
+        json['receiver_details'] != null
+            ? AddressModel.fromJson(json['receiver_details'])
+            : null;
+    parcelCategory =
+        json['parcel_category'] != null
+            ? ParcelCategoryModel.fromJson(json['parcel_category'])
+            : null;
     dmTips = json['dm_tips'].toDouble();
     refundCancellationNote = json['refund_cancellation_note'];
     refundCustomerNote = json['refund_customer_note'];
@@ -216,10 +238,13 @@ class OrderModel {
     cutlery = json['cutlery'];
     unavailableItemNote = json['unavailable_item_note'];
     deliveryInstruction = json['delivery_instruction'];
+    voiceInstructionFullUrl = json['voice_instruction_full_url'];
     taxPercentage = json['tax_percentage']?.toDouble();
     additionalCharge = json['additional_charge']?.toDouble() ?? 0;
-    if(json['partially_paid_amount'] != null){
-      partiallyPaidAmount = double.parse(json['partially_paid_amount'].toString());
+    if (json['partially_paid_amount'] != null) {
+      partiallyPaidAmount = double.parse(
+        json['partially_paid_amount'].toString(),
+      );
     }
     if (json['payments'] != null) {
       payments = <Payments>[];
@@ -227,15 +252,18 @@ class OrderModel {
         payments!.add(Payments.fromJson(v));
       });
     }
-    if(json['order_proof_full_url'] != null){
+    if (json['order_proof_full_url'] != null) {
       orderProofFullUrl = [];
       json['order_proof_full_url'].forEach((v) {
-        if(v != null) {
+        if (v != null) {
           orderProofFullUrl!.add(v.toString());
         }
       });
     }
-    offlinePayment = json['offline_payment'] != null ? OfflinePayment.fromJson(json['offline_payment']) : null;
+    offlinePayment =
+        json['offline_payment'] != null
+            ? OfflinePayment.fromJson(json['offline_payment'])
+            : null;
     flashAdminDiscountAmount = json['flash_admin_discount_amount']?.toDouble();
     flashStoreDiscountAmount = json['flash_store_discount_amount']?.toDouble();
     extraPackagingAmount = json['extra_packaging_amount']?.toDouble();
@@ -251,6 +279,8 @@ class OrderModel {
     data['coupon_discount_title'] = couponDiscountTitle;
     data['payment_status'] = paymentStatus;
     data['order_status'] = orderStatus;
+    data['sub_status'] = subStatus;
+    data['sub_status_updated_at'] = subStatusUpdatedAt;
     data['total_tax_amount'] = totalTaxAmount;
     data['payment_method'] = paymentMethod;
     data['coupon_code'] = couponCode;
@@ -338,22 +368,22 @@ class DeliveryMan {
   String? lng;
   String? location;
 
-  DeliveryMan(
-      {this.id,
-        this.fName,
-        this.lName,
-        this.phone,
-        this.email,
-        this.imageFullUrl,
-        this.zoneId,
-        this.active,
-        this.available,
-        this.avgRating,
-        this.ratingCount,
-        this.lat,
-        this.lng,
-        this.location,
-      });
+  DeliveryMan({
+    this.id,
+    this.fName,
+    this.lName,
+    this.phone,
+    this.email,
+    this.imageFullUrl,
+    this.zoneId,
+    this.active,
+    this.available,
+    this.avgRating,
+    this.ratingCount,
+    this.lat,
+    this.lng,
+    this.location,
+  });
 
   DeliveryMan.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -401,13 +431,15 @@ class Payments {
   String? createdAt;
   String? updatedAt;
 
-  Payments({this.id,
+  Payments({
+    this.id,
     this.orderId,
     this.amount,
     this.paymentStatus,
     this.paymentMethod,
     this.createdAt,
-    this.updatedAt});
+    this.updatedAt,
+  });
 
   Payments.fromJson(Map<String, dynamic> json) {
     id = json['id'];

@@ -13,7 +13,15 @@ class WebDeliveryInstructionView extends StatefulWidget {
 }
 
 class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView> {
-  ExpansibleController controller = ExpansibleController();
+
+  static const List<IconData> _instructionIcons = [
+    Icons.phone_disabled_rounded,
+    Icons.notifications_off_rounded,
+    Icons.door_front_door_rounded,
+    Icons.security_rounded,
+    Icons.home_rounded,
+    Icons.desk_rounded,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +31,6 @@ class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView>
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          // boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
           border: Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.20)),
         ),
@@ -34,7 +41,7 @@ class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('add_more_delivery_instruction'.tr, style: robotoMedium),
+                    Text('add_delivery_instructions'.tr, style: robotoMedium),
                     IconButton(
                       padding: const EdgeInsets.all(0),
                       onPressed: (){
@@ -49,107 +56,57 @@ class _WebDeliveryInstructionViewState extends State<WebDeliveryInstructionView>
                 GridView.builder(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisSpacing: Dimensions.paddingSizeSmall,
-                    mainAxisSpacing: Dimensions.paddingSizeExtraSmall,
-                    childAspectRatio: 4,
-                    crossAxisCount:  3,
+                    mainAxisSpacing: Dimensions.paddingSizeSmall,
+                    childAspectRatio: 3.5,
+                    crossAxisCount: 3,
                   ),
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
                   itemCount: AppConstants.deliveryInstructionList.length,
                   itemBuilder: (context, index) {
-                    bool isSelected = checkoutController.selectedInstruction == index;
+                    bool isSelected = checkoutController.selectedInstructions.contains(index);
+                    final IconData icon = index < _instructionIcons.length
+                        ? _instructionIcons[index]
+                        : Icons.info_outline_rounded;
                     return InkWell(
                       onTap: () {
-                        checkoutController.setInstruction(index);
+                        checkoutController.toggleInstruction(index);
                       },
+                      borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                       child: Container(
                         padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                         decoration: BoxDecoration(
-                          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : Colors.grey[200],
+                          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.08) : Colors.grey[100],
                           borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                          border: Border.all(color: isSelected ?  Theme.of(context).primaryColor : Colors.transparent),
+                          border: Border.all(
+                            color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                            width: isSelected ? 1.5 : 1,
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.ac_unit, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor, size: 18),
+                            const SizedBox(width: 4),
+                            Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor, size: 18),
                             const SizedBox(width: Dimensions.paddingSizeSmall),
                             Expanded(
                               child: Text(
                                 AppConstants.deliveryInstructionList[index].tr,
-                                style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor),
+                                style: robotoMedium.copyWith(
+                                  fontSize: Dimensions.fontSizeSmall,
+                                  color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor,
+                                ),
                               ),
                             ),
+                            if (isSelected)
+                              Icon(Icons.check_circle, color: Theme.of(context).primaryColor, size: 18),
+                            const SizedBox(width: 4),
                           ],
                         ),
                       ),
                     );
                   },
                 ),
-                !checkoutController.isExpand ? const SizedBox() : const SizedBox( height: Dimensions.paddingSizeSmall),
-                
-                // ExpansionTile(
-                //   key: widget.key,
-                //   controller: controller,
-                //   title: Text('add_more_delivery_instruction'.tr, style: robotoMedium),
-                //   trailing:   Icon(orderController.isExpanded ? Icons.remove : Icons.add, size: 18),
-                //   tilePadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                //   onExpansionChanged: (value) => orderController.expandedUpdate(value),
-                //
-                //   children: [
-                //     ListView.builder(
-                //       shrinkWrap: true,
-                //       physics: const NeverScrollableScrollPhysics(),
-                //       itemCount: AppConstants.deliveryInstructionList.length,
-                //       itemBuilder: (context, index){
-                //         bool isSelected = orderController.selectedInstruction == index;
-                //         return InkWell(
-                //           onTap: () {
-                //             orderController.setInstruction(index);
-                //             if(controller.isExpanded) {
-                //               controller.collapse();
-                //             }
-                //           },
-                //           child: Container(
-                //             decoration: BoxDecoration(
-                //               color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.5) : Colors.grey[200],
-                //               borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                //               // boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)],
-                //             ),
-                //             padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                //             margin: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                //             child: Row(children: [
-                //               Icon(Icons.ac_unit, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor, size: 18),
-                //               const SizedBox(width: Dimensions.paddingSizeSmall),
-                //
-                //               Expanded(
-                //                 child: Text(
-                //                   AppConstants.deliveryInstructionList[index].tr,
-                //                   style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor),
-                //                 ),
-                //               ),
-                //             ]),
-                //           ),
-                //         );
-                //       }),
-                //   ],
-                // ),
-                //
-                // orderController.selectedInstruction != -1 ? Padding(
-                //     padding:  EdgeInsets.symmetric(vertical: orderController.isExpanded ? Dimensions.paddingSizeSmall : 0),
-                //     child: Row(children: [
-                //       Text(
-                //         AppConstants.deliveryInstructionList[orderController.selectedInstruction].tr,
-                //         style: robotoRegular.copyWith(color: Theme.of(context).primaryColor),
-                //       ),
-                //
-                //       InkWell(
-                //         onTap: ()=> orderController.setInstruction(-1),
-                //         child: const Icon(Icons.clear, size: 16),
-                //       ),
-                //     ])
-                // ) : const SizedBox(),
-
-
+                !checkoutController.isExpand ? const SizedBox() : const SizedBox(height: Dimensions.paddingSizeSmall),
 
               ]);
             }

@@ -44,6 +44,11 @@ class ItemService implements ItemServiceInterface {
   }
 
   @override
+  Future<List<Item>?> getRamadanFeaturedItemList(DataSourceEnum source) async {
+    return await (itemRepositoryInterface as dynamic).getRamadanFeaturedItemList(source: source);
+  }
+
+  @override
   Future<BasicMedicineModel?> getBasicMedicine(DataSourceEnum source) async {
     return await itemRepositoryInterface.getBasicMedicine(source);
   }
@@ -172,10 +177,15 @@ class ItemService implements ItemServiceInterface {
   @override
   Future<String> prepareVariationType(List<ChoiceOptions>? choiceOptions, List<int>? variationIndex) async{
     String variationType = '';
+    if(choiceOptions == null || choiceOptions.isEmpty || variationIndex == null || variationIndex.isEmpty) {
+      return variationType;
+    }
     if(!ModuleHelper.getModuleConfig(ModuleHelper.getModule() != null ? ModuleHelper.getModule()!.moduleType : ModuleHelper.getCacheModule()!.moduleType).newVariation!){
       List<String> variationList = [];
-      for (int index = 0; index < choiceOptions!.length; index++) {
-        variationList.add(choiceOptions[index].options![variationIndex![index]].replaceAll(' ', ''));
+      for (int index = 0; index < choiceOptions.length; index++) {
+        if(index < variationIndex.length && choiceOptions[index].options != null && variationIndex[index] < choiceOptions[index].options!.length) {
+          variationList.add(choiceOptions[index].options![variationIndex[index]].replaceAll(' ', ''));
+        }
       }
       bool isFirst = true;
       for (var variation in variationList) {

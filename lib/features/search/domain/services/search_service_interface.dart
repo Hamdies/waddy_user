@@ -5,7 +5,7 @@ import 'package:sixam_mart/features/search/domain/models/search_suggestion_model
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 
 abstract class SearchServiceInterface {
-  Future<Response> getSearchData(String? query, bool isStore);
+  Future<Response> getSearchData(String? query, bool isStore, {String? sortBy});
   Future<List<Item>?> getSuggestedItems();
   Future<bool> saveSearchHistory(List<String> searchHistories);
   List<String> getSearchAddress();

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>6amMart</string>
+	<string>Waddy</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>6amMart</string>
+	<string>Waddy</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -41,6 +41,14 @@
 				<string>app-1-491987943015-ios-4758bd1017291d268f1ec2</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-345656646156-ios-eea8e16a580552b3b72c29</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
@@ -49,7 +57,7 @@
 	<key>FacebookClientToken</key>
 	<string>6d874ccc2786e43042d78823eecd5b63</string>
 	<key>FacebookDisplayName</key>
-	<string>6amMart</string>
+	<string>Waddy</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fbapi</string>
@@ -58,13 +66,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app requires access to the camera to upload customer profile picture.</string>
+	<string>Waddy app requires access to the camera to upload customer profile picture.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs access to location to manage coverage of restaurant and when add a new address.</string>
+	<string>Waddy app needs access to location to manage coverage of restaurant and when add a new address.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app requires access to the camera to upload customer profile picture and voice.</string>
+	<string>Waddy app requires access to the camera to upload customer profile picture and voice.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app requires access to the gallery to upload customer profile picture.</string>
+	<string>Waddy app requires access to the gallery to upload customer profile picture.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -89,6 +97,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>LSApplicationCategoryType</key>
+	<string></string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Waddy app uses location to provide delivery coverage, order tracking, and address accuracy.</string>
 	<key>io.flutter.embedded_views_preview</key>
 	<string>YES</string>
 </dict>

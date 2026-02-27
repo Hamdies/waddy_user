@@ -116,12 +116,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   Future<ResponseModel> guestLogin() async {
-    _guestLoading = true;
-    update();
-    ResponseModel responseModel = await authServiceInterface.guestLogin();
-    _guestLoading = false;
-    update();
-    return responseModel;
+    return ResponseModel(false, 'Guest mode is disabled');
   }
 
   Future<ResponseModel> loginWithSocialMedia(
@@ -217,8 +212,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   bool isGuestLoggedIn() {
-    return authServiceInterface.isGuestLoggedIn() &&
-        !authServiceInterface.isLoggedIn();
+    return false;
   }
 
   String getGuestId() {
@@ -326,6 +320,15 @@ class AuthController extends GetxController implements GetxService {
 
   Future<String?> saveDeviceToken() async {
     return await authServiceInterface.saveDeviceToken();
+  }
+
+  Future<ResponseModel> toggleHidePhone({required bool hidePhone}) async {
+    _isLoading = true;
+    update();
+    ResponseModel responseModel = await authServiceInterface.toggleHidePhone(hidePhone: hidePhone);
+    _isLoading = false;
+    update();
+    return responseModel;
   }
 
   Future<void> firebaseVerifyPhoneNumber(

@@ -30,4 +30,5 @@ abstract class ItemServiceInterface {
   int selectedVariationLength(List<List<bool?>> selectedVariations, int index);
   double? getStartingPrice(Item item);
   Future<int> isExistInCartForBottomSheet(List<CartModel> cartList, int? itemId, int? cartIndex, List<List<bool?>>? variations);
+  Future<List<Item>?> getRamadanFeaturedItemList(DataSourceEnum source);
 }

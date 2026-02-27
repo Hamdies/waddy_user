@@ -3,7 +3,7 @@ import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 
 class AuthHelper {
   static bool isGuestLoggedIn() {
-    return Get.find<AuthController>().isGuestLoggedIn();
+    return false;
   }
 
   static String getGuestId() {

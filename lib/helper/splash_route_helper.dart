@@ -103,27 +103,13 @@ void _newlyRegisteredRouteProcess() {
   }
 }
 
-void _forGuestUserRouteProcess() {
-  if (AddressHelper.getUserAddressFromSharedPref() != null) {
-    Get.offNamed(RouteHelper.getInitialRoute(fromSplash: true));
-  } else {
-    Get.find<LocationController>().navigateToLocationScreen(
-      'splash',
-      offNamed: true,
-    );
-  }
-}
-
 Future<void> _handleUserRouting() async {
   if (AuthHelper.isLoggedIn()) {
     _forLoggedInUserRouteProcess();
   } else if (Get.find<SplashController>().showIntro() == true) {
     _newlyRegisteredRouteProcess();
-  } else if (AuthHelper.isGuestLoggedIn()) {
-    _forGuestUserRouteProcess();
   } else {
-    await Get.find<AuthController>().guestLogin();
-    _forGuestUserRouteProcess();
+    Get.offNamed(RouteHelper.getUnifiedAuthRoute());
   }
 }
 // }

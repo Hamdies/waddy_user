@@ -1,6 +1,4 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
-import 'package:sixam_mart/common/controllers/theme_controller.dart';
 import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
 import 'package:sixam_mart/features/home/controllers/advertisement_controller.dart';
@@ -8,14 +6,17 @@ import 'package:sixam_mart/features/home/controllers/home_controller.dart';
 import 'package:sixam_mart/features/home/widgets/all_store_filter_widget.dart';
 import 'package:sixam_mart/features/home/widgets/cashback_logo_widget.dart';
 import 'package:sixam_mart/features/home/widgets/cashback_dialog_widget.dart';
+import 'package:sixam_mart/features/home/widgets/current_order_widget.dart';
+import 'package:sixam_mart/features/home/widgets/home_app_bar_widget.dart';
+import 'package:sixam_mart/features/home/widgets/home_search_widget.dart';
 import 'package:sixam_mart/features/home/widgets/refer_bottom_sheet_widget.dart';
 import 'package:sixam_mart/features/item/controllers/campaign_controller.dart';
 import 'package:sixam_mart/features/category/controllers/category_controller.dart';
 import 'package:sixam_mart/features/coupon/controllers/coupon_controller.dart';
 import 'package:sixam_mart/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/location/controllers/location_controller.dart';
 import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
+import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/item/controllers/item_controller.dart';
 import 'package:sixam_mart/features/store/controllers/store_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -28,15 +29,13 @@ import 'package:sixam_mart/features/home/screens/modules/shop_home_screen.dart';
 import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
 import 'package:sixam_mart/features/rental_module/home/controllers/taxi_home_controller.dart';
 import 'package:sixam_mart/features/rental_module/home/screens/taxi_home_screen.dart';
+import 'package:sixam_mart/features/places/screens/places_home_screen.dart';
 import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/item_view.dart';
 import 'package:sixam_mart/common/widgets/menu_drawer.dart';
 import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
@@ -44,8 +43,12 @@ import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
 import 'package:sixam_mart/features/home/screens/web_new_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import 'package:sixam_mart/features/home/widgets/module_view.dart';
 import 'package:sixam_mart/features/parcel/screens/parcel_category_screen.dart';
+import 'package:sixam_mart/features/home/widgets/letter_dialog_widget.dart';
+import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
+import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_home_decorations_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -103,17 +106,32 @@ class HomeScreen extends StatefulWidget {
       Get.find<ItemController>().getRecommendedItemList(reload, 'all', false);
       Get.find<StoreController>().getStoreList(1, reload);
       Get.find<AdvertisementController>().getAdvertisementList();
+      if (Get.find<HomeController>().showRamadanDecorations) {
+        Get.find<ItemController>().getRamadanFeaturedItemList();
+      }
     }
     if (AuthHelper.isLoggedIn()) {
       await Get.find<ProfileController>().getUserInfo();
       Get.find<NotificationController>().getNotificationList(reload);
       Get.find<CouponController>().getCouponList();
+      Get.find<XpController>().getCurrentLevel(reload: reload);
+      Get.find<XpController>().getAllLevels(reload: reload);
+      Get.find<OrderController>().getRunningOrders(1);
     }
     Get.find<SplashController>().getModules();
     if (Get.find<SplashController>().module == null &&
         Get.find<SplashController>().configModel!.module == null) {
       Get.find<BannerController>().getFeaturedBanner();
-      Get.find<StoreController>().getFeaturedStoreList();
+      await Get.find<StoreController>().getFeaturedStoreList();
+      Get.find<StoreController>().getRecommendedStoreList();
+      Get.find<ItemController>().getPopularItemList(
+        offset: '1',
+        firstTimeCategoryLoad: true,
+      );
+
+      // Fetch recommended items for all featured stores
+      _fetchFeaturedStoresRecommendedItems();
+
       if (AuthHelper.isLoggedIn()) {
         Get.find<AddressController>().getAddressList();
       }
@@ -141,6 +159,19 @@ class HomeScreen extends StatefulWidget {
     }
   }
 
+  static void _fetchFeaturedStoresRecommendedItems() {
+    final storeController = Get.find<StoreController>();
+    final featuredStores = storeController.featuredStoreList;
+
+    if (featuredStores != null && featuredStores.isNotEmpty) {
+      for (var store in featuredStores) {
+        if (store.id != null) {
+          storeController.fetchStoreRecommendedItems(store.id!);
+        }
+      }
+    }
+  }
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -161,6 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Get.find<SplashController>().showReferBottomSheet) {
         _showReferBottomSheet();
       }
+
+      // Show welcome letter dialog only once
+      _checkAndShowWelcomeLetter();
     });
 
     if (!ResponsiveHelper.isWeb()) {
@@ -175,6 +209,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==
           ScrollDirection.reverse) {
+        // Scrolling down - hide bottom nav
+        Get.find<HomeController>().onScrollDown();
         if (Get.find<HomeController>().showFavButton) {
           Get.find<HomeController>().changeFavVisibility();
           Future.delayed(
@@ -183,6 +219,8 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
       } else {
+        // Scrolling up - show bottom nav
+        Get.find<HomeController>().onScrollUp();
         if (Get.find<HomeController>().showFavButton) {
           Get.find<HomeController>().changeFavVisibility();
           Future.delayed(
@@ -192,6 +230,53 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     });
+  }
+
+  Future<void> _checkAndShowWelcomeLetter() async {
+    // Only show the welcome letter dialog if the user is logged in and has 0 XP
+    // This ensures only true "founding members" (users who haven't earned any XP yet) see it
+    if (!AuthHelper.isLoggedIn() || !mounted) return;
+
+    final xpController = Get.find<XpController>();
+
+    // Wait for XP data to finish loading (with timeout)
+    int waitAttempts = 0;
+    const maxAttempts = 20; // 20 * 200ms = 4 seconds max wait
+
+    while (xpController.currentLevel == null &&
+        waitAttempts < maxAttempts &&
+        mounted) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      waitAttempts++;
+    }
+
+    // If data still not loaded after waiting, don't show dialog
+    // (better to not show than to show incorrectly)
+    if (xpController.currentLevel == null || !mounted) {
+      return;
+    }
+
+    // Check if user has exactly 0 XP (founding member who hasn't engaged yet)
+    final currentXp = xpController.currentLevel!.currentXp;
+
+    // Debug log to verify XP value
+    print('_checkAndShowWelcomeLetter: currentXp = $currentXp');
+
+    // Only show the dialog if user has EXACTLY 0 XP
+    if (currentXp == 0 && mounted) {
+      // Wait a bit for the UI to settle
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const LetterDialogWidget(),
+        );
+        // Note: No longer marking as "seen" - dialog will show again
+        // on app open as long as user has 0 XP (until they engage)
+      }
+    }
   }
 
   @override
@@ -259,32 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
             splashController.moduleList!.length == 1) {
           splashController.switchModule(0, true);
         }
-        bool showMobileModule =
-            !ResponsiveHelper.isDesktop(context) &&
-            splashController.module == null &&
-            splashController.configModel!.module == null;
-        bool isParcel =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() ==
-                AppConstants.parcel;
-        bool isPharmacy =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() ==
-                AppConstants.pharmacy;
-        bool isFood =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() == AppConstants.food;
-        bool isShop =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() ==
-                AppConstants.ecommerce;
-        bool isGrocery =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() ==
-                AppConstants.grocery;
-        bool isTaxi =
-            splashController.module != null &&
-            splashController.module!.moduleType.toString() == AppConstants.taxi;
+
+        final moduleState = _ModuleState.from(splashController, context);
 
         return GetBuilder<HomeController>(
           builder: (homeController) {
@@ -297,628 +358,299 @@ class _HomeScreenState extends State<HomeScreen> {
               endDrawerEnableOpenDragGesture: false,
               backgroundColor: Theme.of(context).colorScheme.surface,
               body:
-                  isParcel
+                  moduleState.isParcel
                       ? const ParcelCategoryScreen()
-                      : SafeArea(
-                        child: RefreshIndicator(
-                          onRefresh: () async {
-                            splashController.setRefreshing(true);
-                            if (Get.find<SplashController>().module != null &&
-                                !isTaxi) {
-                              await Get.find<LocationController>()
-                                  .syncZoneData();
-                              await Get.find<BannerController>().getBannerList(
-                                true,
-                              );
-                              if (isGrocery) {
-                                await Get.find<FlashSaleController>()
-                                    .getFlashSale(true, true);
-                              }
-                              await Get.find<BannerController>()
-                                  .getPromotionalBannerList(true);
-                              await Get.find<ItemController>()
-                                  .getDiscountedItemList(offset: '1');
-                              await Get.find<CategoryController>()
-                                  .getCategoryList(true);
-                              await Get.find<StoreController>()
-                                  .getPopularStoreList(true, 'all', false);
-                              await Get.find<CampaignController>()
-                                  .getItemCampaignList(true);
-                              Get.find<CampaignController>()
-                                  .getBasicCampaignList(true);
-                              await Get.find<ItemController>()
-                                  .getPopularItemList(offset: '1');
-                              await Get.find<StoreController>()
-                                  .getLatestStoreList(true, 'all', false);
-                              await Get.find<StoreController>()
-                                  .getTopOfferStoreList(true, false);
-                              await Get.find<ItemController>()
-                                  .getReviewedItemList(offset: '1');
-                              await Get.find<StoreController>().getStoreList(
-                                1,
-                                true,
-                              );
-                              Get.find<AdvertisementController>()
-                                  .getAdvertisementList();
-                              if (AuthHelper.isLoggedIn()) {
-                                await Get.find<ProfileController>()
-                                    .getUserInfo();
-                                await Get.find<NotificationController>()
-                                    .getNotificationList(true);
-                                Get.find<CouponController>().getCouponList();
-                              }
-                              if (isPharmacy) {
-                                Get.find<ItemController>().getBasicMedicine(
-                                  true,
-                                  true,
-                                );
-                                Get.find<ItemController>().getCommonConditions(
-                                  true,
-                                );
-                              }
-                              if (isShop) {
-                                await Get.find<FlashSaleController>()
-                                    .getFlashSale(true, true);
-                                Get.find<ItemController>()
-                                    .getFeaturedCategoriesItemList(true, true);
-                                Get.find<BrandsController>().getBrandList();
-                              }
-                            } else if (isTaxi) {
-                              await loadTaxiApis();
-                            } else {
-                              await Get.find<BannerController>()
-                                  .getFeaturedBanner();
-                              await Get.find<SplashController>().getModules();
-                              if (AuthHelper.isLoggedIn()) {
-                                await Get.find<AddressController>()
-                                    .getAddressList();
-                              }
-                              await Get.find<StoreController>()
-                                  .getFeaturedStoreList();
-                            }
-                            splashController.setRefreshing(false);
-                          },
-                          child:
-                              ResponsiveHelper.isDesktop(context)
-                                  ? WebNewHomeScreen(
-                                    scrollController: _scrollController,
-                                  )
-                                  : CustomScrollView(
-                                    controller: _scrollController,
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    slivers: [
-                                      /// App Bar
-                                      SliverAppBar(
-                                        floating: true,
-                                        elevation: 0,
-                                        automaticallyImplyLeading: false,
-                                        surfaceTintColor:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.surface,
-                                        backgroundColor:
-                                            ResponsiveHelper.isDesktop(context)
-                                                ? Colors.transparent
-                                                : Theme.of(
-                                                  context,
-                                                ).colorScheme.surface,
-                                        title: Center(
-                                          child: Container(
-                                            width: Dimensions.webMaxWidth,
-                                            height:
-                                                Get.find<
-                                                          LocalizationController
-                                                        >()
-                                                        .isLtr
-                                                    ? 60
-                                                    : 70,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.surface,
-                                            child: Row(
-                                              children: [
-                                                (splashController.module !=
-                                                            null &&
-                                                        splashController
-                                                                .configModel!
-                                                                .module ==
-                                                            null &&
-                                                        splashController
-                                                                .moduleList !=
-                                                            null &&
-                                                        splashController
-                                                                .moduleList!
-                                                                .length !=
-                                                            1)
-                                                    ? InkWell(
-                                                      onTap: () {
-                                                        splashController
-                                                            .removeModule();
-                                                        Get.find<
-                                                              StoreController
-                                                            >()
-                                                            .resetStoreData();
-                                                      },
-                                                      child: Image.asset(
-                                                        Images.moduleIcon,
-                                                        height: 25,
-                                                        width: 25,
-                                                        color:
-                                                            Theme.of(context)
-                                                                .textTheme
-                                                                .bodyLarge!
-                                                                .color,
-                                                      ),
-                                                    )
-                                                    : const SizedBox(),
-                                                SizedBox(
-                                                  width:
-                                                      (splashController
-                                                                      .module !=
-                                                                  null &&
-                                                              splashController
-                                                                      .configModel!
-                                                                      .module ==
-                                                                  null &&
-                                                              splashController
-                                                                      .moduleList !=
-                                                                  null &&
-                                                              splashController
-                                                                      .moduleList!
-                                                                      .length !=
-                                                                  1)
-                                                          ? Dimensions
-                                                              .paddingSizeSmall
-                                                          : 0,
-                                                ),
-
-                                                Expanded(
-                                                  child: InkWell(
-                                                    onTap:
-                                                        () => Get.find<
-                                                              LocationController
-                                                            >()
-                                                            .navigateToLocationScreen(
-                                                              'home',
-                                                            ),
-                                                    child: Padding(
-                                                      padding: EdgeInsets.symmetric(
-                                                        vertical:
-                                                            Dimensions
-                                                                .paddingSizeSmall,
-                                                        horizontal:
-                                                            ResponsiveHelper.isDesktop(
-                                                                  context,
-                                                                )
-                                                                ? Dimensions
-                                                                    .paddingSizeSmall
-                                                                : 0,
-                                                      ),
-                                                      child: GetBuilder<
-                                                        LocationController
-                                                      >(
-                                                        builder: (
-                                                          locationController,
-                                                        ) {
-                                                          return Column(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              Text(
-                                                                AuthHelper.isLoggedIn()
-                                                                    ? AddressHelper.getUserAddressFromSharedPref()!
-                                                                        .addressType!
-                                                                        .tr
-                                                                    : 'your_location'
-                                                                        .tr,
-                                                                style: robotoMedium.copyWith(
-                                                                  color:
-                                                                      Theme.of(
-                                                                            context,
-                                                                          )
-                                                                          .textTheme
-                                                                          .bodyLarge!
-                                                                          .color,
-                                                                  fontSize:
-                                                                      Dimensions
-                                                                          .fontSizeDefault,
-                                                                ),
-                                                                maxLines: 1,
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                              ),
-
-                                                              Row(
-                                                                children: [
-                                                                  Flexible(
-                                                                    child: Text(
-                                                                      AddressHelper.getUserAddressFromSharedPref()!
-                                                                          .address!,
-                                                                      style: robotoRegular.copyWith(
-                                                                        color:
-                                                                            Theme.of(
-                                                                              context,
-                                                                            ).disabledColor,
-                                                                        fontSize:
-                                                                            Dimensions.fontSizeSmall,
-                                                                      ),
-                                                                      maxLines:
-                                                                          1,
-                                                                      overflow:
-                                                                          TextOverflow
-                                                                              .ellipsis,
-                                                                    ),
-                                                                  ),
-
-                                                                  Icon(
-                                                                    Icons
-                                                                        .expand_more,
-                                                                    color:
-                                                                        Theme.of(
-                                                                          context,
-                                                                        ).disabledColor,
-                                                                    size: 18,
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ],
-                                                          );
-                                                        },
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                InkWell(
-                                                  child: GetBuilder<
-                                                    NotificationController
-                                                  >(
-                                                    builder: (
-                                                      notificationController,
-                                                    ) {
-                                                      return Stack(
-                                                        children: [
-                                                          Icon(
-                                                            CupertinoIcons.bell,
-                                                            size: 25,
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .textTheme
-                                                                    .bodyLarge!
-                                                                    .color,
-                                                          ),
-                                                          notificationController
-                                                                  .hasNotification
-                                                              ? Positioned(
-                                                                top: 0,
-                                                                right: 0,
-                                                                child: Container(
-                                                                  height: 10,
-                                                                  width: 10,
-                                                                  decoration: BoxDecoration(
-                                                                    color:
-                                                                        Theme.of(
-                                                                          context,
-                                                                        ).primaryColor,
-                                                                    shape:
-                                                                        BoxShape
-                                                                            .circle,
-                                                                    border: Border.all(
-                                                                      width: 1,
-                                                                      color:
-                                                                          Theme.of(
-                                                                            context,
-                                                                          ).cardColor,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              )
-                                                              : const SizedBox(),
-                                                        ],
-                                                      );
-                                                    },
-                                                  ),
-                                                  onTap:
-                                                      () => Get.toNamed(
-                                                        RouteHelper.getNotificationRoute(),
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        actions: const [SizedBox()],
-                                      ),
-
-                                      /// Search Button
-                                      !showMobileModule && !isTaxi
-                                          ? SliverPersistentHeader(
-                                            pinned: true,
-                                            delegate: SliverDelegate(
-                                              callback: (val) {},
-                                              child: Center(
-                                                child: Container(
-                                                  height: 50,
-                                                  width: Dimensions.webMaxWidth,
-                                                  color:
-                                                      searchBgShow
-                                                          ? Get.find<
-                                                                    ThemeController
-                                                                  >()
-                                                                  .darkTheme
-                                                              ? Theme.of(
-                                                                    context,
-                                                                  )
-                                                                  .colorScheme
-                                                                  .surface
-                                                              : Theme.of(
-                                                                context,
-                                                              ).cardColor
-                                                          : null,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal:
-                                                            Dimensions
-                                                                .paddingSizeSmall,
-                                                      ),
-                                                  child:
-                                                      isTaxi
-                                                          ? Container(
-                                                            color:
-                                                                Theme.of(
-                                                                  context,
-                                                                ).primaryColor,
-                                                          )
-                                                          : InkWell(
-                                                            onTap:
-                                                                () => Get.toNamed(
-                                                                  RouteHelper.getSearchRoute(),
-                                                                ),
-                                                            child: Container(
-                                                              padding: const EdgeInsets.symmetric(
-                                                                horizontal:
-                                                                    Dimensions
-                                                                        .paddingSizeSmall,
-                                                              ),
-                                                              margin:
-                                                                  const EdgeInsets.symmetric(
-                                                                    vertical: 3,
-                                                                  ),
-                                                              decoration: BoxDecoration(
-                                                                color:
-                                                                    Theme.of(
-                                                                      context,
-                                                                    ).cardColor,
-                                                                border: Border.all(
-                                                                  color: Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .primaryColor
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0.2,
-                                                                      ),
-                                                                  width: 1,
-                                                                ),
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      25,
-                                                                    ),
-                                                                boxShadow: const [
-                                                                  BoxShadow(
-                                                                    color:
-                                                                        Colors
-                                                                            .black12,
-                                                                    blurRadius:
-                                                                        5,
-                                                                    spreadRadius:
-                                                                        1,
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                              child: Row(
-                                                                children: [
-                                                                  Icon(
-                                                                    CupertinoIcons
-                                                                        .search,
-                                                                    size: 25,
-                                                                    color:
-                                                                        Theme.of(
-                                                                          context,
-                                                                        ).primaryColor,
-                                                                  ),
-                                                                  const SizedBox(
-                                                                    width:
-                                                                        Dimensions
-                                                                            .paddingSizeExtraSmall,
-                                                                  ),
-                                                                  Expanded(
-                                                                    child: Text(
-                                                                      Get.find<
-                                                                                SplashController
-                                                                              >()
-                                                                              .configModel!
-                                                                              .moduleConfig!
-                                                                              .module!
-                                                                              .showRestaurantText!
-                                                                          ? 'search_food_or_restaurant'
-                                                                              .tr
-                                                                          : 'search_item_or_store'
-                                                                              .tr,
-                                                                      style: robotoRegular.copyWith(
-                                                                        fontSize:
-                                                                            Dimensions.fontSizeSmall,
-                                                                        color:
-                                                                            Theme.of(
-                                                                              context,
-                                                                            ).hintColor,
-                                                                      ),
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-                                                          ),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                          : const SliverToBoxAdapter(),
-
-                                      SliverToBoxAdapter(
-                                        child: Center(
-                                          child: SizedBox(
-                                            width: Dimensions.webMaxWidth,
-                                            child:
-                                                !showMobileModule
-                                                    ? Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        isGrocery
-                                                            ? const GroceryHomeScreen()
-                                                            : isPharmacy
-                                                            ? const PharmacyHomeScreen()
-                                                            : isFood
-                                                            ? const FoodHomeScreen()
-                                                            : isShop
-                                                            ? const ShopHomeScreen()
-                                                            : isTaxi
-                                                            ? const TaxiHomeScreen()
-                                                            : const SizedBox(),
-                                                      ],
-                                                    )
-                                                    : ModuleView(
-                                                      splashController:
-                                                          splashController,
-                                                    ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      !showMobileModule && !isTaxi
-                                          ? SliverPersistentHeader(
-                                            key: _headerKey,
-                                            pinned: true,
-                                            delegate: SliverDelegate(
-                                              height: 85,
-                                              callback: (val) {
-                                                searchBgShow = val;
-                                              },
-                                              child:
-                                                  const AllStoreFilterWidget(),
-                                            ),
-                                          )
-                                          : const SliverToBoxAdapter(),
-
-                                      SliverToBoxAdapter(
-                                        child:
-                                            !showMobileModule && !isTaxi
-                                                ? Center(
-                                                  child: GetBuilder<
-                                                    StoreController
-                                                  >(
-                                                    builder: (storeController) {
-                                                      return Padding(
-                                                        padding: EdgeInsets.only(
-                                                          bottom:
-                                                              ResponsiveHelper.isDesktop(
-                                                                    context,
-                                                                  )
-                                                                  ? 0
-                                                                  : 100,
-                                                        ),
-                                                        child: PaginatedListView(
-                                                          scrollController:
-                                                              _scrollController,
-                                                          totalSize:
-                                                              storeController
-                                                                  .storeModel
-                                                                  ?.totalSize,
-                                                          offset:
-                                                              storeController
-                                                                  .storeModel
-                                                                  ?.offset,
-                                                          onPaginate:
-                                                              (
-                                                                int? offset,
-                                                              ) async =>
-                                                                  await storeController
-                                                                      .getStoreList(
-                                                                        offset!,
-                                                                        false,
-                                                                      ),
-                                                          itemView: ItemsView(
-                                                            isStore: true,
-                                                            items: null,
-                                                            isFoodOrGrocery:
-                                                                (isFood ||
-                                                                    isGrocery),
-                                                            stores:
-                                                                storeController
-                                                                    .storeModel
-                                                                    ?.stores,
-                                                            padding: EdgeInsets.symmetric(
-                                                              horizontal:
-                                                                  ResponsiveHelper.isDesktop(
-                                                                        context,
-                                                                      )
-                                                                      ? Dimensions
-                                                                          .paddingSizeExtraSmall
-                                                                      : Dimensions
-                                                                          .paddingSizeSmall,
-                                                              vertical:
-                                                                  ResponsiveHelper.isDesktop(
-                                                                        context,
-                                                                      )
-                                                                      ? Dimensions
-                                                                          .paddingSizeExtraSmall
-                                                                      : Dimensions
-                                                                          .paddingSizeDefault,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                                )
-                                                : const SizedBox(),
-                                      ),
-                                    ],
-                                  ),
+                      : Container(
+                        decoration: BoxDecoration(
+                          // gradient: LinearGradient(
+                          //   begin: Alignment.topCenter,
+                          //   end: Alignment.bottomCenter,
+                          //   colors: [
+                          //     Theme.of(context).colorScheme.secondary
+                          //         .withOpacity(0.05), // soft neon green
+                          //     Theme.of(context).colorScheme.secondary
+                          //         .withOpacity(0.08), // soft teal
+                          //     Theme.of(context).colorScheme.surface, // white
+                          //   ],
+                          //   stops: const [0.0, 0.08, 0.15],
+                          // ),
+                        ),
+                        child: SafeArea(
+                          child: RefreshIndicator(
+                            onRefresh:
+                                () => _handleRefresh(
+                                  splashController,
+                                  moduleState,
+                                ),
+                            child:
+                                ResponsiveHelper.isDesktop(context)
+                                    ? WebNewHomeScreen(
+                                      scrollController: _scrollController,
+                                    )
+                                    : _buildMobileHomeContent(
+                                      context,
+                                      splashController,
+                                      moduleState,
+                                    ),
+                          ),
                         ),
                       ),
-
-              floatingActionButton:
-                  AuthHelper.isLoggedIn() &&
-                          homeController.cashBackOfferList != null &&
-                          homeController.cashBackOfferList!.isNotEmpty
-                      ? homeController.showFavButton
-                          ? Padding(
-                            padding: EdgeInsets.only(
-                              bottom: 50.0,
-                              right:
-                                  ResponsiveHelper.isDesktop(context) ? 50 : 0,
-                            ),
-                            child: InkWell(
-                              onTap:
-                                  () =>
-                                      Get.dialog(const CashBackDialogWidget()),
-                              child: const CashBackLogoWidget(),
-                            ),
-                          )
-                          : null
-                      : null,
+              floatingActionButton: _buildFloatingActionButton(homeController),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildMobileHomeContent(
+    BuildContext context,
+    SplashController splashController,
+    _ModuleState moduleState,
+  ) {
+    // Wrap with Ramadan decorations for the dashboard (module view)
+    final content = CustomScrollView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        // Modern App Bar with Greeting (hide for grocery module)
+        if (!moduleState.isGrocery && !moduleState.isFood)
+          const SliverToBoxAdapter(child: HomeAppBarWidget()),
+
+        // Current Order Status (show at top when there's an active order)
+        if (!moduleState.showMobileModule &&
+            !moduleState.isGrocery &&
+            !moduleState.isFood)
+          const SliverToBoxAdapter(child: CurrentOrderWidget()),
+
+        // Search Bar (hide for grocery module)
+        if (!moduleState.showMobileModule &&
+            !moduleState.isTaxi &&
+            !moduleState.isGrocery &&
+            !moduleState.isFood)
+          const SliverToBoxAdapter(child: HomeSearchWidget()),
+
+        // Module Content
+        SliverToBoxAdapter(
+          child: Center(
+            child: SizedBox(
+              width: Dimensions.webMaxWidth,
+              child:
+                  !moduleState.showMobileModule
+                      ? _buildModuleContent(moduleState)
+                      : ModuleView(splashController: splashController),
+            ),
+          ),
+        ),
+
+        // Store Filter (hide for grocery — grocery has its own inline filtered list)
+        if (!moduleState.showMobileModule &&
+            !moduleState.isTaxi &&
+            !moduleState.isGrocery &&
+            !moduleState.isFood)
+          SliverPersistentHeader(
+            key: _headerKey,
+            pinned: true,
+            delegate: SliverDelegate(
+              height: 100,
+              callback: (val) => searchBgShow = val,
+              child: const AllStoreFilterWidget(),
+            ),
+          ),
+
+        // Store List (hide for grocery — grocery has its own inline filtered list)
+        if (!moduleState.showMobileModule &&
+            !moduleState.isTaxi &&
+            !moduleState.isGrocery &&
+            !moduleState.isFood)
+          SliverToBoxAdapter(child: _buildStoreList(moduleState)),
+      ],
+    );
+
+    // Only show Ramadan decorations on the main dashboard (module view)
+    if (moduleState.showMobileModule) {
+      return RamadanHomeDecorationsWidget(
+        scrollController: _scrollController,
+        child: content,
+      );
+    }
+
+    return content;
+  }
+
+  Widget _buildModuleContent(_ModuleState state) {
+    if (state.isGrocery) return const GroceryHomeScreen();
+    if (state.isPharmacy) return const PharmacyHomeScreen();
+    if (state.isFood) return const FoodHomeScreen();
+    if (state.isShop) return const ShopHomeScreen();
+    if (state.isTaxi) return const TaxiHomeScreen();
+    if (state.isPlaces) return const PlacesHomeScreen();
+    return const SizedBox();
+  }
+
+  Widget _buildStoreList(_ModuleState state) {
+    return Center(
+      child: GetBuilder<StoreController>(
+        builder: (storeController) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: ResponsiveHelper.isDesktop(Get.context!) ? 0 : 100,
+            ),
+            child: PaginatedListView(
+              scrollController: _scrollController,
+              totalSize: storeController.storeModel?.totalSize,
+              offset: storeController.storeModel?.offset,
+              onPaginate:
+                  (int? offset) async =>
+                      await storeController.getStoreList(offset!, false),
+              itemView: ItemsView(
+                isStore: true,
+                items: null,
+                isFoodOrGrocery: state.isFood || state.isGrocery,
+                stores: storeController.storeModel?.stores,
+                padding: EdgeInsets.symmetric(
+                  horizontal:
+                      ResponsiveHelper.isDesktop(Get.context!)
+                          ? Dimensions.paddingSizeExtraSmall
+                          : Dimensions.paddingSizeSmall,
+                  vertical:
+                      ResponsiveHelper.isDesktop(Get.context!)
+                          ? Dimensions.paddingSizeExtraSmall
+                          : Dimensions.paddingSizeDefault,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget? _buildFloatingActionButton(HomeController homeController) {
+    if (AuthHelper.isLoggedIn() &&
+        homeController.cashBackOfferList != null &&
+        homeController.cashBackOfferList!.isNotEmpty &&
+        homeController.showFavButton) {
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: 50.0,
+          right: ResponsiveHelper.isDesktop(Get.context!) ? 50 : 0,
+        ),
+        child: InkWell(
+          onTap: () => Get.dialog(const CashBackDialogWidget()),
+          child: const CashBackLogoWidget(),
+        ),
+      );
+    }
+    return null;
+  }
+
+  Future<void> _handleRefresh(
+    SplashController splashController,
+    _ModuleState state,
+  ) async {
+    splashController.setRefreshing(true);
+
+    if (Get.find<SplashController>().module != null && !state.isTaxi) {
+      await _refreshModuleData(state);
+    } else if (state.isTaxi) {
+      await loadTaxiApis();
+    } else {
+      await _refreshHomeData();
+    }
+
+    splashController.setRefreshing(false);
+  }
+
+  Future<void> _refreshModuleData(_ModuleState state) async {
+    await Get.find<LocationController>().syncZoneData();
+    await Get.find<BannerController>().getBannerList(true);
+
+    if (state.isGrocery) {
+      await Get.find<FlashSaleController>().getFlashSale(true, true);
+    }
+
+    await Get.find<BannerController>().getPromotionalBannerList(true);
+    await Get.find<ItemController>().getDiscountedItemList(offset: '1');
+    await Get.find<CategoryController>().getCategoryList(true);
+    await Get.find<StoreController>().getPopularStoreList(true, 'all', false);
+    await Get.find<CampaignController>().getItemCampaignList(true);
+    Get.find<CampaignController>().getBasicCampaignList(true);
+    await Get.find<ItemController>().getPopularItemList(offset: '1');
+    await Get.find<StoreController>().getLatestStoreList(true, 'all', false);
+    await Get.find<StoreController>().getTopOfferStoreList(true, false);
+    await Get.find<ItemController>().getReviewedItemList(offset: '1');
+    await Get.find<StoreController>().getStoreList(1, true);
+    Get.find<AdvertisementController>().getAdvertisementList();
+
+    if (AuthHelper.isLoggedIn()) {
+      await Get.find<ProfileController>().getUserInfo();
+      await Get.find<NotificationController>().getNotificationList(true);
+      Get.find<CouponController>().getCouponList();
+      Get.find<OrderController>().getRunningOrders(1, isUpdate: true);
+    }
+
+    if (state.isPharmacy) {
+      Get.find<ItemController>().getBasicMedicine(true, true);
+      Get.find<ItemController>().getCommonConditions(true);
+    }
+
+    if (state.isShop) {
+      await Get.find<FlashSaleController>().getFlashSale(true, true);
+      Get.find<ItemController>().getFeaturedCategoriesItemList(true, true);
+      Get.find<BrandsController>().getBrandList();
+    }
+  }
+
+  Future<void> _refreshHomeData() async {
+    await Get.find<BannerController>().getFeaturedBanner();
+    await Get.find<SplashController>().getModules();
+    if (AuthHelper.isLoggedIn()) {
+      await Get.find<AddressController>().getAddressList();
+      Get.find<OrderController>().getRunningOrders(1, isUpdate: true);
+    }
+    await Get.find<StoreController>().getFeaturedStoreList();
+  }
+}
+
+/// Helper class to manage module state
+class _ModuleState {
+  final bool showMobileModule;
+  final bool isParcel;
+  final bool isPharmacy;
+  final bool isFood;
+  final bool isShop;
+  final bool isGrocery;
+  final bool isTaxi;
+  final bool isPlaces;
+
+  const _ModuleState({
+    required this.showMobileModule,
+    required this.isParcel,
+    required this.isPharmacy,
+    required this.isFood,
+    required this.isShop,
+    required this.isGrocery,
+    required this.isTaxi,
+    required this.isPlaces,
+  });
+
+  factory _ModuleState.from(SplashController controller, BuildContext context) {
+    final module = controller.module;
+    final moduleType = module?.moduleType.toString();
+
+    return _ModuleState(
+      showMobileModule:
+          !ResponsiveHelper.isDesktop(context) &&
+          module == null &&
+          controller.configModel!.module == null,
+      isParcel: module != null && moduleType == AppConstants.parcel,
+      isPharmacy: module != null && moduleType == AppConstants.pharmacy,
+      isFood: module != null && moduleType == AppConstants.food,
+      isShop: module != null && moduleType == AppConstants.ecommerce,
+      isGrocery: module != null && moduleType == AppConstants.grocery,
+      isTaxi: module != null && moduleType == AppConstants.taxi,
+      isPlaces: module != null && moduleType == AppConstants.places,
     );
   }
 }
@@ -937,7 +669,7 @@ class SliverDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    isPinned = shrinkOffset == maxExtent /*|| shrinkOffset < maxExtent*/;
+    isPinned = shrinkOffset == maxExtent;
     callback!(isPinned);
     return child;
   }

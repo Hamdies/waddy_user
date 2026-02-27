@@ -182,7 +182,7 @@ class _WebNewHomeScreenState extends State<WebNewHomeScreen> {
           SliverPersistentHeader(
             pinned: true,
             delegate: SliverDelegate(
-              height: 85,
+              height: 100,
               child: const AllStoreFilterWidget(),
             ),
           ),

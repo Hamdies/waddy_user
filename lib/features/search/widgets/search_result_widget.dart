@@ -70,7 +70,12 @@ class SearchResultWidgetState extends State<SearchResultWidget> with TickerProvi
                   prices.sort();
                 }
                 double? maxValue = prices.isNotEmpty ? prices[prices.length-1] : 1000;
-                Get.dialog(FilterWidget(maxValue: maxValue, isStore: Get.find<search.SearchController>().isStore));
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.transparent,
+                  isScrollControlled: true,
+                  builder: (_) => FilterWidget(maxValue: maxValue, isStore: Get.find<search.SearchController>().isStore),
+                );
               },
               child: const Icon(Icons.filter_list),
             ) : const SizedBox(),

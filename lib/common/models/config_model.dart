@@ -84,6 +84,7 @@ class ConfigModel {
   AdminFreeDelivery? adminFreeDelivery;
   bool? isSmsActive;
   bool? isMailActive;
+  bool? ramadanMode;
 
   ConfigModel({
     this.businessName,
@@ -168,6 +169,7 @@ class ConfigModel {
     this.adminFreeDelivery,
     this.isSmsActive,
     this.isMailActive,
+    this.ramadanMode,
   });
 
   ConfigModel.fromJson(Map<String, dynamic> json) {
@@ -279,6 +281,7 @@ class ConfigModel {
     adminFreeDelivery = json['admin_free_delivery'] != null ? AdminFreeDelivery.fromJson(json['admin_free_delivery']) : null;
     isSmsActive = json['is_sms_active'];
     isMailActive = json['is_mail_active'];
+    ramadanMode = json['ramadan_mode'] == 1 || json['ramadan_mode'] == true;
   }
 
   Map<String, dynamic> toJson() {
@@ -388,6 +391,7 @@ class ConfigModel {
     }
     data['is_sms_active'] = isSmsActive;
     data['is_mail_active'] = isMailActive;
+    data['ramadan_mode'] = ramadanMode;
     return data;
   }
 }

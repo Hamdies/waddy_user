@@ -125,6 +125,15 @@ class CheckoutController extends GetxController implements GetxService {
   int _selectedInstruction = -1;
   int get selectedInstruction => _selectedInstruction;
 
+  List<int> _selectedInstructions = [];
+  List<int> get selectedInstructions => _selectedInstructions;
+
+  String? _voiceInstructionPath;
+  String? get voiceInstructionPath => _voiceInstructionPath;
+
+  bool _saveInstructionForAddress = false;
+  bool get saveInstructionForAddress => _saveInstructionForAddress;
+
   bool _isDmTipSave = false;
   bool get isDmTipSave => _isDmTipSave;
 
@@ -175,6 +184,9 @@ class CheckoutController extends GetxController implements GetxService {
   void initAdditionData(){
     noteController.clear();
     _selectedInstruction = -1;
+    _selectedInstructions = [];
+    _voiceInstructionPath = null;
+    _saveInstructionForAddress = false;
   }
 
   Future<void> initCheckoutData(int? storeId) async {
@@ -403,6 +415,32 @@ class CheckoutController extends GetxController implements GetxService {
     update();
   }
 
+  void toggleInstruction(int index) {
+    if (_selectedInstructions.contains(index)) {
+      _selectedInstructions.remove(index);
+    } else {
+      _selectedInstructions.add(index);
+    }
+    update();
+  }
+
+  void setVoiceInstructionPath(String? path) {
+    _voiceInstructionPath = path;
+    update();
+  }
+
+  void toggleSaveInstructionForAddress() {
+    _saveInstructionForAddress = !_saveInstructionForAddress;
+    update();
+  }
+
+  String getSelectedInstructionsText() {
+    if (_selectedInstructions.isEmpty) return '';
+    return _selectedInstructions
+        .map((i) => AppConstants.deliveryInstructionList[i])
+        .join(', ');
+  }
+
   void toggleDmTipSave() {
     _isDmTipSave = !_isDmTipSave;
     update();
@@ -419,6 +457,9 @@ class CheckoutController extends GetxController implements GetxService {
     List<MultipartBody>? multiParts = [];
     for(XFile file in orderAttachment!) {
       multiParts.add(MultipartBody('order_attachment[]', file));
+    }
+    if (_voiceInstructionPath != null) {
+      multiParts.add(MultipartBody('voice_instruction', XFile(_voiceInstructionPath!)));
     }
     _isLoading = true;
     update();

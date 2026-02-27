@@ -85,17 +85,52 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
 
   Future<List<OnlineCartModel>?> _getCartDataOnline() async {
     List<OnlineCartModel>? onlineCartList;
-    Map<String, String>? header ={
-      'Content-Type': 'application/json; charset=UTF-8',
-      AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
-      AppConstants.moduleId: '${ModuleHelper.getCacheModule()?.id}',
-      'Authorization': 'Bearer ${sharedPreferences.getString(AppConstants.token)}'
-    };
+    
+    Map<String, String>? header;
+    
+    if (ModuleHelper.getModule()?.id != null) {
+      header = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
+        AppConstants.moduleId: '${ModuleHelper.getModule()?.id}',
+        'Authorization': 'Bearer ${sharedPreferences.getString(AppConstants.token)}'
+      };
+    } else {
+      header = {
+        'Content-Type': 'application/json; charset=UTF-8',
+        AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
+        'Authorization': 'Bearer ${sharedPreferences.getString(AppConstants.token)}'
+      };
+    }
+
+    print('========== CART API REQUEST ==========');
+    print('URL: ${AppConstants.getCartListUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}');
+    print('Is Logged In: ${AuthHelper.isLoggedIn()}');
+    print('Guest ID: ${AuthHelper.getGuestId()}');
+    print('Current Module ID: ${ModuleHelper.getModule()?.id}');
+    print('Cache Module ID: ${ModuleHelper.getCacheModule()?.id}');
+    print('Sending moduleId in header: ${ModuleHelper.getModule()?.id != null}');
+    print('Custom Headers:');
+    header.forEach((key, value) {
+      print('  $key: ${key == 'Authorization' ? value.substring(0, 20) + '...' : value}');
+    });
+    print('======================================');
 
     Response response = await apiClient.getData(
       '${AppConstants.getCartListUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}',
-      headers: ModuleHelper.getModule()?.id == null ? header : null,
+      headers: header,
     );
+    
+    print('========== CART API RESPONSE ==========');
+    print('Status Code: ${response.statusCode}');
+    print('Status Text: ${response.statusText}');
+    if (response.statusCode != 200) {
+      print('Error Body: ${response.body}');
+    } else {
+      print('Success - Cart Items Count: ${response.body?.length ?? 0}');
+    }
+    print('=======================================');
+    
     if(response.statusCode == 200) {
       onlineCartList = [];
       response.body.forEach((cart) => onlineCartList!.add(OnlineCartModel.fromJson(cart)));

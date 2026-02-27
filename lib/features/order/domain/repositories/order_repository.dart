@@ -151,6 +151,11 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
+  Future<Response> reorder(int orderId) async {
+    return await apiClient.postData(AppConstants.reorderUri, {'order_id': orderId});
+  }
+
+  @override
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }

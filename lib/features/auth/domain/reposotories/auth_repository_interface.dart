@@ -36,4 +36,5 @@ abstract class AuthRepositoryInterface extends RepositoryInterface{
   String getEarningPint();
   Future<void> setNotificationActive(bool isActive);
   Future<String?> saveDeviceToken();
+  Future<Response> toggleHidePhone({required bool hidePhone});
 }

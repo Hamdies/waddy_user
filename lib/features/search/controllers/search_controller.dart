@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
 import 'package:sixam_mart/features/search/domain/models/search_suggestion_model.dart';
@@ -8,6 +9,17 @@ import 'package:sixam_mart/features/search/domain/services/search_service_interf
 class SearchController extends GetxController implements GetxService {
   final SearchServiceInterface searchServiceInterface;
   SearchController({required this.searchServiceInterface});
+
+  Timer? _searchDebounce;
+  Timer? _suggestionDebounce;
+  static const _debounceDuration = Duration(milliseconds: 400);
+
+  @override
+  void onClose() {
+    _searchDebounce?.cancel();
+    _suggestionDebounce?.cancel();
+    super.onClose();
+  }
 
   List<Item>? _searchItemList;
   List<Item>? get searchItemList => _searchItemList;
@@ -43,7 +55,15 @@ class SearchController extends GetxController implements GetxService {
   bool _isSearchMode = true;
   bool get isSearchMode => _isSearchMode;
   
-  final List<String> _sortList = ['ascending'.tr, 'descending'.tr];
+  final List<String> _sortList = [
+    'price_low_to_high'.tr,
+    'price_high_to_low'.tr,
+    'rating'.tr,
+    'popularity'.tr,
+    'newest'.tr,
+    'a_to_z'.tr,
+    'z_to_a'.tr,
+  ];
   List<String> get sortList => _sortList;
   
   int _sortIndex = -1;
@@ -51,6 +71,22 @@ class SearchController extends GetxController implements GetxService {
 
   int _storeSortIndex = -1;
   int get storeSortIndex => _storeSortIndex;
+
+  static const List<String> _sortByApiValues = [
+    'price_low_to_high',
+    'price_high_to_low',
+    'rating',
+    'popularity',
+    'newest',
+    '', // a_to_z — client-side only
+    '', // z_to_a — client-side only
+  ];
+
+  String? get _currentSortByParam {
+    if (_sortIndex < 0 || _sortIndex >= _sortByApiValues.length) return null;
+    final v = _sortByApiValues[_sortIndex];
+    return v.isEmpty ? null : v;
+  }
   
   int _rating = -1;
   int get rating => _rating;
@@ -202,8 +238,20 @@ class SearchController extends GetxController implements GetxService {
     update();
   }
 
-  void searchData(String? query, bool fromHome) async {
-    if((_isStore && query!.isNotEmpty && query != _storeResultText) || (!_isStore && query!.isNotEmpty && (query != _itemResultText || fromHome))) {
+  void searchData(String? query, bool fromHome) {
+    if(query == null || query.isEmpty) return;
+    _searchDebounce?.cancel();
+    if(fromHome) {
+      _executeSearch(query, fromHome);
+    } else {
+      _searchDebounce = Timer(_debounceDuration, () {
+        _executeSearch(query, fromHome);
+      });
+    }
+  }
+
+  void _executeSearch(String query, bool fromHome) async {
+    if((_isStore && query.isNotEmpty && query != _storeResultText) || (!_isStore && query.isNotEmpty && (query != _itemResultText || fromHome))) {
       _searchHomeText = query;
       _searchText = query;
       _rating = -1;
@@ -226,7 +274,7 @@ class SearchController extends GetxController implements GetxService {
         update();
       }
 
-      Response response = await searchServiceInterface.getSearchData(query, _isStore);
+      Response response = await searchServiceInterface.getSearchData(query, _isStore, sortBy: _currentSortByParam);
       if (response.statusCode == 200) {
         if (query.isEmpty) {
           if (_isStore) {
@@ -320,18 +368,23 @@ class SearchController extends GetxController implements GetxService {
     update();
   }
 
-  Future<List<String>> getSearchSuggestions(String searchText) async {
-    List<String> items = <String>[];
-    _searchSuggestionModel = await searchServiceInterface.getSearchSuggestions(searchText);
-    if(_searchSuggestionModel != null) {
-      for (var item in _searchSuggestionModel!.items!) {
-        items.add(item.name!);
+  Future<List<String>> getSearchSuggestions(String searchText) {
+    final completer = Completer<List<String>>();
+    _suggestionDebounce?.cancel();
+    _suggestionDebounce = Timer(_debounceDuration, () async {
+      List<String> items = <String>[];
+      _searchSuggestionModel = await searchServiceInterface.getSearchSuggestions(searchText);
+      if(_searchSuggestionModel != null) {
+        for (var item in _searchSuggestionModel!.items!) {
+          items.add(item.name ?? '');
+        }
+        for (var store in _searchSuggestionModel!.stores!) {
+          items.add(store.name ?? '');
+        }
       }
-      for (var store in _searchSuggestionModel!.stores!) {
-        items.add(store.name!);
-      }
-    }
-    return items;
+      completer.complete(items);
+    });
+    return completer.future;
   }
 
   Future<void> getPopularCategories() async {

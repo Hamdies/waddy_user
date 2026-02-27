@@ -25,85 +25,184 @@ class ChooseLanguageScreen extends StatefulWidget {
 
 class _ChooseLanguageScreenState extends State<ChooseLanguageScreen> {
   @override
+  void initState() {
+    super.initState();
+    if (!widget.fromMenu) {
+      // Use addPostFrameCallback to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoDetectAndNavigate();
+      });
+    }
+  }
+
+  void _autoDetectAndNavigate() async {
+    try {
+      // Get device locale
+      final deviceLocale = Get.deviceLocale;
+      final localizationController = Get.find<LocalizationController>();
+
+      if (deviceLocale != null) {
+        final languageCode = deviceLocale.languageCode.toLowerCase();
+
+        // Check if device language is English or Arabic
+        if (languageCode == 'en' || languageCode == 'ar') {
+          // Find the matching language in AppConstants
+          int languageIndex = -1;
+          for (int i = 0; i < AppConstants.languages.length; i++) {
+            if (AppConstants.languages[i].languageCode == languageCode) {
+              languageIndex = i;
+              break;
+            }
+          }
+
+          if (languageIndex != -1) {
+            // Set the language automatically
+            localizationController.setSelectLanguageIndex(languageIndex);
+            localizationController.setLanguage(
+              Locale(
+                AppConstants.languages[languageIndex].languageCode!,
+                AppConstants.languages[languageIndex].countryCode,
+              ),
+            );
+
+            // Navigate to onboarding immediately
+            Get.offNamed(RouteHelper.getOnBoardingRoute());
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // If auto-detection fails, stay on language selection screen
+      debugPrint('Language auto-detection failed: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: (widget.fromMenu || ResponsiveHelper.isDesktop(context)) ? CustomAppBar(title: 'language'.tr, backButton: true) : null,
-      endDrawer: const MenuDrawer(), endDrawerEnableOpenDragGesture: false,
+      appBar:
+          (widget.fromMenu || ResponsiveHelper.isDesktop(context))
+              ? CustomAppBar(title: 'language'.tr, backButton: true)
+              : null,
+      endDrawer: const MenuDrawer(),
+      endDrawerEnableOpenDragGesture: false,
       backgroundColor: Theme.of(context).cardColor,
-      body: GetBuilder<LocalizationController>(builder: (localizationController) {
-        return ResponsiveHelper.isDesktop(context) ? const WebLanguageScreen() : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 40),
+      body: GetBuilder<LocalizationController>(
+        builder: (localizationController) {
+          return ResponsiveHelper.isDesktop(context)
+              ? const WebLanguageScreen()
+              : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 40),
 
-          const Align(
-            alignment: Alignment.center,
-            child: CustomAssetImageWidget(
-              Images.languageBg,
-              height: 210, width: 210,
-              fit: BoxFit.contain,
-            ),
-          ),
+                  const Align(
+                    alignment: Alignment.center,
+                    child: CustomAssetImageWidget(
+                      Images.languageBg,
+                      height: 210,
+                      width: 210,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
-            child: Text('choose_your_language'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeLarge,
+                    ),
+                    child: Text(
+                      'choose_your_language'.tr,
+                      style: robotoBold.copyWith(
+                        fontSize: Dimensions.fontSizeLarge,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
-            child: Text('choose_your_language_to_proceed'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall)),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeLarge,
+                    ),
+                    child: Text(
+                      'choose_your_language_to_proceed'.tr,
+                      style: robotoRegular.copyWith(
+                        fontSize: Dimensions.fontSizeSmall,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeExtraLarge),
 
-          Expanded(
-            child: SingleChildScrollView(
-              child: ListView.builder(
-                itemCount: localizationController.languages.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
-                itemBuilder: (context, index) {
-                  return LanguageCardWidget(
-                    languageModel: localizationController.languages[index],
-                    localizationController: localizationController,
-                    index: index,
-                  );
-                },
-              ),
-            ),
-          ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: ListView.builder(
+                        itemCount: localizationController.languages.length,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeLarge,
+                        ),
+                        itemBuilder: (context, index) {
+                          return LanguageCardWidget(
+                            languageModel:
+                                localizationController.languages[index],
+                            localizationController: localizationController,
+                            index: index,
+                          );
+                        },
+                      ),
+                    ),
+                  ),
 
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault, horizontal: Dimensions.paddingSizeExtraLarge),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 0)],
-              ),
-              child: CustomButton(
-                buttonText: 'next'.tr,
-                onPressed: () {
-                  if(localizationController.languages.isNotEmpty && localizationController.selectedLanguageIndex != -1) {
-                    localizationController.setLanguage(Locale(
-                      AppConstants.languages[localizationController.selectedLanguageIndex].languageCode!,
-                      AppConstants.languages[localizationController.selectedLanguageIndex].countryCode,
-                    ));
-                    if (widget.fromMenu) {
-                      Navigator.pop(context);
-                    } else {
-                      Get.offNamed(RouteHelper.getOnBoardingRoute());
-                    }
-                  }else {
-                    showCustomSnackBar('select_a_language'.tr);
-                  }
-                },
-              ),
-            ),
-          ),
-
-        ]);
-      }),
-
+                  SafeArea(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: Dimensions.paddingSizeDefault,
+                        horizontal: Dimensions.paddingSizeExtraLarge,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: CustomButton(
+                        buttonText: 'next'.tr,
+                        onPressed: () {
+                          if (localizationController.languages.isNotEmpty &&
+                              localizationController.selectedLanguageIndex !=
+                                  -1) {
+                            localizationController.setLanguage(
+                              Locale(
+                                AppConstants
+                                    .languages[localizationController
+                                        .selectedLanguageIndex]
+                                    .languageCode!,
+                                AppConstants
+                                    .languages[localizationController
+                                        .selectedLanguageIndex]
+                                    .countryCode,
+                              ),
+                            );
+                            if (widget.fromMenu) {
+                              Navigator.pop(context);
+                            } else {
+                              Get.offNamed(RouteHelper.getOnBoardingRoute());
+                            }
+                          } else {
+                            showCustomSnackBar('select_a_language'.tr);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              );
+        },
+      ),
     );
   }
 }

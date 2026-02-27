@@ -13,7 +13,7 @@ abstract class LocationServiceInterface{
   void configureFirebaseMessaging(AddressModel address);
   void handleRoute(bool fromSignUp, String? route, bool canRoute);
   Future<LatLng> getLatLng(String? id);
-  Future<List<PredictionModel>> searchLocation(String text);
+  Future<List<PredictionModel>> searchLocation(String text, {double? latitude, double? longitude});
   void checkLocationPermission(Function onTap);
   Future<void> authorizeNavigation(String page, List<AddressModel>? addressList, GoogleMapController? mapController, {bool offNamed = false, bool offAll = false});
   void defaultNavigation(String page, GoogleMapController? mapController);

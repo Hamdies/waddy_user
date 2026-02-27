@@ -193,4 +193,13 @@ class AuthService implements AuthServiceInterface{
     return await authRepositoryInterface.saveDeviceToken();
   }
 
+  @override
+  Future<ResponseModel> toggleHidePhone({required bool hidePhone}) async {
+    Response response = await authRepositoryInterface.toggleHidePhone(hidePhone: hidePhone);
+    if (response.statusCode == 200) {
+      return ResponseModel(true, response.body['message'] ?? 'success');
+    } else {
+      return ResponseModel(false, response.statusText);
+    }
+  }
 }

@@ -12,8 +12,8 @@ class SearchService implements SearchServiceInterface {
   SearchService({required this.searchRepositoryInterface});
 
   @override
-  Future<Response> getSearchData(String? query, bool isStore) async {
-    return await searchRepositoryInterface.getList(query: query, isStore: isStore);
+  Future<Response> getSearchData(String? query, bool isStore, {String? sortBy}) async {
+    return await searchRepositoryInterface.getList(query: query, isStore: isStore, sortBy: sortBy);
   }
 
   @override
@@ -39,12 +39,13 @@ class SearchService implements SearchServiceInterface {
   @override
   List<Item>? sortItemSearchList( List<Item>? allItemList, double upperValue, double lowerValue, int rating, bool veg, bool nonVeg, bool isAvailableItems, bool isDiscountedItems, int sortIndex) {
     List<Item>? searchItemList= [];
-    searchItemList.addAll(allItemList!);
+    if(allItemList == null) return searchItemList;
+    searchItemList.addAll(allItemList);
     if(upperValue > 0) {
-      searchItemList.removeWhere((product) => product.price! <= lowerValue || product.price! > upperValue);
+      searchItemList.removeWhere((product) => (product.price ?? 0) <= lowerValue || (product.price ?? 0) > upperValue);
     }
     if(rating != -1) {
-      searchItemList.removeWhere((product) => product.avgRating! < rating);
+      searchItemList.removeWhere((product) => (product.avgRating ?? 0) < rating);
     }
     if(!veg && nonVeg) {
       searchItemList.removeWhere((product) => product.veg == 1);
@@ -61,12 +62,28 @@ class SearchService implements SearchServiceInterface {
       }
     }
     if(sortIndex != -1) {
-      if(sortIndex == 0) {
-        searchItemList.sort((a, b) => a.name!.toLowerCase().compareTo(b.name!.toLowerCase()));
-      }else {
-        searchItemList.sort((a, b) => a.name!.toLowerCase().compareTo(b.name!.toLowerCase()));
-        Iterable iterable = searchItemList.reversed;
-        searchItemList = iterable.toList() as List<Item>?;
+      switch(sortIndex) {
+        case 0: // price_low_to_high
+          searchItemList.sort((a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
+          break;
+        case 1: // price_high_to_low
+          searchItemList.sort((a, b) => (b.price ?? 0).compareTo(a.price ?? 0));
+          break;
+        case 2: // rating
+          searchItemList.sort((a, b) => (b.avgRating ?? 0).compareTo(a.avgRating ?? 0));
+          break;
+        case 3: // popularity (ratingCount as proxy)
+          searchItemList.sort((a, b) => (b.ratingCount ?? 0).compareTo(a.ratingCount ?? 0));
+          break;
+        case 4: // newest (higher id = newer)
+          searchItemList.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          break;
+        case 5: // a_to_z
+          searchItemList.sort((a, b) => (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
+          break;
+        case 6: // z_to_a
+          searchItemList.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase()));
+          break;
       }
     }
     return searchItemList;
@@ -75,9 +92,10 @@ class SearchService implements SearchServiceInterface {
   @override
   List<Store>? sortStoreSearchList(List<Store>? allStoreList, int storeRating, bool storeVeg, bool storeNonVeg, bool isAvailableStore, bool isDiscountedStore, int storeSortIndex) {
     List<Store>? searchStoreList = [];
-    searchStoreList.addAll(allStoreList!);
+    if(allStoreList == null) return searchStoreList;
+    searchStoreList.addAll(allStoreList);
     if(storeRating != -1) {
-      searchStoreList.removeWhere((store) => store.avgRating! < storeRating);
+      searchStoreList.removeWhere((store) => (store.avgRating ?? 0) < storeRating);
     }
     if(!storeVeg && storeNonVeg) {
       searchStoreList.removeWhere((product) => product.nonVeg == 0);
@@ -87,19 +105,35 @@ class SearchService implements SearchServiceInterface {
     }
     if(isAvailableStore || isDiscountedStore) {
       if(isAvailableStore) {
-        searchStoreList.removeWhere((store) => store.open == 0 || !store.active!);
+        searchStoreList.removeWhere((store) => store.open == 0 || !(store.active ?? false));
       }
       if(isDiscountedStore) {
         searchStoreList.removeWhere((store) => store.discount == null);
       }
     }
     if(storeSortIndex != -1) {
-      if(storeSortIndex == 0) {
-        searchStoreList.sort((a, b) => a.name!.toLowerCase().compareTo(b.name!.toLowerCase()));
-      }else {
-        searchStoreList.sort((a, b) => a.name!.toLowerCase().compareTo(b.name!.toLowerCase()));
-        Iterable iterable = searchStoreList.reversed;
-        searchStoreList = iterable.toList() as List<Store>?;
+      switch(storeSortIndex) {
+        case 0: // price_low_to_high (by minimum order)
+          searchStoreList.sort((a, b) => (a.minimumOrder ?? 0).compareTo(b.minimumOrder ?? 0));
+          break;
+        case 1: // price_high_to_low (by minimum order)
+          searchStoreList.sort((a, b) => (b.minimumOrder ?? 0).compareTo(a.minimumOrder ?? 0));
+          break;
+        case 2: // rating
+          searchStoreList.sort((a, b) => (b.avgRating ?? 0).compareTo(a.avgRating ?? 0));
+          break;
+        case 3: // popularity (ratingCount as proxy)
+          searchStoreList.sort((a, b) => (b.ratingCount ?? 0).compareTo(a.ratingCount ?? 0));
+          break;
+        case 4: // newest (higher id = newer)
+          searchStoreList.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          break;
+        case 5: // a_to_z
+          searchStoreList.sort((a, b) => (a.name ?? '').toLowerCase().compareTo((b.name ?? '').toLowerCase()));
+          break;
+        case 6: // z_to_a
+          searchStoreList.sort((a, b) => (b.name ?? '').toLowerCase().compareTo((a.name ?? '').toLowerCase()));
+          break;
       }
     }
     return searchStoreList;

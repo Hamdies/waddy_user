@@ -27,7 +27,7 @@ class CustomButton extends StatelessWidget {
     this.width,
     this.height,
     this.fontSize,
-    this.radius = 10,
+    this.radius = 30,
     this.icon,
     this.color,
     this.textColor,
@@ -38,41 +38,44 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ButtonStyle flatButtonStyle = TextButton.styleFrom(
-      backgroundColor:
-          onPressed == null
-              ? Theme.of(context).disabledColor
-              : transparent
-              ? Colors.transparent
-              : color ?? Color(0xFF0F766E),
-      minimumSize: Size(
-        width != null ? width! : Dimensions.webMaxWidth,
-        height != null ? height! : 50,
-      ),
-      padding: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(radius),
-        side:
-            isBorder
-                ? BorderSide(
-                  color: Theme.of(context).disabledColor.withValues(alpha: 0.5),
-                )
-                : BorderSide.none,
-      ),
-    );
+    final bool isDisabled = onPressed == null;
+    final Color buttonColor = isDisabled
+        ? Theme.of(context).disabledColor
+        : transparent
+            ? Colors.transparent
+            : color ?? Theme.of(context).primaryColor;
 
     return Center(
       child: SizedBox(
         width: width ?? Dimensions.webMaxWidth,
         child: Padding(
-          padding: margin == null ? const EdgeInsets.all(0) : margin!,
-          child: TextButton(
-            onPressed: isLoading ? null : onPressed as void Function()?,
-            style: flatButtonStyle,
-            child:
-                isLoading
-                    ? Center(
-                      child: Row(
+          padding: margin ?? EdgeInsets.zero,
+          child: GestureDetector(
+            onTap: isLoading || isDisabled ? null : onPressed as void Function()?,
+            child: Container(
+              height: height ?? 50,
+              decoration: BoxDecoration(
+                color: buttonColor,
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(
+                  color: transparent
+                      ? Theme.of(context).primaryColor.withOpacity(0.4)
+                      : Theme.of(context).secondaryHeaderColor.withOpacity(0.4),
+                  width: 0.5,
+                ),
+                boxShadow: transparent || isDisabled
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Theme.of(context).secondaryHeaderColor,
+                          blurRadius: 0,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+              ),
+              child: Center(
+                child: isLoading
+                    ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const SizedBox(
@@ -86,57 +89,53 @@ class CustomButton extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: Dimensions.paddingSizeSmall),
-
                           Text(
                             'loading'.tr,
                             style: robotoMedium.copyWith(color: Colors.white),
                           ),
                         ],
-                      ),
-                    )
+                      )
                     : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        icon != null
-                            ? Padding(
-                              padding: const EdgeInsets.only(
-                                right: Dimensions.paddingSizeExtraSmall,
-                              ),
-                              child: Icon(
-                                icon,
-                                color:
-                                    transparent
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          icon != null
+                              ? Padding(
+                                  padding: const EdgeInsets.only(
+                                    right: Dimensions.paddingSizeExtraSmall,
+                                  ),
+                                  child: Icon(
+                                    icon,
+                                    color: transparent
                                         ? Theme.of(context).primaryColor
                                         : Theme.of(context).cardColor,
-                              ),
-                            )
-                            : const SizedBox(),
-                        Text(
-                          buttonText,
-                          textAlign: TextAlign.center,
-                          style:
-                              isBold
-                                  ? robotoBold.copyWith(
-                                    color:
-                                        textColor ??
+                                  ),
+                                )
+                              : const SizedBox(),
+                          Text(
+                            buttonText,
+                            textAlign: TextAlign.center,
+                            style: isBold
+                                ? robotoBold.copyWith(
+                                    color: textColor ??
                                         (transparent
                                             ? Theme.of(context).primaryColor
                                             : Colors.white),
                                     fontSize:
                                         fontSize ?? Dimensions.fontSizeLarge,
                                   )
-                                  : robotoRegular.copyWith(
-                                    color:
-                                        textColor ??
+                                : robotoRegular.copyWith(
+                                    color: textColor ??
                                         (transparent
                                             ? Theme.of(context).primaryColor
                                             : Colors.white),
                                     fontSize:
                                         fontSize ?? Dimensions.fontSizeLarge,
                                   ),
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
           ),
         ),
       ),

@@ -171,14 +171,31 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
   }
 
   Widget tabView({required BuildContext context, required String title, required bool isSelected, required Function() onTap}){
-    return InkWell(
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+
+    return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Text(title, style: isSelected ? robotoBold.copyWith(color: Theme.of(context).primaryColor) : robotoMedium),
-          ResponsiveHelper.isDesktop(context) ? const SizedBox(height: Dimensions.paddingSizeSmall) : const SizedBox(),
-          Divider(color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor, thickness: isSelected ? 2 : 1),
-        ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(
+            color: isSelected ? accentColor : Theme.of(context).disabledColor.withValues(alpha: 0.3),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            title,
+            style: isSelected
+                ? robotoBold.copyWith(color: Colors.white, fontSize: 14)
+                : robotoMedium.copyWith(color: Theme.of(context).textTheme.bodyLarge!.color, fontSize: 14),
+          ),
+        ),
       ),
     );
   }

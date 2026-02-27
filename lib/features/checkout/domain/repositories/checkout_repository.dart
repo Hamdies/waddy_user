@@ -11,14 +11,22 @@ import 'package:sixam_mart/util/app_constants.dart';
 class CheckoutRepository implements CheckoutRepositoryInterface {
   final ApiClient apiClient;
   final SharedPreferences sharedPreferences;
-  CheckoutRepository({required this.apiClient, required this.sharedPreferences});
+  CheckoutRepository({
+    required this.apiClient,
+    required this.sharedPreferences,
+  });
 
   @override
   Future<int> getDmTipMostTapped() async {
     int mostDmTipAmount = 0;
     Response response = await apiClient.getData(AppConstants.mostTipsUri);
-    if (response.statusCode == 200) {
-      mostDmTipAmount = response.body['most_tips_amount'];
+    if (response.statusCode == 200 &&
+        response.body != null &&
+        response.body['most_tips_amount'] != null) {
+      mostDmTipAmount =
+          response.body['most_tips_amount'] is int
+              ? response.body['most_tips_amount']
+              : int.tryParse(response.body['most_tips_amount'].toString()) ?? 0;
     }
     return mostDmTipAmount;
   }
@@ -34,10 +42,13 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
   }
 
   @override
-  Future<Response> getDistanceInMeter(LatLng originLatLng, LatLng destinationLatLng) async {
+  Future<Response> getDistanceInMeter(
+    LatLng originLatLng,
+    LatLng destinationLatLng,
+  ) async {
     return await apiClient.getData(
       '${AppConstants.distanceMatrixUri}?origin_lat=${originLatLng.latitude}&origin_lng=${originLatLng.longitude}'
-          '&destination_lat=${destinationLatLng.latitude}&destination_lng=${destinationLatLng.longitude}&mode=WALK',
+      '&destination_lat=${destinationLatLng.latitude}&destination_lng=${destinationLatLng.longitude}&mode=WALK',
       handleError: false,
     );
   }
@@ -45,7 +56,10 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
   @override
   Future<double> getExtraCharge(double? distance) async {
     double extraCharge = 0;
-    Response response = await apiClient.getData('${AppConstants.vehicleChargeUri}?distance=$distance', handleError: false);
+    Response response = await apiClient.getData(
+      '${AppConstants.vehicleChargeUri}?distance=$distance',
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       extraCharge = double.parse(response.body.toString());
     }
@@ -53,14 +67,30 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
   }
 
   @override
-  Future<Response> placeOrder(PlaceOrderBodyModel orderBody, List<MultipartBody>? orderAttachment) async {
-    return await apiClient.postMultipartData(AppConstants.placeOrderUri, orderBody.toJson(), orderAttachment ?? [], handleError: false);
+  Future<Response> placeOrder(
+    PlaceOrderBodyModel orderBody,
+    List<MultipartBody>? orderAttachment,
+  ) async {
+    return await apiClient.postMultipartData(
+      AppConstants.placeOrderUri,
+      orderBody.toJson(),
+      orderAttachment ?? [],
+      handleError: false,
+    );
   }
 
   @override
-  Future<Response> placePrescriptionOrder(int? storeId, double? distance, String address, String longitude, String latitude, String note,
-      List<MultipartBody> orderAttachment, String dmTips, String deliveryInstruction) async {
-
+  Future<Response> placePrescriptionOrder(
+    int? storeId,
+    double? distance,
+    String address,
+    String longitude,
+    String latitude,
+    String note,
+    List<MultipartBody> orderAttachment,
+    String dmTips,
+    String deliveryInstruction,
+  ) async {
     Map<String, String> body = {
       'store_id': storeId.toString(),
       'distance': distance.toString(),
@@ -73,7 +103,12 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       'payment_method': 'cash_on_delivery',
       'order_type': 'delivery',
     };
-    return await apiClient.postMultipartData(AppConstants.placePrescriptionOrderUri, body, orderAttachment, handleError: false);
+    return await apiClient.postMultipartData(
+      AppConstants.placePrescriptionOrderUri,
+      body,
+      orderAttachment,
+      handleError: false,
+    );
   }
 
   @override
@@ -92,16 +127,24 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
   }
 
   @override
-  Future getList({int? offset}) async{
+  Future getList({int? offset}) async {
     return await _getOfflineMethodList();
   }
 
   Future<List<OfflineMethodModel>?> _getOfflineMethodList() async {
     List<OfflineMethodModel>? offlineMethodList;
-    Response response = await apiClient.getData(AppConstants.offlineMethodListUri);
-    if (response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      AppConstants.offlineMethodListUri,
+    );
+    if (response.statusCode == 200 && response.body != null) {
       offlineMethodList = [];
-      response.body.forEach((method) => offlineMethodList!.add(OfflineMethodModel.fromJson(method)));
+      // Handle both List and Map responses
+      if (response.body is List) {
+        for (var method in response.body) {
+          offlineMethodList.add(OfflineMethodModel.fromJson(method));
+        }
+      }
+      // If it's an empty Map {}, offlineMethodList stays empty
     }
     return offlineMethodList;
   }
@@ -113,12 +156,20 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
 
   @override
   Future<Response> getOrderTax(PlaceOrderBodyModel orderBody) async {
-    Response response = await apiClient.postData(AppConstants.getOrderTaxUri, orderBody.toJson());
+    Response response = await apiClient.postData(
+      AppConstants.getOrderTaxUri,
+      orderBody.toJson(),
+    );
     return response;
   }
 
   @override
-  Future<SurgePriceModel?> getSurgePrice({required String zoneId, required String moduleId, required String dateTime, String? guestId}) async {
+  Future<SurgePriceModel?> getSurgePrice({
+    required String zoneId,
+    required String moduleId,
+    required String dateTime,
+    String? guestId,
+  }) async {
     SurgePriceModel? surgePrice;
     Map<String, dynamic> body = {
       'zone_id': zoneId,
@@ -126,11 +177,13 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       'date_time': dateTime,
       'guest_id': guestId ?? '',
     };
-    Response response = await apiClient.postData(AppConstants.getSurgePriceUri, body);
+    Response response = await apiClient.postData(
+      AppConstants.getSurgePriceUri,
+      body,
+    );
     if (response.statusCode == 200) {
       surgePrice = SurgePriceModel.fromJson(response.body);
     }
     return surgePrice;
   }
-  
 }

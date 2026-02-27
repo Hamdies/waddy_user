@@ -60,6 +60,20 @@ class OrderController extends GetxController implements GetxService {
   List<String?>? _supportReasons;
   List<String?>? get supportReasons => _supportReasons;
 
+  final Map<int, List<OrderDetailsModel>> _orderDetailsCache = {};
+  Map<int, List<OrderDetailsModel>> get orderDetailsCache => _orderDetailsCache;
+
+  Future<void> fetchOrderDetailsForList(int orderId) async {
+    if (_orderDetailsCache.containsKey(orderId)) return;
+    List<OrderDetailsModel>? details = await orderServiceInterface.getOrderDetails(
+      orderId.toString(), AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+    );
+    if (details != null) {
+      _orderDetailsCache[orderId] = details;
+      update();
+    }
+  }
+
   void expandedUpdate(bool status){
     _isExpanded = status;
     update();
@@ -255,6 +269,21 @@ class OrderController extends GetxController implements GetxService {
     _isLoading = false;
     update();
     return isSuccess;
+  }
+
+  bool _isReordering = false;
+  bool get isReordering => _isReordering;
+
+  Future<Map<String, dynamic>?> reorder(int orderId) async {
+    _isReordering = true;
+    update();
+    Response response = await orderServiceInterface.reorder(orderId);
+    _isReordering = false;
+    update();
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    return null;
   }
 
   void paymentRedirect({required String url, required bool canRedirect, required String? contactNumber,

@@ -138,6 +138,8 @@ class SplashController extends GetxController implements GetxService {
     if (response.statusCode == 200) {
       _data = response.body;
       _configModel = ConfigModel.fromJson(response.body);
+      _configModel!.guestCheckoutStatus = false;
+      Get.find<HomeController>().initRamadanMode(_configModel!.ramadanMode == true);
       if (_configModel!.module != null) {
         setModule(_configModel!.module);
       } else if (GetPlatform.isWeb || (loadModuleData && _module != null)) {
@@ -217,7 +219,11 @@ class SplashController extends GetxController implements GetxService {
       _module = await splashServiceInterface.initSharedData();
     }
     _cacheModule = splashServiceInterface.getCacheModule();
-    setModule(_module, notify: false);
+    // Only set module if there's a cached module or if it's web
+    // For mobile with multiple modules, keep _module as null to show module selection
+    if (GetPlatform.isWeb || _cacheModule != null) {
+      setModule(_module, notify: false);
+    }
   }
 
   void setCacheConfigModule(ModuleModel? cacheModule) {
@@ -309,24 +315,36 @@ class SplashController extends GetxController implements GetxService {
 
   _prepareModuleList(List<ModuleModel>? moduleList) {
     if (moduleList != null) {
+      print('====> Received ${moduleList.length} modules from API');
       _moduleList = [];
       for (var module in moduleList) {
+        print('====> Module: ${module.moduleName}, Type: ${module.moduleType}, IsWeb: ${GetPlatform.isWeb}');
         if (module.moduleType != AppConstants.taxi && GetPlatform.isWeb) {
           _moduleList!.add(module);
+          print('====> Added module (web, non-taxi): ${module.moduleName}');
         } else if (!GetPlatform.isWeb) {
           _moduleList!.add(module);
+          print('====> Added module (mobile): ${module.moduleName}');
+        } else {
+          print('====> Filtered out module: ${module.moduleName}');
         }
       }
+      print('====> Final module list count: ${_moduleList!.length}');
+    } else {
+      print('====> Module list is NULL');
     }
     update();
   }
 
   Future<void> _showInterestPage() async {
-    if (!Get.find<ProfileController>().userInfoModel!.selectedModuleForInterest!
-            .contains(Get.find<SplashController>().module!.id) &&
-        (Get.find<SplashController>().module!.moduleType == 'food' ||
-            Get.find<SplashController>().module!.moduleType == 'grocery' ||
-            Get.find<SplashController>().module!.moduleType == 'ecommerce')) {
+    final userInfoModel = Get.find<ProfileController>().userInfoModel;
+    final module = Get.find<SplashController>().module;
+    
+    if (userInfoModel == null || module == null || userInfoModel.selectedModuleForInterest == null) {
+      return;
+    }
+    
+    if (!userInfoModel.selectedModuleForInterest!.contains(module.id)) {
       await Get.find<CategoryController>()
           .getCategoryList(true, allCategory: false)
           .then((_) async {

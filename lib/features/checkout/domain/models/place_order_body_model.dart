@@ -40,6 +40,7 @@ class PlaceOrderBodyModel {
   int? _createNewUser;
   String? _password;
   bool? isPrescriptionOrder;
+  int? _usePrizeId;
 
   PlaceOrderBodyModel({
     required List<OnlineCart> cart,
@@ -79,6 +80,7 @@ class PlaceOrderBodyModel {
     required int? createNewUser,
     required String? password,
     this.isPrescriptionOrder = false,
+    int? usePrizeId,
   }) {
     _cart = cart;
     _couponDiscountAmount = couponDiscountAmount;
@@ -117,6 +119,7 @@ class PlaceOrderBodyModel {
     _createNewUser = createNewUser;
     _password = password;
     isPrescriptionOrder = isPrescriptionOrder ?? false;
+    _usePrizeId = usePrizeId;
   }
 
   List<OnlineCart>? get cart => _cart;
@@ -155,6 +158,7 @@ class PlaceOrderBodyModel {
   int? get createNewUser => _createNewUser;
   String? get password => _password;
   bool? get isPrescription => isPrescriptionOrder;
+  int? get usePrizeId => _usePrizeId;
 
   PlaceOrderBodyModel.fromJson(Map<String, dynamic> json) {
     if (json['cart'] != null) {
@@ -163,23 +167,37 @@ class PlaceOrderBodyModel {
         _cart!.add(OnlineCart.fromJson(v));
       });
     }
-    _couponDiscountAmount = double.parse(json['coupon_discount_amount'] ?? 0.toString());
+    _couponDiscountAmount = double.parse(
+      json['coupon_discount_amount'] ?? 0.toString(),
+    );
     _orderAmount = double.parse(json['order_amount'].toString());
     _orderType = json['order_type'];
     _paymentMethod = json['payment_method'];
     _orderNote = json['order_note'];
     _couponCode = json['coupon_code'];
-    _storeId = json['store_id'] != null ? int.parse(json['store_id'].toString()) : null;
+    _storeId =
+        json['store_id'] != null
+            ? int.parse(json['store_id'].toString())
+            : null;
     _distance = double.parse(json['distance'].toString());
     _scheduleAt = json['schedule_at'];
     _discountAmount = double.parse(json['discount_amount'].toString());
     _taxAmount = double.parse(json['tax_amount'].toString());
     _address = json['address'];
-    _receiverDetails = json['receiver_details'] != null ? AddressModel.fromJson(json['receiver_details'] is String ? jsonDecode(json['receiver_details'])
-        : json['receiver_details']) : null;
+    _receiverDetails =
+        json['receiver_details'] != null
+            ? AddressModel.fromJson(
+              json['receiver_details'] is String
+                  ? jsonDecode(json['receiver_details'])
+                  : json['receiver_details'],
+            )
+            : null;
     _latitude = json['latitude'];
     _longitude = json['longitude'];
-    _senderZoneId = json['sender_zone_id'] != null ? int.parse(json['sender_zone_id'].toString()) : null;
+    _senderZoneId =
+        json['sender_zone_id'] != null
+            ? int.parse(json['sender_zone_id'].toString())
+            : null;
     _contactPersonName = json['contact_person_name'];
     _contactPersonNumber = json['contact_person_number'];
     _addressType = json['address_type'];
@@ -191,15 +209,32 @@ class PlaceOrderBodyModel {
     _dmTips = json['dm_tips'];
     _unavailableItemNote = json['unavailable_item_note'];
     _deliveryInstruction = json['delivery_instruction'];
-    _cutlery = json['cutlery'] != null ? int.parse(json['cutlery'].toString()) : null;
-    _partialPayment = json['partial_payment'] != null ? int.parse(json['partial_payment'].toString()) : null;
-    _guestId = json['guest_id'] != null ? int.parse(json['guest_id'].toString()) : null;
+    _cutlery =
+        json['cutlery'] != null ? int.parse(json['cutlery'].toString()) : null;
+    _partialPayment =
+        json['partial_payment'] != null
+            ? int.parse(json['partial_payment'].toString())
+            : null;
+    _guestId =
+        json['guest_id'] != null
+            ? int.parse(json['guest_id'].toString())
+            : null;
     _isBuyNow = int.parse(json['is_buy_now'].toString());
     _guestEmail = json['contact_person_email'];
-    _extraPackagingAmount = json['extra_packaging_amount'] != null && json['extra_packaging_amount'] != 'null' ? double.parse(json['extra_packaging_amount'].toString()) : null;
-    _createNewUser = json['create_new_user'] != null ? int.parse(json['create_new_user'].toString()) : null;
+    _extraPackagingAmount =
+        json['extra_packaging_amount'] != null &&
+                json['extra_packaging_amount'] != 'null'
+            ? double.parse(json['extra_packaging_amount'].toString())
+            : null;
+    _createNewUser =
+        json['create_new_user'] != null
+            ? int.parse(json['create_new_user'].toString())
+            : null;
     _password = json['password'];
-    isPrescriptionOrder = json['is_prescription'] != null ? json['is_prescription'] == 'true' : false;
+    isPrescriptionOrder =
+        json['is_prescription'] != null
+            ? json['is_prescription'] == 'true'
+            : false;
   }
 
   Map<String, String> toJson() {
@@ -269,6 +304,9 @@ class PlaceOrderBodyModel {
       data['password'] = _password!;
     }
     data['is_prescription'] = isPrescriptionOrder == true ? 'true' : 'false';
+    if (_usePrizeId != null) {
+      data['use_prize_id'] = _usePrizeId.toString();
+    }
     return data;
   }
 }
@@ -300,8 +338,9 @@ class OnlineCart {
     List<int?> addOnIds,
     List<AddOns>? addOns,
     List<int?> addOnQtys,
-    String model,
-    {String? itemType}){
+    String model, {
+    String? itemType,
+  }) {
     _cartId = cartId;
     _itemId = itemId;
     _itemCampaignId = itemCampaignId;
@@ -336,7 +375,9 @@ class OnlineCart {
     _itemCampaignId = json['item_campaign_id'];
     _price = json['price'];
     _variant = json['variant'];
-    if (json['variation'] != null && json['variation'].isNotEmpty && json['variation'][0]['price'] != null) {
+    if (json['variation'] != null &&
+        json['variation'].isNotEmpty &&
+        json['variation'][0]['price'] != null) {
       _variation = [];
       json['variation'].forEach((v) {
         _variation!.add(Variation.fromJson(v));
@@ -396,7 +437,10 @@ class OrderVariation {
 
   OrderVariation.fromJson(Map<String, dynamic> json) {
     name = json['name'];
-    values = json['values'] != null ? OrderVariationValue.fromJson(json['values']) : null;
+    values =
+        json['values'] != null
+            ? OrderVariationValue.fromJson(json['values'])
+            : null;
   }
 
   Map<String, dynamic> toJson() {

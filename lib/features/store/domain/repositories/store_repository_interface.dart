@@ -11,4 +11,6 @@ abstract class StoreRepositoryInterface extends RepositoryInterface {
   Future<dynamic> getStoreItemList({int? storeID, required int offset, int? categoryID, String? type, List<String>? filter, int? rating, double? lowerValue, double? upperValue});
   Future<dynamic> getStoreSearchItemList(String searchText, String? storeID, int offset, String type, int? categoryID);
   Future<dynamic> getCartStoreSuggestedItemList(int? storeId, String languageCode, ModuleModel? module, int? cacheModuleId, int? moduleId);
+  Future<dynamic> getSimilarStoreList(int? storeId, {int offset = 1, int limit = 10});
+  Future<dynamic> getStoreBundleList(int? storeId, {int offset = 1, int limit = 10});
 }

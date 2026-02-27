@@ -19,77 +19,106 @@ class _LanguageBottomSheetWidgetState extends State<LanguageBottomSheetWidget> {
   Widget build(BuildContext context) {
     return GetBuilder<LocalizationController>(builder: (localizationController) {
       return Container(
-        padding: const EdgeInsets.only(top: Dimensions.paddingSizeLarge),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20), topRight: Radius.circular(20),
+            topLeft: Radius.circular(Dimensions.radiusExtraLarge),
+            topRight: Radius.circular(Dimensions.radiusExtraLarge),
           ),
         ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-          Container(
-            height: 5, width: 35,
-            decoration: BoxDecoration(
-              color: Theme.of(context).disabledColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(5),
-            ),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeLarge),
-
-          Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-
-            Text('choose_your_language'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
-            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-            Text('choose_your_language_to_proceed'.tr, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall)),
-
-          ]),
-          const SizedBox(height: Dimensions.paddingSizeExtraLarge),
-
-          Flexible(
-            child: SingleChildScrollView(
-              child: ListView.builder(
-                itemCount: localizationController.languages.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
-                itemBuilder: (context, index) {
-                  return LanguageCardWidget(
-                    languageModel: localizationController.languages[index],
-                    localizationController: localizationController,
-                    index: index, fromBottomSheet: true,
-                  );
-                },
-              ),
-            ),
-          ),
-
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault, horizontal: Dimensions.paddingSizeExtraLarge),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: Dimensions.paddingSizeDefault),
+            
+            Container(
+              height: 4,
+              width: 40,
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.3), blurRadius: 10, spreadRadius: 0)],
-              ),
-              margin: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-              child: CustomButton(
-                buttonText: 'update'.tr,
-                onPressed: () {
-                  if(localizationController.languages.isNotEmpty && localizationController.selectedLanguageIndex != -1) {
-                    localizationController.saveCacheLanguage(Locale(
-                      AppConstants.languages[localizationController.selectedLanguageIndex].languageCode!,
-                      AppConstants.languages[localizationController.selectedLanguageIndex].countryCode,
-                    ));
-                  }
-                  Get.back();
-                },
+                color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-
-        ]),
-
+            
+            const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraLarge),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'choose_your_language'.tr,
+                    style: robotoBold.copyWith(
+                      fontSize: Dimensions.fontSizeOverLarge,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                  Text(
+                    'choose_your_language_to_proceed'.tr,
+                    style: robotoRegular.copyWith(
+                      fontSize: Dimensions.fontSizeDefault,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: Dimensions.paddingSizeLarge),
+            
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeExtraLarge,
+                  vertical: Dimensions.paddingSizeSmall,
+                ),
+                child: ListView.builder(
+                  itemCount: localizationController.languages.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    return LanguageCardWidget(
+                      languageModel: localizationController.languages[index],
+                      localizationController: localizationController,
+                      index: index,
+                      fromBottomSheet: true,
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: CustomButton(
+                  buttonText: 'update'.tr,
+                  onPressed: () {
+                    if(localizationController.languages.isNotEmpty && localizationController.selectedLanguageIndex != -1) {
+                      localizationController.saveCacheLanguage(Locale(
+                        AppConstants.languages[localizationController.selectedLanguageIndex].languageCode!,
+                        AppConstants.languages[localizationController.selectedLanguageIndex].countryCode,
+                      ));
+                    }
+                    Get.back();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     });
   }

@@ -39,8 +39,12 @@ class LocationRepository implements LocationRepositoryInterface {
   }
 
   @override
-  Future<Response> searchLocation(String text) async {
-    return await apiClient.getData('${AppConstants.searchLocationUri}?search_text=$text');
+  Future<Response> searchLocation(String text, {double? latitude, double? longitude}) async {
+    String url = '${AppConstants.searchLocationUri}?search_text=$text';
+    if (latitude != null && longitude != null) {
+      url += '&lat=$latitude&lng=$longitude';
+    }
+    return await apiClient.getData(url);
   }
 
   @override

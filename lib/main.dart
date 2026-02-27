@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
@@ -146,13 +147,13 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    //   statusBarColor: Colors.transparent,
-    //   statusBarIconBrightness: Brightness.dark,
-    //   statusBarBrightness: Brightness.dark,
-    //   systemNavigationBarColor: Colors.transparent,
-    //   systemNavigationBarIconBrightness: Brightness.dark,
-    // ));
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ));
 
     return GetBuilder<ThemeController>(
       builder: (themeController) {
@@ -164,6 +165,7 @@ class _MyAppState extends State<MyApp> {
                         splashController.configModel == null)
                     ? const SizedBox()
                     : GetMaterialApp(
+                      
                       title: AppConstants.appName,
                       debugShowCheckedModeBanner: false,
                       navigatorKey: Get.key,
@@ -193,6 +195,7 @@ class _MyAppState extends State<MyApp> {
                             context,
                           ).copyWith(textScaler: const TextScaler.linear(1)),
                           child: Material(
+                            
                             child: SafeArea(
                               top: false,
                               bottom: GetPlatform.isAndroid,

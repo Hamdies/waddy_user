@@ -265,7 +265,8 @@ class LocationController extends GetxController implements GetxService {
         autoNavigate(address, fromSignUp, route, canRoute, isDesktop);
       } else {
         if (response.statusCode == 404) {
-          Get.toNamed(RouteHelper.getPickMapRoute(route, false));
+          // Show custom message for service not available in area
+          _showServiceNotAvailableDialog();
         } else {
           Get.back();
           showCustomSnackBar(response.message);
@@ -316,9 +317,7 @@ class LocationController extends GetxController implements GetxService {
         await Get.find<ProfileController>().getUserInfo();
         Get.back();
       }
-      if(!Get.find<ProfileController>().userInfoModel!.selectedModuleForInterest!.contains(Get.find<SplashController>().module!.id)
-          && (Get.find<SplashController>().module!.moduleType == 'food' || Get.find<SplashController>().module!.moduleType == 'grocery' || Get.find<SplashController>().module!.moduleType == 'ecommerce')
-      ) {
+      if(!Get.find<ProfileController>().userInfoModel!.selectedModuleForInterest!.contains(Get.find<SplashController>().module!.id)) {
         await Get.find<CategoryController>().getCategoryList(true, allCategory: false).then((_) async {
           if(Get.find<CategoryController>().categoryList != null && Get.find<CategoryController>().categoryList!.isNotEmpty){
             await Get.toNamed(RouteHelper.getInterestRoute());
@@ -349,6 +348,114 @@ class LocationController extends GetxController implements GetxService {
     return list1.toSet().intersection(list2.toSet()).isNotEmpty;
   }
 
+  void _showServiceNotAvailableDialog() {
+    Get.back(); // Close any loading dialog
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            const Icon(
+              Icons.location_off_outlined,
+              color: Colors.orange,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'service_not_available'.tr,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'waddy_not_in_area_message'.tr,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF757575),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.blue.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.explore_outlined,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'explore_app_anyway'.tr,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.back();
+              Get.toNamed(RouteHelper.getPickMapRoute(RouteHelper.splash, false));
+            },
+            child: Text(
+              'try_another_location'.tr,
+              style: TextStyle(
+                color: Get.theme.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              Get.offAllNamed(RouteHelper.getInitialRoute(fromSplash: true));
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Get.theme.primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'explore_app'.tr,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
   Future<AddressModel> setLocation(String? placeID, String? address, GoogleMapController? mapController) async {
     _loading = true;
     update();
@@ -364,7 +471,11 @@ class LocationController extends GetxController implements GetxService {
     _changeAddress = false;
 
     if(mapController != null) {
-      mapController.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: latLng, zoom: 17)));
+      try {
+        await mapController.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(target: latLng, zoom: 17)));
+      } catch (e) {
+        // Map controller may not be ready yet, ignore animation error
+      }
     }
     _loading = false;
     update();
@@ -374,9 +485,9 @@ class LocationController extends GetxController implements GetxService {
     );
   }
 
-  Future<List<PredictionModel>> searchLocation(BuildContext context, String text) async {
+  Future<List<PredictionModel>> searchLocation(BuildContext context, String text, {double? latitude, double? longitude}) async {
     if(text.isNotEmpty) {
-      _predictionList = await locationServiceInterface.searchLocation(text);
+      _predictionList = await locationServiceInterface.searchLocation(text, latitude: latitude, longitude: longitude);
     }
     return _predictionList;
   }

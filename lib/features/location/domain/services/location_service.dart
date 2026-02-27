@@ -122,9 +122,9 @@ class LocationService implements LocationServiceInterface{
   }
 
   @override
-  Future<List<PredictionModel>> searchLocation(String text) async {
+  Future<List<PredictionModel>> searchLocation(String text, {double? latitude, double? longitude}) async {
     List<PredictionModel> predictionList = [];
-    Response response = await locationRepoInterface.searchLocation(text);
+    Response response = await locationRepoInterface.searchLocation(text, latitude: latitude, longitude: longitude);
     if (response.statusCode == 200) {
       predictionList = [];
       try {
@@ -133,7 +133,7 @@ class LocationService implements LocationServiceInterface{
         log('$e');
       }
     } else {
-      showCustomSnackBar(response.body['error_message'] ?? response.bodyString);
+      showCustomSnackBar(response.body?['error_message'] ?? response.bodyString);
     }
     return predictionList;
   }

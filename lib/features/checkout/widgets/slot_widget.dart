@@ -11,23 +11,67 @@ class SlotWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+    final bool isInstant = title == 'instance'.tr;
+
     return Padding(
       padding: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
       child: InkWell(
         onTap: onTap as void Function()?,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeExtraSmall, horizontal: Dimensions.paddingSizeExtraSmall),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-            boxShadow: [ BoxShadow(color: Colors.grey[Get.isDarkMode ? 800 : 200]!, spreadRadius: 0.5, blurRadius: 0.5)],),
-          child: Text(
-            title, maxLines: 2, overflow: TextOverflow.ellipsis,
-            style: robotoRegular.copyWith(
-              color: isSelected ? Theme.of(context).cardColor : Theme.of(context).textTheme.bodyLarge!.color,
-              fontSize: Dimensions.fontSizeExtraSmall,
+            color: isSelected
+                ? primaryColor
+                : Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor
+                  : Colors.grey.shade200,
+              width: isSelected ? 1.5 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isInstant) ...[
+                Icon(
+                  Icons.bolt_rounded,
+                  size: 14,
+                  color: isSelected ? accentColor : primaryColor,
+                ),
+                const SizedBox(width: 2),
+              ],
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: robotoMedium.copyWith(
+                    color: isSelected
+                        ? Colors.white
+                        : Theme.of(context).textTheme.bodyLarge!.color,
+                    fontSize: Dimensions.fontSizeExtraSmall,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -11,33 +11,74 @@ class ChatService implements ChatServiceInterface {
   ChatService({required this.chatRepositoryInterface});
 
   @override
-  Future<ConversationsModel?> getConversationList(int offset, String type) async {
-    return await chatRepositoryInterface.getList(offset: offset, conversationList: true, type: type);
+  Future<ConversationsModel?> getConversationList(
+    int offset,
+    String type,
+  ) async {
+    return await chatRepositoryInterface.getList(
+      offset: offset,
+      conversationList: true,
+      type: type,
+    );
   }
 
   @override
   Future<ConversationsModel?> searchConversationList(String name) async {
-    return await chatRepositoryInterface.getList(searchConversationalList: true, name: name);
+    return await chatRepositoryInterface.getList(
+      searchConversationalList: true,
+      name: name,
+    );
   }
 
   @override
-  Future<Response> getMessages(int offset, int? userID, String userType, int? conversationID) async {
-    return await chatRepositoryInterface.getMessages(offset, userID, userType, conversationID);
+  Future<Response> getMessages(
+    int offset,
+    int? userID,
+    String userType,
+    int? conversationID,
+  ) async {
+    return await chatRepositoryInterface.getMessages(
+      offset,
+      userID,
+      userType,
+      conversationID,
+    );
   }
 
   @override
-  Future<Response> sendMessage(String message, String orderId, List<MultipartBody> images, int? userID, String userType, int? conversationID) async {
-    return await chatRepositoryInterface.sendMessage(message, orderId, images, userID, userType, conversationID);
+  Future<Response> sendMessage(
+    String message,
+    String orderId,
+    List<MultipartBody> images,
+    int? userID,
+    String userType,
+    int? conversationID, {
+    int? replyToMessageId,
+  }) async {
+    return await chatRepositoryInterface.sendMessage(
+      message,
+      orderId,
+      images,
+      userID,
+      userType,
+      conversationID,
+      replyToMessageId: replyToMessageId,
+    );
+  }
+
+  @override
+  Future<Response> markAsRead(int conversationId, List<int> messageIds) async {
+    return await chatRepositoryInterface.markAsRead(conversationId, messageIds);
   }
 
   @override
   int setIndex(List<Conversation?>? conversations) {
     int index0 = -1;
-    for(int index = 0; index<conversations!.length; index++) {
-      if(conversations[index]!.receiverType == UserType.admin.name) {
+    for (int index = 0; index < conversations!.length; index++) {
+      if (conversations[index]!.receiverType == UserType.admin.name) {
         index0 = index;
         break;
-      }else if(conversations[index]!.receiverType == UserType.admin.name) {
+      } else if (conversations[index]!.receiverType == UserType.admin.name) {
         index0 = index;
         break;
       }
@@ -48,11 +89,11 @@ class ChatService implements ChatServiceInterface {
   @override
   bool checkSender(List<Conversation?>? conversations) {
     bool sender = false;
-    for(int index = 0; index<conversations!.length; index++) {
-      if(conversations[index]!.receiverType == UserType.admin.name) {
+    for (int index = 0; index < conversations!.length; index++) {
+      if (conversations[index]!.receiverType == UserType.admin.name) {
         sender = false;
         break;
-      }else if(conversations[index]!.receiverType == UserType.admin.name) {
+      } else if (conversations[index]!.receiverType == UserType.admin.name) {
         sender = true;
         break;
       }
@@ -61,10 +102,13 @@ class ChatService implements ChatServiceInterface {
   }
 
   @override
-  int findOutConversationUnreadIndex(List<Conversation?>? conversations, int? conversationID) {
+  int findOutConversationUnreadIndex(
+    List<Conversation?>? conversations,
+    int? conversationID,
+  ) {
     int index0 = -1;
-    for(int index = 0; index<conversations!.length; index++) {
-      if(conversationID == conversations[index]!.id) {
+    for (int index = 0; index < conversations!.length; index++) {
+      if (conversationID == conversations[index]!.id) {
         index0 = index;
         break;
       }
@@ -92,5 +136,4 @@ class ChatService implements ChatServiceInterface {
     }
     return multipartImages;
   }
-
 }

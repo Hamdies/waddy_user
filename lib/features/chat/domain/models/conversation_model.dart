@@ -6,7 +6,12 @@ class ConversationsModel {
   int? offset;
   List<Conversation?>? conversations;
 
-  ConversationsModel({this.totalSize, this.limit, this.offset, this.conversations});
+  ConversationsModel({
+    this.totalSize,
+    this.limit,
+    this.offset,
+    this.conversations,
+  });
 
   ConversationsModel.fromJson(Map<String, dynamic> json) {
     totalSize = json['total_size'];
@@ -75,8 +80,12 @@ class Conversation {
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
     sender = json['sender'] != null ? User.fromJson(json['sender']) : null;
-    receiver = json['receiver'] != null ? User.fromJson(json['receiver']) : null;
-    lastMessage = json['last_message'] != null ? Message.fromJson(json['last_message']) : null;
+    receiver =
+        json['receiver'] != null ? User.fromJson(json['receiver']) : null;
+    lastMessage =
+        json['last_message'] != null
+            ? Message.fromJson(json['last_message'])
+            : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -113,8 +122,19 @@ class User {
   String? imageFullUrl;
   String? createdAt;
   String? updatedAt;
+  String? lastActiveAt; // NEW: For "last seen" feature
 
-  User({this.id, this.fName, this.lName, this.phone, this.email, this.imageFullUrl, this.createdAt, this.updatedAt});
+  User({
+    this.id,
+    this.fName,
+    this.lName,
+    this.phone,
+    this.email,
+    this.imageFullUrl,
+    this.createdAt,
+    this.updatedAt,
+    this.lastActiveAt,
+  });
 
   User.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -125,6 +145,7 @@ class User {
     imageFullUrl = json['image_full_url'];
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
+    lastActiveAt = json['last_active_at'];
   }
 
   Map<String, dynamic> toJson() {
@@ -137,6 +158,7 @@ class User {
     data['image_full_url'] = imageFullUrl;
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
+    data['last_active_at'] = lastActiveAt;
     return data;
   }
 }

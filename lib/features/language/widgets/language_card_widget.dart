@@ -15,6 +15,8 @@ class LanguageCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isSelected = localizationController.selectedLanguageIndex == index;
+    
     return InkWell(
       onTap: () {
         if(fromBottomSheet){
@@ -25,29 +27,46 @@ class LanguageCardWidget extends StatelessWidget {
         }
         localizationController.setSelectLanguageIndex(index);
       },
+      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       child: Container(
-        height: 70,
-        padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-        decoration: !fromWeb ? BoxDecoration(
-          color: localizationController.selectedLanguageIndex == index ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : null,
-          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-          border: localizationController.selectedLanguageIndex == index ? Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.2)) : null,
-        ) : BoxDecoration(
-          color: localizationController.selectedLanguageIndex == index ? Theme.of(context).primaryColor.withValues(alpha: 0.05) : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-          border: Border.all(color: localizationController.selectedLanguageIndex == index ? Theme.of(context).primaryColor.withValues(alpha: 0.2) : Theme.of(context).disabledColor.withValues(alpha: 0.3)),
+        margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeDefault,
         ),
-        child: Row(children: [
-
-          Image.asset(languageModel.imageUrl!, width: 36, height: 36),
-          const SizedBox(width: Dimensions.paddingSizeSmall),
-
-          Text(languageModel.languageName!, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge)),
-          const Spacer(),
-
-          localizationController.selectedLanguageIndex == index ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor, size: 25) : const SizedBox(),
-
-        ]),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? Theme.of(context).primaryColor 
+              : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+          border: Border.all(
+            color: isSelected 
+                ? Theme.of(context).primaryColor 
+                : Theme.of(context).disabledColor.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                languageModel.languageName!,
+                style: robotoMedium.copyWith(
+                  fontSize: Dimensions.fontSizeLarge,
+                  color: isSelected 
+                      ? Colors.white 
+                      : Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: Colors.white,
+                size: 24,
+              ),
+          ],
+        ),
       ),
     );
   }

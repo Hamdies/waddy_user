@@ -4,6 +4,7 @@ import 'package:sixam_mart/features/item/domain/models/item_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/features/category/domain/services/category_service_interface.dart';
+import 'package:sixam_mart/helper/cache_ttl_helper.dart';
 
 class CategoryController extends GetxController implements GetxService {
   final CategoryServiceInterface categoryServiceInterface;
@@ -66,6 +67,11 @@ class CategoryController extends GetxController implements GetxService {
       if(reload) {
         _categoryList = null;
       }
+
+      if(dataSource == DataSourceEnum.local && CacheTtlHelper.isStale('category_list', ttl: CacheTtlHelper.groceryTtl)) {
+        dataSource = DataSourceEnum.client;
+      }
+
       List<CategoryModel>? categoryList;
       if(dataSource == DataSourceEnum.local) {
         categoryList = await categoryServiceInterface.getCategoryList(allCategory, source: DataSourceEnum.local);
@@ -74,6 +80,7 @@ class CategoryController extends GetxController implements GetxService {
       } else {
         categoryList = await categoryServiceInterface.getCategoryList(allCategory, source: DataSourceEnum.client);
         _prepareCategoryList(categoryList);
+        CacheTtlHelper.markFresh('category_list');
       }
 
     }
@@ -219,6 +226,64 @@ class CategoryController extends GetxController implements GetxService {
   void setRestaurant(bool isRestaurant) {
     _isStore = isRestaurant;
     update();
+  }
+
+  // ─── Filter State ───
+
+  int _rating = -1;
+  int get rating => _rating;
+
+  double _lowerValue = 0;
+  double get lowerValue => _lowerValue;
+
+  double _upperValue = 0;
+  double get upperValue => _upperValue;
+
+  int? _sortIndex;
+  int? get sortIndex => _sortIndex;
+
+  bool _isAvailableItems = false;
+  bool get isAvailableItems => _isAvailableItems;
+
+  bool _isDiscountedItems = false;
+  bool get isDiscountedItems => _isDiscountedItems;
+
+  void setRating(int rate) {
+    _rating = rate;
+    update();
+  }
+
+  void setLowerAndUpperValue(double lower, double upper) {
+    _lowerValue = lower;
+    _upperValue = upper;
+    update();
+  }
+
+  void setSortIndex(int index) {
+    _sortIndex = index;
+    update();
+  }
+
+  void toggleAvailableItems() {
+    _isAvailableItems = !_isAvailableItems;
+    update();
+  }
+
+  void toggleDiscountedItems() {
+    _isDiscountedItems = !_isDiscountedItems;
+    update();
+  }
+
+  void resetFilter({bool isUpdate = true}) {
+    _rating = -1;
+    _lowerValue = 0;
+    _upperValue = 0;
+    _sortIndex = null;
+    _isAvailableItems = false;
+    _isDiscountedItems = false;
+    if (isUpdate) {
+      update();
+    }
   }
 
 }

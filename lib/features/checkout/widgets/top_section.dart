@@ -90,9 +90,17 @@ class TopSection extends StatelessWidget {
       child: Column(children: [
 
         storeId != null ? Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
+            color: Colors.white,
+            borderRadius: isDesktop ? null : BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeSmall),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -204,9 +212,17 @@ class TopSection extends StatelessWidget {
 
         // delivery option
         Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
+            color: Colors.white,
+            borderRadius: isDesktop ? null : BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge, vertical: Dimensions.paddingSizeSmall),
           width: double.infinity,
@@ -239,47 +255,154 @@ class TopSection extends StatelessWidget {
         const SizedBox(height: Dimensions.paddingSizeLarge),
 
         ///delivery section
-        DeliverySection(checkoutController: checkoutController, address: address, addressList: addressList,
-          guestNameTextEditingController: guestNameTextEditingController, guestNumberTextEditingController: guestNumberTextEditingController,
-          guestNumberNode: guestNumberNode, guestEmailController: guestEmailController, guestEmailNode: guestEmailNode,
+        Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          decoration: isDesktop ? null : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: isDesktop ? BorderRadius.zero : BorderRadius.circular(14),
+            child: DeliverySection(checkoutController: checkoutController, address: address, addressList: addressList,
+              guestNameTextEditingController: guestNameTextEditingController, guestNumberTextEditingController: guestNumberTextEditingController,
+              guestNumberNode: guestNumberNode, guestEmailController: guestEmailController, guestEmailNode: guestEmailNode,
+            ),
+          ),
         ),
 
         SizedBox(height: !takeAway ? isDesktop ? Dimensions.paddingSizeLarge : Dimensions.paddingSizeSmall : 0),
 
         ///Create Account with existing info
-        isGuestLoggedIn && Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus! ? GuestCreateAccount(
-          guestPasswordController: guestPasswordController, guestConfirmPasswordController: guestConfirmPasswordController,
-          guestPasswordNode: guestPasswordNode, guestConfirmPasswordNode: guestConfirmPasswordNode,
+        isGuestLoggedIn && Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus! ? Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 0, 16, 0),
+          decoration: isDesktop ? null : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: GuestCreateAccount(
+            guestPasswordController: guestPasswordController, guestConfirmPasswordController: guestConfirmPasswordController,
+            guestPasswordNode: guestPasswordNode, guestConfirmPasswordNode: guestConfirmPasswordNode,
+          ),
         ) : const SizedBox(),
         SizedBox(height: isGuestLoggedIn && Get.find<SplashController>().configModel!.centralizeLoginSetup!.manualLoginStatus! ? Dimensions.paddingSizeSmall : 0),
 
         ///delivery instruction
-        !takeAway ? isDesktop ? const WebDeliveryInstructionView() : const DeliveryInstructionView() : const SizedBox(),
+        !takeAway ? Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          decoration: isDesktop ? null : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: isDesktop ? BorderRadius.zero : BorderRadius.circular(14),
+            child: isDesktop ? const WebDeliveryInstructionView() : const DeliveryInstructionView(),
+          ),
+        ) : const SizedBox(),
         SizedBox(height: !takeAway ? isDesktop ? Dimensions.paddingSizeLarge : Dimensions.paddingSizeSmall : 0),
 
         /// Time Slot
-        TimeSlotSection(
-          storeId: storeId, checkoutController: checkoutController, cartList: cartList, tooltipController2: tooltipController2,
-          tomorrowClosed: tomorrowClosed, todayClosed: todayClosed, module: module,
+        Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          decoration: isDesktop ? null : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: isDesktop ? BorderRadius.zero : BorderRadius.circular(14),
+            child: TimeSlotSection(
+              storeId: storeId, checkoutController: checkoutController, cartList: cartList, tooltipController2: tooltipController2,
+              tomorrowClosed: tomorrowClosed, todayClosed: todayClosed, module: module,
+            ),
+          ),
         ),
 
         /// Coupon..
-        !isDesktop && !isGuestLoggedIn ? CouponSection(
-          storeId: storeId, checkoutController: checkoutController, total: total, price: price,
-          discount: discount, addOns: addOns, deliveryCharge: deliveryCharge, variationPrice: variationPrice,
+        !isDesktop && !isGuestLoggedIn ? Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: CouponSection(
+              storeId: storeId, checkoutController: checkoutController, total: total, price: price,
+              discount: discount, addOns: addOns, deliveryCharge: deliveryCharge, variationPrice: variationPrice,
+            ),
+          ),
         ) : const SizedBox(),
 
         ///DmTips..
-        DeliveryManTipsSection(
-          takeAway: takeAway, tooltipController3: dmTipsTooltipController,
-          totalPrice: total, onTotalChange: (double price) => total + price, storeId: storeId,
+        Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          decoration: isDesktop ? null : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: isDesktop ? BorderRadius.zero : BorderRadius.circular(14),
+            child: DeliveryManTipsSection(
+              takeAway: takeAway, tooltipController3: dmTipsTooltipController,
+              totalPrice: total, onTotalChange: (double price) => total + price, storeId: storeId,
+            ),
+          ),
         ),
 
         ///Payment..
         Container(
+          margin: isDesktop ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 8, 16, 0),
           decoration: isDesktop ? const BoxDecoration() : BoxDecoration(
-            color: Theme.of(context).cardColor,
-            boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.05), blurRadius: 10)],
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge, horizontal: Dimensions.paddingSizeLarge),
           child: Column(children: [

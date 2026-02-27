@@ -43,11 +43,11 @@ class SearchRepository implements SearchRepositoryInterface {
   }
 
   @override
-  Future getList({int? offset, String? query, bool? isStore, bool isSuggestedItems = false}) async {
+  Future getList({int? offset, String? query, bool? isStore, bool isSuggestedItems = false, String? sortBy}) async {
     if(isSuggestedItems) {
       return await _getSuggestedItems();
     } else {
-      return await _getSearchData(query, isStore!);
+      return await _getSearchData(query, isStore!, sortBy: sortBy);
     }
   }
 
@@ -61,8 +61,12 @@ class SearchRepository implements SearchRepositoryInterface {
     return suggestedItemList;
   }
 
-  Future<Response> _getSearchData(String? query, bool isStore) async {
-    return await apiClient.getData('${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&offset=1&limit=50');
+  Future<Response> _getSearchData(String? query, bool isStore, {String? sortBy}) async {
+    String url = '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&offset=1&limit=50';
+    if (sortBy != null && sortBy.isNotEmpty) {
+      url += '&sort_by=$sortBy';
+    }
+    return await apiClient.getData(url);
   }
 
   @override

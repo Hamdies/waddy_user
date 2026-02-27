@@ -8,14 +8,24 @@ class ChatModel {
   Conversation? conversation;
   List<Message>? messages;
 
-  ChatModel({this.totalSize, this.limit, this.offset, this.status, this.conversation, this.messages});
+  ChatModel({
+    this.totalSize,
+    this.limit,
+    this.offset,
+    this.status,
+    this.conversation,
+    this.messages,
+  });
 
   ChatModel.fromJson(Map<String, dynamic> json) {
     totalSize = json['total_size'];
     limit = json['limit'];
     offset = json['offset'];
     status = json['status'];
-    conversation = json['conversation'] != null ? Conversation.fromJson(json['conversation']) : null;
+    conversation =
+        json['conversation'] != null
+            ? Conversation.fromJson(json['conversation'])
+            : null;
     if (json['messages'] != null) {
       messages = <Message>[];
       json['messages'].forEach((v) {
@@ -51,6 +61,10 @@ class Message {
   Order? order;
   String? createdAt;
   String? updatedAt;
+  // New fields for enhanced chat
+  String? status; // sent, delivered, read
+  String? readAt;
+  ReplyTo? replyTo;
 
   Message({
     this.id,
@@ -63,6 +77,9 @@ class Message {
     this.order,
     this.createdAt,
     this.updatedAt,
+    this.status,
+    this.readAt,
+    this.replyTo,
   });
 
   Message.fromJson(Map<String, dynamic> json) {
@@ -70,10 +87,10 @@ class Message {
     conversationId = json['conversation_id'];
     senderId = json['sender_id'];
     message = json['message'];
-    if(json['file_full_url'] != null) {
+    if (json['file_full_url'] != null) {
       fileFullUrl = [];
       json['file_full_url'].forEach((v) {
-        if(v != null) {
+        if (v != null) {
           fileFullUrl!.add(v.toString());
         }
       });
@@ -83,6 +100,11 @@ class Message {
     order = json['order'] != null ? Order.fromJson(json['order']) : null;
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
+    // New fields
+    status = json['status'];
+    readAt = json['read_at'];
+    replyTo =
+        json['reply_to'] != null ? ReplyTo.fromJson(json['reply_to']) : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -99,6 +121,12 @@ class Message {
     }
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
+    // New fields
+    data['status'] = status;
+    data['read_at'] = readAt;
+    if (replyTo != null) {
+      data['reply_to'] = replyTo!.toJson();
+    }
     return data;
   }
 }
@@ -111,12 +139,14 @@ class Order {
   int? detailsCount;
   Address? deliveryAddress;
 
-  Order({this.id,
-        this.orderAmount,
-        this.orderStatus,
-        this.createdAt,
-        this.detailsCount,
-        this.deliveryAddress});
+  Order({
+    this.id,
+    this.orderAmount,
+    this.orderStatus,
+    this.createdAt,
+    this.detailsCount,
+    this.deliveryAddress,
+  });
 
   Order.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -124,7 +154,10 @@ class Order {
     orderStatus = json['order_status'];
     createdAt = json['created_at'];
     detailsCount = json['details_count'];
-    deliveryAddress = json['delivery_address'] != null ? Address.fromJson(json['delivery_address']) : null;
+    deliveryAddress =
+        json['delivery_address'] != null
+            ? Address.fromJson(json['delivery_address'])
+            : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -153,17 +186,18 @@ class Address {
   String? longitude;
   String? latitude;
 
-  Address(
-      {this.contactPersonName,
-        this.contactPersonNumber,
-        this.contactPersonEmail,
-        this.addressType,
-        this.address,
-        this.floor,
-        this.road,
-        this.house,
-        this.longitude,
-        this.latitude});
+  Address({
+    this.contactPersonName,
+    this.contactPersonNumber,
+    this.contactPersonEmail,
+    this.addressType,
+    this.address,
+    this.floor,
+    this.road,
+    this.house,
+    this.longitude,
+    this.latitude,
+  });
 
   Address.fromJson(Map<String, dynamic> json) {
     contactPersonName = json['contact_person_name'];
@@ -190,6 +224,29 @@ class Address {
     data['house'] = house;
     data['longitude'] = longitude;
     data['latitude'] = latitude;
+    return data;
+  }
+}
+
+/// Model for reply-to message feature
+class ReplyTo {
+  int? id;
+  String? message;
+  int? senderId;
+
+  ReplyTo({this.id, this.message, this.senderId});
+
+  ReplyTo.fromJson(Map<String, dynamic> json) {
+    id = json['id'];
+    message = json['message'];
+    senderId = json['sender_id'];
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['id'] = id;
+    data['message'] = message;
+    data['sender_id'] = senderId;
     return data;
   }
 }

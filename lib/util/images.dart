@@ -1,6 +1,7 @@
 class Images {
   static const String logo = 'assets/image/logo.png';
   static const String logoModern = 'assets/image/logo_modern.svg';
+  static const String scratchCardLogo = 'assets/image/Group 3.png';
   static const String placeholder = 'assets/image/placeholder.jpg';
   static const String notificationPlaceholder =
       'assets/image/notification_placeholder.jpg';
