@@ -1,25 +1,15 @@
-import 'package:expandable_bottom_sheet/expandable_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:dotted_border/dotted_border.dart';
+import 'package:lottie/lottie.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:sixam_mart/features/refer_and_earn/widgets/bottom_sheet_view_widget.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
 import 'package:sixam_mart/common/widgets/not_logged_in_screen.dart';
-import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
 
 class ReferAndEarnScreen extends StatefulWidget {
   const ReferAndEarnScreen({super.key});
@@ -29,18 +19,14 @@ class ReferAndEarnScreen extends StatefulWidget {
 }
 
 class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
-
-  GlobalKey<ExpandableBottomSheetState> key = GlobalKey();
-
   @override
   void initState() {
     super.initState();
-
     _initCall();
   }
 
-  void _initCall(){
-    if(AuthHelper.isLoggedIn() && Get.find<ProfileController>().userInfoModel == null) {
+  void _initCall() {
+    if (AuthHelper.isLoggedIn() && Get.find<ProfileController>().userInfoModel == null) {
       Get.find<ProfileController>().getUserInfo();
     }
   }
@@ -48,197 +34,214 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
   @override
   Widget build(BuildContext context) {
     bool isLoggedIn = AuthHelper.isLoggedIn();
-    return SafeArea(
-      child: Scaffold(
-        endDrawer: const MenuDrawer(),endDrawerEnableOpenDragGesture: false,
-        appBar: CustomAppBar(title: 'refer_and_earn'.tr),
-        body: ExpandableBottomSheet(
-          background: isLoggedIn ? SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: ResponsiveHelper.isDesktop(context) ? 0 : Dimensions.paddingSizeLarge),
-            child: Column(
-              children: [
-                WebScreenTitleWidget(title: 'refer_and_earn'.tr ),
-                FooterView(
-                  child: Center(
-                    child: SizedBox(
-                      width: Dimensions.webMaxWidth,
-                      child: GetBuilder<ProfileController>(builder: (profileController) {
-                        return Column(mainAxisAlignment: MainAxisAlignment.start, children: [
-                          Image.asset(
-                            Images.referImage, width: 500,
-                            height: ResponsiveHelper.isDesktop(context) ? 250 : 150, fit: BoxFit.contain,
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: isLoggedIn
+          ? SafeArea(
+              child: GetBuilder<ProfileController>(builder: (profileController) {
+                final refCode = profileController.userInfoModel?.refCode ?? '';
+                final rewardAmount = PriceConverter.convertPrice(
+                  Get.find<SplashController>().configModel?.refEarningExchangeRate?.toDouble() ?? 0.0,
+                );
+
+                return Column(
+                  children: [
+                    // Back button
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        padding: const EdgeInsets.all(16),
+                      ),
+                    ),
+
+                    const Spacer(flex: 2),
+
+                    // Lottie
+                    Lottie.asset(
+                      "assets/animation/waddi_coins.json",
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Title
+                    const Text(
+                      'Invite friends!',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Subtitle with reward
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 50),
+                      child: RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF666666),
+                            height: 1.5,
                           ),
-                          const SizedBox(height: Dimensions.paddingSizeExtraLarge),
-
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : Text('earn_money_on_every_referral'.tr, style: robotoRegular.copyWith(color: Theme.of(context).primaryColor, fontSize: Dimensions.fontSizeSmall)),
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Text(
-                              '${'one_referral'.tr}= ', style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault),
+                          children: [
+                            const TextSpan(text: 'Share your code and earn '),
+                            TextSpan(
+                              text: rewardAmount,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: primaryColor,
+                              ),
                             ),
-                            Text(
-                              PriceConverter.convertPrice(Get.find<SplashController>().configModel != null
-                                  ? Get.find<SplashController>().configModel!.refEarningExchangeRate!.toDouble() : 0.0),
-                              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeDefault), textDirection: TextDirection.ltr,
+                            const TextSpan(text: ' for every friend who joins!'),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const Spacer(flex: 2),
+
+                    // Bottom card
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F8),
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: Column(
+                        children: [
+                          // Label
+                          Text(
+                            'your_personal_code'.tr.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF999999),
+                              letterSpacing: 1.5,
                             ),
-                          ]),
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : const SizedBox(height: 40),
+                          ),
+                          const SizedBox(height: 12),
 
-                          Text('invite_friends_and_business'.tr , style: robotoBold.copyWith(fontSize: Dimensions.fontSizeOverLarge), textAlign: TextAlign.center),
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                          ResponsiveHelper.isDesktop(context) ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Text(
-                              '${'one_referral'.tr}= ', style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
-                            ),
-                            Text(
-                              PriceConverter.convertPrice(Get.find<SplashController>().configModel != null
-                                  ? Get.find<SplashController>().configModel!.refEarningExchangeRate!.toDouble() : 0.0),
-                              style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall), textDirection: TextDirection.ltr,
-                            ),
-                          ]) : const SizedBox(),
-                          ResponsiveHelper.isDesktop(context) ?  const SizedBox(height: 40) : const SizedBox(),
-
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : Text('copy_your_code_share_it_with_your_friends'.tr , style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall), textAlign: TextAlign.center),
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : const SizedBox(height: Dimensions.paddingSizeExtraLarge),
-
-                          ResponsiveHelper.isDesktop(context) ? Align(
-                            alignment: Alignment.topLeft,
-                            child: Text('your_personal_code'.tr , style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall), textAlign: TextAlign.center),
-                          ) : const SizedBox(),
-                          ResponsiveHelper.isDesktop(context) ? const SizedBox() : Text('your_personal_code'.tr , style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor), textAlign: TextAlign.center),
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                          DottedBorder(
-                            color: Theme.of(context).primaryColor,
-                            strokeWidth: 1,
-                            strokeCap: StrokeCap.butt,
-                            dashPattern: const [8, 5],
-                            padding: const EdgeInsets.all(0),
-                            borderType: BorderType.RRect,
-                            radius: Radius.circular( ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 50),
-                            child: SizedBox(
-                              height: 50,
-                              child: (profileController.userInfoModel != null) ? Row(children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(left: Dimensions.paddingSizeLarge, right: Dimensions.paddingSizeLarge),
-                                    child: Text(
-                                      profileController.userInfoModel != null ? profileController.userInfoModel!.refCode ?? '' : '',
-                                      style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge),
-                                    ),
+                          // Code
+                          profileController.userInfoModel != null
+                              ? Text(
+                                  refCode,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.black,
+                                    letterSpacing: 3,
                                   ),
+                                )
+                              : const SizedBox(
+                                  height: 28,
+                                  width: 28,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 ),
-                                InkWell(
+                          const SizedBox(height: 24),
+
+                          // Buttons row
+                          Row(
+                            children: [
+                              // Copy button
+                              Expanded(
+                                child: GestureDetector(
                                   onTap: () {
-                                    if(profileController.userInfoModel!.refCode!.isNotEmpty){
-                                      Clipboard.setData(ClipboardData(text: '${profileController.userInfoModel != null ? profileController.userInfoModel!.refCode : ''}'));
+                                    if (refCode.isNotEmpty) {
+                                      Clipboard.setData(ClipboardData(text: refCode));
                                       showCustomSnackBar('referral_code_copied'.tr, isError: false);
                                     }
                                   },
                                   child: Container(
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(color: Theme.of(context).primaryColor, borderRadius: BorderRadius.circular( ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 50)),
-                                    padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraLarge),
-                                    margin: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                                    child: Text('copy'.tr, style: robotoMedium.copyWith(color: Theme.of(context).cardColor, fontSize: Dimensions.fontSizeDefault)),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: const Color(0xFFE8E8E8)),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.copy_rounded, size: 18, color: primaryColor),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'copy'.tr.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: primaryColor,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ]) : const CircularProgressIndicator(),
-                            ),
-                          ),
-                          const SizedBox(height: Dimensions.paddingSizeLarge),
-
-                          Wrap(children: [
-
-                            InkWell(
-                              onTap: () {
-                                Share.share(
-                                  Get.find<SplashController>().configModel?.appUrlAndroid != null ? '${AppConstants.appName} ${'referral_code'.tr}: ${profileController.userInfoModel!.refCode} \n${'download_app_from_this_link'.tr}: ${Get.find<SplashController>().configModel?.appUrlAndroid}'
-                                    : '${AppConstants.appName} ${'referral_code'.tr}: ${profileController.userInfoModel!.refCode}',
-                                );
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Theme.of(context).cardColor,
-                                  boxShadow: [BoxShadow(color: Theme.of(context).primaryColor.withValues(alpha: 0.2), blurRadius: 5)],
-                                ),
-                                padding: const EdgeInsets.all(7),
-                                child: const Icon(Icons.share),
                               ),
-                            )
-                          ]),
-
-                          ResponsiveHelper.isDesktop(context) ? const Padding(
-                            padding: EdgeInsets.only(top: Dimensions.paddingSizeExtraLarge),
-                            child: BottomSheetViewWidget(),
-                          ) : const SizedBox(),
-
-                        ]);
-                      }
+                              const SizedBox(width: 12),
+                              // Share button
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    if (refCode.isNotEmpty) {
+                                      Share.share(
+                                        Get.find<SplashController>().configModel?.appUrlAndroid != null
+                                            ? '${AppConstants.appName} ${'referral_code'.tr}: $refCode \n${'download_app_from_this_link'.tr}: ${Get.find<SplashController>().configModel?.appUrlAndroid}'
+                                            : '${AppConstants.appName} ${'referral_code'.tr}: $refCode',
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    decoration: BoxDecoration(
+                                      color: primaryColor,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.share_rounded, size: 18, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'SHARE',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ],
+
+                    const SizedBox(height: 32),
+                  ],
+                );
+              }),
+            )
+          : SafeArea(
+              child: NotLoggedInScreen(callBack: (value) {
+                _initCall();
+                setState(() {});
+              }),
             ),
-          ) : NotLoggedInScreen(callBack: (value){
-            _initCall();
-            setState(() {});
-          }),
-          key: key,
-          persistentHeader: ResponsiveHelper.isDesktop(context) ? null : InkWell(
-            onTap: (){
-              if(key.currentState?.expansionStatus == ExpansionStatus.expanded){
-                setState(() {
-                  key.currentState!.contract();
-                });
-
-              } else {
-                setState(() {
-                  key.currentState!.expand();
-                });
-              }
-            },
-            child: Container(
-              constraints: const BoxConstraints.expand(height: 60),
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(Dimensions.paddingSizeExtraLarge), topRight: Radius.circular(Dimensions.paddingSizeExtraLarge)),
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                border: Border(
-                  top: BorderSide(color: Theme.of(context).primaryColor, width: 0.3),
-                ),
-              ),
-              child: Column(children: [
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: Dimensions.paddingSizeDefault),
-                    height: 3, width: 40,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      borderRadius: BorderRadius.circular(Dimensions.paddingSizeExtraSmall),
-                    ),
-                  ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault, top: Dimensions.paddingSizeSmall, right: Dimensions.paddingSizeDefault),
-                  child: Row(children: [
-                    const Icon(Icons.error_outline, size: 16),
-                    const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-                    Text('how_it_works'.tr , style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault), textAlign: TextAlign.center),
-                  ]),
-                ),
-              ]),
-            ),
-          ),
-
-          expandableContent: ResponsiveHelper.isDesktop(context) || !isLoggedIn ? const SizedBox() : const BottomSheetViewWidget(),
-
-        ),
-      ),
     );
   }
 }

@@ -16,6 +16,7 @@ import 'package:sixam_mart/features/dashboard/widgets/live_cart_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
 
 /// Talabat-style restaurant detail screen — used only by the Food module.
 /// The grocery module continues to use `StoreScreen`.
@@ -827,6 +828,28 @@ class _FoodStoreScreenState extends State<FoodStoreScreen>
                           ),
                         ),
                       ],
+                      Builder(builder: (context) {
+                        final xpConfig = Get.find<XpController>().xpConfig;
+                        if (xpConfig == null || !xpConfig.levelingEnabled) return const SizedBox.shrink();
+                        final multiplier = xpConfig.multipliers[item.moduleType] ?? 1.0;
+                        final xp = item.getDisplayXp(multiplier: multiplier);
+                        if (xp <= 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.amber.shade300, width: 0.5),
+                            ),
+                            child: Text(
+                              '+$xp XP',
+                              style: robotoMedium.copyWith(fontSize: 9, color: Colors.amber.shade800),
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ],

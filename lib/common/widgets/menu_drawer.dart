@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sixam_mart/common/widgets/hover/on_hover.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
 import 'package:sixam_mart/features/language/controllers/language_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
@@ -127,7 +126,7 @@ class MenuDrawerState extends State<MenuDrawer> with SingleTickerProviderStateMi
         },
       ));
     }
-    _menuList.add(Menu(icon: Images.logOut, title: AuthHelper.isLoggedIn() ? 'logout'.tr : 'sign_in'.tr, onTap: () {
+    _menuList.add(Menu(icon: Images.logOut, title: 'logout'.tr, onTap: () {
       Get.back();
       if(AuthHelper.isLoggedIn()) {
         Get.dialog(ConfirmationDialog(icon: Images.support, description: 'are_you_sure_to_logout'.tr, isLogOut: true, onYesPressed: () async {
@@ -137,19 +136,10 @@ class MenuDrawerState extends State<MenuDrawer> with SingleTickerProviderStateMi
           Get.find<CartController>().clearCartList();
           Get.find<AuthController>().socialLogout();
           Get.find<FavouriteController>().removeFavourite();
-          if(ResponsiveHelper.isDesktop(Get.context)) {
-            Get.offAllNamed(RouteHelper.getInitialRoute());
-          }else{
-            Get.offAllNamed(RouteHelper.getSignInRoute(RouteHelper.splash));
-          }
+          Get.offAllNamed(RouteHelper.getUnifiedAuthRoute());
         }), useSafeArea: false);
       }else {
-        Get.find<FavouriteController>().removeFavourite();
-        if(ResponsiveHelper.isDesktop(context)){
-          Get.dialog(const Center(child: AuthDialogWidget(exitFromApp: false, backFromThis: false)), barrierDismissible: false);
-        }else{
-          Get.toNamed(RouteHelper.getSignInRoute(RouteHelper.main));
-        }
+        Get.offAllNamed(RouteHelper.getUnifiedAuthRoute());
       }
     }));
 

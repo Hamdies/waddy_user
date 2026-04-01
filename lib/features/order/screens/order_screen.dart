@@ -1,15 +1,14 @@
-import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/rental_module/rental_order/controllers/taxi_order_controller.dart';
 import 'package:sixam_mart/features/rental_module/rental_order/widgets/trip_order_view_widget.dart';
+import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/taxi_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/features/order/widgets/guest_track_order_input_view_widget.dart';
 import 'package:sixam_mart/features/order/widgets/order_view_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -34,6 +33,7 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
     super.initState();
 
     _tabController = TabController(length: 2, initialIndex: 0, vsync: this);
+    _tabController!.addListener(() => setState(() {}));
     selectTypeIndex = widget.index!;
     haveTaxiModule = TaxiHelper.haveTaxiModule();
 
@@ -52,145 +52,237 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
     }
   }
 
+  void _switchOrderType(int newIndex) {
+    setState(() {
+      selectTypeIndex = newIndex;
+      // Reset tab to first tab when switching types
+      _tabController?.index = 0;
+    });
+    initCall();
+  }
+
   @override
   Widget build(BuildContext context) {
     _isLoggedIn = AuthHelper.isLoggedIn();
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: haveTaxiModule && !ResponsiveHelper.isDesktop(context) ? null : CustomAppBar(title: 'my_orders'.tr, backButton: ResponsiveHelper.isDesktop(context)),
-      endDrawer: const MenuDrawer(), endDrawerEnableOpenDragGesture: false,
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: _CoinsPill(teal: Theme.of(context).primaryColor, textDark: Theme.of(context).textTheme.bodyLarge!.color!),
+          ),
+        ],
+        centerTitle: false,
+        titleSpacing: 20,
+        title: Text(
+          'orders'.tr,
+          style: robotoBold.copyWith(
+            fontSize: 24,
+            color: const Color(0xFF134E4A),
+          ),
+        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      endDrawer: const MenuDrawer(), 
+      endDrawerEnableOpenDragGesture: false,
       body: SafeArea(
         child: GetBuilder<OrderController>(
           builder: (orderController) {
+            if (!_isLoggedIn) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                  child: Text('please_login_to_view_orders'.tr),
+                ),
+              );
+            }
             return Column(
               children: [
-
-                haveTaxiModule && !ResponsiveHelper.isDesktop(context) ? Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [BoxShadow(color: Theme.of(context).disabledColor.withValues(alpha: 0.1), blurRadius: 5, offset: const Offset(0, 10))],
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeSmall),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                    const SizedBox(height: Dimensions.paddingSizeSmall),
-                    Text('my_orders'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
-                    const SizedBox(height: Dimensions.paddingSizeDefault),
-
-                    SizedBox(
-                      height: 30,
-                      child: ListView.builder(
-                          itemCount: type.length,
-                          scrollDirection: Axis.horizontal,
-                          itemBuilder: (context, index) {
-                            bool selected = index == selectTypeIndex;
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: selected ? Theme.of(context).primaryColor : Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-                                border: Border.all(color: Theme.of(context).disabledColor, width: 0.3),
-                              ),
-                              alignment: Alignment.center,
-                              margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
-                              child: CustomInkWell(
-                                onTap: () {
-                                  setState(() {
-                                    selectTypeIndex = index;
-                                  });
-                                  initCall();
-                                },
-                                radius: Dimensions.radiusLarge,
-                                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
-                                child: Text(type[index].tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge, color: selected ? Colors.white : Theme.of(context).textTheme.bodyLarge!.color!.withValues(alpha: 0.7))),
-                              ),
-                            );
-                          }),
-                    ),
-
-                  ]),
-                ) : const SizedBox(),
-
-                _isLoggedIn ? Expanded(
-                  child: Column(children: [
-
-                    ResponsiveHelper.isDesktop(context) ? Container(
-                      color: ResponsiveHelper.isDesktop(context) ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
-                      child: Column(children: [
-                        ResponsiveHelper.isDesktop(context) ? Center(child: Padding(
-                          padding: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-                          child: Text('my_orders'.tr, style: robotoMedium),
-                        )) : const SizedBox(),
-
-                        Center(
-                          child: SizedBox(
-                            width: Dimensions.webMaxWidth,
-                            child: Align(
-                              alignment: ResponsiveHelper.isDesktop(context) ? Alignment.centerLeft : Alignment.center,
-                              child: Container(
-                                width: ResponsiveHelper.isDesktop(context) ? 300 : Dimensions.webMaxWidth,
-                                color: ResponsiveHelper.isDesktop(context) ? Colors.transparent : Theme.of(context).cardColor,
-                                child: TabBar(
-                                  controller: _tabController,
-                                  indicatorColor: Theme.of(context).primaryColor,
-                                  indicatorWeight: 3,
-                                  labelColor: Theme.of(context).primaryColor,
-                                  unselectedLabelColor: Theme.of(context).disabledColor,
-                                  unselectedLabelStyle: robotoRegular.copyWith(color: Theme.of(context).disabledColor, fontSize: Dimensions.fontSizeSmall),
-                                  labelStyle: robotoBold.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
-                                  tabs: [
-                                    Tab(text: 'running'.tr),
-                                    Tab(text: 'history'.tr),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ) : Column(children: [
-
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TabBar(
-                          controller: _tabController,
-                          isScrollable: haveTaxiModule ? true : false,
-                          padding: EdgeInsets.zero,
-                          tabAlignment: haveTaxiModule ? TabAlignment.start : null,
-                          indicatorColor: Theme.of(context).primaryColor,
-                          indicatorWeight: 3,
-                          labelColor: Theme.of(context).primaryColor,
-                          unselectedLabelColor: Theme.of(context).disabledColor,
-                          unselectedLabelStyle: robotoRegular.copyWith(color: Theme.of(context).disabledColor, fontSize: Dimensions.fontSizeSmall),
-                          labelStyle: robotoBold.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
-                          tabs: [
-                            Tab(text: 'running'.tr),
-                            Tab(text: 'history'.tr),
-                          ],
-                        ),
-                      ),
-                    ]),
-
-                   selectTypeIndex == 0 ? Expanded(child: TabBarView(
+                if (haveTaxiModule && !ResponsiveHelper.isDesktop(context))
+                  _buildTypeSelector(),
+                if (_isLoggedIn) _buildCustomTabSelector(),
+                Expanded(
+                  child: NestedScrollView(
+                    headerSliverBuilder: (context, innerBoxIsScrolled) => [],
+                    body: TabBarView(
                       controller: _tabController,
-                      children: const [
-                        OrderViewWidget(isRunning: true),
-                        OrderViewWidget(isRunning: false),
-                      ],
-                    )) : Expanded(child: TabBarView(
-                     controller: _tabController,
-                     children: const [
-                       TripOrderViewWidget(isRunning: true),
-                       TripOrderViewWidget(isRunning: false),
-                     ],
-                   )),
-
-                  ]),
-                ) : GuestTrackOrderInputViewWidget(selectType: selectTypeIndex),
+                      children: selectTypeIndex == 0
+                          ? const [
+                              OrderViewWidget(isRunning: true),
+                              OrderViewWidget(isRunning: false),
+                            ]
+                          : const [
+                              TripOrderViewWidget(isRunning: true),
+                              TripOrderViewWidget(isRunning: false),
+                            ],
+                    ),
+                  ),
+                ),
               ],
             );
           },
         ),
       ),
+    );
+  }
+
+
+  // Type selector (Orders/Trips) — only when taxi module is active
+  Widget _buildTypeSelector() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: List.generate(type.length, (index) {
+          bool selected = index == selectTypeIndex;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => _switchOrderType(index),
+              child: Container(
+                margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? Theme.of(context).primaryColor : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  type[index].tr,
+                  style: robotoMedium.copyWith(
+                    fontSize: 14,
+                    color: selected ? Colors.white : Colors.black54,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  CUSTOM TAB SELECTOR: Running / History with counts + animation
+  // ══════════════════════════════════════════════════════════════
+  Widget _buildCustomTabSelector() {
+    return GetBuilder<OrderController>(
+      builder: (orderController) {
+        final runningCount =
+            orderController.runningOrderModel?.orders?.length ?? 0;
+        final historyCount =
+            orderController.historyOrderModel?.orders?.length ?? 0;
+
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _buildTab(
+                index: 0,
+                label: 'running'.tr,
+                count: runningCount,
+              ),
+              const SizedBox(width: 10),
+              _buildTab(
+                index: 1,
+                label: 'history'.tr,
+                count: historyCount,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTab({required int index, required String label, required int count}) {
+    final bool selected = _tabController?.index == index;
+    final Color primary = const Color(0xFF134E4A);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          _tabController?.animateTo(
+            index,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                '$label ($count)',
+                style: selected
+                    ? robotoBold.copyWith(fontSize: 14, color: primary)
+                    : robotoRegular.copyWith(fontSize: 14, color: Colors.grey.shade500),
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              height: 2,
+              decoration: BoxDecoration(
+                color: selected ? primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// XP pill — dark teal rounded pill with icon + XP points count
+class _CoinsPill extends StatelessWidget {
+  final Color teal;
+  final Color textDark;
+  const _CoinsPill({required this.teal, required this.textDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<XpController>(
+      builder: (xpController) {
+        final xpPoints = xpController.currentLevel?.currentXp ?? 0;
+        return GestureDetector(
+          onTap: () => Get.toNamed(RouteHelper.getMainRoute('levels')),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF134E4A),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/image/waddy_coin.png',
+                  width: 20,
+                  height: 20,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$xpPoints',
+                  style: robotoBold.copyWith(
+                    fontSize: 15,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

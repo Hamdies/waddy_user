@@ -319,14 +319,13 @@ class XpController extends GetxController implements GetxService {
   }
 
   /// Calculate estimated XP for a given order amount and module type
-  /// Uses config if available, otherwise uses default formula: 10 + floor(amount * 0.1)
+  /// Uses config if available, otherwise uses default formula: 20 + floor(amount * 0.1)
   int calculateEstimatedXp(double orderAmount, String? moduleType) {
     if (_xpConfig != null) {
       return _xpConfig!.calculateEstimatedXp(orderAmount, moduleType);
     }
-    // Fallback calculation: base 10 XP + 10% of order amount
-    // This ensures users always see estimated XP even if config isn't loaded
-    return 10 + (orderAmount * 0.1).floor();
+    // Fallback: 20 (default xp_per_order) + floor(amount × 1.0 × 0.1)
+    return 20 + (orderAmount * 0.1).floor();
   }
 
   /// Fetch merged level details (replaces separate getCurrentLevel + getAllLevels)

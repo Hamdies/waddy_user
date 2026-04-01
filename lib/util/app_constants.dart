@@ -37,6 +37,7 @@ class AppConstants {
   static const String registerUri = '/api/v1/auth/sign-up';
   static const String loginUri = '/api/v1/auth/login';
   static const String tokenUri = '/api/v1/customer/cm-firebase-token';
+  static const String liveActivityTokenUri = '/api/v1/customer/live-activity-token';
   static const String placeOrderUri = '/api/v1/customer/order/place';
   static const String placePrescriptionOrderUri =
       '/api/v1/customer/order/prescription/place';
@@ -297,6 +298,9 @@ class AppConstants {
   static const String guestId = '6ammart_guest_id';
   static const String guestNumber = '6ammart_guest_number';
   static const String referBottomSheet = '6ammart_reffer_bottomsheet_show';
+  static const String welcomeLetterShown = 'waddi_welcome_letter_shown';
+  static const String walletCardAppearance = 'waddi_wallet_card_appearance';
+  static const String walletCardSymbol = 'waddi_wallet_card_symbol';
   static const String dmRegisterSuccess = '6ammart_dm_registration_success';
   static const String isRestaurantRegister = '6ammart_store_registration';
 
@@ -401,12 +405,12 @@ class AppConstants {
   ];
 
   static final List<Map<String, String>> walletTransactionSortingList = [
-    {'title': 'all_transactions', 'value': 'all'},
-    {'title': 'order_transactions', 'value': 'order'},
-    {'title': 'converted_from_loyalty_point', 'value': 'loyalty_point'},
-    {'title': 'added_via_payment_method', 'value': 'add_fund'},
-    {'title': 'earned_by_referral', 'value': 'referrer'},
-    {'title': 'cash_back_transactions', 'value': 'CashBack'},
+    {'title': 'filter_all_transactions', 'value': 'all'},
+    {'title': 'filter_additions', 'value': 'add_fund'},
+    {'title': 'filter_deductions', 'value': 'order'},
+    {'title': 'filter_refunds', 'value': 'CashBack'},
+    {'title': 'filter_rewards', 'value': 'loyalty_point'},
+    {'title': 'filter_referral', 'value': 'referrer'},
   ];
 
   //taxi seats..

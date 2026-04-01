@@ -95,6 +95,7 @@ class Item {
   List<String>? nutritionsName;
   List<String>? allergiesName;
   List<String>? genericName;
+  int? potentialXp;
 
   Item({
     this.id,
@@ -134,6 +135,7 @@ class Item {
     this.nutritionsName,
     this.allergiesName,
     this.genericName,
+    this.potentialXp,
   });
 
   Item.fromJson(Map<String, dynamic> json) {
@@ -213,6 +215,7 @@ class Item {
     nutritionsName = json['nutritions_name']?.cast<String>();
     allergiesName = json['allergies_name']?.cast<String>();
     genericName = json['generic_name']?.cast<String>();
+    potentialXp = json['potential_xp'] != null ? int.tryParse(json['potential_xp'].toString()) : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -265,7 +268,16 @@ class Item {
     data['nutritions_name'] = nutritionsName;
     data['allergies_name'] = allergiesName;
     data['generic_name'] = genericName;
+    data['potential_xp'] = potentialXp;
     return data;
+  }
+
+  /// Get XP for this item: use server-provided potentialXp, or calculate client-side
+  /// Formula: floor(price × module_multiplier × 0.1)
+  int getDisplayXp({double multiplier = 1.0}) {
+    if (potentialXp != null && potentialXp! > 0) return potentialXp!;
+    if (price == null || price! <= 0) return 0;
+    return (price! * multiplier * 0.1).floor();
   }
 }
 

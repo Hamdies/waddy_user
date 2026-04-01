@@ -88,5 +88,23 @@ class WalletRepository implements WalletRepositoryInterface{
     throw UnimplementedError();
   }
 
-  
+  @override
+  Future<void> setCardAppearance(int index) {
+    return sharedPreferences.setInt(AppConstants.walletCardAppearance, index);
+  }
+
+  @override
+  int getCardAppearance() {
+    return sharedPreferences.getInt(AppConstants.walletCardAppearance) ?? 0;
+  }
+
+  @override
+  Future<void> setCardSymbol(int index) {
+    return sharedPreferences.setInt(AppConstants.walletCardSymbol, index);
+  }
+
+  @override
+  int getCardSymbol() {
+    return sharedPreferences.getInt(AppConstants.walletCardSymbol) ?? 0;
+  }
 }

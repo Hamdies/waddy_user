@@ -1,25 +1,22 @@
+import 'package:lottie/lottie.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/places/controllers/places_controller.dart';
+import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:sixam_mart/features/home/widgets/views/top_restaurants_view.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/widgets/banner_view.dart';
-import 'package:sixam_mart/features/home/widgets/views/top_restaurants_view.dart';
-import 'package:sixam_mart/features/home/widgets/views/top_grocery_stores_view.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/features/home/widgets/views/top_grocery_view.dart';
-import 'package:sixam_mart/features/home/widgets/xp_progress_widget.dart';
 import 'package:sixam_mart/features/home/widgets/current_order_widget.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
 import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_celebrate_button_wrapper.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_stall_view.dart';
 
 class ModuleView extends StatelessWidget {
   final SplashController splashController;
@@ -30,21 +27,20 @@ class ModuleView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 0. Current Order (top priority — show active order first)
-
-        // 1. Banner
-        GetBuilder<BannerController>(
-          builder: (bannerController) {
-            return const BannerView(isFeatured: true);
-          },
+        // 0. Current Order (top priority — show active order first, above everything)
+        if (AuthHelper.isLoggedIn()) const Padding(
+          padding: EdgeInsets.only(top: 5, bottom: 5),
+          child: CurrentOrderWidget(),
         ),
-        if (AuthHelper.isLoggedIn()) const CurrentOrderWidget(),
-        // 2. Modules grid - custom layout with Ramadan decorations
+
+        const SizedBox(height: 4),
+
+        // 1. Modules grid - custom layout with Ramadan decorations
         splashController.moduleList != null
             ? splashController.moduleList!.isNotEmpty
                 ? RamadanCelebrateButtonWrapper(
                   child: Padding(
-                    padding: EdgeInsets.zero,
+                    padding: const EdgeInsets.only(top: 8),
                     child: _buildModulesLayout(context, splashController),
                   ),
                 )
@@ -58,16 +54,17 @@ class ModuleView extends StatelessWidget {
                 )
             : ModuleShimmer(isEnabled: splashController.moduleList == null),
 
-        // 3. XP Progress Widget (for logged-in users)
-        if (AuthHelper.isLoggedIn()) const XpProgressWidget(),
+        const SizedBox(height: 8),
 
-        // 4. Top Restaurants (food module only)
+        // 2. Speed Mode — nearest best restaurants (replaces Featured Stores)
         const TopRestaurantsView(),
 
-        // 5. Top Grocery (grocery module only)
-        TopGroceryView(),
+        const SizedBox(height: 4),
 
-        const SizedBox(height: 120),
+        // 3. Food Offers — discounted food items (replaces Trending Now)
+        const _FoodOffersSection(),
+
+        const SizedBox(height: 100),
       ],
     );
   }
@@ -80,7 +77,7 @@ class ModuleView extends StatelessWidget {
     SplashController splashController,
   ) {
     final modules = splashController.moduleList!;
-    const double cardSize = 90.0; // Square cards
+    const double cardSize = 95.0; // Larger cards for visual hierarchy
 
     // Separate normal modules from Hidden Gem
     final normalModules = <dynamic>[];
@@ -109,7 +106,7 @@ class ModuleView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (int i = 0; i < normalModules.length; i++) ...[
-              if (i > 0) const SizedBox(width: 30), // Gap between cards
+              if (i > 0) const SizedBox(width: 24),
               _ModuleCard(
                 module: normalModules[i]['module'],
                 cardSize: cardSize,
@@ -123,11 +120,11 @@ class ModuleView extends StatelessWidget {
           ],
         ),
 
-        // Hidden Gem full-width card below with breathing room
+        // Hidden Gem full-width card below
         if (hiddenGemModule != null)
           Padding(
             padding: const EdgeInsets.only(
-              top: 24,
+              top: 20,
               left: 16,
               right: 16,
               bottom: 8,
@@ -209,17 +206,17 @@ class _ModuleCardState extends State<_ModuleCard>
                 width: widget.cardSize,
                 height: widget.cardSize,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                      color: primaryColor.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+                      color: primaryColor.withValues(alpha: 0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -247,21 +244,47 @@ class _ModuleCardState extends State<_ModuleCard>
                   ),
                 ),
               ),
-              // Text label below
+              // Text label below image
               Padding(
-                padding: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   widget.module.moduleName ?? '',
-                  style: robotoMedium.copyWith(
-                    fontSize: Dimensions.fontSizeSmall,
+                  style: robotoRegular.copyWith(
+                    fontSize: Dimensions.fontSizeDefault,
                     color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontWeight: FontWeight.w500,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              // Tilted offer chip below the name
+              // Padding(
+              //   padding: const EdgeInsets.only(top: 4),
+              //   child: Transform.rotate(
+              //     angle: -0.05,
+              //     child: Container(
+              //       padding: const EdgeInsets.symmetric(
+              //         horizontal: 8,
+              //         vertical: 3,
+              //       ),
+              //       decoration: BoxDecoration(
+              //         color: primaryColor,
+              //         borderRadius: BorderRadius.circular(8),
+              //       ),
+              //       child: Text(
+              //         _getModuleSubtitle(
+              //           widget.module.moduleName ?? '',
+              //         ).toUpperCase(),
+              //         style: robotoBold.copyWith(
+              //           fontSize: 7.5,
+              //           color: Colors.white,
+              //           letterSpacing: 0.3,
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -301,9 +324,9 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
       CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
     );
 
-    // Shimmer stripe animation - continuous loop
+    // Shimmer stripe animation - slow continuous loop
     _shimmerController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 4000),
       vsync: this,
     )..repeat();
 
@@ -314,35 +337,16 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
   }
 
   void _loadFeaturedPlaces() {
-    debugPrint('🗺️ [HiddenGem] _loadFeaturedPlaces called');
     try {
-      // Check if PlacesController is registered
-      if (!Get.isRegistered<PlacesController>()) {
-        debugPrint('🗺️ [HiddenGem] PlacesController NOT registered!');
-        return;
-      }
+      if (!Get.isRegistered<PlacesController>()) return;
 
       final placesController = Get.find<PlacesController>();
-      debugPrint('🗺️ [HiddenGem] PlacesController found!');
-      debugPrint(
-        '🗺️ [HiddenGem] Places count: ${placesController.places?.length ?? 0}',
-      );
 
-      // Load places if not loaded
       if (placesController.places == null || placesController.places!.isEmpty) {
-        debugPrint('🗺️ [HiddenGem] Fetching places...');
         placesController.getPlaces(reload: true);
-      } else {
-        // Print available places
-        for (var place in placesController.places!.take(3)) {
-          debugPrint(
-            '🗺️ [HiddenGem] Place: ${place.title}, Image: ${place.image}',
-          );
-        }
       }
-    } catch (e, stack) {
-      debugPrint('🗺️ [HiddenGem] Error: $e');
-      debugPrint('🗺️ [HiddenGem] Stack: $stack');
+    } catch (e) {
+      debugPrint('Error loading featured places: $e');
     }
   }
 
@@ -372,115 +376,90 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
         },
         child: Container(
           width: double.infinity,
-          height: 90,
+          height: 68,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
                 primaryColor,
-                primaryColor.withValues(alpha: 0.95),
-                secondaryColor.withValues(alpha: 0.7),
+                secondaryColor.withValues(alpha: 0.85),
               ],
-              stops: const [0.0, 0.6, 1.0],
             ),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                color: primaryColor.withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                // Animated shimmer stripes overlay
-                AnimatedBuilder(
-                  animation: _shimmerController,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: _ShimmerStripesPainter(
-                        progress: _shimmerController.value,
-                        stripeColor: secondaryColor,
-                      ),
-                      size: Size.infinite,
-                    );
-                  },
-                ),
-
-                // Content row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      // Left side: Icon + Text
-                      Expanded(
-                        child: Row(
-                          children: [
-                            // Location pin icon
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white.withValues(alpha: 0.2),
-                              ),
-                              child: Icon(
-                                Icons.place_rounded,
-                                color: secondaryColor,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Text content
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Places to Visit',
-                                    style: robotoMedium.copyWith(
-                                      fontSize: Dimensions.fontSizeLarge,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Top spots in Maadi 🌟',
-                                    style: robotoRegular.copyWith(
-                                      fontSize: Dimensions.fontSizeSmall,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Right side: Stacked place images
-                      _buildStackedImages(primaryColor, secondaryColor),
-
-                      const SizedBox(width: 8),
-
-                      // Arrow
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        size: 16,
-                      ),
-                    ],
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  // Location pin icon — compact circle
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                    child:  Lottie.asset(
+                      'assets/animation/gem.json',
+                     
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  // Text content
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Places to Visit',
+                          style: robotoMedium.copyWith(
+                            fontSize: Dimensions.fontSizeDefault,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Top spots in Maadi ✨',
+                            style: robotoRegular.copyWith(
+                              fontSize: 10,
+                              color: Colors.white.withValues(alpha: 0.95),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Right: stacked images
+                  _buildStackedImages(primaryColor, secondaryColor),
+                  const SizedBox(width: 6),
+                  // Arrow
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white.withValues(alpha: 0.75),
+                    size: 14,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -491,17 +470,7 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
   Widget _buildStackedImages(Color primaryColor, Color secondaryColor) {
     return GetBuilder<PlacesController>(
       builder: (placesController) {
-        // Use places instead of leaderboard
         final places = placesController.places?.take(3).toList() ?? [];
-
-        debugPrint(
-          '🖼️ [HiddenGem] Building images, places count: ${places.length}',
-        );
-        for (var p in places) {
-          debugPrint(
-            '🖼️ [HiddenGem] Place: ${p.title}, Image URL: ${p.image}',
-          );
-        }
 
         if (places.isEmpty) {
           // Show placeholder images when no data
@@ -509,12 +478,11 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
         }
 
         return SizedBox(
-          width: 90,
-          height: 70,
+          width: 76,
+          height: 52,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Third image (back) - rotated left
               if (places.length > 2)
                 Positioned(
                   left: 0,
@@ -523,7 +491,6 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
                     child: _buildPlaceImage(places[2].image, secondaryColor),
                   ),
                 ),
-              // Second image (middle) - rotated right
               if (places.length > 1)
                 Positioned(
                   right: 0,
@@ -532,7 +499,6 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
                     child: _buildPlaceImage(places[1].image, secondaryColor),
                   ),
                 ),
-              // First image (front) - center, no rotation
               if (places.isNotEmpty)
                 Positioned(
                   child: _buildPlaceImage(
@@ -554,8 +520,8 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
     bool isFront = false,
   }) {
     return Container(
-      width: isFront ? 48 : 42,
-      height: isFront ? 48 : 42,
+      width: isFront ? 38 : 32,
+      height: isFront ? 38 : 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
@@ -606,55 +572,52 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
 
   Widget _buildPlaceholderImages(Color secondaryColor) {
     return SizedBox(
-      width: 90,
-      height: 70,
+      width: 76,
+      height: 52,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Back left
           Positioned(
             left: 0,
             child: Transform.rotate(
               angle: -0.15,
               child: Container(
-                width: 42,
-                height: 42,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   color: secondaryColor.withValues(alpha: 0.3),
                   border: Border.all(color: Colors.white38, width: 2),
                 ),
-                child: Icon(Icons.place, color: Colors.white38, size: 18),
+                child: const Icon(Icons.place, color: Colors.white38, size: 14),
               ),
             ),
           ),
-          // Back right
           Positioned(
             right: 0,
             child: Transform.rotate(
               angle: 0.15,
               child: Container(
-                width: 42,
-                height: 42,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   color: secondaryColor.withValues(alpha: 0.3),
                   border: Border.all(color: Colors.white38, width: 2),
                 ),
-                child: Icon(Icons.place, color: Colors.white38, size: 18),
+                child: const Icon(Icons.place, color: Colors.white38, size: 14),
               ),
             ),
           ),
-          // Front center
           Container(
-            width: 48,
-            height: 48,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               color: secondaryColor.withValues(alpha: 0.4),
               border: Border.all(color: Colors.white70, width: 2),
             ),
-            child: Icon(Icons.place, color: Colors.white60, size: 22),
+            child: const Icon(Icons.place, color: Colors.white60, size: 18),
           ),
         ],
       ),
@@ -711,6 +674,200 @@ class _ShimmerStripesPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ShimmerStripesPainter oldDelegate) {
     return oldDelegate.progress != progress;
+  }
+}
+
+/// Food Offers section — shows discounted food items only (not grocery)
+class _FoodOffersSection extends StatelessWidget {
+  const _FoodOffersSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<ItemController>(
+      builder: (itemController) {
+        final allItems = itemController.popularItemList;
+        if (allItems == null || allItems.isEmpty) return const SizedBox.shrink();
+
+        // Filter: only food module items with discounts
+        final splashController = Get.find<SplashController>();
+        final modules = splashController.moduleList;
+
+        int? foodModuleId;
+        if (modules != null) {
+          for (var module in modules) {
+            if (module.moduleType?.toLowerCase() ==
+                AppConstants.food.toLowerCase()) {
+              foodModuleId = module.id;
+              break;
+            }
+          }
+        }
+
+        List<Item> offerItems;
+        if (foodModuleId != null) {
+          offerItems = allItems
+              .where((item) =>
+                  item.moduleId == foodModuleId &&
+                  item.discount != null &&
+                  item.discount! > 0)
+              .toList();
+        } else {
+          // Fallback: show all items with discounts
+          offerItems = allItems
+              .where(
+                  (item) => item.discount != null && item.discount! > 0)
+              .toList();
+        }
+
+        if (offerItems.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    const Text('🔥', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'food_offers'.tr,
+                      style: robotoBold.copyWith(fontSize: 17),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 175,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.only(left: 16),
+                  itemCount: offerItems.length > 10 ? 10 : offerItems.length,
+                  itemBuilder: (_, index) => Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _FoodOfferCard(item: offerItems[index]),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FoodOfferCard extends StatelessWidget {
+  final Item item;
+  const _FoodOfferCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+    final accentColor = Theme.of(context).secondaryHeaderColor;
+    final hasDiscount = item.discount != null && item.discount! > 0;
+
+    return GestureDetector(
+      onTap: () => Get.toNamed(
+        RouteHelper.getItemDetailsRoute(item.id, false),
+      ),
+      child: SizedBox(
+        width: 140,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with offer badge
+            Container(
+              height: 105,
+              width: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.grey[200],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CustomImage(
+                      image: '${item.imageFullUrl}',
+                      fit: BoxFit.cover,
+                    ),
+                    if (hasDiscount)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            item.discountType == 'percent'
+                                ? '${item.discount!.toInt()}% OFF'
+                                : '\$${item.discount!.toInt()} OFF',
+                            style: robotoBold.copyWith(
+                              fontSize: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Item name
+            Text(
+              item.name ?? '',
+              style: robotoMedium.copyWith(fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // Store name + price
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.storeName ?? '',
+                    style: robotoRegular.copyWith(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (item.price != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '\$${item.price!.toStringAsFixed(0)}',
+                      style: robotoBold.copyWith(
+                        fontSize: 11,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

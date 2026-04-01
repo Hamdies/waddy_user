@@ -79,7 +79,7 @@ class TopSection extends StatelessWidget {
   Widget build(BuildContext context) {
     bool takeAway = (checkoutController.orderType == 'take_away');
     bool isDesktop = ResponsiveHelper.isDesktop(context);
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    bool isGuestLoggedIn = false;
 
     return Container(
       decoration: ResponsiveHelper.isDesktop(context) ? BoxDecoration(

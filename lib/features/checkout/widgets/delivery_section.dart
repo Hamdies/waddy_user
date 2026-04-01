@@ -28,7 +28,7 @@ class DeliverySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    bool isGuestLoggedIn = false;
     bool takeAway = (checkoutController.orderType == 'take_away');
     bool isDesktop = ResponsiveHelper.isDesktop(context);
     return Column(children: [

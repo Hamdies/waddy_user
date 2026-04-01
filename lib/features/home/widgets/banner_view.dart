@@ -45,7 +45,7 @@ class BannerView extends StatelessWidget {
                 height:
                     GetPlatform.isDesktop
                         ? 500
-                        : MediaQuery.of(context).size.width * 0.45,
+                        : MediaQuery.of(context).size.width * 0.38,
                 padding: const EdgeInsets.only(
                   top: Dimensions.paddingSizeExtraSmall,
                 ),
@@ -60,7 +60,7 @@ class BannerView extends StatelessWidget {
                                   GetPlatform.isDesktop
                                       ? 450
                                       : MediaQuery.of(context).size.width *
-                                          0.38,
+                                          0.32,
                               child: CarouselSlider.builder(
                                 options: CarouselOptions(
                                   autoPlay: true,

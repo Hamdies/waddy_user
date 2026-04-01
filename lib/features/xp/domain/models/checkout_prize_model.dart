@@ -7,6 +7,7 @@ class CheckoutPrize {
   final double? minOrderAmount;
   final DateTime? expiresAt;
   final String? description;
+  final String? levelName;
 
   CheckoutPrize({
     required this.id,
@@ -16,6 +17,7 @@ class CheckoutPrize {
     this.minOrderAmount,
     this.expiresAt,
     this.description,
+    this.levelName,
   });
 
   factory CheckoutPrize.fromJson(Map<String, dynamic> json) {
@@ -25,11 +27,11 @@ class CheckoutPrize {
       type: json['type'] ?? json['prize_type'] ?? 'free_delivery',
       value: json['value']?.toDouble(),
       minOrderAmount: json['min_order_amount']?.toDouble(),
-      expiresAt:
-          json['expires_at'] != null
-              ? DateTime.parse(json['expires_at'])
-              : null,
+      expiresAt: json['expires_at'] != null
+          ? DateTime.tryParse(json['expires_at'].toString())
+          : null,
       description: json['description'],
+      levelName: json['level_name'],
     );
   }
 
@@ -42,6 +44,7 @@ class CheckoutPrize {
       'min_order_amount': minOrderAmount,
       'expires_at': expiresAt?.toIso8601String(),
       'description': description,
+      'level_name': levelName,
     };
   }
 

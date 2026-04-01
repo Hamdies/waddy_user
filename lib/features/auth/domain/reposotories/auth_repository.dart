@@ -13,6 +13,7 @@ import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
 import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_interface.dart';
 import 'package:sixam_mart/helper/address_helper.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
+import 'package:sixam_mart/helper/secure_storage_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
 class AuthRepository implements AuthRepositoryInterface {
@@ -243,10 +244,8 @@ class AuthRepository implements AuthRepositoryInterface {
         }
       }
     }
-    if (deviceToken != null) {
-      if (kDebugMode) {
-        print('--------Device Token---------- $deviceToken');
-      }
+    if (kDebugMode && deviceToken != null) {
+      debugPrint('Device token retrieved successfully');
     }
     return deviceToken;
   }
@@ -301,8 +300,8 @@ class AuthRepository implements AuthRepositoryInterface {
     sharedPreferences.remove(AppConstants.token);
     sharedPreferences.remove(AppConstants.guestId);
     sharedPreferences.setStringList(AppConstants.cartList, []);
+    await SecureStorageHelper.deleteToken();
     apiClient.token = null;
-    await guestLogin();
     if (sharedPreferences.getString(AppConstants.userAddress) != null) {
       AddressModel? addressModel = AddressModel.fromJson(
         jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!),
@@ -327,7 +326,7 @@ class AuthRepository implements AuthRepositoryInterface {
     String countryCode,
   ) async {
     try {
-      await sharedPreferences.setString(AppConstants.userPassword, password);
+      await SecureStorageHelper.savePassword(password);
       await sharedPreferences.setString(AppConstants.userNumber, number);
       await sharedPreferences.setString(
         AppConstants.userCountryCode,
@@ -350,12 +349,22 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   String getUserPassword() {
-    return sharedPreferences.getString(AppConstants.userPassword) ?? "";
+    // Legacy fallback: migrate from SharedPreferences to secure storage
+    final legacy = sharedPreferences.getString(AppConstants.userPassword) ?? "";
+    if (legacy.isNotEmpty) {
+      SecureStorageHelper.savePassword(legacy);
+      sharedPreferences.remove(AppConstants.userPassword);
+      return legacy;
+    }
+    // Note: This returns empty synchronously. For secure storage, callers
+    // should use the async version via SecureStorageHelper.getPassword()
+    return "";
   }
 
   @override
   Future<bool> clearUserNumberAndPassword() async {
-    await sharedPreferences.remove(AppConstants.userPassword);
+    await SecureStorageHelper.deletePassword();
+    await sharedPreferences.remove(AppConstants.userPassword); // Clean up legacy
     await sharedPreferences.remove(AppConstants.userCountryCode);
     return await sharedPreferences.remove(AppConstants.userNumber);
   }

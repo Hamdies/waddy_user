@@ -46,7 +46,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
   }
 
   void configurePartialPayment() {
-    if(!AuthHelper.isGuestLoggedIn()) {
+    {
       double walletBalance = Get.find<ProfileController>().userInfoModel!.walletBalance!;
       if(walletBalance < widget.totalPrice){
         canSelectWallet = false;

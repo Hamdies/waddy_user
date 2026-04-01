@@ -221,31 +221,19 @@ class StoreController extends GetxController implements GetxService {
   }
 
   Future<List<Item>?> fetchStoreRecommendedItems(int storeId) async {
-    print('>>> fetchStoreRecommendedItems called for store ID: $storeId');
-    
     if (_storeRecommendedItems.containsKey(storeId)) {
-      print('>>> Store $storeId already cached with ${_storeRecommendedItems[storeId]!.length} items');
       return _storeRecommendedItems[storeId];
     }
-    
-    print('>>> Calling API for store $storeId recommended items...');
+
     RecommendedItemModel? recommendedItemModel = await storeServiceInterface
         .getStoreRecommendedItemList(storeId);
-    
-    print('>>> API Response for store $storeId:');
-    print('    - Model is null: ${recommendedItemModel == null}');
-    print('    - Items is null: ${recommendedItemModel?.items == null}');
-    print('    - Items count: ${recommendedItemModel?.items?.length ?? 0}');
-    
+
     if (recommendedItemModel != null && recommendedItemModel.items != null) {
       _storeRecommendedItems[storeId] = recommendedItemModel.items!;
-      print('>>> Cached ${recommendedItemModel.items!.length} items for store $storeId');
-      print('>>> Item names: ${recommendedItemModel.items!.map((e) => e.name).join(", ")}');
       update();
       return recommendedItemModel.items;
     }
-    
-    print('>>> No items returned for store $storeId');
+
     return null;
   }
 

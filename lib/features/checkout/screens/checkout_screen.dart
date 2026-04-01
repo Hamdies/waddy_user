@@ -212,11 +212,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   Widget build(BuildContext context) {
     Module? module =
         Get.find<SplashController>().configModel!.moduleConfig!.module;
-    bool guestCheckoutPermission =
-        AuthHelper.isGuestLoggedIn() &&
-        Get.find<SplashController>().configModel!.guestCheckoutStatus!;
     bool isLoggedIn = AuthHelper.isLoggedIn();
-    bool isGuestLogIn = AuthHelper.isGuestLoggedIn();
 
     final Color primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
@@ -237,7 +233,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
       endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
       body:
-          guestCheckoutPermission || AuthHelper.isLoggedIn()
+          AuthHelper.isLoggedIn()
               ? GetBuilder<CheckoutController>(
                 builder: (checkoutController) {
                   List<DropdownItem<int>> addressList = _getDropdownAddressList(
@@ -536,10 +532,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                     checkoutController.getSelectedInstructionsText(),
                                 partialPayment:
                                     checkoutController.isPartialPay ? 1 : 0,
-                                guestId:
-                                    isGuestLogIn
-                                        ? int.parse(AuthHelper.getGuestId())
-                                        : 0,
+                                guestId: 0,
                                 isBuyNow: widget.fromCart ? 0 : 1,
                                 extraPackagingAmount:
                                     Get.find<CartController>().needExtraPackage && checkoutController.store != null
@@ -547,9 +540,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                             .store!
                                             .extraPackagingAmount
                                         : 0,
-                                createNewUser:
-                                    checkoutController.isCreateAccount ? 1 : 0,
-                                password: guestPasswordController.text,
+                                createNewUser: 0,
+                                password: '',
                                 isPrescriptionOrder:
                                     widget.storeId == null ? false : true,
                                 usePrizeId:
@@ -1074,7 +1066,6 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                     bool isAvailable = true;
                     DateTime scheduleStartDate = DateTime.now();
                     DateTime scheduleEndDate = DateTime.now();
-                    bool isGuestLogIn = AuthHelper.isGuestLoggedIn();
                     if (checkoutController.timeSlots == null ||
                         checkoutController.timeSlots!.isEmpty) {
                       isAvailable = false;
@@ -1130,44 +1121,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                       }
                     }
 
-                    if (isGuestLogIn &&
-                        checkoutController.guestAddress == null &&
-                        checkoutController.orderType != 'take_away') {
-                      showCustomSnackBar(
-                        'please_setup_your_delivery_address_first'.tr,
-                      );
-                    } else if (isGuestLogIn &&
-                        checkoutController.orderType == 'take_away' &&
-                        guestContactPersonNameController.text.isEmpty) {
-                      showCustomSnackBar('please_enter_contact_person_name'.tr);
-                    } else if (isGuestLogIn &&
-                        checkoutController.orderType == 'take_away' &&
-                        guestContactPersonNumberController.text.isEmpty) {
-                      showCustomSnackBar(
-                        'please_enter_contact_person_number'.tr,
-                      );
-                    } else if (isGuestLogIn &&
-                        checkoutController.orderType == 'take_away' &&
-                        guestEmailController.text.isEmpty) {
-                      showCustomSnackBar(
-                        'please_enter_contact_person_email'.tr,
-                      );
-                    } else if (isGuestLogIn &&
-                        checkoutController.isCreateAccount &&
-                        guestPasswordController.text.isEmpty) {
-                      showCustomSnackBar('enter_password'.tr);
-                    } else if (isGuestLogIn &&
-                        checkoutController.isCreateAccount &&
-                        guestConfirmPasswordController.text.isEmpty) {
-                      showCustomSnackBar('enter_confirm_password'.tr);
-                    } else if (isGuestLogIn &&
-                        checkoutController.isCreateAccount &&
-                        (guestPasswordController.text !=
-                            guestConfirmPasswordController.text)) {
-                      showCustomSnackBar(
-                        'confirm_password_does_not_matched'.tr,
-                      );
-                    } else if (isPrescriptionRequired &&
+                    if (isPrescriptionRequired &&
                         checkoutController.pickedPrescriptions.isEmpty) {
                       showCustomSnackBar(
                         'you_must_upload_prescription_for_this_order'.tr,
@@ -1285,38 +1239,10 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             .tr,
                       );
                     } else {
-                      AddressModel? finalAddress =
-                          isGuestLogIn
-                              ? checkoutController.guestAddress
-                              : address[checkoutController.addressIndex!];
+                      AddressModel finalAddress =
+                          address[checkoutController.addressIndex!];
 
-                      if (isGuestLogIn &&
-                          checkoutController.orderType == 'take_away') {
-                        String number =
-                            checkoutController.countryDialCode! +
-                            guestContactPersonNumberController.text;
-                        finalAddress = AddressModel(
-                          contactPersonName:
-                              guestContactPersonNameController.text,
-                          contactPersonNumber: number,
-                          address:
-                              AddressHelper.getUserAddressFromSharedPref()!
-                                  .address!,
-                          latitude:
-                              AddressHelper.getUserAddressFromSharedPref()!
-                                  .latitude,
-                          longitude:
-                              AddressHelper.getUserAddressFromSharedPref()!
-                                  .longitude,
-                          zoneId:
-                              AddressHelper.getUserAddressFromSharedPref()!
-                                  .zoneId,
-                          email: guestEmailController.text,
-                        );
-                      }
-
-                      if (!isGuestLogIn &&
-                          finalAddress!.contactPersonNumber == 'null') {
+                      if (finalAddress.contactPersonNumber == 'null') {
                         finalAddress.contactPersonNumber =
                             Get.find<ProfileController>().userInfoModel!.phone;
                       }
@@ -1443,7 +1369,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                   ? Get.find<CouponController>().coupon!.code
                                   : null,
                           storeId: _cartList![0]!.item!.storeId,
-                          address: finalAddress!.address,
+                          address: finalAddress.address,
                           latitude: finalAddress.latitude,
                           longitude: finalAddress.longitude,
                           senderZoneId: null,
@@ -1458,22 +1384,16 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                   .userInfoModel!
                                   .phone,
                           streetNumber:
-                              isGuestLogIn
-                                  ? finalAddress.streetNumber ?? ''
-                                  : checkoutController
-                                      .streetNumberController
-                                      .text
-                                      .trim(),
+                              checkoutController
+                                  .streetNumberController
+                                  .text
+                                  .trim(),
                           house:
-                              isGuestLogIn
-                                  ? finalAddress.house ?? ''
-                                  : checkoutController.houseController.text
-                                      .trim(),
+                              checkoutController.houseController.text
+                                  .trim(),
                           floor:
-                              isGuestLogIn
-                                  ? finalAddress.floor ?? ''
-                                  : checkoutController.floorController.text
-                                      .trim(),
+                              checkoutController.floorController.text
+                                  .trim(),
                           discountAmount: discount,
                           taxAmount: tax,
                           receiverDetails: null,
@@ -1500,21 +1420,17 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               checkoutController.getSelectedInstructionsText(),
                           partialPayment:
                               checkoutController.isPartialPay ? 1 : 0,
-                          guestId:
-                              isGuestLogIn
-                                  ? int.parse(AuthHelper.getGuestId())
-                                  : 0,
+                          guestId: 0,
                           isBuyNow: widget.fromCart ? 0 : 1,
-                          guestEmail: isGuestLogIn ? finalAddress.email : null,
+                          guestEmail: null,
                           extraPackagingAmount:
                               Get.find<CartController>().needExtraPackage
                                   ? checkoutController
                                       .store!
                                       .extraPackagingAmount
                                   : 0,
-                          createNewUser:
-                              checkoutController.isCreateAccount ? 1 : 0,
-                          password: guestPasswordController.text,
+                          createNewUser: 0,
+                          password: '',
                           usePrizeId:
                               Get.find<XpController>()
                                   .selectedCheckoutPrize
@@ -1549,7 +1465,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           widget.storeId,
                           checkoutController.store!.zoneId,
                           checkoutController.distance,
-                          finalAddress!.address!,
+                          finalAddress.address!,
                           finalAddress.longitude!,
                           finalAddress.latitude!,
                           checkoutController.noteController.text,

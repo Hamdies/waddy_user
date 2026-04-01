@@ -127,7 +127,7 @@ class _NewPassScreenState extends State<NewPassScreen> {
     String confirmPassword = _confirmPasswordController.text.trim();
     if (password.isEmpty) {
       showCustomSnackBar('enter_password'.tr);
-    }else if (password.length < 6) {
+    }else if (password.length < 8) {
       showCustomSnackBar('password_should_be'.tr);
     }else if(password != confirmPassword) {
       showCustomSnackBar('confirm_password_does_not_matched'.tr);

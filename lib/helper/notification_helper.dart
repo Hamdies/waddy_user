@@ -21,6 +21,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:sixam_mart/features/dashboard/screens/dashboard_screen.dart';
 import 'package:sixam_mart/features/notification/widgets/notifiation_popup_dialog_widget.dart';
+import 'package:sixam_mart/helper/live_activity_helper.dart';
+import 'package:sixam_mart/services/live_activity_service.dart';
 
 class NotificationHelper {
   static Future<void> initialize(
@@ -50,19 +52,12 @@ class NotificationHelper {
 
             final Map<NotificationType, Function> notificationActions = {
               NotificationType.order: () {
-                if (AuthHelper.isGuestLoggedIn()) {
-                  Get.to(
-                    () =>
-                        const DashboardScreen(pageIndex: 3, fromSplash: false),
-                  );
-                } else {
                   Get.toNamed(
                     RouteHelper.getOrderDetailsRoute(
                       int.parse(payload.orderId.toString()),
                       fromNotification: true,
                     ),
                   );
-                }
               },
               NotificationType.block:
                   () => Get.toNamed(
@@ -189,6 +184,13 @@ class NotificationHelper {
           message,
           flutterLocalNotificationsPlugin,
         );
+
+        // Update Live Activity for order status changes
+        if (message.data['type'] == 'order_status' &&
+            message.data['order_id'] != null) {
+          _updateLiveActivityFromFCM(message.data);
+        }
+
         if (AuthHelper.isLoggedIn()) {
           if (message.data['type'] != 'trip_status') {
             Get.find<OrderController>().getRunningOrders(1);
@@ -313,6 +315,44 @@ class NotificationHelper {
         }
       } catch (_) {}
     });
+  }
+
+  static void _updateLiveActivityFromFCM(Map<String, dynamic> data) {
+    final orderId = int.tryParse(data['order_id'].toString()) ?? 0;
+    if (orderId == 0) return;
+
+    var status = data['status'] as String?;
+    final subStatus = data['sub_status'] as String?;
+    final storeName = data['store_name'] as String?;
+    final deliveryManName = data['delivery_man_name'] as String?;
+    final etaMinutes = int.tryParse(data['eta_minutes']?.toString() ?? '');
+    final etaText = data['eta_text'] as String? ??
+        (etaMinutes != null ? 'Arriving in $etaMinutes mins' : null);
+
+    // If status not in FCM payload, try to get it from the cached track model
+    if (status == null) {
+      try {
+        final trackModel = Get.find<OrderController>().trackModel;
+        if (trackModel?.id == orderId) {
+          status = trackModel?.orderStatus;
+        }
+      } catch (_) {}
+    }
+
+    if (status == null) return;
+
+    if (LiveActivityHelper.isTerminalStatus(status)) {
+      LiveActivityService.endActivity(orderId);
+    } else {
+      LiveActivityService.updateActivity(
+        orderId: orderId,
+        status: status,
+        subStatus: subStatus,
+        eta: etaText,
+        storeName: storeName,
+        deliveryManName: deliveryManName,
+      );
+    }
   }
 
   static Future<void> showNotification(

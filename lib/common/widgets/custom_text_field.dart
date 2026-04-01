@@ -100,7 +100,6 @@ class CustomTextFieldState extends State<CustomTextField>
   late AnimationController _shakeController;
   late Animation<double> _animation;
   late Animation<double> _shakeAnimation;
-  bool _isHovered = false;
   Timer? _emptyTimer;
 
   @override
@@ -186,7 +185,7 @@ class CustomTextFieldState extends State<CustomTextField>
                 fontSize: Dimensions.fontSizeDefault,
                 color: Theme.of(
                   context,
-                ).textTheme.bodyLarge?.color?.withOpacity(0.9),
+                ).textTheme.bodyLarge?.color?.withValues(alpha:0.9),
                 letterSpacing: 0.2,
               ),
             ),
@@ -195,10 +194,7 @@ class CustomTextFieldState extends State<CustomTextField>
         SizedBox(height: widget.showTitle ? 8 : 0),
 
         // Main text field container with modern design and shake animation
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: AnimatedBuilder(
+        AnimatedBuilder(
             animation: Listenable.merge([_animation, _shakeAnimation]),
             builder: (context, child) {
               // Calculate shake offset
@@ -214,27 +210,7 @@ class CustomTextFieldState extends State<CustomTextField>
                 offset: Offset(shakeOffset, 0),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      if (widget.focusNode?.hasFocus == true || _isHovered)
-                        BoxShadow(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.1),
-                          blurRadius: 20,
-                          spreadRadius: 0,
-                          offset: const Offset(0, 4),
-                        ),
-                      BoxShadow(
-                        color:
-                            isDark
-                                ? Colors.black.withOpacity(0.2)
-                                : Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextFormField(
                     maxLines: widget.maxLines,
@@ -278,7 +254,7 @@ class CustomTextFieldState extends State<CustomTextField>
                     decoration: InputDecoration(
                       // Modern border design
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           style:
                               widget.showBorder
@@ -287,12 +263,12 @@ class CustomTextFieldState extends State<CustomTextField>
                           width: 1.5,
                           color:
                               isDark
-                                  ? Colors.white.withOpacity(0.08)
-                                  : Colors.black.withOpacity(0.06),
+                                  ? Colors.white.withValues(alpha:0.08)
+                                  : Colors.black.withValues(alpha:0.06),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           style:
                               widget.showBorder
@@ -303,7 +279,7 @@ class CustomTextFieldState extends State<CustomTextField>
                         ),
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           style:
                               widget.showBorder
@@ -312,12 +288,12 @@ class CustomTextFieldState extends State<CustomTextField>
                           width: 1.5,
                           color:
                               isDark
-                                  ? Colors.white.withOpacity(0.08)
-                                  : Colors.black.withOpacity(0.06),
+                                  ? Colors.white.withValues(alpha:0.08)
+                                  : Colors.black.withValues(alpha:0.06),
                         ),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           style:
                               widget.showBorder
@@ -326,11 +302,11 @@ class CustomTextFieldState extends State<CustomTextField>
                           width: 2,
                           color: Theme.of(
                             context,
-                          ).colorScheme.error.withOpacity(0.8),
+                          ).colorScheme.error.withValues(alpha:0.8),
                         ),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
                           style:
                               widget.showBorder
@@ -351,17 +327,11 @@ class CustomTextFieldState extends State<CustomTextField>
                               ? widget.titleText
                               : widget.hintText,
 
-                      // Modern fill color with glassmorphism effect
-                      fillColor:
-                          widget.focusNode?.hasFocus == true
-                              ? Theme.of(context).primaryColor.withOpacity(0.03)
-                              : isDark
-                              ? Colors.white.withOpacity(0.03)
-                              : Colors.white.withOpacity(0.8),
+                      fillColor: Theme.of(context).cardColor,
 
                       hintStyle: robotoRegular.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).hintColor.withOpacity(0.5),
+                        color: Theme.of(context).hintColor.withValues(alpha:0.5),
                         letterSpacing: 0.1,
                       ),
                       filled: true,
@@ -373,7 +343,7 @@ class CustomTextFieldState extends State<CustomTextField>
                                 fontSize: Dimensions.fontSizeDefault,
                                 color: Theme.of(
                                   context,
-                                ).hintColor.withOpacity(0.8),
+                                ).hintColor.withValues(alpha:0.8),
                                 letterSpacing: 0.2,
                               )
                               : null,
@@ -405,7 +375,7 @@ class CustomTextFieldState extends State<CustomTextField>
                                                 ? Theme.of(context).primaryColor
                                                 : Theme.of(
                                                   context,
-                                                ).hintColor.withOpacity(0.7),
+                                                ).hintColor.withValues(alpha:0.7),
                                         letterSpacing: 0.2,
                                       ),
                                     ),
@@ -431,7 +401,7 @@ class CustomTextFieldState extends State<CustomTextField>
                                           fontSize: Dimensions.fontSizeSmall,
                                           color: Theme.of(
                                             context,
-                                          ).colorScheme.error.withOpacity(0.8),
+                                          ).colorScheme.error.withValues(alpha:0.8),
                                         ),
                                       ),
                                   ],
@@ -482,22 +452,13 @@ class CustomTextFieldState extends State<CustomTextField>
               );
             },
           ),
-        ),
 
         // Modern divider
         if (widget.divider)
           Container(
             margin: const EdgeInsets.only(top: 16),
             height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Theme.of(context).dividerColor.withOpacity(0.3),
-                  Colors.transparent,
-                ],
-              ),
-            ),
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
           ),
       ],
     );
@@ -514,19 +475,8 @@ class CustomTextFieldState extends State<CustomTextField>
             width: 88,
             height: 44,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor.withOpacity(0.08),
-                  Theme.of(context).primaryColor.withOpacity(0.04),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.15),
-                width: 1,
-              ),
+              color: Theme.of(context).hintColor.withValues(alpha:0.06),
+              borderRadius: BorderRadius.circular(10),
             ),
             margin: const EdgeInsets.only(right: 12),
             child: Center(
@@ -551,20 +501,9 @@ class CustomTextFieldState extends State<CustomTextField>
             ),
           ),
           Container(
-            height: 28,
-            width: 2,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Theme.of(context).dividerColor.withOpacity(0.4),
-                  Colors.transparent,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.circular(1),
-            ),
+            height: 24,
+            width: 1,
+            color: Theme.of(context).dividerColor.withValues(alpha:0.3),
           ),
         ],
       ),
@@ -578,8 +517,8 @@ class CustomTextFieldState extends State<CustomTextField>
       decoration: BoxDecoration(
         color:
             widget.focusNode?.hasFocus == true
-                ? Theme.of(context).primaryColor.withOpacity(0.1)
-                : Theme.of(context).hintColor.withOpacity(0.05),
+                ? Theme.of(context).primaryColor.withValues(alpha:0.1)
+                : Theme.of(context).hintColor.withValues(alpha:0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: CustomAssetImageWidget(
@@ -590,7 +529,7 @@ class CustomTextFieldState extends State<CustomTextField>
         color:
             widget.focusNode?.hasFocus == true
                 ? Theme.of(context).primaryColor
-                : Theme.of(context).hintColor.withOpacity(0.7),
+                : Theme.of(context).hintColor.withValues(alpha:0.7),
       ),
     );
   }
@@ -602,8 +541,8 @@ class CustomTextFieldState extends State<CustomTextField>
       decoration: BoxDecoration(
         color:
             widget.focusNode?.hasFocus == true
-                ? Theme.of(context).primaryColor.withOpacity(0.1)
-                : Theme.of(context).hintColor.withOpacity(0.05),
+                ? Theme.of(context).primaryColor.withValues(alpha:0.1)
+                : Theme.of(context).hintColor.withValues(alpha:0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
@@ -612,7 +551,7 @@ class CustomTextFieldState extends State<CustomTextField>
         color:
             widget.focusNode?.hasFocus == true
                 ? Theme.of(context).primaryColor
-                : Theme.of(context).hintColor.withOpacity(0.7),
+                : Theme.of(context).hintColor.withValues(alpha:0.7),
       ),
     );
   }
@@ -629,19 +568,8 @@ class CustomTextFieldState extends State<CustomTextField>
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor.withOpacity(0.1),
-                  Theme.of(context).primaryColor.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                width: 1,
-              ),
+              color: Theme.of(context).hintColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -671,19 +599,8 @@ class CustomTextFieldState extends State<CustomTextField>
           child: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).primaryColor.withOpacity(0.1),
-                  Theme.of(context).primaryColor.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                width: 1,
-              ),
+              color: Theme.of(context).hintColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Image.asset(
               widget.suffixImage!,

@@ -18,6 +18,7 @@ import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/common/widgets/organic_tag.dart';
 import 'package:sixam_mart/common/widgets/rating_bar.dart';
+import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
 
 class ItemTitleViewWidget extends StatelessWidget {
   final Item? item;
@@ -400,6 +401,35 @@ class ItemTitleViewWidget extends StatelessWidget {
                                 ),
                               ),
                             ),
+                          Builder(builder: (context) {
+                            final xpConfig = Get.find<XpController>().xpConfig;
+                            if (xpConfig == null || !xpConfig.levelingEnabled) return const SizedBox.shrink();
+                            final multiplier = xpConfig.multipliers[item!.moduleType] ?? 1.0;
+                            final xp = item!.getDisplayXp(multiplier: multiplier);
+                            if (xp <= 0) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.amber.shade300, width: 0.5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.auto_awesome, size: 12, color: Colors.amber.shade700),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '+$xp XP',
+                                      style: robotoMedium.copyWith(fontSize: 11, color: Colors.amber.shade800),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
                         ],
                       ),
                     ],

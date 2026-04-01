@@ -6,6 +6,8 @@ class XpLevelModel {
   final int xpForNextLevel;
   final int xpToNextLevel;
   final double progressPercentage;
+  final bool isMaxLevel;
+  final NextLevel? nextLevel;
   final List<Level> allLevels;
 
   XpLevelModel({
@@ -16,6 +18,8 @@ class XpLevelModel {
     required this.xpForNextLevel,
     required this.xpToNextLevel,
     required this.progressPercentage,
+    this.isMaxLevel = false,
+    this.nextLevel,
     this.allLevels = const [],
   });
 
@@ -29,6 +33,10 @@ class XpLevelModel {
           json['xp_for_next_level'] ?? json['xp_to_next_level'] ?? 100,
       xpToNextLevel: json['xp_to_next_level'] ?? 100,
       progressPercentage: (json['progress_percentage'] ?? 0.0).toDouble(),
+      isMaxLevel: json['is_max_level'] ?? false,
+      nextLevel: json['next_level'] != null
+          ? NextLevel.fromJson(json['next_level'])
+          : null,
       allLevels:
           json['all_levels'] != null
               ? (json['all_levels'] as List)
@@ -47,15 +55,42 @@ class XpLevelModel {
       'xp_for_next_level': xpForNextLevel,
       'xp_to_next_level': xpToNextLevel,
       'progress_percentage': progressPercentage,
+      'is_max_level': isMaxLevel,
+      'next_level': nextLevel?.toJson(),
       'all_levels': allLevels.map((level) => level.toJson()).toList(),
     };
   }
 
   /// Check if user is at max level. Pass maxLevel from config, defaults to 10.
-  bool isMaxLevelFor(int maxLevel) => currentLevel >= maxLevel;
-  
-  /// Legacy getter — use isMaxLevelFor() with config value when possible
-  bool get isMaxLevel => currentLevel >= 10;
+  bool isMaxLevelFor(int maxLevel) => isMaxLevel || currentLevel >= maxLevel;
+}
+
+class NextLevel {
+  final int levelNumber;
+  final String name;
+  final int xpRequired;
+
+  NextLevel({
+    required this.levelNumber,
+    required this.name,
+    required this.xpRequired,
+  });
+
+  factory NextLevel.fromJson(Map<String, dynamic> json) {
+    return NextLevel(
+      levelNumber: json['level_number'] ?? 0,
+      name: json['name'] ?? '',
+      xpRequired: json['xp_required'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'level_number': levelNumber,
+      'name': name,
+      'xp_required': xpRequired,
+    };
+  }
 }
 
 class Level {

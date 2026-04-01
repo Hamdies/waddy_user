@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
@@ -19,6 +20,7 @@ import 'package:sixam_mart/theme/light_theme.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/messages.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -33,22 +35,21 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (ResponsiveHelper.isMobilePhone()) {
+  if (kDebugMode && ResponsiveHelper.isMobilePhone()) {
     HttpOverrides.global = MyHttpOverrides();
   }
   setPathUrlStrategy();
 
-  /*///Pass all uncaught "fatal" errors from the framework to Crashlytics
+  /// Pass all uncaught "fatal" errors from the framework to Crashlytics
   FlutterError.onError = (errorDetails) {
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
 
-
-  ///Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  /// Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
-  };*/
+  };
 
   if (GetPlatform.isWeb) {
     await Firebase.initializeApp(
@@ -126,12 +127,7 @@ class _MyAppState extends State<MyApp> {
         Get.find<AuthController>().clearSharedAddress();
       }
 
-      if (!AuthHelper.isLoggedIn() &&
-          !AuthHelper.isGuestLoggedIn() /*&& !ResponsiveHelper.isDesktop(Get.context!)*/ ) {
-        await Get.find<AuthController>().guestLogin();
-      }
-
-      if ((AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn()) &&
+      if (AuthHelper.isLoggedIn() &&
           Get.find<SplashController>().cacheModule != null) {
         Get.find<CartController>().getCartDataOnline();
       }

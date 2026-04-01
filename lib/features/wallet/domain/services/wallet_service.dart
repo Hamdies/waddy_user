@@ -33,4 +33,23 @@ class WalletService implements WalletServiceInterface {
     return walletRepositoryInterface.getWalletAccessToken();
   }
 
+  @override
+  Future<void> setCardAppearance(int index) {
+    return walletRepositoryInterface.setCardAppearance(index);
+  }
+
+  @override
+  int getCardAppearance() {
+    return walletRepositoryInterface.getCardAppearance();
+  }
+
+  @override
+  Future<void> setCardSymbol(int index) {
+    return walletRepositoryInterface.setCardSymbol(index);
+  }
+
+  @override
+  int getCardSymbol() {
+    return walletRepositoryInterface.getCardSymbol();
+  }
 }

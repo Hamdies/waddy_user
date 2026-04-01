@@ -375,8 +375,8 @@ class ModernTrackingCardWidget extends StatelessWidget {
           color: Colors.orange,
           step: 1,
           progress: 0.2,
-          timeText: 'Pending',
-          showETA: false,
+          timeText: eta ?? 'Pending',
+          showETA: eta != null,
         );
       case 'accepted':
       case 'confirmed':
@@ -387,8 +387,8 @@ class ModernTrackingCardWidget extends StatelessWidget {
           color: Colors.blue,
           step: 2,
           progress: 0.35,
-          timeText: 'Confirmed',
-          showETA: false,
+          timeText: eta ?? 'Confirmed',
+          showETA: eta != null,
         );
       case 'processing':
         String subtitle = 'Your order is being prepared';
@@ -404,8 +404,8 @@ class ModernTrackingCardWidget extends StatelessWidget {
           color: Colors.purple,
           step: 3,
           progress: 0.5,
-          timeText: 'Cooking',
-          showETA: false,
+          timeText: eta ?? 'Cooking',
+          showETA: eta != null,
         );
       case 'handover':
         return _StatusInfo(
@@ -415,8 +415,8 @@ class ModernTrackingCardWidget extends StatelessWidget {
           color: Colors.teal,
           step: 4,
           progress: 0.65,
-          timeText: 'Ready',
-          showETA: false,
+          timeText: eta ?? 'Ready',
+          showETA: eta != null,
         );
       case 'picked_up':
         String subtitle = 'Driver is on the way';

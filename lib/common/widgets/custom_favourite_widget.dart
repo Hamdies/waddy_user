@@ -37,8 +37,8 @@ class _CustomFavouriteWidgetState extends State<CustomFavouriteWidget> with Sing
 
   @override
   void dispose() {
-    super.dispose();
     _controller.dispose();
+    super.dispose();
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
 import 'package:sixam_mart/common/widgets/custom_text_field.dart';
@@ -95,14 +96,15 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   @override
   Widget build(BuildContext context) {
     bool isLoggedIn = Get.find<AuthController>().isLoggedIn();
-    final primaryColor = Theme.of(context).primaryColor;
-    final secondaryColor = Theme.of(context).colorScheme.secondary;
+    final theme = Theme.of(context);
+    final primaryColor = theme.primaryColor;
+    final accentColor = theme.colorScheme.secondary;
 
     return Scaffold(
       appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
       endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.colorScheme.background,
       body: GetBuilder<ProfileController>(
         builder: (profileController) {
           if (profileController.userInfoModel != null &&
@@ -117,7 +119,8 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
           if (profileController.userInfoModel != null &&
               _nameController.text.isEmpty) {
             _nameController.text =
-                '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}';
+                '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                    .trim();
           }
 
           if (profileController.userInfoModel != null &&
@@ -130,320 +133,13 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
               ? profileController.userInfoModel != null
                   ? ResponsiveHelper.isDesktop(context)
                       ? webView(profileController, isLoggedIn)
-                      : Scaffold(
-                        backgroundColor: const Color(
-                          0xFFFDF8F3,
-                        ), // Light cream background
-                        body: SafeArea(
-                          child: Column(
-                            children: [
-                              // Header with overlapping profile image
-                              Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  // Green header section
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.only(
-                                      top: 16,
-                                      bottom: 60,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: secondaryColor,
-                                      borderRadius: const BorderRadius.only(
-                                        bottomLeft: Radius.circular(32),
-                                        bottomRight: Radius.circular(32),
-                                      ),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          // Back button - white with dark border
-                                          GestureDetector(
-                                            onTap: () => Get.back(),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(10),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: primaryColor
-                                                      .withOpacity(0.2),
-                                                  width: 1.5,
-                                                ),
-                                              ),
-                                              child: Icon(
-                                                Icons
-                                                    .arrow_back_ios_new_rounded,
-                                                color: primaryColor,
-                                                size: 18,
-                                              ),
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          Text(
-                                            'my_profile'.tr,
-                                            style: robotoBold.copyWith(
-                                              fontSize: 22,
-                                              color: primaryColor,
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          const SizedBox(
-                                            width: 44,
-                                          ), // Balance for back button
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Profile image - overlapping bottom of header
-                                  Positioned(
-                                    bottom: -50,
-                                    left: 0,
-                                    right: 0,
-                                    child: Center(
-                                      child: GestureDetector(
-                                        onTap:
-                                            () => profileController.pickImage(),
-                                        child: Stack(
-                                          children: [
-                                            // White frame with rounded corners
-                                            Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  color: primaryColor
-                                                      .withOpacity(0.15),
-                                                  width: 2,
-                                                ),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black
-                                                        .withOpacity(0.08),
-                                                    blurRadius: 15,
-                                                    offset: const Offset(0, 5),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(14),
-                                                child:
-                                                    profileController
-                                                                .pickedFile !=
-                                                            null
-                                                        ? GetPlatform.isWeb
-                                                            ? Image.network(
-                                                              profileController
-                                                                  .pickedFile!
-                                                                  .path,
-                                                              width: 90,
-                                                              height: 90,
-                                                              fit: BoxFit.cover,
-                                                            )
-                                                            : Image.file(
-                                                              File(
-                                                                profileController
-                                                                    .pickedFile!
-                                                                    .path,
-                                                              ),
-                                                              width: 90,
-                                                              height: 90,
-                                                              fit: BoxFit.cover,
-                                                            )
-                                                        : FadeInImage.assetNetwork(
-                                                          placeholder:
-                                                              Images
-                                                                  .placeholder,
-                                                          image:
-                                                              '${profileController.userInfoModel!.imageFullUrl}',
-                                                          height: 90,
-                                                          width: 90,
-                                                          fit: BoxFit.cover,
-                                                          imageErrorBuilder:
-                                                              (
-                                                                c,
-                                                                o,
-                                                                s,
-                                                              ) => Image.asset(
-                                                                Images
-                                                                    .placeholder,
-                                                                height: 90,
-                                                                width: 90,
-                                                                fit:
-                                                                    BoxFit
-                                                                        .cover,
-                                                              ),
-                                                        ),
-                                              ),
-                                            ),
-                                            // Camera icon - small, bottom right
-                                            Positioned(
-                                              bottom: -2,
-                                              right: -2,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  6,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: secondaryColor,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: Colors.white,
-                                                    width: 2,
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  Icons.camera_alt_rounded,
-                                                  color: primaryColor,
-                                                  size: 14,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Spacer for the overlapping image
-                              const SizedBox(height: 60),
-
-                              // Form section
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  physics: const BouncingScrollPhysics(),
-                                  padding: const EdgeInsets.all(
-                                    Dimensions.paddingSizeDefault,
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.04),
-                                          blurRadius: 15,
-                                          offset: const Offset(0, 5),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Name field
-                                        _buildLightTextField(
-                                          context,
-                                          controller: _nameController,
-                                          focusNode: _nameFocus,
-                                          nextFocus: _emailFocus,
-                                          label: 'name'.tr,
-                                          hint: 'enter_name'.tr,
-                                          icon: Icons.person_outline_rounded,
-                                          isRequired: true,
-                                          primaryColor: primaryColor,
-                                        ),
-
-                                        const SizedBox(height: 20),
-
-                                        // Email field (Optional)
-                                        _buildLightTextField(
-                                          context,
-                                          controller: _emailController,
-                                          focusNode: _emailFocus,
-                                          label: 'email'.tr,
-                                          hint: 'enter_email'.tr,
-                                          icon: Icons.email_outlined,
-                                          isRequired: false,
-                                          keyboardType:
-                                              TextInputType.emailAddress,
-                                          primaryColor: primaryColor,
-                                          suffix:
-                                              profileController
-                                                          .userInfoModel!
-                                                          .isEmailVerified! &&
-                                                      profileController
-                                                              .userInfoModel!
-                                                              .email ==
-                                                          _emailController.text
-                                                  ? Icon(
-                                                    Icons.verified_rounded,
-                                                    color: secondaryColor,
-                                                    size: 22,
-                                                  )
-                                                  : null,
-                                        ),
-
-                                        const SizedBox(height: 20),
-
-                                        // Phone field
-                                        _buildLightPhoneField(
-                                          context,
-                                          controller: _phoneController,
-                                          focusNode: _phoneFocus,
-                                          label: 'phone'.tr,
-                                          isEnabled:
-                                              !profileController
-                                                  .userInfoModel!
-                                                  .isPhoneVerified! ||
-                                              profileController
-                                                      .userInfoModel!
-                                                      .phone ==
-                                                  null,
-                                          countryDialCode:
-                                              _countryDialCode ??
-                                              Get.find<LocalizationController>()
-                                                  .locale
-                                                  .countryCode,
-                                          onCountryChanged:
-                                              (CountryCode countryCode) =>
-                                                  _countryDialCode =
-                                                      countryCode.dialCode,
-                                          primaryColor: primaryColor,
-                                          isVerified:
-                                              profileController
-                                                  .userInfoModel!
-                                                  .isPhoneVerified!,
-                                          secondaryColor: secondaryColor,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // Update button using CustomButton
-                              CustomButton(
-                                isLoading: profileController.isLoading,
-                                onPressed:
-                                    () => _updateProfile(
-                                      profileController: profileController,
-                                      fromButton: true,
-                                      fromPhone: false,
-                                    ),
-                                margin: const EdgeInsets.all(
-                                  Dimensions.paddingSizeDefault,
-                                ),
-                                buttonText: 'update'.tr,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                  : const Center(child: CircularProgressIndicator())
+                      : _mobileView(profileController, primaryColor, accentColor)
+                  : Center(
+                    child: CircularProgressIndicator(
+                      color: accentColor,
+                      strokeWidth: 3,
+                    ),
+                  )
               : NotLoggedInScreen(
                 callBack: (value) {
                   _initCall();
@@ -455,76 +151,372 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     );
   }
 
-  Widget _buildLightTextField(
-    BuildContext context, {
+  Widget _mobileView(
+    ProfileController profileController,
+    Color primaryColor,
+    Color accentColor,
+  ) {
+    return Container(
+      color: primaryColor,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Top bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  _backButton(primaryColor, accentColor),
+                  const Spacer(),
+                  Text(
+                    'edit_profile'.tr,
+                    style: robotoBold.copyWith(fontSize: 18, color: accentColor),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Content area
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.background,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 24),
+                      _buildAvatar(profileController, primaryColor, accentColor),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                            .trim(),
+                        style: robotoBold.copyWith(fontSize: 16, color: primaryColor),
+                      ),
+                      if (profileController.userInfoModel?.email != null &&
+                          profileController.userInfoModel!.email!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            profileController.userInfoModel!.email!,
+                            style: robotoRegular.copyWith(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 18),
+                      // Form card
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: primaryColor.withOpacity(0.06)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primaryColor.withOpacity(0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _buildField(
+                              controller: _nameController,
+                              focusNode: _nameFocus,
+                              nextFocus: _emailFocus,
+                              label: 'name'.tr,
+                              hint: 'enter_name'.tr,
+                              icon: HugeIcons.strokeRoundedUser,
+                              isRequired: true,
+                              primaryColor: primaryColor,
+                              accentColor: accentColor,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildField(
+                              controller: _emailController,
+                              focusNode: _emailFocus,
+                              label: 'email'.tr,
+                              hint: 'enter_email'.tr,
+                              icon: HugeIcons.strokeRoundedMail01,
+                              isRequired: false,
+                              keyboardType: TextInputType.emailAddress,
+                              primaryColor: primaryColor,
+                              accentColor: accentColor,
+                              suffix:
+                                  profileController.userInfoModel!.isEmailVerified! &&
+                                          profileController.userInfoModel!.email ==
+                                              _emailController.text
+                                      ? Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: accentColor.withOpacity(0.15),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.check_rounded, color: primaryColor, size: 14),
+                                      )
+                                      : null,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildPhoneField(
+                              controller: _phoneController,
+                              focusNode: _phoneFocus,
+                              label: 'phone'.tr,
+                              isEnabled:
+                                  !profileController.userInfoModel!.isPhoneVerified! ||
+                                  profileController.userInfoModel!.phone == null,
+                              countryDialCode:
+                                  _countryDialCode ??
+                                  Get.find<LocalizationController>().locale.countryCode,
+                              onCountryChanged:
+                                  (CountryCode countryCode) =>
+                                      _countryDialCode = countryCode.dialCode,
+                              primaryColor: primaryColor,
+                              accentColor: accentColor,
+                              isVerified: profileController.userInfoModel!.isPhoneVerified!,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // Update button
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: profileController.isLoading
+                              ? null
+                              : () => _updateProfile(
+                                  profileController: profileController,
+                                  fromButton: true,
+                                  fromPhone: false,
+                                ),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [primaryColor, primaryColor.withOpacity(0.85)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primaryColor.withOpacity(0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              child: Center(
+                                child: profileController.isLoading
+                                    ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: accentColor,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                    : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        HugeIcon(
+                                          icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                                          color: accentColor,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'update'.tr,
+                                          style: robotoBold.copyWith(
+                                            fontSize: 15,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _backButton(Color primaryColor, Color accentColor) {
+    return GestureDetector(
+      onTap: () => Get.back(),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: accentColor.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white,
+          size: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(
+    ProfileController profileController,
+    Color primaryColor,
+    Color accentColor,
+  ) {
+    return GestureDetector(
+      onTap: () => profileController.pickImage(),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Rounded rectangle avatar matching menu_screen style
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              border: Border.all(color: accentColor, width: 2),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF134E4A), Color(0xFF1A7A6E)],
+              ),
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: profileController.pickedFile != null
+                  ? GetPlatform.isWeb
+                      ? Image.network(
+                        profileController.pickedFile!.path,
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.cover,
+                      )
+                      : Image.file(
+                        File(profileController.pickedFile!.path),
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.cover,
+                      )
+                  : FadeInImage.assetNetwork(
+                    placeholder: Images.placeholder,
+                    image: '${profileController.userInfoModel!.imageFullUrl}',
+                    height: 90,
+                    width: 90,
+                    fit: BoxFit.cover,
+                    imageErrorBuilder: (c, o, s) => Image.asset(
+                      Images.placeholder,
+                      height: 90,
+                      width: 90,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+            ),
+          ),
+          // Camera badge
+          Positioned(
+            bottom: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedCamera01,
+                color: primaryColor,
+                size: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField({
     required TextEditingController controller,
     required FocusNode focusNode,
     FocusNode? nextFocus,
     required String label,
     required String hint,
-    required IconData icon,
+    required dynamic icon,
     required bool isRequired,
     required Color primaryColor,
-    Color? secondaryColor,
+    required Color accentColor,
     TextInputType keyboardType = TextInputType.text,
     Widget? suffix,
   }) {
-    final bgColor = secondaryColor?.withOpacity(0.08) ?? Colors.grey.shade50;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
+            HugeIcon(icon: icon, color: primaryColor, size: 16),
+            const SizedBox(width: 5),
             Text(
               label,
-              style: robotoMedium.copyWith(fontSize: 14, color: primaryColor),
+              style: robotoMedium.copyWith(fontSize: 12, color: primaryColor),
             ),
             if (isRequired)
-              Text(
-                ' *',
-                style: robotoMedium.copyWith(color: Colors.red, fontSize: 14),
-              ),
+              Text(' *', style: robotoMedium.copyWith(color: Colors.red, fontSize: 12)),
             if (!isRequired)
               Text(
                 ' (${'optional'.tr})',
-                style: robotoRegular.copyWith(
-                  color: Colors.grey.shade500,
-                  fontSize: 12,
-                ),
+                style: robotoRegular.copyWith(color: Colors.grey.shade400, fontSize: 10),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+            color: primaryColor.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: primaryColor.withOpacity(0.1)),
           ),
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             keyboardType: keyboardType,
-            textInputAction:
-                nextFocus != null ? TextInputAction.next : TextInputAction.done,
+            textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
             onSubmitted: (_) => nextFocus?.requestFocus(),
-            style: robotoRegular.copyWith(
-              fontSize: 15,
-              color: const Color(0xFF1E293B),
-            ),
+            style: robotoRegular.copyWith(fontSize: 14, color: primaryColor),
+            cursorColor: accentColor,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: robotoRegular.copyWith(
-                fontSize: 14,
-                color: Colors.grey.shade400,
-              ),
-              prefixIcon: Icon(icon, color: primaryColor, size: 22),
-              suffixIcon: suffix,
+              hintStyle: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade400),
+              suffixIcon: suffix != null
+                  ? Padding(padding: const EdgeInsets.only(right: 10), child: suffix)
+                  : null,
+              suffixIconConstraints: const BoxConstraints(minWidth: 20, minHeight: 20),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
         ),
@@ -532,8 +524,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     );
   }
 
-  Widget _buildLightPhoneField(
-    BuildContext context, {
+  Widget _buildPhoneField({
     required TextEditingController controller,
     required FocusNode focusNode,
     required String label,
@@ -541,7 +532,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     required String? countryDialCode,
     required Function(CountryCode) onCountryChanged,
     required Color primaryColor,
-    required Color secondaryColor,
+    required Color accentColor,
     required bool isVerified,
   }) {
     return Column(
@@ -549,36 +540,36 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       children: [
         Row(
           children: [
-            Text(
-              label,
-              style: robotoMedium.copyWith(fontSize: 14, color: primaryColor),
-            ),
-            Text(
-              ' *',
-              style: robotoMedium.copyWith(color: Colors.red, fontSize: 14),
-            ),
+            HugeIcon(icon: HugeIcons.strokeRoundedSmartPhone01, color: primaryColor, size: 16),
+            const SizedBox(width: 5),
+            Text(label, style: robotoMedium.copyWith(fontSize: 12, color: primaryColor)),
+            Text(' *', style: robotoMedium.copyWith(color: Colors.red, fontSize: 12)),
             if (!isEnabled)
-              Text(
-                ' (${'non_changeable'.tr})',
-                style: robotoRegular.copyWith(color: Colors.grey, fontSize: 12),
+              Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  'non_changeable'.tr,
+                  style: robotoRegular.copyWith(color: primaryColor.withOpacity(0.6), fontSize: 9),
+                ),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color:
-                isEnabled
-                    ? secondaryColor.withOpacity(0.08)
-                    : Colors.grey.shade100,
+            color: isEnabled ? primaryColor.withOpacity(0.03) : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: primaryColor.withOpacity(0.15), width: 1),
+            border: Border.all(color: primaryColor.withOpacity(0.1)),
           ),
           child: Row(
             children: [
-              // Country code picker
               Container(
-                padding: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.only(left: 6),
                 child: CountryCodePicker(
                   onChanged: onCountryChanged,
                   initialSelection: countryDialCode,
@@ -587,51 +578,45 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   showOnlyCountryWhenClosed: false,
                   alignLeft: false,
                   padding: EdgeInsets.zero,
-                  textStyle: robotoRegular.copyWith(
-                    fontSize: 14,
-                    color: const Color(0xFF1E293B),
-                  ),
-                  flagWidth: 24,
+                  textStyle: robotoMedium.copyWith(fontSize: 13, color: primaryColor),
+                  flagWidth: 22,
                   enabled: isEnabled,
                 ),
               ),
               Container(
                 width: 1,
-                height: 30,
-                color: primaryColor.withOpacity(0.15),
+                height: 24,
+                color: primaryColor.withOpacity(0.1),
               ),
-              // Phone number input
               Expanded(
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
                   keyboardType: TextInputType.phone,
                   enabled: isEnabled,
+                  cursorColor: accentColor,
                   style: robotoRegular.copyWith(
-                    fontSize: 15,
-                    color: isEnabled ? const Color(0xFF1E293B) : Colors.grey,
+                    fontSize: 14,
+                    color: isEnabled ? primaryColor : Colors.grey,
                   ),
                   decoration: InputDecoration(
                     hintText: 'write_phone_number'.tr,
-                    hintStyle: robotoRegular.copyWith(
-                      fontSize: 14,
-                      color: Colors.grey.shade400,
-                    ),
+                    hintStyle: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade400),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                   ),
                 ),
               ),
               if (isVerified)
                 Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Icon(
-                    Icons.verified_rounded,
-                    color: secondaryColor,
-                    size: 22,
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.check_rounded, color: primaryColor, size: 14),
                   ),
                 ),
             ],
@@ -994,12 +979,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     } else if (phoneNumber.length < 6) {
       showCustomSnackBar('enter_a_valid_phone_number'.tr);
     } else if (email.isNotEmpty && !GetUtils.isEmail(email)) {
-      // Only validate email format if email is provided (email is now optional)
       showCustomSnackBar('enter_a_valid_email_address'.tr);
     } else {
       UpdateUserModel updatedUser = UpdateUserModel(
         name: name,
-        email: email, // Can be empty now
+        email: email,
         phone: numberWithCountryCode,
         buttonType:
             fromButton

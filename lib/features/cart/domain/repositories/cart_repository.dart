@@ -7,7 +7,6 @@ import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
 import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart';
 import 'package:sixam_mart/features/cart/domain/repositories/cart_repository_interface.dart';
 import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/module_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 
@@ -46,7 +45,7 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
 
   Future<List<OnlineCartModel>?> _addToCartOnline(OnlineCart cart) async {
     List<OnlineCartModel>? onlineCartList;
-    Response response = await apiClient.postData('${AppConstants.addCartUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}', cart.toJson());
+    Response response = await apiClient.postData(AppConstants.addCartUri, cart.toJson());
     if(response.statusCode == 200) {
       onlineCartList = [];
       response.body.forEach((cart) => onlineCartList!.add(OnlineCartModel.fromJson(cart)));
@@ -64,12 +63,12 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
   }
 
   Future<bool> _removeCartItemOnline(int cartId) async {
-    Response response = await apiClient.deleteData('${AppConstants.removeItemCartUri}?cart_id=$cartId${!AuthHelper.isLoggedIn() ? '&guest_id=${AuthHelper.getGuestId()}' : ''}');
+    Response response = await apiClient.deleteData('${AppConstants.removeItemCartUri}?cart_id=${Uri.encodeComponent(cartId.toString())}');
     return (response.statusCode == 200);
   }
 
   Future<bool> _clearCartOnline() async {
-    Response response = await apiClient.deleteData('${AppConstants.removeAllCartUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}');
+    Response response = await apiClient.deleteData(AppConstants.removeAllCartUri);
     return (response.statusCode == 200);
   }
 
@@ -103,33 +102,10 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       };
     }
 
-    print('========== CART API REQUEST ==========');
-    print('URL: ${AppConstants.getCartListUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}');
-    print('Is Logged In: ${AuthHelper.isLoggedIn()}');
-    print('Guest ID: ${AuthHelper.getGuestId()}');
-    print('Current Module ID: ${ModuleHelper.getModule()?.id}');
-    print('Cache Module ID: ${ModuleHelper.getCacheModule()?.id}');
-    print('Sending moduleId in header: ${ModuleHelper.getModule()?.id != null}');
-    print('Custom Headers:');
-    header.forEach((key, value) {
-      print('  $key: ${key == 'Authorization' ? value.substring(0, 20) + '...' : value}');
-    });
-    print('======================================');
-
     Response response = await apiClient.getData(
-      '${AppConstants.getCartListUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}',
+      AppConstants.getCartListUri,
       headers: header,
     );
-    
-    print('========== CART API RESPONSE ==========');
-    print('Status Code: ${response.statusCode}');
-    print('Status Text: ${response.statusText}');
-    if (response.statusCode != 200) {
-      print('Error Body: ${response.body}');
-    } else {
-      print('Success - Cart Items Count: ${response.body?.length ?? 0}');
-    }
-    print('=======================================');
     
     if(response.statusCode == 200) {
       onlineCartList = [];
@@ -149,7 +125,7 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
 
   Future<List<OnlineCartModel>?> _updateCartOnline(Map<String, dynamic> body) async {
     List<OnlineCartModel>? onlineCartList;
-    Response response = await apiClient.postData('${AppConstants.updateCartUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}', body);
+    Response response = await apiClient.postData(AppConstants.updateCartUri, body);
     if(response.statusCode == 200) {
       onlineCartList = [];
       response.body.forEach((cart) => onlineCartList!.add(OnlineCartModel.fromJson(cart)));
@@ -163,7 +139,7 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
       "price": price,
       "quantity": quantity,
     };
-    Response response = await apiClient.postData('${AppConstants.updateCartUri}${!AuthHelper.isLoggedIn() ? '?guest_id=${AuthHelper.getGuestId()}' : ''}', data);
+    Response response = await apiClient.postData(AppConstants.updateCartUri, data);
     return (response.statusCode == 200);
   }
 }

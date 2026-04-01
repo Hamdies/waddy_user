@@ -286,12 +286,6 @@ class _ParcelLocationScreenState extends State<ParcelLocationScreen> with Ticker
     } else if (!phoneValid.isValid) {
       showCustomSnackBar('invalid_phone_number'.tr);
       _tabController!.animateTo(0);
-    }else if(AuthHelper.isGuestLoggedIn() && _guestSenderEmailController.text.isEmpty){
-      showCustomSnackBar('please_enter_sender_email'.tr);
-      _tabController!.animateTo(0);
-    }else if(AuthHelper.isGuestLoggedIn() && !CustomValidator.isEmailValid(_guestSenderEmailController.text.trim())){
-      showCustomSnackBar('enter_valid_email_address'.tr);
-      _tabController!.animateTo(0);
     } else{
       AddressModel pickup = AddressModel(
         address: parcelController.pickupAddress!.address,

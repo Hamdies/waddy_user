@@ -7,7 +7,6 @@ import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/features/order/domain/models/refund_model.dart';
 import 'package:sixam_mart/features/order/domain/models/support_model.dart';
 import 'package:sixam_mart/features/order/domain/repositories/order_repository_interface.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 
@@ -23,7 +22,7 @@ class OrderRepository implements OrderRepositoryInterface {
   @override
   Future<Response> trackOrder(String? orderID, String? guestId, {String? contactNumber}) async {
     return await apiClient.getData(
-      '${AppConstants.trackUri}$orderID${guestId != null ? '&guest_id=$guestId' : ''}'
+      '${AppConstants.trackUri}$orderID'
           '${contactNumber != null ? '&contact_number=$contactNumber' : ''}',
     );
   }
@@ -31,9 +30,6 @@ class OrderRepository implements OrderRepositoryInterface {
   @override
   Future<Response> switchToCOD(String? orderID, {String? guestId}) async {
     Map<String, String> data = {'_method': 'put', 'order_id': orderID!};
-    if(AuthHelper.isGuestLoggedIn() || guestId != null) {
-      data.addAll({'guest_id': guestId ?? AuthHelper.getGuestId()});
-    }
     return await apiClient.postData(AppConstants.codSwitchUri, data);
   }
 
@@ -51,9 +47,6 @@ class OrderRepository implements OrderRepositoryInterface {
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId}) async {
     bool success = false;
     Map<String, String> data = {'_method': 'put', 'order_id': orderID, 'reason': reason!};
-    if(AuthHelper.isGuestLoggedIn() || guestId != null){
-      data.addAll({'guest_id': guestId ?? AuthHelper.getGuestId()});
-    }
     Response response = await apiClient.postData(AppConstants.orderCancelUri, data);
     if (response.statusCode == 200) {
       success = true;
@@ -69,7 +62,7 @@ class OrderRepository implements OrderRepositoryInterface {
 
   Future<List<OrderDetailsModel>?> _getOrderDetails(String orderID, String? guestId) async {
     List<OrderDetailsModel>? orderDetails;
-    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}$orderID${guestId != null ? '&guest_id=$guestId' : ''}');
+    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}$orderID');
     if (response.statusCode == 200) {
       orderDetails = [];
       response.body.forEach((orderDetail) => orderDetails!.add(OrderDetailsModel.fromJson(orderDetail)));
@@ -152,7 +145,25 @@ class OrderRepository implements OrderRepositoryInterface {
 
   @override
   Future<Response> reorder(int orderId) async {
-    return await apiClient.postData(AppConstants.reorderUri, {'order_id': orderId});
+    print('📦 [REORDER REPO] Initiating reorder API call');
+    print('📦 [REORDER REPO] Endpoint: ${AppConstants.reorderUri}');
+    print('📦 [REORDER REPO] Order ID: $orderId');
+    final requestBody = {'order_id': orderId};
+    print('📦 [REORDER REPO] Request Body: $requestBody');
+    
+    try {
+      // Pass handleError: false to prevent global error handler from logging out user on 401
+      final response = await apiClient.postData(
+        AppConstants.reorderUri, 
+        requestBody,
+        handleError: false,  // Important: Get the actual response, don't let global handler process it
+      );
+      print('📦 [REORDER REPO] Response received with status: ${response.statusCode}');
+      return response;
+    } catch (e) {
+      print('❌ [REORDER REPO] Exception in repository: $e');
+      rethrow;
+    }
   }
 
   @override

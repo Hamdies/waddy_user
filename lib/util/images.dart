@@ -1,5 +1,6 @@
 class Images {
   static const String logo = 'assets/image/logo.png';
+  static const String waddyLogo = 'assets/image/waddy.png';
   static const String logoModern = 'assets/image/logo_modern.svg';
   static const String scratchCardLogo = 'assets/image/Group 3.png';
   static const String placeholder = 'assets/image/placeholder.jpg';
@@ -96,7 +97,7 @@ class Images {
   static const String walletIcon = 'assets/image/wallet_icon.png';
   static const String creditIcon = 'assets/image/credit.png';
   static const String debitIcon = 'assets/image/debit.png';
-  static const String walletCreditIcon = 'assets/image/wallet_credit.png';
+  static const String walletCreditIcon = 'assets/image/waddy_coin.png';
   static const String walletDebitIcon = 'assets/image/wallet_debit.png';
   static const String profileIcon = 'assets/image/profile_icon.png';
   static const String addressIcon = 'assets/image/address_icon.png';
@@ -116,7 +117,7 @@ class Images {
   static const String shippingIcon = 'assets/image/shipping_icon.png';
   static const String passwordIcon = 'assets/image/password_icon.png';
   static const String city = 'assets/image/city.png';
-  static const String address = 'assets/image/empty_address.png';
+  static const String address = 'assets/animation/location.json';
   static const String workIcon = 'assets/image/work_icon.png';
   static const String homeIcon = 'assets/image/home_icon.png';
   static const String otherIcon = 'assets/image/other_icon.png';

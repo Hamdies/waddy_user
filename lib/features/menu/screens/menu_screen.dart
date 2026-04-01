@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
@@ -18,11 +19,16 @@ import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:sixam_mart/util/app_constants.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
 import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
+import 'package:sixam_mart/features/wallet/domain/models/card_appearance_model.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -32,26 +38,48 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  bool _isDarkMode = false;
+  bool _isNotificationEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _isDarkMode = Get.isDarkMode;
     if (AuthHelper.isLoggedIn()) {
       Get.find<XpController>().getCurrentLevel();
       Get.find<XpController>().getAllLevels();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.find<WalletController>().loadCardAppearance();
+      });
+    }
+    _checkNotificationStatus();
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (mounted) {
+      setState(() {
+        _isNotificationEnabled =
+            settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
+      });
     }
   }
 
+  // ── Theme palette ──
+  static const _cardBg = Color(0xFF134E4A);
+  static const _cardBorder = Color(0xFF1A6B65);
+  static const _labelColor = Color(0xFF9EE8C8);
+  static const _valueColor = Colors.white;
+  static const _accentGreen = Color(0xFF1EF2A0);
+  static const _subtitleColor = Color(0xFF64748B);
+  static const _titleColor = Color(0xFF1E293B);
+
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor; // 0xFF134E4A dark teal
-    final secondaryColor =
-        Theme.of(context).colorScheme.secondary; // 0xFF1EF2A0 neon green
+    final primaryColor = Theme.of(context).primaryColor;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFB),
       body: GetBuilder<ProfileController>(
         builder: (profileController) {
           final bool isLoggedIn = AuthHelper.isLoggedIn();
@@ -59,12 +87,12 @@ class _MenuScreenState extends State<MenuScreen> {
           return SafeArea(
             child: SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   const SizedBox(height: 12),
 
-                  // Compact ID Card
-                  _buildCompactIdCard(
+                  // ─── 1. FOODIE LICENCE CARD (Avatar + Name + XP) ───
+                  _buildFoodieLicenceCard(
                     context,
                     profileController,
                     isLoggedIn,
@@ -72,257 +100,350 @@ class _MenuScreenState extends State<MenuScreen> {
                     secondaryColor,
                   ),
 
+                  const SizedBox(height: 16),
+
+                  // ─── 2. QUICK ACTIONS ───
+                  _buildQuickActions(
+                    context,
+                    profileController,
+                    isLoggedIn,
+                    primaryColor,
+                  ),
+
                   const SizedBox(height: 20),
 
-                  // Settings Section
-                  _buildSection(
+                  // ════════════════════════════════════════════════
+                  //  PERSONAL
+                  // ════════════════════════════════════════════════
+                  _buildSectionHeader(context, 'Personal'),
+                  _buildFlatItem(
                     context,
-                    title: 'settings'.tr,
-                    children: [
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.person_outline_rounded,
-                        title: 'profile'.tr,
-                        subtitle: 'Update and modify your profile',
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap: () => Get.toNamed(RouteHelper.getProfileRoute()),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.location_on_outlined,
-                        title: 'my_address'.tr,
-                        subtitle: 'Manage your delivery addresses',
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap: () => Get.toNamed(RouteHelper.getAddressRoute()),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.language_rounded,
-                        title: 'language'.tr,
-                        subtitle: 'Change your preferred language',
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap: () => _manageLanguageFunctionality(),
-                      ),
-                    ],
+                    icon: HugeIcons.strokeRoundedUser,
+                    title: 'profile'.tr,
+                    onTap:
+ () => Get.toNamed(RouteHelper.getUpdateProfileRoute()),                  ),
+                  _buildFlatItem(
+                    context,
+                    icon: HugeIcons.strokeRoundedLocation01,
+                    title: 'my_address'.tr,
+                    onTap: () => Get.toNamed(RouteHelper.getAddressRoute()),
+                  ),
+                  _buildFlatItem(
+                    context,
+                    icon: HugeIcons.strokeRoundedFavourite,
+                    title: 'favourite'.tr,
+                    onTap: () => Get.toNamed(RouteHelper.getFavouriteScreen()),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // Promotional Activity Section
-                  _buildSection(
+                  // ════════════════════════════════════════════════
+                  //  REWARDS & OFFERS
+                  // ════════════════════════════════════════════════
+                  _buildSectionHeader(context, 'Rewards & Offers'),
+                  _buildFlatItem(
                     context,
-                    title: 'promotional_activity'.tr,
-                    children: [
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.local_offer_outlined,
-                        title: 'coupon'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap: () => Get.toNamed(RouteHelper.getCouponRoute()),
-                      ),
-                      if (Get.find<SplashController>()
-                              .configModel!
-                              .loyaltyPointStatus ==
-                          1)
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.stars_outlined,
-                          title: 'loyalty_points'.tr,
-                          iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                          iconColor: primaryColor,
-                          suffix:
-                              !isLoggedIn
-                                  ? null
-                                  : '${profileController.userInfoModel?.loyaltyPoint ?? 0} ${'points'.tr}',
-                          onTap:
-                              () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
-                        ),
-                      if (Get.find<SplashController>()
-                              .configModel!
-                              .customerWalletStatus ==
-                          1)
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.account_balance_wallet_outlined,
-                          title: 'my_wallet'.tr,
-                          iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                          iconColor: primaryColor,
-                          suffix:
-                              !isLoggedIn
-                                  ? null
-                                  : PriceConverter.convertPrice(
-                                    profileController
-                                            .userInfoModel
-                                            ?.walletBalance ??
-                                        0,
+                    icon: HugeIcons.strokeRoundedCoupon01,
+                    title: 'coupon'.tr,
+                    onTap: () => Get.toNamed(RouteHelper.getCouponRoute()),
+                  ),
+                  if (Get.find<SplashController>()
+                          .configModel!
+                          .loyaltyPointStatus ==
+                      1)
+                    _buildFlatItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedStars,
+                      title: 'loyalty_points'.tr,
+                      suffix:
+                          !isLoggedIn
+                              ? null
+                              : '${profileController.userInfoModel?.loyaltyPoint ?? 0} ${'points'.tr}',
+                      onTap: () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
+                    ),
+                  if (isLoggedIn &&
+                      profileController.userInfoModel?.refCode != null)
+                    _buildFlatItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedUserGroup,
+                      title: 'Invite Friends',
+                      suffix: 'Earn rewards',
+                      onTap:
+                          () => Get.toNamed(RouteHelper.getReferAndEarnRoute()),
+                    ),
+
+                  // ════════════════════════════════════════════════
+                  //  PREFERENCES
+                  // ════════════════════════════════════════════════
+                  _buildSectionHeader(context, 'Preferences'),
+                  _buildFlatItem(
+                    context,
+                    icon: HugeIcons.strokeRoundedLanguageSkill,
+                    title: 'language'.tr,
+                    onTap: () => _manageLanguageFunctionality(),
+                  ),
+                  if (isLoggedIn) ...[
+                    _buildToggleItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedNotification02,
+                      title: 'Notifications',
+                      value: _isNotificationEnabled,
+                      onChanged: (val) async {
+                        if (!val) {
+                          await FirebaseMessaging.instance.deleteToken();
+                          setState(() => _isNotificationEnabled = false);
+                        } else {
+                          final settings =
+                              await FirebaseMessaging.instance
+                                  .requestPermission();
+                          if (settings.authorizationStatus ==
+                                  AuthorizationStatus.authorized ||
+                              settings.authorizationStatus ==
+                                  AuthorizationStatus.provisional) {
+                            setState(() => _isNotificationEnabled = true);
+                          }
+                        }
+                      },
+                    ),
+                    _buildToggleItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedSmartPhone01,
+                      title: 'Hide Phone Number',
+                      value:
+                          profileController.userInfoModel?.hidePhone ?? false,
+                      onChanged: (val) async {
+                        final confirmed = await Get.dialog<bool>(
+                          AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: Text(
+                              val ? 'Hide Phone Number?' : 'Show Phone Number?',
+                              style: robotoBold.copyWith(fontSize: 17),
+                            ),
+                            content: Text(
+                              val
+                                  ? 'Your phone number will be hidden from delivery personnel and stores.'
+                                  : 'Your phone number will be visible to delivery personnel and stores.',
+                              style: robotoRegular.copyWith(
+                                fontSize: 14,
+                                color: _subtitleColor,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Get.back(result: false),
+                                child: Text(
+                                  'Cancel',
+                                  style: robotoMedium.copyWith(
+                                    color: _subtitleColor,
                                   ),
-                          onTap:
-                              () => Get.toNamed(RouteHelper.getWalletRoute()),
-                          showDivider: false,
-                        ),
-                    ],
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Get.back(result: true),
+                                child: Text(
+                                  'Confirm',
+                                  style: robotoMedium.copyWith(
+                                    color: primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          final response = await Get.find<AuthController>()
+                              .toggleHidePhone(hidePhone: val);
+                          if (response.isSuccess) {
+                            profileController.userInfoModel?.hidePhone = val;
+                            profileController.update();
+                          }
+                        }
+                      },
+                    ),
+                  ],
+
+                  // ════════════════════════════════════════════════
+                  //  SUPPORT & ACCOUNT
+                  // ════════════════════════════════════════════════
+                  _buildSectionHeader(context, 'Support & Account'),
+                  _buildFlatItem(
+                    context,
+                    icon: HugeIcons.strokeRoundedHelpCircle,
+                    title: 'help_and_support'.tr,
+                    onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
+                  ),
+                  const SizedBox(height: 8),
+                  if (isLoggedIn)
+                    _buildFlatItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedDelete02,
+                      title: 'delete_account'.tr,
+                      iconColor: _subtitleColor,
+                      textColor: const Color(0xFFDC2626),
+                      onTap: () {
+                        Get.dialog(
+                          ConfirmationDialog(
+                            icon: Images.warning,
+                            description: 'are_you_sure_to_delete_account'.tr,
+                            onYesPressed: () => profileController.deleteUser(),
+                          ),
+                          useSafeArea: false,
+                        );
+                      },
+                    ),
+                  _buildFlatItem(
+                    context,
+                    icon:
+                        isLoggedIn
+                            ? HugeIcons.strokeRoundedLogout01
+                            : HugeIcons.strokeRoundedLogin01,
+                    title: isLoggedIn ? 'logout'.tr : 'sign_in'.tr,
+                    iconColor: isLoggedIn ? _subtitleColor : primaryColor,
+                    textColor:
+                        isLoggedIn ? const Color(0xFFDC2626) : primaryColor,
+                    onTap: () async {
+                      if (AuthHelper.isLoggedIn()) {
+                        Get.dialog(
+                          ConfirmationDialog(
+                            icon: Images.support,
+                            description: 'are_you_sure_to_logout'.tr,
+                            isLogOut: true,
+                            onYesPressed: () async {
+                              Get.find<AuthController>().resetOtpView();
+                              Get.find<ProfileController>().clearUserInfo();
+                              Get.find<AuthController>().socialLogout();
+                              Get.find<CartController>().clearCartList(
+                                canRemoveOnline: false,
+                              );
+                              Get.find<FavouriteController>().removeFavourite();
+                              await Get.find<AuthController>()
+                                  .clearSharedData();
+                              Get.find<HomeController>()
+                                  .forcefullyNullCashBackOffers();
+                              Get.find<TaxiCartController>().getCarCartList();
+                              Get.offAllNamed(RouteHelper.getInitialRoute());
+                            },
+                          ),
+                          useSafeArea: false,
+                        );
+                      } else {
+                        Get.find<FavouriteController>().removeFavourite();
+                        await Get.toNamed(
+                          RouteHelper.getSignInRoute(Get.currentRoute),
+                        );
+                        if (AuthHelper.isLoggedIn()) {
+                          await Get.find<FavouriteController>()
+                              .getFavouriteList();
+                          profileController.getUserInfo();
+                        }
+                      }
+                    },
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // Help & Support Section
-                  _buildSection(
-                    context,
-                    title: 'help_and_support'.tr,
+                  // ─── FOOTER: Version + Text Links ───
+                  Center(
+                    child: Text(
+                      '--',
+                      style: robotoRegular.copyWith(
+                        fontSize: 14,
+                        color: _subtitleColor.withOpacity(0.3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Text(
+                      'Version ${AppConstants.appVersion}',
+                      style: robotoRegular.copyWith(
+                        fontSize: 13,
+                        color: _subtitleColor.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.chat_bubble_outline,
-                        title: 'live_chat'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap:
-                            () =>
-                                Get.toNamed(RouteHelper.getConversationRoute()),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.help_outline,
-                        title: 'help_and_support'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.info_outline,
-                        title: 'about_us'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap:
-                            () => Get.toNamed(
-                              RouteHelper.getHtmlRoute('about-us'),
-                            ),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.description_outlined,
-                        title: 'terms_conditions'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
-                        onTap:
-                            () => Get.toNamed(
-                              RouteHelper.getHtmlRoute('terms-and-condition'),
-                            ),
-                      ),
-                      _buildMenuItem(
-                        context,
-                        icon: Icons.privacy_tip_outlined,
-                        title: 'privacy_policy'.tr,
-                        iconBackgroundColor: secondaryColor.withOpacity(0.22),
-                        iconColor: primaryColor,
+                      GestureDetector(
                         onTap:
                             () => Get.toNamed(
                               RouteHelper.getHtmlRoute('privacy-policy'),
                             ),
-                        showDivider: false,
+                        child: Text(
+                          'privacy_policy'.tr,
+                          style: robotoRegular.copyWith(
+                            fontSize: 12,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          '|',
+                          style: robotoRegular.copyWith(
+                            fontSize: 12,
+                            color: _subtitleColor.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap:
+                            () => Get.toNamed(
+                              RouteHelper.getHtmlRoute('terms-and-condition'),
+                            ),
+                        child: Text(
+                          'terms_conditions'.tr,
+                          style: robotoRegular.copyWith(
+                            fontSize: 12,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          '|',
+                          style: robotoRegular.copyWith(
+                            fontSize: 12,
+                            color: _subtitleColor.withOpacity(0.4),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap:
+                            () => Get.toNamed(
+                              RouteHelper.getHtmlRoute('about-us'),
+                            ),
+                        child: Text(
+                          'about_us'.tr,
+                          style: robotoRegular.copyWith(
+                            fontSize: 12,
+                            color: primaryColor,
+                          ),
+                        ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // Account Section
-                  _buildSection(
-                    context,
-                    title: 'account'.tr,
-                    children: [
-                      if (isLoggedIn)
-                        _buildMenuItem(
-                          context,
-                          icon: Icons.delete_outline,
-                          title: 'delete_account'.tr,
-                          iconColor: Colors.white,
-                          iconBackgroundColor: const Color(0xFFDC2626),
-                          textColor: const Color(0xFFDC2626),
-                          onTap: () {
-                            Get.dialog(
-                              ConfirmationDialog(
-                                icon: Images.warning,
-                                description:
-                                    'are_you_sure_to_delete_account'.tr,
-                                onYesPressed: () {
-                                  profileController.deleteUser();
-                                },
-                              ),
-                              useSafeArea: false,
-                            );
-                          },
-                        ),
-                      _buildMenuItem(
-                        context,
-                        icon: isLoggedIn ? Icons.logout : Icons.login,
-                        title: isLoggedIn ? 'logout'.tr : 'sign_in'.tr,
-                        iconColor:
-                            isLoggedIn
-                                ? Colors.white
-                                : Theme.of(context).primaryColor,
-                        iconBackgroundColor:
-                            isLoggedIn ? const Color(0xFFDC2626) : null,
-                        textColor:
-                            isLoggedIn
-                                ? const Color(0xFFDC2626)
-                                : Theme.of(context).primaryColor,
-                        showDivider: false,
-                        onTap: () async {
-                          if (AuthHelper.isLoggedIn()) {
-                            Get.dialog(
-                              ConfirmationDialog(
-                                icon: Images.support,
-                                description: 'are_you_sure_to_logout'.tr,
-                                isLogOut: true,
-                                onYesPressed: () async {
-                                  Get.find<AuthController>().resetOtpView();
-                                  Get.find<ProfileController>().clearUserInfo();
-                                  Get.find<AuthController>().socialLogout();
-                                  Get.find<CartController>().clearCartList(
-                                    canRemoveOnline: false,
-                                  );
-                                  Get.find<FavouriteController>()
-                                      .removeFavourite();
-                                  await Get.find<AuthController>()
-                                      .clearSharedData();
-                                  Get.find<HomeController>()
-                                      .forcefullyNullCashBackOffers();
-                                  Get.find<TaxiCartController>()
-                                      .getCarCartList();
-                                  Get.offAllNamed(
-                                    RouteHelper.getInitialRoute(),
-                                  );
-                                },
-                              ),
-                              useSafeArea: false,
-                            );
-                          } else {
-                            Get.find<FavouriteController>().removeFavourite();
-                            await Get.toNamed(
-                              RouteHelper.getSignInRoute(Get.currentRoute),
-                            );
-                            if (AuthHelper.isLoggedIn()) {
-                              await Get.find<FavouriteController>()
-                                  .getFavouriteList();
-                              profileController.getUserInfo();
-                            }
-                          }
-                        },
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Text(
+                      'Made with ❤️ in Egypt',
+                      style: robotoRegular.copyWith(
+                        fontSize: 11,
+                        color: _subtitleColor.withValues(alpha: 0.45),
                       ),
-                    ],
+                    ),
                   ),
 
                   SizedBox(
                     height:
                         ResponsiveHelper.isDesktop(context)
                             ? Dimensions.paddingSizeExtremeLarge
-                            : 100,
+                            : 80,
                   ),
                 ],
               ),
@@ -333,7 +454,10 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  Widget _buildCompactIdCard(
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 1. FOODIE LICENCE CARD — Avatar + Name + XP bar (original feel)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildFoodieLicenceCard(
     BuildContext context,
     ProfileController profileController,
     bool isLoggedIn,
@@ -344,130 +468,77 @@ class _MenuScreenState extends State<MenuScreen> {
       builder: (xpController) {
         final currentLevel = xpController.currentLevel;
         final levelsListModel = xpController.levelsListModel;
-        final levelName = currentLevel?.levelName ?? 'Newbie';
         final levelNumber = currentLevel?.currentLevel ?? 1;
         final currentXp = currentLevel?.currentXp ?? 0;
         final xpForNextLevel = currentLevel?.xpForNextLevel ?? 100;
         final progressPercentage = currentLevel?.progressPercentage ?? 0.0;
+
+        final userName =
+            isLoggedIn && profileController.userInfoModel != null
+                ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
+                    .trim()
+                : 'guest_user'.tr;
+        final userPhone =
+            isLoggedIn && profileController.userInfoModel != null
+                ? profileController.userInfoModel!.phone ?? '-'
+                : '-';
+        final isLoading = isLoggedIn && profileController.userInfoModel == null;
 
         return Container(
           margin: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            color: _cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _cardBorder, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withOpacity(0.6),
-                offset: const Offset(3, 3),
-                blurRadius: 0,
+                color: _cardBg.withOpacity(0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: primaryColor, width: 2),
-            ),
-            child: Column(
-              children: [
-                // Header bar
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: primaryColor,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(14),
-                      topRight: Radius.circular(14),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.asset(
-                          'assets/image/Group 3.png',
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Your Official Foodie License",
-                        style: robotoBold.copyWith(
-                          fontSize: 12,
-                          color: secondaryColor,
-                        ),
-                      ),
-
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          isLoggedIn && profileController.userInfoModel != null
-                              ? 'ID ${profileController.userInfoModel!.id.toString().padLeft(4, '0')} ${DateTime.now().year}'
-                              : 'ID 0000 ${DateTime.now().year}',
-                          style: robotoRegular.copyWith(
-                            fontSize: 9,
-                            color: Colors.white.withOpacity(0.7),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: secondaryColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Icon(
-                          Icons.verified_user,
-                          color: secondaryColor,
-                          size: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Main content
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Avatar with profile image or initial letter and edit button
-                      Stack(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Top section: avatar + name + greeting ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Avatar with LV badge
+                    GestureDetector(
+                      onTap:
+                          () =>
+                              isLoggedIn
+                                  ? Get.toNamed(
+                                    RouteHelper.getUpdateProfileRoute(),
+                                  )
+                                  : _handleGuestSignIn(profileController),
+                      child: Stack(
+                        clipBehavior: Clip.none,
                         children: [
                           Container(
-                            width: 70,
-                            height: 85,
+                            width: 74,
+                            height: 74,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: primaryColor, width: 2),
-                              color: primaryColor.withOpacity(0.1),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primaryColor.withOpacity(0.2),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 0,
-                                ),
-                              ],
+                              border: Border.all(color: _accentGreen, width: 2),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF134E4A), Color(0xFF1A7A6E)],
+                              ),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(18),
                               child:
-                                  isLoggedIn &&
-                                          profileController.userInfoModel ==
-                                              null
+                                  isLoading
                                       ? Shimmer(
                                         child: Container(
-                                          width: 70,
-                                          height: 85,
                                           color: Colors.grey.shade300,
                                         ),
                                       )
@@ -487,8 +558,8 @@ class _MenuScreenState extends State<MenuScreen> {
                                             profileController
                                                 .userInfoModel!
                                                 .imageFullUrl!,
-                                        height: 85,
-                                        width: 70,
+                                        height: 74,
+                                        width: 74,
                                         fit: BoxFit.cover,
                                       )
                                       : Center(
@@ -498,336 +569,453 @@ class _MenuScreenState extends State<MenuScreen> {
                                             isLoggedIn,
                                           ),
                                           style: robotoBold.copyWith(
-                                            fontSize: 32,
-                                            color: primaryColor,
+                                            fontSize: 28,
+                                            color: _valueColor,
                                           ),
                                         ),
                                       ),
                             ),
                           ),
-                          // Edit button
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap:
-                                  () => Get.toNamed(
-                                    RouteHelper.getUpdateProfileRoute(),
+                          // LV badge
+                          if (isLoggedIn)
+                            Positioned(
+                              bottom: -11,
+                              left: 0,
+                              right: 0,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 3,
                                   ),
-                              child: Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: secondaryColor,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: primaryColor,
-                                    width: 1.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: primaryColor.withOpacity(0.3),
-                                      offset: const Offset(1, 1),
-                                      blurRadius: 0,
+                                  decoration: BoxDecoration(
+                                    color: _accentGreen,
+                                    borderRadius: BorderRadius.circular(7),
+                                    border: Border.all(
+                                      color: _cardBg,
+                                      width: 2,
                                     ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  Icons.edit,
-                                  color: Colors.white,
-                                  size: 12,
+                                  ),
+                                  child: Text(
+                                    'LV$levelNumber',
+                                    style: robotoBold.copyWith(
+                                      fontSize: 10,
+                                      color: _cardBg,
+                                    ),
+                                  ),
                                 ),
                               ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Greeting + Name + Phone + Waddi logo
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'Your Foodie Licence',
+                                style: robotoMedium.copyWith(
+                                  color: _accentGreen,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const Spacer(),
+                              GestureDetector(
+                                onTap:
+                                    () => Get.toNamed(
+                                      RouteHelper.getXpLevelsRoute(),
+                                    ),
+                                child: Image.asset(
+                                  'assets/image/waddy.png',
+                                  width: 34,
+                                  height: 34,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          isLoading
+                              ? Shimmer(
+                                child: Container(
+                                  height: 20,
+                                  width: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              )
+                              : Text(
+                                userName,
+                                style: robotoBold.copyWith(
+                                  fontSize: 20,
+                                  color: _valueColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          const SizedBox(height: 4),
+                          Text(
+                            userPhone,
+                            style: robotoRegular.copyWith(
+                              fontSize: 12,
+                              color: _labelColor,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 12),
-                      // Details with progress bar
-                      Expanded(
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Divider ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Divider(height: 1, color: _cardBorder),
+              ),
+
+              // ── XP Progress Section ──
+              if (isLoggedIn)
+                GestureDetector(
+                  onTap: () => Get.toNamed(RouteHelper.getXpLevelsRoute()),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Progress bar
+                        SizedBox(
+                          height: 24,
+                          child: Stack(
+                            alignment: Alignment.centerLeft,
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                height: 16,
+                                margin: const EdgeInsets.only(right: 22),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF0A2E2B),
+                                  borderRadius: BorderRadius.horizontal(
+                                    left: Radius.circular(8),
+                                    right: Radius.circular(4),
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: (progressPercentage / 100)
+                                          .clamp(0.0, 1.0),
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Color(0xFF0D9972),
+                                              _accentGreen,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(8),
+                                            bottomLeft: Radius.circular(8),
+                                            topRight: Radius.circular(4),
+                                            bottomRight: Radius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Center(
+                                      child: Text(
+                                        '$currentXp / ${currentXp + xpForNextLevel} XP',
+                                        style: robotoBold.copyWith(
+                                          fontSize: 10,
+                                          color: secondaryColor,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                right: 0,
+                                child: SizedBox(
+                                  width: 26,
+                                  height: 26,
+                                  child: Image.asset(
+                                    'assets/image/waddy_coin.png',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Next reward teaser
+                        if (_getNextLevel(levelsListModel, levelNumber) !=
+                            null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const SizedBox(width: 5),
+                              Text(
+                                'Only $xpForNextLevel XP left for ',
+                                style: robotoMedium.copyWith(
+                                  fontSize: 11,
+                                  color: _labelColor,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  _getNextPrizeTitle(
+                                    _getNextLevel(
+                                      levelsListModel,
+                                      levelNumber,
+                                    )!,
+                                  ),
+                                  style: robotoBold.copyWith(
+                                    fontSize: 11,
+                                    color: _accentGreen,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 15,
+                                color: _accentGreen,
+                              ),
+                            ],
+                          ),
+                        ],
+
+                     
+                      ],
+                    ),
+                  ),
+                ),
+
+              // ── Login CTA for guests ──
+              if (!isLoggedIn)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _handleGuestSignIn(profileController),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _accentGreen,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.login,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'sign_in'.tr,
+                            style: robotoBold.copyWith(
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 2. QUICK ACTIONS — My Orders | Wallet (mini card) | Waddy Club | Get Help
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildQuickActions(
+    BuildContext context,
+    ProfileController profileController,
+    bool isLoggedIn,
+    Color primaryColor,
+  ) {
+    return GetBuilder<XpController>(
+      builder: (xpController) {
+        final normalItems = [
+          _QuickAction(
+            icon: HugeIcons.strokeRoundedInvoice01,
+            label: 'my_orders'.tr,
+            onTap: () => Get.toNamed(RouteHelper.getOrderRoute()),
+          ),
+          _QuickAction(
+            icon: HugeIcons.strokeRoundedAward01,
+            label: 'Waddy Club',
+            onTap: () => Get.toNamed(RouteHelper.getXpLevelsRoute()),
+          ),
+          _QuickAction(
+            icon: HugeIcons.strokeRoundedHeadset,
+            label: 'Get Help',
+            onTap: () => Get.toNamed(RouteHelper.getConversationRoute()),
+          ),
+        ];
+
+        return Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // ── Normal items ──
+              ...normalItems.map((item) {
+                return _buildNormalQuickItem(item, primaryColor);
+              }),
+              // ── Wallet item (mini card + balance chip) ──
+              _buildWalletQuickItem(profileController, primaryColor),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNormalQuickItem(_QuickAction item, Color primaryColor) {
+    return GestureDetector(
+      onTap: item.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 76,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _accentGreen.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: HugeIcon(
+                  icon: item.icon,
+                  color: primaryColor,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.label,
+              style: robotoMedium.copyWith(fontSize: 11, color: _titleColor),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWalletQuickItem(
+    ProfileController profileController,
+    Color primaryColor,
+  ) {
+    return GetBuilder<WalletController>(
+      builder: (walletController) {
+        final appearance =
+            CardAppearances.options[walletController.selectedCardAppearance];
+        final symbolIndex = walletController.selectedCardSymbol;
+        final balance = profileController.userInfoModel?.walletBalance ?? 0;
+
+        return GestureDetector(
+          onTap: () => Get.toNamed(RouteHelper.getWalletRoute()),
+          behavior: HitTestBehavior.opaque,
+          child: SizedBox(
+            width: 76,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 48px tall wrapper to align with circle icons
+                SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: Container(
+                      width: 60,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: appearance.cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: appearance.cardColor.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildCompactField(
-                              'name'.tr.toUpperCase(),
-                              isLoggedIn &&
-                                      profileController.userInfoModel != null
-                                  ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
-                                  : 'guest_user'.tr,
-                              primaryColor,
-                              secondaryColor,
-                              isLarge: true,
-                              isLoading:
-                                  isLoggedIn &&
-                                  profileController.userInfoModel == null,
+                            Image.asset(
+                              Images.waddyLogo,
+                              width: 12,
+                              height: 12,
+                              color: appearance.brandColor,
                             ),
-                            const SizedBox(height: 8),
-                            _buildCompactField(
-                              'phone'.tr.toUpperCase(),
-                              isLoggedIn &&
-                                      profileController.userInfoModel != null
-                                  ? profileController.userInfoModel!.phone ??
-                                      '-'
-                                  : '-',
-                              primaryColor,
-                              secondaryColor,
-                              isLarge: true,
-                              valueColor: primaryColor,
-                            ),
-                            const SizedBox(height: 12),
-                            // Progress bar inline
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: secondaryColor,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: primaryColor,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.star_rounded,
-                                        color: Colors.white,
-                                        size: 10,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        'LV.$levelNumber',
-                                        style: robotoBold.copyWith(
-                                          fontSize: 9,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  levelName,
-                                  style: robotoMedium.copyWith(
-                                    fontSize: 10,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  '$currentXp / $xpForNextLevel XP',
-                                  style: robotoMedium.copyWith(
-                                    fontSize: 10,
-                                    color: primaryColor.withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            // Improved progress bar - full width, more visible
-                            Stack(
-                              children: [
-                                // Background track
-                                Container(
-                                  height: 10,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: primaryColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(
-                                      color: primaryColor.withOpacity(0.2),
-                                      width: 1,
-                                    ),
-                                  ),
-                                ),
-                                // Progress fill
-                                LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final progressWidth =
-                                        constraints.maxWidth *
-                                        (progressPercentage / 100).clamp(
-                                          0.0,
-                                          1.0,
-                                        );
-                                    return AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 600,
-                                      ),
-                                      curve: Curves.easeOutCubic,
-                                      height: 10,
-                                      width:
-                                          progressWidth > 0 ? progressWidth : 0,
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            secondaryColor,
-                                            secondaryColor.withOpacity(0.85),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(5),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: secondaryColor.withOpacity(
-                                              0.5,
-                                            ),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: SvgPicture.asset(
+                                'assets/image/wallet_ch/${symbolIndex + 1}c.svg',
+                                color: appearance.brandColor,
+                                width: 14,
+                                height: 14,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-
-                // Next Prize Text
-                if (isLoggedIn &&
-                    _getNextLevel(levelsListModel, levelNumber) != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      border: Border(
-                        top: BorderSide(color: primaryColor.withOpacity(0.1)),
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(14),
-                        bottomRight: Radius.circular(14),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: secondaryColor,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            _getPrizeIcon(
-                              _getNextLevel(levelsListModel, levelNumber)!,
-                            ),
-                            color: primaryColor,
-                            size: 16,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Unlock Level ${_getNextLevel(levelsListModel, levelNumber)!.level}',
-                                style: robotoMedium.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.black87,
-                                ),
-                              ),
-
-                              Text(
-                                'To Get ${_getNextPrizeTitle(_getNextLevel(levelsListModel, levelNumber)!)}',
-                                style: robotoRegular.copyWith(
-                                  fontSize: 12,
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Login for guests (no badges section)
-                if (!isLoggedIn)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.05),
-                      border: Border(
-                        top: BorderSide(color: primaryColor.withOpacity(0.15)),
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(14),
-                        bottomRight: Radius.circular(14),
-                      ),
-                    ),
-                    child: Center(
-                      child: InkWell(
-                        onTap: () async {
-                          if (!ResponsiveHelper.isDesktop(context)) {
-                            await Get.toNamed(
-                              RouteHelper.getSignInRoute(Get.currentRoute),
-                            );
-                            if (AuthHelper.isLoggedIn()) {
-                              profileController.getUserInfo();
-                              Get.find<XpController>().getCurrentLevel();
-                              Get.find<XpController>().getAllLevels();
-                            }
-                          } else {
-                            Get.dialog(
-                              const Center(
-                                child: AuthDialogWidget(
-                                  exitFromApp: true,
-                                  backFromThis: true,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: secondaryColor,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: primaryColor, width: 1),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primaryColor.withOpacity(0.4),
-                                offset: const Offset(1.5, 1.5),
-                                blurRadius: 0,
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.login, color: Colors.white, size: 14),
-                              const SizedBox(width: 6),
-                              Text(
-                                'sign_in'.tr,
-                                style: robotoMedium.copyWith(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                Text(
+                  'my_wallet'.tr,
+                  style: robotoMedium.copyWith(fontSize: 11, color: _titleColor),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -836,22 +1024,138 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION HEADER — Gojek style
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.paddingSizeLarge,
+        18,
+        Dimensions.paddingSizeLarge,
+        8,
+      ),
+      margin: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
+      ),
+      child: Text(
+        title,
+        style: robotoMedium.copyWith(fontSize: 13, color: _subtitleColor),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FLAT MENU ITEM — Gojek style: icon + title + suffix > chevron
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildFlatItem(
+    BuildContext context, {
+    required List<List<dynamic>> icon,
+    required String title,
+    String? suffix,
+    Color? iconColor,
+    Color? textColor,
+    required VoidCallback onTap,
+  }) {
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeLarge,
+            vertical: 14,
+          ),
+          child: Row(
+            children: [
+              HugeIcon(icon: icon, color: iconColor ?? primaryColor, size: 22),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: robotoMedium.copyWith(
+                    fontSize: 15,
+                    color: textColor ?? _titleColor,
+                  ),
+                ),
+              ),
+              if (suffix != null) ...[
+                Text(
+                  suffix,
+                  style: robotoRegular.copyWith(
+                    fontSize: 13,
+                    color: _subtitleColor,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOGGLE ITEM — Gojek style flat toggle row
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildToggleItem(
+    BuildContext context, {
+    required List<List<dynamic>> icon,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeLarge,
+        vertical: 10,
+      ),
+      child: Row(
+        children: [
+          HugeIcon(icon: icon, color: primaryColor, size: 22),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: robotoMedium.copyWith(fontSize: 15, color: _titleColor),
+            ),
+          ),
+          Transform.scale(
+            scale: 0.8,
+            child: CupertinoSwitch(
+              value: value,
+              onChanged: onChanged,
+              activeTrackColor: _accentGreen,
+              inactiveTrackColor: Colors.grey.shade300,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
   String _getInitials(ProfileController profileController, bool isLoggedIn) {
-    if (!isLoggedIn || profileController.userInfoModel == null) {
-      return 'G';
-    }
+    if (!isLoggedIn || profileController.userInfoModel == null) return 'G';
     final firstName = profileController.userInfoModel?.fName ?? '';
     final lastName = profileController.userInfoModel?.lName ?? '';
-    if (firstName.isEmpty && lastName.isEmpty) {
-      return 'U';
-    }
+    if (firstName.isEmpty && lastName.isEmpty) return 'U';
     String initials = '';
-    if (firstName.isNotEmpty) {
-      initials += firstName[0].toUpperCase();
-    }
-    if (lastName.isNotEmpty) {
-      initials += lastName[0].toUpperCase();
-    }
+    if (firstName.isNotEmpty) initials += firstName[0].toUpperCase();
+    if (lastName.isNotEmpty) initials += lastName[0].toUpperCase();
     return initials.isNotEmpty ? initials : 'U';
   }
 
@@ -860,311 +1164,35 @@ class _MenuScreenState extends State<MenuScreen> {
     int currentLevelNumber,
   ) {
     if (levelsListModel == null) return null;
-    final levels = levelsListModel.levels;
-    for (final level in levels) {
-      if (level.level > currentLevelNumber) {
-        return level;
-      }
+    for (final level in levelsListModel.levels) {
+      if (level.level > currentLevelNumber) return level;
     }
     return null;
   }
 
-  IconData _getPrizeIcon(Level level) {
-    if (level.prizes.isNotEmpty) {
-      final prizeType = level.prizes.first.type.toLowerCase();
-      switch (prizeType) {
-        case 'free_delivery':
-          return Icons.local_shipping_outlined;
-        case 'discount':
-          return Icons.percent_outlined;
-        case 'wallet_credit':
-          return Icons.account_balance_wallet_outlined;
-        case 'badge':
-          return Icons.workspace_premium_outlined;
-        default:
-          return Icons.card_giftcard_outlined;
-      }
-    }
-    return Icons.emoji_events_outlined;
-  }
-
   String _getNextPrizeTitle(Level level) {
-    if (level.prizes.isNotEmpty) {
-      return level.prizes.first.title;
-    }
+    if (level.prizes.isNotEmpty) return level.prizes.first.title;
     return 'Reach ${level.name}';
   }
 
-  Widget _buildCompactField(
-    String label,
-    String value,
-    Color primaryColor,
-    Color secondaryColor, {
-    bool isLarge = false,
-    bool isLoading = false,
-    Color? valueColor,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: [
-        SizedBox(
-          width: 45,
-          child: Text(
-            label,
-            style: robotoRegular.copyWith(
-              fontSize: 8,
-              color: primaryColor.withOpacity(0.5),
-              letterSpacing: 0.3,
-            ),
-          ),
+  void _handleGuestSignIn(ProfileController profileController) async {
+    if (!ResponsiveHelper.isDesktop(context)) {
+      await Get.toNamed(RouteHelper.getSignInRoute(Get.currentRoute));
+      if (AuthHelper.isLoggedIn()) {
+        profileController.getUserInfo();
+        Get.find<XpController>().getCurrentLevel();
+        Get.find<XpController>().getAllLevels();
+      }
+    } else {
+      Get.dialog(
+        const Center(
+          child: AuthDialogWidget(exitFromApp: true, backFromThis: true),
         ),
-        Expanded(
-          child:
-              isLoading
-                  ? Shimmer(
-                    child: Container(
-                      height: isLarge ? 14 : 11,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  )
-                  : Text(
-                    value,
-                    style: (isLarge ? robotoBold : robotoMedium).copyWith(
-                      fontSize: isLarge ? 14 : 11,
-                      color: valueColor ?? primaryColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-        ),
-      ],
-    );
+      );
+    }
   }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.only(
-            left: Dimensions.paddingSizeDefault + 4,
-            bottom: 10,
-          ),
-          child: Text(
-            title,
-            style: robotoMedium.copyWith(
-              fontSize: 13,
-              color: Theme.of(context).primaryColor.withOpacity(0.7),
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        // Grouped Card Container
-        Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    String? suffix,
-    Color? iconColor,
-    Color? iconBackgroundColor,
-    Color? textColor,
-    bool showDivider = true,
-    required VoidCallback onTap,
-  }) {
-    final primaryColor = Theme.of(context).primaryColor;
-    final secondaryColor = Theme.of(context).colorScheme.secondary;
-
-    // Use vibrant, distinct background colors for each icon type
-    final defaultIconBgColor = secondaryColor.withOpacity(0.15);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            border:
-                showDivider
-                    ? Border(
-                      bottom: BorderSide(color: Colors.grey.shade100, width: 1),
-                    )
-                    : null,
-          ),
-          child: Row(
-            children: [
-              // Solid vibrant icon container
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: iconBackgroundColor ?? defaultIconBgColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor ?? primaryColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: robotoMedium.copyWith(
-                        fontSize: 15,
-                        color: textColor ?? const Color(0xFF1E293B),
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: robotoRegular.copyWith(
-                          fontSize: 12,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (suffix != null)
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: secondaryColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    suffix,
-                    style: robotoMedium.copyWith(
-                      fontSize: 12,
-                      color: primaryColor,
-                    ),
-                  ),
-                ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: Colors.grey.shade400,
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToggleMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-    Color? iconColor,
-    Color? iconBackgroundColor,
-    bool showDivider = true,
-  }) {
-    final primaryColor = Theme.of(context).primaryColor;
-    final secondaryColor = Theme.of(context).colorScheme.secondary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        border:
-            showDivider
-                ? Border(
-                  bottom: BorderSide(color: Colors.grey.shade100, width: 1),
-                )
-                : null,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBackgroundColor ?? secondaryColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor ?? primaryColor, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: robotoMedium.copyWith(
-                    fontSize: 15,
-                    color: const Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: robotoRegular.copyWith(
-                    fontSize: 12,
-                    color: const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Transform.scale(
-            scale: 0.85,
-            child: CupertinoSwitch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: secondaryColor,
-              trackColor: Colors.grey.shade300,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  _manageLanguageFunctionality() {
+  void _manageLanguageFunctionality() {
     Get.find<LocalizationController>().saveCacheLanguage(null);
     Get.find<LocalizationController>().searchSelectedLanguage();
     showModalBottomSheet(
@@ -1191,4 +1219,15 @@ class _MenuScreenState extends State<MenuScreen> {
       ),
     );
   }
+}
+
+class _QuickAction {
+  final List<List<dynamic>> icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 }

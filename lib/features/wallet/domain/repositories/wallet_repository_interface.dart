@@ -6,4 +6,8 @@ abstract class WalletRepositoryInterface extends RepositoryInterface{
   String getWalletAccessToken();
   @override
   Future getList({int? offset, String? sortingType, bool isBonusList = false});
+  Future<void> setCardAppearance(int index);
+  int getCardAppearance();
+  Future<void> setCardSymbol(int index);
+  int getCardSymbol();
 }

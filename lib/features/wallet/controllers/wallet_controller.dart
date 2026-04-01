@@ -43,6 +43,12 @@ class WalletController extends GetxController implements GetxService {
   List<WalletFilterBodyModel> _walletFilterList = [];
   List<WalletFilterBodyModel> get walletFilterList => _walletFilterList;
 
+  int _selectedCardAppearance = 0;
+  int get selectedCardAppearance => _selectedCardAppearance;
+
+  int _selectedCardSymbol = 0;
+  int get selectedCardSymbol => _selectedCardSymbol;
+
   void setWalletFilerType(String type, {bool isUpdate = true}) {
     _type = type;
     if(isUpdate) {
@@ -161,4 +167,21 @@ class WalletController extends GetxController implements GetxService {
     return walletServiceInterface.getWalletAccessToken();
   }
 
+  void loadCardAppearance() {
+    _selectedCardAppearance = walletServiceInterface.getCardAppearance();
+    _selectedCardSymbol = walletServiceInterface.getCardSymbol();
+    update();
+  }
+
+  Future<void> setCardAppearance(int index) async {
+    _selectedCardAppearance = index;
+    await walletServiceInterface.setCardAppearance(index);
+    update();
+  }
+
+  Future<void> setCardSymbol(int index) async {
+    _selectedCardSymbol = index;
+    await walletServiceInterface.setCardSymbol(index);
+    update();
+  }
 }

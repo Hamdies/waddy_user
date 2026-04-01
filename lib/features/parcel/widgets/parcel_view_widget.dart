@@ -290,7 +290,7 @@ class _ParcelViewWidgetState extends State<ParcelViewWidget> {
                           controller: widget.phoneController,
                           focusNode: phoneNode,
                           inputType: TextInputType.phone,
-                          inputAction: AuthHelper.isGuestLoggedIn() ? TextInputAction.next : TextInputAction.done,
+                          inputAction: TextInputAction.done,
                           isPhone: true,
                           onCountryChanged: (CountryCode countryCode) {
                             countryDialCode = countryCode.dialCode;
@@ -298,17 +298,9 @@ class _ParcelViewWidgetState extends State<ParcelViewWidget> {
                           },
                           countryDialCode: countryDialCode ?? _countryCode,
                         ),
-                        SizedBox(height: AuthHelper.isGuestLoggedIn() ? Dimensions.paddingSizeLarge : 0),
+                        const SizedBox(height: 0),
 
-                        AuthHelper.isGuestLoggedIn() ? CustomTextField(
-                          titleText: parcelController.isSender ? 'sender_email'.tr : 'receiver_email'.tr,
-                          labelText: parcelController.isSender ? 'sender_email'.tr : 'receiver_email'.tr,
-                          controller: widget.guestEmailController,
-                          inputType: TextInputType.emailAddress,
-                          focusNode: guestEmailNode,
-                          prefixImage: Images.mail,
-                          inputAction: TextInputAction.done,
-                        ) : const SizedBox(),
+                        const SizedBox(),
 
                         const SizedBox(height: Dimensions.paddingSizeDefault),
 

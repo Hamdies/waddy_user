@@ -1562,5 +1562,8 @@
   "recommended_store": "Tienda recomendada",
   "re_enter_your_password": "Vuelve a ingresar tu contraseña.",
   "no_items_found": "No se encontraron artículos",
-  "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "Esta tarifa de entrega incluye todos los cargos aplicables."
+  "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "Esta tarifa de entrega incluye todos los cargos aplicables.",
+  "no_favourites_yet": "Sin favoritos aún \n¡es hora de mostrar amor! ❤️",
+  "no_favourite_stores_yet": "Sin tiendas favoritas aún \n¡es hora de mostrar amor! ❤️",
+  "browse_items": "Explorar artículos"
 }

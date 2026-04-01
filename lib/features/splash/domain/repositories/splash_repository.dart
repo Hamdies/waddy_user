@@ -93,6 +93,9 @@ class SplashRepository implements SplashRepositoryInterface {
     if(sharedPreferences.containsKey(AppConstants.referBottomSheet)) {
       sharedPreferences.setBool(AppConstants.referBottomSheet, true);
     }
+    if(!sharedPreferences.containsKey(AppConstants.welcomeLetterShown)) {
+      sharedPreferences.setBool(AppConstants.welcomeLetterShown, false);
+    }
 
     ModuleModel? module;
     if(sharedPreferences.containsKey(AppConstants.moduleId)) {
@@ -273,6 +276,20 @@ class SplashRepository implements SplashRepositoryInterface {
   Future<void> saveReferBottomSheetStatus(bool data) async {
     try {
       await sharedPreferences.setBool(AppConstants.referBottomSheet, data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  bool getWelcomeLetterShownStatus() {
+    return sharedPreferences.getBool(AppConstants.welcomeLetterShown) ?? false;
+  }
+
+  @override
+  Future<void> saveWelcomeLetterShownStatus(bool data) async {
+    try {
+      await sharedPreferences.setBool(AppConstants.welcomeLetterShown, data);
     } catch (e) {
       rethrow;
     }

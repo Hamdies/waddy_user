@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -984,52 +985,62 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
   }
 
   Widget _buildOTPVerificationStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Center(
-          child: Lottie.asset('assets/animation/waddy_anim.json', width: 300),
-        ),
-        const SizedBox(height: 50),
+    String otp = _otpControllers.map((c) => c.text).join();
+    bool isOtpComplete = otp.length == 6;
 
-        // Title
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Lottie.asset('assets/animation/waddy_anim.json'),
+        // Title — bold, left-aligned
+                const SizedBox(height: 16),
+
         Text(
-          'auth_enter_confirmation'.tr,
-          textAlign: TextAlign.center,
+          'auth_enter_code_title'.tr,
           style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
             color: Theme.of(context).primaryColor,
+            height: 1.2,
           ),
         ),
-        const SizedBox(height: 8),
+
+        const SizedBox(height: 12),
+
+        // Subtitle with phone number
         GestureDetector(
           onTap: () => _changeStep(0),
-          child: Text(
-            _phoneNumber ?? '',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).primaryColor,
-              decoration: TextDecoration.underline,
-              decorationColor: Theme.of(context).primaryColor,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'auth_sent_to_verify'.trParams({
+                    'phone': _phoneNumber ?? '',
+                  }),
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.6),
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
 
-        const SizedBox(height: 40),
+        const SizedBox(height: 32),
 
-        // Large gradient OTP boxes - responsive sizing
+        // OTP input boxes — gray rounded style
         Directionality(
           textDirection: TextDirection.ltr,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // Calculate box width based on available space
-              // 6 boxes + 5 gaps (8px each) = need to fit in constraints.maxWidth
-              final availableWidth = constraints.maxWidth - (5 * 8);
-              final boxWidth = (availableWidth / 6).clamp(40.0, 50.0);
-              final boxHeight = boxWidth * 1.3;
+              final availableWidth = constraints.maxWidth - (5 * 10);
+              final boxWidth = (availableWidth / 6).clamp(40.0, 52.0);
+              const boxHeight = 58.0;
 
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1038,53 +1049,29 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                   final isFocused = _otpFocusNodes[index].hasFocus;
 
                   return Padding(
-                    padding: EdgeInsets.only(right: index < 5 ? 8 : 0),
+                    padding: EdgeInsets.only(right: index < 5 ? 10 : 0),
                     child: GestureDetector(
                       onTap: () => _otpFocusNodes[index].requestFocus(),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 150),
                         width: boxWidth,
                         height: boxHeight,
                         decoration: BoxDecoration(
-                          gradient:
-                              hasValue
-                                  ? LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Theme.of(context).primaryColor,
-                                      Theme.of(
-                                        context,
-                                      ).primaryColor.withValues(alpha: 0.7),
-                                    ],
-                                  )
-                                  : null,
                           color:
-                              hasValue
-                                  ? null
+                              isFocused
+                                  ? Theme.of(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.08)
                                   : Theme.of(
                                     context,
                                   ).primaryColor.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                           border:
-                              isFocused && !hasValue
+                              isFocused
                                   ? Border.all(
-                                    color:
-                                        Theme.of(context).secondaryHeaderColor,
-                                    width: 2,
+                                    color: Theme.of(context).primaryColor,
+                                    width: 1.5,
                                   )
-                                  : null,
-                          boxShadow:
-                              hasValue
-                                  ? [
-                                    BoxShadow(
-                                      color: Theme.of(
-                                        context,
-                                      ).primaryColor.withValues(alpha: 0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
                                   : null,
                         ),
                         child: Stack(
@@ -1128,22 +1115,22 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                                 ),
                               ),
                             ),
-                            // Visible digit or cursor
+                            // Visible digit
                             if (hasValue)
                               Text(
                                 _otpControllers[index].text,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 26,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).primaryColor,
                                 ),
                               )
                             else if (isFocused)
                               Container(
                                 width: 2,
-                                height: 28,
+                                height: 24,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).secondaryHeaderColor,
+                                  color: Theme.of(context).primaryColor,
                                   borderRadius: BorderRadius.circular(1),
                                 ),
                               ),
@@ -1158,93 +1145,71 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
           ),
         ),
 
-        const SizedBox(height: 32),
+        const SizedBox(height: 20),
 
-        // Resend code & Edit Number buttons
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child:
-                  _seconds > 0
-                      ? Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.12),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.schedule,
-                              size: 16,
-                              color: Theme.of(
-                                context,
-                              ).primaryColor.withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                '${'auth_resend_in'.tr} ${_seconds}s',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.6),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                      : CustomButton(
-                        buttonText: 'auth_resend_code'.tr,
-                        onPressed: _sendOTP,
-                        icon: Icons.refresh,
-                        fontSize: 13,
-                        height: 44,
-                      ),
-            ),
-            const SizedBox(width: 8),
-            // Edit Number Button
-            TextButton.icon(
-              onPressed: () => _changeStep(0),
-              icon: Icon(
-                Icons.edit,
-                size: 16,
-                color: Theme.of(context).primaryColor,
+        // "Don't see it? Retry in X seconds" / Resend link
+        _seconds > 0
+            ? Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'auth_dont_see_it'.tr,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  TextSpan(text: ' '),
+                  TextSpan(
+                    text: '$_seconds',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  TextSpan(
+                    text: ' ${'auth_seconds'.tr}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
               ),
-              label: Text(
-                'edit_phone_number'.tr,
+            )
+            : GestureDetector(
+              onTap: _sendOTP,
+              child: Text(
+                'auth_resend_code'.tr,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                   color: Theme.of(context).primaryColor,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.visible,
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  decoration: TextDecoration.underline,
                 ),
               ),
             ),
-          ],
+
+        const SizedBox(height: 48),
+
+        // Verify button
+        GetBuilder<VerificationController>(
+          builder: (verificationController) {
+            return CustomButton(
+              buttonText: 'verify'.tr,
+              onPressed:
+                  (isOtpComplete && !verificationController.isLoading)
+                      ? _verifyOTP
+                      : null,
+              isLoading: verificationController.isLoading,
+              height: 56,
+            );
+          },
         ),
       ],
     );
@@ -1525,11 +1490,7 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.location_on,
-                  color: Theme.of(context).secondaryHeaderColor,
-                  size: 24,
-                ),
+                HugeIcon(icon: HugeIcons.strokeRoundedLocation01, color: Theme.of(context).primaryColor),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

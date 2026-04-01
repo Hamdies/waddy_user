@@ -213,7 +213,7 @@ class _WebLandingPageState extends State<WebLandingPage> {
                               _address!.latitude, _address!.longitude, false,
                             );
                             if(response.isSuccess) {
-                              if(!AuthHelper.isGuestLoggedIn() && !AuthHelper.isLoggedIn()) {
+                              if(!AuthHelper.isLoggedIn()) {
                                 Get.find<AuthController>().guestLogin().then((response) {
                                   if(response.isSuccess) {
                                     Get.find<ProfileController>().setForceFullyUserEmpty();

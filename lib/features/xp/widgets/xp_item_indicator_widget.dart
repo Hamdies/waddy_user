@@ -21,7 +21,7 @@ class XpItemIndicatorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Only show for logged-in users (not guests)
-    if (AuthHelper.isGuestLoggedIn() || !AuthHelper.isLoggedIn()) {
+    if (!AuthHelper.isLoggedIn()) {
       return const SizedBox.shrink();
     }
 

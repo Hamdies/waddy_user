@@ -7,4 +7,8 @@ abstract class WalletServiceInterface{
   Future<List<FundBonusModel>?> getWalletBonusList();
   Future<void> setWalletAccessToken(String token);
   String getWalletAccessToken();
+  Future<void> setCardAppearance(int index);
+  int getCardAppearance();
+  Future<void> setCardSymbol(int index);
+  int getCardSymbol();
 }

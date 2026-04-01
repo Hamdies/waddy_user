@@ -131,10 +131,6 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
   @override
   Widget build(BuildContext context) {
     // Only show for logged-in users (not guests)
-    if (AuthHelper.isGuestLoggedIn()) {
-      return const SizedBox.shrink();
-    }
-    
     if (!AuthHelper.isLoggedIn()) {
       return const SizedBox.shrink();
     }

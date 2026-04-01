@@ -52,10 +52,6 @@ class PaymentScreenState extends State<PaymentScreen> {
       selectedUrl = widget.addFundUrl!;
     }
 
-    if (kDebugMode) {
-      print('==========url=======> $selectedUrl');
-    }
-
     _initData();
   }
 
@@ -91,9 +87,6 @@ class PaymentScreenState extends State<PaymentScreen> {
         ServiceWorkerController serviceWorkerController = ServiceWorkerController.instance();
         await serviceWorkerController.setServiceWorkerClient(ServiceWorkerClient(
           shouldInterceptRequest: (request) async {
-            if (kDebugMode) {
-              print(request);
-            }
             return null;
           },
         ));
@@ -173,17 +166,10 @@ class MyInAppBrowser extends InAppBrowser {
   final bool _canRedirect = true;
 
   @override
-  Future onBrowserCreated() async {
-    if (kDebugMode) {
-      print("\n\nBrowser Created!\n\n");
-    }
-  }
+  Future onBrowserCreated() async {}
 
   @override
   Future onLoadStart(url) async {
-    if (kDebugMode) {
-      print("\n\nStarted: $url\n\n");
-    }
     Get.find<OrderController>().paymentRedirect(
       url: url.toString(), canRedirect: _canRedirect, onClose: () => close(),
       addFundUrl: addFundUrl, orderID: orderID, contactNumber: contactNumber, storeId: storeId,
@@ -196,9 +182,6 @@ class MyInAppBrowser extends InAppBrowser {
   @override
   Future onLoadStop(url) async {
     pullToRefreshController?.endRefreshing();
-    if (kDebugMode) {
-      print("\n\nStopped: $url\n\n");
-    }
     Get.find<OrderController>().paymentRedirect(
       url: url.toString(), canRedirect: _canRedirect, onClose: () => close(),
       addFundUrl: addFundUrl, orderID: orderID, contactNumber: contactNumber, storeId: storeId,
@@ -225,9 +208,6 @@ class MyInAppBrowser extends InAppBrowser {
   @override
   void onLoadError(url, code, message) {
     pullToRefreshController?.endRefreshing();
-    if (kDebugMode) {
-      print("Can't load [$url] Error: $message");
-    }
   }
 
   @override
@@ -235,43 +215,21 @@ class MyInAppBrowser extends InAppBrowser {
     if (progress == 100) {
       pullToRefreshController?.endRefreshing();
     }
-    if (kDebugMode) {
-      print("Progress: $progress");
-    }
   }
 
   @override
-  void onExit() {
-    if (kDebugMode) {
-      print("\n\nBrowser closed!\n\n");
-    }
-  }
+  void onExit() {}
 
   @override
   Future<NavigationActionPolicy> shouldOverrideUrlLoading(navigationAction) async {
-    if (kDebugMode) {
-      print("\n\nOverride ${navigationAction.request.url}\n\n");
-    }
     return NavigationActionPolicy.ALLOW;
   }
 
   @override
-  void onLoadResource(resource) {
-    if (kDebugMode) {
-      print("Started at: ${resource.startTime}ms ---> duration: ${resource.duration}ms ${resource.url ?? ''}");
-    }
-  }
+  void onLoadResource(resource) {}
 
   @override
-  void onConsoleMessage(consoleMessage) {
-    if (kDebugMode) {
-      print("""
-    console output:
-      message: ${consoleMessage.message}
-      messageLevel: ${consoleMessage.messageLevel.toValue()}
-   """);
-    }
-  }
+  void onConsoleMessage(consoleMessage) {}
 
 
 }

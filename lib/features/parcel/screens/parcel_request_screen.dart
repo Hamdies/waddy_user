@@ -80,7 +80,7 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
     Get.find<ParcelController>().getDistance(widget.pickedUpAddress, widget.destinationAddress);
     Get.find<CheckoutController>().getSurgePrice(
       zoneId: widget.pickedUpAddress.zoneId.toString(), moduleId: ModuleHelper.getModule()?.id.toString() ?? (ModuleHelper.getCacheModule()?.id.toString() ?? '0'),
-      dateTime: DateConverter.dateToDateTime(DateTime.now()), guestId: AuthHelper.getGuestId(),
+      dateTime: DateConverter.dateToDateTime(DateTime.now()), guestId: '',
     );
     Get.find<ParcelController>().setPayerIndex(0, false);
     Get.find<ParcelController>().startLoader(false, canUpdate: false);
@@ -113,8 +113,8 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
   Widget build(BuildContext context) {
 
     _isLoggedIn = AuthHelper.isLoggedIn();
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
-    bool guestCheckoutPermission = AuthHelper.isGuestLoggedIn() && Get.find<SplashController>().configModel!.guestCheckoutStatus!;
+    bool isGuestLoggedIn = false;
+    bool guestCheckoutPermission = false;
 
     return Scaffold(
       appBar: CustomAppBar(title: 'parcel_request'.tr),
@@ -148,7 +148,7 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
                   discountAmount: 0, parcelCategoryId: widget.parcelCategory.id.toString(),
                   chargePayer: parcelController.payerTypes[parcelController.payerIndex], dmTips: parcelController.tips.toString(),
                   cutlery: 0, unavailableItemNote: '',
-                  partialPayment: 0, guestId: AuthHelper.isGuestLoggedIn() ? int.parse(AuthHelper.getGuestId()) : 0, isBuyNow: 0,
+                  partialPayment: 0, guestId: 0, isBuyNow: 0,
                   guestEmail: widget.pickedUpAddress.email ?? '', extraPackagingAmount: null,
                   createNewUser: checkoutController.isCreateAccount ? 1 : 0, password: _guestPasswordController.text,
                 );
@@ -675,7 +675,7 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
             chargePayer: parcelController.payerTypes[parcelController.payerIndex], dmTips: parcelController.tips.toString(),
             cutlery: 0, unavailableItemNote: '',
             deliveryInstruction: (isInstructionSelected ? '${parcelController.parcelInstructionList![parcelController.selectedIndexNote!].instruction}' : '') + (isInstructionSelected ? (isCustomNote ? " (${parcelController.customNote})" : '') : (isCustomNote ? parcelController.customNote ?? '' : '')),
-            partialPayment: 0, guestId: AuthHelper.isGuestLoggedIn() ? int.parse(AuthHelper.getGuestId()) : 0, isBuyNow: 0,
+            partialPayment: 0, guestId: 0, isBuyNow: 0,
             guestEmail: widget.pickedUpAddress.email ?? '', extraPackagingAmount: null,
             createNewUser: Get.find<CheckoutController>().isCreateAccount ? 1 : 0, password: _guestPasswordController.text,
           );

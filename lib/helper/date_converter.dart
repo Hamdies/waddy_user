@@ -163,6 +163,42 @@ class DateConverter {
     return scheduleTime.isBefore(DateTime.now());
   }
 
+  /// Returns remaining minutes until the estimated delivery time.
+  /// Uses [estimatedDeliveryAt] (ISO/datetime string from backend) when available,
+  /// otherwise falls back to the legacy store-based calculation.
+  static int estimatedDeliveryMinutes({
+    String? estimatedDeliveryAt,
+    String? storeDeliveryTime,
+    String? orderTime,
+    int? processingTime,
+    String? scheduleAt,
+  }) {
+    if (estimatedDeliveryAt != null && estimatedDeliveryAt.isNotEmpty) {
+      try {
+        final eta = DateTime.parse(estimatedDeliveryAt);
+        return eta.difference(DateTime.now()).inMinutes;
+      } catch (_) {
+        try {
+          final eta = dateTimeStringToDate(estimatedDeliveryAt);
+          return eta.difference(DateTime.now()).inMinutes;
+        } catch (_) {}
+      }
+    }
+    return differenceInMinute(storeDeliveryTime, orderTime, processingTime, scheduleAt);
+  }
+
+  /// Formats the estimated delivery time as a human-readable time string (e.g. "2:30 PM")
+  static String? formatEstimatedDeliveryTime(String? estimatedDeliveryAt) {
+    if (estimatedDeliveryAt == null || estimatedDeliveryAt.isEmpty) return null;
+    try {
+      DateTime? eta = DateTime.tryParse(estimatedDeliveryAt);
+      eta ??= dateTimeStringToDate(estimatedDeliveryAt);
+      return DateFormat(_timeFormatter()).format(eta);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static int differenceInMinute(String? deliveryTime, String? orderTime, int? processingTime, String? scheduleAt) {
     // 'min', 'hours', 'days'
     int minTime = processingTime ?? 0;

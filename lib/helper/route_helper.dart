@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:sixam_mart/common/widgets/auth_guard_middleware.dart';
 import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
 import 'package:sixam_mart/features/auth/screens/new_user_setup_screen.dart';
 import 'package:sixam_mart/features/brands/screens/brands_product_screen.dart';
@@ -66,7 +67,6 @@ import 'package:sixam_mart/features/location/screens/access_location_screen.dart
 import 'package:sixam_mart/features/location/screens/pick_map_screen.dart';
 import 'package:sixam_mart/features/notification/screens/notification_screen.dart';
 import 'package:sixam_mart/features/onboard/screens/onboarding_screen.dart';
-import 'package:sixam_mart/features/order/screens/guest_track_order_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_details_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_screen.dart';
 import 'package:sixam_mart/features/order/screens/order_tracking_screen.dart';
@@ -665,8 +665,9 @@ class RouteHelper {
               ),
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: profile, page: () => getRoute(const ProfileScreen())),
+    GetPage(name: profile, page: () => getRoute(const ProfileScreen()), middlewares: [AuthGuardMiddleware()]),
     GetPage(
       name: updateProfile,
       page: () => getRoute(const UpdateProfileScreen()),
@@ -700,7 +701,7 @@ class RouteHelper {
         );
       },
     ),
-    GetPage(name: address, page: () => getRoute(const AddressScreen())),
+    GetPage(name: address, page: () => getRoute(const AddressScreen()), middlewares: [AuthGuardMiddleware()]),
     GetPage(
       name: orderSuccess,
       page:
@@ -711,8 +712,6 @@ class RouteHelper {
                   Get.parameters['contact_number'] != null &&
                           Get.parameters['contact_number'] != 'null'
                       ? Get.parameters['contact_number']
-                      : AuthHelper.isGuestLoggedIn()
-                      ? Get.find<AuthController>().getGuestNumber()
                       : null,
               createAccount: Get.parameters['create_account'] == 'true',
               guestId: Get.parameters['guest_id'] ?? '',
@@ -785,19 +784,19 @@ class RouteHelper {
       name: checkout,
       page: () {
         CheckoutScreen? checkoutScreen = Get.arguments;
-        // bool fromCart = Get.parameters['page'] == 'cart';
         return getRoute(
           checkoutScreen ??
-              ( /*!fromCart ? const NotFound() :*/ CheckoutScreen(
+              CheckoutScreen(
                 cartList: null,
                 fromCart: Get.parameters['page'] == 'cart',
                 storeId:
                     Get.parameters['store-id'] != 'null'
                         ? int.parse(Get.parameters['store-id']!)
                         : null,
-              )),
+              ),
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: orderTracking,
@@ -880,7 +879,7 @@ class RouteHelper {
       name: update,
       page: () => UpdateScreen(isUpdate: Get.parameters['update'] == 'true'),
     ),
-    GetPage(name: cart, page: () => getRoute(const CartScreen(fromNav: false))),
+    GetPage(name: cart, page: () => getRoute(const CartScreen(fromNav: false)), middlewares: [AuthGuardMiddleware()]),
     GetPage(
       name: addAddress,
       page:
@@ -1054,6 +1053,7 @@ class RouteHelper {
           ),
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: loyalty,
@@ -1166,15 +1166,7 @@ class RouteHelper {
       name: flashSaleDetailsScreen,
       page: () => FlashSaleDetailsScreen(id: int.parse(Get.parameters['id']!)),
     ),
-    GetPage(
-      name: guestTrackOrderScreen,
-      page:
-          () => GuestTrackOrderScreen(
-            orderId: Get.parameters['order_id']!,
-            number: Get.parameters['number']!,
-          ),
-    ),
-    GetPage(name: favourite, page: () => const FavouriteScreen()),
+GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [AuthGuardMiddleware()]),
     GetPage(name: brands, page: () => const BrandsScreen()),
     GetPage(
       name: brandsItemScreen,

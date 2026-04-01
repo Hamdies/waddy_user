@@ -78,7 +78,7 @@ class TopRestaurantsView extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  'top_restaurants'.tr,
+                                  'speed_mode'.tr,
                                   style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
                                 ),
                               ],

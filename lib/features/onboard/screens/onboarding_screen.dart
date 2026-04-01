@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/onboard/controllers/onboard_controller.dart';
@@ -26,6 +27,10 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   late AnimationController _exitController;
 
   late List<Map<String, double>> _cardIntervals; // Pre-calculated intervals
+  final ScrollController _horizontalScrollController = ScrollController();
+  late AnimationController _entranceController;
+  Timer? _autoScrollTimer;
+  bool _isOnFirstScreen = true;
 
   // Media assets data (4 items): supports .png/.jpg/.jpeg and .svg
   final List<String> _svgAssets = [
@@ -33,25 +38,17 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     "assets/on_boarding/Asset 11.png",
 
     "assets/on_boarding/pizza_ranch.png",
-    "assets/on_boarding/Asset 1offer.png",
+    "assets/image/waddy_coin.png",
   ];
 
   // Card labels - dynamically localized
   List<String> get _cardLabels {
-    final isArabic = Get.locale?.languageCode == 'ar';
-    return isArabic
-        ? [
-          "مستلزمات المطبخ",
-          "مستلزمات الحيوانات الأليفة",
-          "أكلك المفضل",
-          "عروض وخصومات",
-        ]
-        : [
-          "Kitchen Essentials",
-          "Pet Essentials",
-          "Your Favorite Food",
-          "Deals & Discounts",
-        ];
+    return [
+      'screen_1_kitchen_essentials'.tr,
+      'screen_1_pet_essentials'.tr,
+      'screen_1_favorite_food'.tr,
+      'screen_1_xp_points_rewards'.tr,
+    ];
   }
 
   // Cohesive pastel color scheme with consistent saturation
@@ -59,14 +56,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     Color(0xFFE0F7F4), // Soft mint
     Color(0xFFffec9e), // Soft peach
     Color(0xFFF9D8FA),
-    Color(0xFFD3E6FF), // Soft lime
+    Color(0xFF1EF2A0).withOpacity(0.3), // Soft lime
   ];
 
   final List<Color> _textColors = [
     Color(0xFF00A896), // Teal
     Color(0xFF99450e), // Orange
     Color(0xFFe91fb0), // Blue
-    Color(0xff273b71), // Green
+    Color(0xff134E4A), // Green
   ];
 
   @override
@@ -100,6 +97,22 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
         'fallEnd': cardFallEnd,
       };
     });
+
+    // Entrance animation for first screen (logo move up + fade in)
+    _entranceController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..forward();
+
+    // Start auto-scroll after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _horizontalScrollController.hasClients) {
+        final sw = MediaQuery.of(context).size.width;
+        final itemWidth = sw * 0.42 + 12;
+        _horizontalScrollController.jumpTo(itemWidth * 2000);
+      }
+      _startAutoScroll();
+    });
   }
 
   @override
@@ -117,7 +130,43 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   void dispose() {
     _jiggleController.dispose();
     _exitController.dispose();
+    _entranceController.dispose();
+    _autoScrollTimer?.cancel();
+    _horizontalScrollController.dispose();
     super.dispose();
+  }
+
+  void _startAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (_horizontalScrollController.hasClients && _isOnFirstScreen) {
+        final maxScroll = _horizontalScrollController.position.maxScrollExtent;
+        final newOffset = _horizontalScrollController.offset + 0.8;
+        if (newOffset < maxScroll) {
+          _horizontalScrollController.jumpTo(newOffset);
+        }
+      }
+    });
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+  }
+
+  String _getChipText(int cardIndex) {
+    switch (cardIndex) {
+      case 0:
+        return 'chip_no_ingredients'.tr;
+      case 1:
+        return 'chip_feed_the_boss'.tr;
+      case 2:
+        return 'chip_lets_eat'.tr;
+      case 3:
+        return 'chip_free_stuff'.tr;
+      default:
+        return 'Explore';
+    }
   }
 
   @override
@@ -216,6 +265,22 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                               onPageChanged: (index) {
                                 onBoardingController.changeSelectIndex(index);
 
+                                // Track which screen we're on for auto-scroll
+                                if (index == 0) {
+                                  _isOnFirstScreen = true;
+                                  if (!_jiggleController.isAnimating) {
+                                    _jiggleController.repeat(reverse: true);
+                                  }
+                                  _startAutoScroll();
+                                  if (_exitController.status ==
+                                      AnimationStatus.completed) {
+                                    _exitController.reset();
+                                  }
+                                } else {
+                                  _isOnFirstScreen = false;
+                                  _stopAutoScroll();
+                                }
+
                                 // Trigger animation when moving to page 1
                                 if (index == 1) {
                                   // Reset and start animation quickly
@@ -229,12 +294,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                                       }
                                     },
                                   );
-                                }
-                                // Reset animation when going back to page 0
-                                if (index == 0 &&
-                                    _exitController.status ==
-                                        AnimationStatus.completed) {
-                                  _exitController.reset();
                                 }
                                 // Trigger box fall animation on page 2
                                 if (index == 2) {
@@ -321,345 +380,337 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   Widget _buildAnimatedFirstScreen(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final centerX = screenWidth / 2;
-    final centerY = screenHeight / 2;
+    final cardWidth = screenWidth * 0.42;
+    final cardHeight = 200.0;
 
-    // SVG size and margin used for placing items near the edges
-    const double svgSize = 100.0; // matches SvgPicture width/height below
-    const double edgeMargin = 8.0; // bring slightly inside so fully visible
+    return AnimatedBuilder(
+      animation: Listenable.merge([_entranceController, _jiggleController]),
+      builder: (context, child) {
+        // Logo moves from center to top
+        final logoMoveProgress = Curves.easeOutCubic.transform(
+          (_entranceController.value * 1.8).clamp(0.0, 1.0),
+        );
+        final logoStartY = screenHeight * 0.32;
+        final logoEndY = 50.0;
+        final logoY = logoStartY + (logoEndY - logoStartY) * logoMoveProgress;
 
-    // Position cards with uniform sizing and better logo spacing
-    final List<Map<String, dynamic>> svgPositions = [
-      // Top right - moved higher for logo breathing room
-      {'offset': Offset(200, 35), 'rotation': 0.02},
-      // Left middle - moved higher for logo breathing room
-      {'offset': Offset(20, 115), 'rotation': -0.05},
-      // Right lower middle
-      {'offset': Offset(screenWidth - 180, centerY + 100), 'rotation': 0.06},
-      // Bottom left
-      {'offset': Offset(10, screenHeight - 260), 'rotation': 0.0},
-    ];
+        // Cards fade in
+        final cardsOpacity = Curves.easeOut.transform(
+          ((_entranceController.value - 0.25) / 0.35).clamp(0.0, 1.0),
+        );
 
-    return Container(
-      color: Colors.white,
-      child: Stack(
-        children: [
-          // Soft gradient overlays in corners
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0xFF00ff9d).withOpacity(0.2),
-                    Color(0xFF00ff9d).withOpacity(0.05),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                  center: Alignment.topRight,
+        // Text fade in
+        final textOpacity = Curves.easeOut.transform(
+          ((_entranceController.value - 0.5) / 0.3).clamp(0.0, 1.0),
+        );
+
+        // Button fade in
+        final buttonOpacity = Curves.easeOut.transform(
+          ((_entranceController.value - 0.7) / 0.3).clamp(0.0, 1.0),
+        );
+
+        return Container(
+          color: Colors.white,
+          child: Stack(
+            children: [
+              // Soft gradient overlays in corners
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        Color(0xFF00ff9d).withOpacity(0.2),
+                        Color(0xFF00ff9d).withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
+                      center: Alignment.topRight,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0xFF00ff9d).withOpacity(0.2),
-                    Color(0xFF00ff9d).withOpacity(0.05),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                  center: Alignment.bottomLeft,
+              Positioned(
+                bottom: 0,
+                left: 0,
+                child: Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        Color(0xFF00ff9d).withOpacity(0.2),
+                        Color(0xFF00ff9d).withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
+                      center: Alignment.bottomLeft,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0xFF00ff9d).withOpacity(0.4),
-                    Color(0xFF00ff9d).withOpacity(0.03),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                  center: Alignment.topLeft,
+              Positioned(
+                top: 0,
+                left: 0,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        Color(0xFF00ff9d).withOpacity(0.4),
+                        Color(0xFF00ff9d).withOpacity(0.03),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
+                      center: Alignment.topLeft,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    Color(0xFF00ff9d).withOpacity(0.3),
-                    Color(0xFF00ff9d).withOpacity(0.03),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                  center: Alignment.bottomRight,
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      colors: [
+                        Color(0xFF00ff9d).withOpacity(0.3),
+                        Color(0xFF00ff9d).withOpacity(0.03),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
+                      center: Alignment.bottomRight,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Animated SVG assets (4 items at corners)
-          ...List.generate(4, (index) {
-            return AnimatedBuilder(
-              animation: Listenable.merge([_jiggleController, _exitController]),
-              builder: (context, child) {
-                // GENTLE SMOOTH FLOAT EFFECT
-                final animValue = _jiggleController.value;
 
-                // Smooth eased vertical floating only - no jitter
-                final easedValue = Curves.easeInOut.transform(animValue);
-                final floatOffset =
-                    sin(easedValue * pi * 2) * 5.0; // Gentle +/- 5 pixels
+              // Logo fixed at top (animates from center to top)
+              Positioned(
+                top: logoY,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SvgPicture.asset(
+                    "assets/on_boarding/Asset 11.svg",
+                    fit: BoxFit.contain,
+                    width: 70,
+                    height: 70,
+                  ),
+                ),
+              ),
 
-                final baseRotation = svgPositions[index]['rotation'] as double;
+              // Horizontally scrolling cards (infinite, right to left)
+              Positioned(
+                top: screenHeight * 0.20,
+                left: 0,
+                right: 0,
+                height: cardHeight + 10,
+                child: Opacity(
+                  opacity: cardsOpacity,
+                  child: ListView.builder(
+                    controller: _horizontalScrollController,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: 10000,
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    itemBuilder: (context, index) {
+                      final cardIndex = index % 4;
 
-                final currentX = svgPositions[index]['offset'].dx;
-                final currentY = svgPositions[index]['offset'].dy + floatOffset;
+                      // Gentle float effect per card
+                      final animValue = _jiggleController.value;
+                      final easedValue = Curves.easeInOut.transform(animValue);
+                      final floatOffset = sin(
+                        easedValue * pi * 2 + cardIndex * pi / 2,
+                      ) * 3.0;
 
-                final scale = 1.0;
-                final rotation = baseRotation;
-                final opacity = 1.0;
-
-                return Positioned(
-                  left: currentX,
-                  top: currentY,
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Transform.rotate(
-                      angle: rotation,
-                      child: Transform.scale(
-                        scale: scale,
+                      return Transform.translate(
+                        offset: Offset(0, floatOffset),
                         child: Container(
-                          width: 200,
-                          height: 80,
+                          width: cardWidth,
+                          height: cardHeight,
+                          margin: EdgeInsets.symmetric(horizontal: 6),
                           decoration: BoxDecoration(
-                            color: _cardColors[index % _cardColors.length]
-                                .withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(20),
+                            color: _cardColors[cardIndex % _cardColors.length],
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withOpacity(0.7),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: _textColors[index % _textColors.length]
-                                    .withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.white.withOpacity(0.7),
-                                    Colors.white.withOpacity(0.3),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Circular icon badge
+                              Container(
+                                width: 75,
+                                height: 75,
+                                decoration: BoxDecoration(
+                                  color: _cardColors[cardIndex % _cardColors.length]
+                                      .withOpacity(0.4),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _textColors[cardIndex % _textColors.length]
+                                        .withOpacity(0.4),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _textColors[cardIndex % _textColors.length]
+                                          .withOpacity(0.15),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Circular icon container with frosted effect
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.4),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.5),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ClipOval(
-                                      child: Image.asset(
-                                        _svgAssets[index % _svgAssets.length],
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    _svgAssets[cardIndex % _svgAssets.length],
+                                    fit: BoxFit.cover,
                                   ),
-                                  SizedBox(width: 12),
-                                  // Text
-                                  Expanded(
-                                    child: Text(
-                                      _cardLabels[index % _cardLabels.length],
-                                      style: TextStyle(
-                                        color:
-                                            _textColors[index %
-                                                _textColors.length],
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.2,
-                                        letterSpacing: -0.3,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
+                              SizedBox(height: 14),
+                              // Card label text
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text(
+                                  _cardLabels[cardIndex % _cardLabels.length],
+                                  style: TextStyle(
+                                    color: _textColors[
+                                      cardIndex % _textColors.length
+                                    ],
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.2,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              // Small chip badge with dynamic copy
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _textColors[cardIndex % _textColors.length]
+                                      .withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _textColors[cardIndex % _textColors.length]
+                                        .withOpacity(0.3),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  _getChipText(cardIndex),
+                                  style: TextStyle(
+                                    color: _textColors[
+                                      cardIndex % _textColors.length
+                                    ],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          }),
-
-          // Center logo and tagline
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset(
-                  "assets/on_boarding/Asset 11.svg",
-                  fit: BoxFit.contain,
-                  width: 200,
-                ),
-                const SizedBox(height: 15),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'onboarding_page1_title1'.tr,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xff2D3748),
-                          fontWeight: FontWeight.w500,
-                          height: 1.4,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      SizedBox(height: 5),
-                      Column(
-                        children: [
-                          Text(
-                            'onboarding_page1_title2'.tr,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Color(0xff00C78C),
-                              fontWeight: FontWeight.w700,
-                              height: 1.2,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          Image.asset(
-                            "assets/on_boarding/stroke.png",
-                            width: 100,
-                            color: Theme.of(context).secondaryHeaderColor,
-                          ),
-                        ],
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Simple Next button at bottom
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: GestureDetector(
-              onTap: () {
-                _pageController.nextPage(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                );
-              },
-              child: AnimatedBuilder(
-                animation: _jiggleController,
-                builder: (context, child) {
-                  final bounce = (_jiggleController.value - 0.5).abs() * 8;
-                  return Transform.translate(
-                    offset: Offset(0, bounce),
-                    child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 80),
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).secondaryHeaderColor.withOpacity(0.4),
-                          width: 0.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).secondaryHeaderColor,
-                            blurRadius: 0,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'onboarding_next'.tr,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.arrow_downward,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
               ),
-            ),
+
+              // Title and description below cards
+              Positioned(
+                top: screenHeight * 0.53,
+                left: 0,
+                right: 0,
+                child: Opacity(
+                  opacity: textOpacity,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'onboarding_page1_title1'.tr,
+                          textAlign: TextAlign.center,
+                          style: robotoBold.copyWith(
+                            fontSize: 28,
+                            color: Theme.of(context).primaryColor,
+                            height: 1.2,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'onboarding_page1_title2'.tr,
+                          textAlign: TextAlign.center,
+                          style: robotoBold.copyWith(
+                            fontSize: 24,
+                            color: Theme.of(context).secondaryHeaderColor,
+                            height: 1.2,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Image.asset(
+                          "assets/on_boarding/stroke.png",
+                          width: 120,
+                          color: Theme.of(context).secondaryHeaderColor,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Next button at bottom (dark style)
+              Positioned(
+                bottom: 30,
+                left: 0,
+                right: 0,
+                child: Opacity(
+                  opacity: buttonOpacity,
+                  child: CustomButton(
+                    onPressed: () {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    buttonText: 'onboarding_next'.tr,
+                    icon: Icons.arrow_downward,
+                    margin: EdgeInsets.symmetric(horizontal: 50),
+                    height: 50,
+                    fontSize: 18,
+                    isBold: true,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -670,7 +721,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     final centerY = screenHeight / 2;
 
     // All cards start from the same position (center top) and fall one over the other
-    final startX = centerX - 100; // Center horizontally
+    final startX = centerX - 75; // Center horizontally (150 / 2)
     final startY = 50.0; // Start from top
     final List<Map<String, dynamic>> svgPositions = [
       {'offset': Offset(startX, startY), 'rotation': 0.02},
@@ -726,9 +777,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                   fallProgress,
                 );
 
-                // Target: exact center of the orange box
-                final boxCenterX = centerX - 100; // Adjust for card width
-                final boxCenterY = centerY - 40; // Adjust for card height
+                // Target: exact center of the screen
+                final boxCenterX = centerX - 75; // Center horizontally (150 / 2)
+                final boxCenterY = centerY - 75; // Center vertically (150 / 2)
 
                 final currentX =
                     svgPositions[index]['offset'].dx +
@@ -745,11 +796,11 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                     svgPositions[index]['rotation'] +
                     (smoothFallProgress * 0.4 * (index % 2 == 0 ? 1 : -1));
 
-                // SHRINK dramatically as cards fall into box
-                final scale = (1.0 - (smoothFallProgress * 0.88)).clamp(
-                  0.05,
+                // SHRINK smoothly as cards fall into box
+                final scale = (1.0 - (smoothFallProgress * 0.6)).clamp(
+                  0.2,
                   1.0,
-                ); // Shrink to 12%, min 5%
+                ); // Shrink to 40%, min 20%
 
                 // Fade based on appearance and fall progress
                 final opacity =
@@ -767,82 +818,99 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                       child: Transform.scale(
                         scale: scale,
                         child: Container(
-                          width: 200,
-                          height: 80,
+                          width: 150,
+                          height: 150,
                           decoration: BoxDecoration(
-                            color: _cardColors[index % _cardColors.length]
-                                .withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(20),
+                            color: _cardColors[index % _cardColors.length],
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.5),
+                              color: Colors.white.withOpacity(0.7),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: _textColors[index % _textColors.length]
-                                    .withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: Offset(0, 4),
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.white.withOpacity(0.7),
-                                    Colors.white.withOpacity(0.3),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Circular icon badge
+                              Container(
+                                width: 55,
+                                height: 55,
+                                decoration: BoxDecoration(
+                                  color: _cardColors[index % _cardColors.length]
+                                      .withOpacity(0.4),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _textColors[index % _textColors.length]
+                                        .withOpacity(0.4),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _textColors[index % _textColors.length]
+                                          .withOpacity(0.15),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.4),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.5),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ClipOval(
-                                      child: Image.asset(
-                                        _svgAssets[index % _svgAssets.length],
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    _svgAssets[index % _svgAssets.length],
+                                    fit: BoxFit.cover,
                                   ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      _cardLabels[index % _cardLabels.length],
-                                      style: TextStyle(
-                                        color:
-                                            _textColors[index %
-                                                _textColors.length],
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.2,
-                                        letterSpacing: -0.3,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
+                              SizedBox(height: 10),
+                              // Card label text
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  _cardLabels[index % _cardLabels.length],
+                                  style: robotoBold.copyWith(
+                                    color: _textColors[index % _textColors.length],
+                                    fontSize: 11,
+                                    height: 1.1,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              // Small chip badge with dynamic copy
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _textColors[index % _textColors.length]
+                                      .withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _textColors[index % _textColors.length]
+                                        .withOpacity(0.3),
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  _getChipText(index),
+                                  style: TextStyle(
+                                    color: _textColors[index % _textColors.length],
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.1,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -957,6 +1025,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                           contentOpacity: contentOpacity,
                           svgAssetPath: 'assets/on_boarding/Asset 11.svg',
                           isArabic: Get.locale?.languageCode == 'ar',
+                          text1: 'delivery_box_you_need_it'.tr,
+                          text2: 'delivery_box_we_speed_it'.tr,
                         ),
                         child: Container(
                           margin: EdgeInsets.symmetric(horizontal: 60),
@@ -996,9 +1066,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                               Text(
                                 'onboarding_page2_title1'.tr,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
+                                style: robotoBold.copyWith(
+                                  fontSize: 28,
                                   color: Theme.of(context).primaryColor,
                                 ),
                               ),
@@ -1007,9 +1076,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                                   Text(
                                     'onboarding_page2_title2'.tr,
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: robotoBold.copyWith(
                                       fontSize: 24,
-                                      fontWeight: FontWeight.w900,
                                       color: Theme.of(context).primaryColor,
                                     ),
                                   ),
@@ -1023,9 +1091,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                               Text(
                                 'onboarding_page2_description'.tr,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: robotoMedium.copyWith(
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w500,
                                   color: Colors.grey[600],
                                   height: 1.4,
                                 ),
@@ -1057,53 +1124,20 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
 
                 return Opacity(
                   opacity: buttonOpacity,
-                  child: GestureDetector(
-                    onTap: () {
+                  child: CustomButton(
+                    onPressed: () {
                       _pageController.nextPage(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                       );
                     },
-                    child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 80),
-                      padding: EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).secondaryHeaderColor.withOpacity(0.4),
-                          width: 0.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(context).secondaryHeaderColor,
-                            blurRadius: 0,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Next',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(
-                            Icons.arrow_downward,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
+                    buttonText: 'Next',
+                    color: Theme.of(context).primaryColor,
+                    icon: Icons.arrow_downward,
+                    margin: EdgeInsets.symmetric(horizontal: 80),
+                    height: 50,
+                    fontSize: 18,
+                    isBold: true,
                   ),
                 );
               },
@@ -1253,6 +1287,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                             contentOpacity: 1.0,
                             svgAssetPath: 'assets/on_boarding/Asset 11.svg',
                             isArabic: Get.locale?.languageCode == 'ar',
+                            text1: 'delivery_box_you_need_it'.tr,
+                            text2: 'delivery_box_we_speed_it'.tr,
                           ),
                           child: Container(
                             margin: EdgeInsets.symmetric(horizontal: 60),
@@ -1298,9 +1334,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                             Text(
                               'onboarding_page3_title'.tr,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
+                              style: robotoBold.copyWith(
+                                fontSize: 28,
                                 color: Theme.of(context).primaryColor,
                               ),
                             ),
@@ -1308,9 +1343,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                             Text(
                               'onboarding_page3_description'.tr,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: robotoMedium.copyWith(
                                 fontSize: 15,
-                                fontWeight: FontWeight.w500,
                                 color: Colors.grey[600],
                               ),
                             ),
@@ -1348,46 +1382,17 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                   opacity: buttonOpacity,
                   child: Transform.translate(
                     offset: Offset(0, jiggleOffset),
-                    child: GestureDetector(
-                      onTap: () {
+                    child: CustomButton(
+                      onPressed: () {
                         _configureToRouteInitialPage();
                       },
-                      child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 60),
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).secondaryHeaderColor.withOpacity(0.4),
-                            width: 0.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context).secondaryHeaderColor,
-                              blurRadius: 0,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'onboarding_get_started'.tr,
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Icon(Icons.check, color: Colors.white, size: 22),
-                          ],
-                        ),
-                      ),
+                      buttonText: 'onboarding_get_started'.tr,
+                      color: Theme.of(context).primaryColor,
+                      icon: Icons.check,
+                      margin: EdgeInsets.symmetric(horizontal: 60),
+                      height: 50,
+                      fontSize: 18,
+                      isBold: true,
                     ),
                   ),
                 );
@@ -1420,11 +1425,13 @@ class DeliveryBoxPainter extends CustomPainter {
     required this.primaryColor,
     required this.accentColor,
     required this.contentOpacity,
+    required this.isArabic,
     this.svgAssetPath,
-    this.isArabic = false,
+    String? text1,
+    String? text2,
   }) : textPainter1 = TextPainter(
          text: TextSpan(
-           text: isArabic ? 'احتياجك' : 'You Need It',
+           text: text1,
            style: TextStyle(
              fontSize: 20,
              fontWeight: FontWeight.w900,
@@ -1436,7 +1443,7 @@ class DeliveryBoxPainter extends CustomPainter {
        )..layout(),
        textPainter2 = TextPainter(
          text: TextSpan(
-           text: isArabic ? 'مهمتنا' : 'We Speed It',
+           text: text2,
            style: TextStyle(
              fontSize: 20,
              fontWeight: FontWeight.w900,

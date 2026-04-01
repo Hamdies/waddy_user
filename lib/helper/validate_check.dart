@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
@@ -39,8 +38,10 @@ class ValidateCheck{
   static String? validatePassword(String? value, String? message) {
     if (value == null || value.isEmpty) {
       return message?.tr ?? 'this_field_is_required'.tr;
-    }else if(value.length < 8){
+    } else if(value.length < 8){
       return 'minimum_password_is_8_character'.tr;
+    } else if(!RegExp(r'(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(value)){
+      return 'password_must_contain_upper_lower_and_number'.tr;
     }
     return null;
   }
@@ -78,15 +79,8 @@ class ValidateCheck{
       isValid = phoneNumber.isValid(type: PhoneNumberType.mobile);
       if(isValid){
         phone = withCountryCode ? "+${phoneNumber.countryCode}${phoneNumber.nsn}" : phoneNumber.nsn.toString();
-        if (kDebugMode) {
-          print("Phone Number : $phone");
-        }
       }
-    }catch(e) {
-      if (kDebugMode) {
-        print(e.toString());
-      }
-    }
+    }catch(_) {}
     return phone;
   }
 

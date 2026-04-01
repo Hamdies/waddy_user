@@ -8,7 +8,6 @@ import 'package:sixam_mart/api/api_checker.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/common/models/error_response.dart';
 import 'package:sixam_mart/common/models/module_model.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,9 +26,6 @@ class ApiClient extends GetxService {
 
   ApiClient({required this.appBaseUrl, required this.sharedPreferences}) {
     token = sharedPreferences.getString(AppConstants.token);
-    if (kDebugMode) {
-      print('Token: $token');
-    }
     AddressModel? addressModel;
     try {
       addressModel = AddressModel.fromJson(jsonDecode(sharedPreferences.getString(AppConstants.userAddress)!));
@@ -74,7 +70,7 @@ class ApiClient extends GetxService {
   Future<Response> getData(String uri, {Map<String, dynamic>? query, Map<String, String>? headers, bool handleError = true}) async {
     try {
       if (kDebugMode) {
-        print('====> API Call: $uri\nHeader: ${headers ?? _mainHeaders}');
+        debugPrint('====> API Call: $uri');
       }
       http.Response response = await http.get(
         Uri.parse(appBaseUrl+uri),
@@ -83,7 +79,7 @@ class ApiClient extends GetxService {
       return handleResponse(response, uri, handleError);
     } catch (e) {
       if (kDebugMode) {
-        print('------------${e.toString()}');
+        debugPrint('API error: ${e.runtimeType}');
       }
       return Response(statusCode: 1, statusText: noInternetMessage);
     }
@@ -92,8 +88,19 @@ class ApiClient extends GetxService {
   Future<Response> postData(String uri, dynamic body, {Map<String, String>? headers, int? timeout, bool handleError = true}) async {
     try {
       if(kDebugMode) {
-        print('====> API Call: $uri\nHeader: ${headers ?? _mainHeaders}');
-        print('====> API Body: $body');
+        debugPrint('====> API Call: $uri');
+        // Log auth headers for reorder endpoint
+        if(uri.contains('reorder')) {
+          debugPrint('📦 [API CLIENT] Reorder Request Headers:');
+          final headersToUse = headers ?? _mainHeaders;
+          headersToUse.forEach((key, value) {
+            if(key.toLowerCase() == 'authorization') {
+              debugPrint('📦 [API CLIENT] Authorization: ${value.substring(0, 20)}...');
+            } else {
+              debugPrint('📦 [API CLIENT] $key: $value');
+            }
+          });
+        }
       }
 
       Map<dynamic, dynamic> newBody = {};
@@ -118,8 +125,9 @@ class ApiClient extends GetxService {
 
   Future<Response> postMultipartData(String uri, Map<String, String> body, List<MultipartBody> multipartBody, {List<MultipartDocument>? multipartDoc, Map<String, String>? headers, bool handleError = true}) async {
     try {
-      debugPrint('====> API Call: $uri\nHeader: $_mainHeaders');
-      debugPrint('====> API Body: $body with ${multipartBody.length} and multipart ${multipartDoc?.length}');
+      if(kDebugMode) {
+        debugPrint('====> API Call: $uri');
+      }
       http.MultipartRequest request = http.MultipartRequest('POST', Uri.parse(appBaseUrl+uri));
       request.headers.addAll(headers ?? _mainHeaders);
       for(MultipartBody multipart in multipartBody) {
@@ -171,8 +179,7 @@ class ApiClient extends GetxService {
   Future<Response> putData(String uri, dynamic body, {Map<String, String>? headers, bool handleError = true}) async {
     try {
       if(kDebugMode) {
-        print('====> API Call: $uri\nHeader: ${headers ?? _mainHeaders}');
-        print('====> API Body: $body');
+        debugPrint('====> API Call: $uri');
       }
       http.Response response = await http.put(
         Uri.parse(appBaseUrl+uri),
@@ -188,7 +195,7 @@ class ApiClient extends GetxService {
   Future<Response> deleteData(String uri, {Map<String, String>? headers, bool handleError = true}) async {
     try {
       if(kDebugMode) {
-        print('====> API Call: $uri\nHeader: ${headers ?? _mainHeaders}');
+        debugPrint('====> API Call: $uri');
       }
       http.Response response = await http.delete(
         Uri.parse(appBaseUrl+uri),
@@ -221,10 +228,7 @@ class ApiClient extends GetxService {
       response0 = Response(statusCode: 0, statusText: noInternetMessage);
     }
     if(kDebugMode) {
-      print('====> API Response: [${response0.statusCode}] $uri');
-      if(!ResponsiveHelper.isWeb() || response.statusCode != 500){
-        print('${response0.body}');
-      }
+      debugPrint('====> API Response: [${response0.statusCode}] $uri');
     }
     if(handleError) {
       if(response0.statusCode == 200) {

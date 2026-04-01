@@ -489,9 +489,7 @@ class CheckoutCalculationHelper {
                     configModel.adminFreeDelivery!.freeDeliveryOver!)) ||
         Get.find<CouponController>().freeDelivery ||
         hasXpFreeDelivery ||
-        (AuthHelper.isGuestLoggedIn() &&
-            (Get.find<CheckoutController>().guestAddress == null &&
-                Get.find<CheckoutController>().orderType != 'take_away'))) {
+        false) {
       deliveryCharge = 0;
     }
 

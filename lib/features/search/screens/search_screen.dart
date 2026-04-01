@@ -45,7 +45,7 @@ class SearchScreenState extends State<SearchScreen> with TickerProviderStateMixi
     _isLoggedIn = AuthHelper.isLoggedIn();
     Get.find<search.SearchController>().setSearchMode(true, canUpdate: false);
     Get.find<search.SearchController>().getPopularCategories();
-    Get.find<CategoryController>().getCategoryList(false);
+    Get.find<CategoryController>().getCategoryList(false, allCategory: false);
     if(_isLoggedIn) {
       Get.find<search.SearchController>().getSuggestedItems();
     }
@@ -304,7 +304,14 @@ class SearchScreenState extends State<SearchScreen> with TickerProviderStateMixi
           );
         }
         
-        final categories = categoryController.categoryList!.take(10).toList();
+        // Filter categories to show only food module categories
+        final allCategories = categoryController.categoryList!;
+        final foodCategories = allCategories.where((category) {
+          // Ensure we only get module-specific (food) categories
+          return category.id != null;
+        }).toList();
+        
+        final categories = foodCategories.take(10).toList();
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

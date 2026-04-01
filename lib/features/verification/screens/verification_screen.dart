@@ -209,7 +209,7 @@ class VerificationScreenState extends State<VerificationScreen> {
                           phone: _number, email: _email, verificationType: _number != null
                             ? VerificationTypeEnum.phone.name : VerificationTypeEnum.email.name,
                           otp: verificationController.verificationCode, loginType: widget.loginType,
-                          guestId: AuthHelper.getGuestId(),
+                          guestId: '',
                         )).then((value) {
                           if(value.isSuccess) {
                             _handleVerifyResponse(value, _number, _email);

@@ -2,24 +2,34 @@ class XpHistoryModel {
   final List<XpHistoryItem> history;
   final int totalEarned;
   final int totalItems;
+  final int limit;
+  final int offset;
 
   XpHistoryModel({
     required this.history,
     this.totalEarned = 0,
     this.totalItems = 0,
+    this.limit = 20,
+    this.offset = 1,
   });
 
   factory XpHistoryModel.fromJson(Map<String, dynamic> json) {
+    final historyList = json['history'] != null
+        ? (json['history'] as List).asMap().entries.map(
+            (entry) => XpHistoryItem.fromJson(entry.value, fallbackId: entry.key),
+          ).toList()
+        : <XpHistoryItem>[];
+
     return XpHistoryModel(
-      history: json['history'] != null
-          ? (json['history'] as List)
-              .map((item) => XpHistoryItem.fromJson(item))
-              .toList()
-          : [],
+      history: historyList,
       totalEarned: json['total_earned'] ?? 0,
-      totalItems: json['total'] ?? json['total_items'] ?? 0,
+      totalItems: json['total_size'] ?? json['total'] ?? json['total_items'] ?? 0,
+      limit: json['limit'] ?? 20,
+      offset: json['offset'] ?? 1,
     );
   }
+
+  bool get hasMore => history.length < totalItems;
 }
 
 class XpHistoryItem {
@@ -39,9 +49,9 @@ class XpHistoryItem {
     this.metadata,
   });
 
-  factory XpHistoryItem.fromJson(Map<String, dynamic> json) {
+  factory XpHistoryItem.fromJson(Map<String, dynamic> json, {int fallbackId = 0}) {
     return XpHistoryItem(
-      id: json['id'] ?? 0,
+      id: json['id'] ?? fallbackId,
       type: json['type'] ?? 'order',
       xp: json['xp'] ?? json['xp_earned'] ?? 0,
       description: json['description'] ?? '',

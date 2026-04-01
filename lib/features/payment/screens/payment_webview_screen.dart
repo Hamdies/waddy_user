@@ -119,13 +119,20 @@ class PaymentScreenState extends State<PaymentWebViewScreen> {
               },
               shouldOverrideUrlLoading: (controller, navigationAction) async {
                 Uri uri = navigationAction.request.url!;
-                if (!["http", "https", "file", "chrome", "data", "javascript", "about"].contains(uri.scheme)) {
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    return NavigationActionPolicy.CANCEL;
-                  }
+                // Block dangerous schemes
+                if (["javascript", "data", "file", "blob"].contains(uri.scheme)) {
+                  return NavigationActionPolicy.CANCEL;
                 }
-                return NavigationActionPolicy.ALLOW;
+                // Allow standard web schemes
+                if (["http", "https"].contains(uri.scheme)) {
+                  return NavigationActionPolicy.ALLOW;
+                }
+                // Handle external app schemes (e.g. payment apps)
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  return NavigationActionPolicy.CANCEL;
+                }
+                return NavigationActionPolicy.CANCEL;
               },
               onLoadStop: (controller, url) async {
                 pullToRefreshController?.endRefreshing();

@@ -77,7 +77,35 @@ class SplashController extends GetxController implements GetxService {
   bool _showReferBottomSheet = false;
   bool get showReferBottomSheet => _showReferBottomSheet;
 
+  bool _welcomeLetterShown = false;
+  bool get welcomeLetterShown => _welcomeLetterShown;
+
+  bool _animationComplete = false;
+  bool _configLoaded = false;
+  bool get configLoaded => _configLoaded;
+  bool _hasNavigated = false;
+  NotificationBodyModel? _pendingNotificationBody;
+
   DateTime get currentTime => DateTime.now();
+
+  void resetSplashState() {
+    _animationComplete = false;
+    _configLoaded = false;
+    _hasNavigated = false;
+    _pendingNotificationBody = null;
+  }
+
+  void markAnimationComplete() {
+    _animationComplete = true;
+    _tryNavigate();
+  }
+
+  void _tryNavigate() {
+    if (_animationComplete && _configLoaded && !_hasNavigated) {
+      _hasNavigated = true;
+      route(body: _pendingNotificationBody);
+    }
+  }
 
   void selectModuleIndex(int index) {
     _selectedModuleIndex = index;
@@ -155,7 +183,9 @@ class SplashController extends GetxController implements GetxService {
       } else if (fromDemoReset) {
         Get.offAllNamed(RouteHelper.getInitialRoute(fromSplash: true));
       } else {
-        route(body: notificationBody);
+        _pendingNotificationBody = notificationBody;
+        _configLoaded = true;
+        _tryNavigate();
       }
       _onRemoveLoader();
     } else {
@@ -254,7 +284,7 @@ class SplashController extends GetxController implements GetxService {
         );
       }
       _cacheModule = await splashServiceInterface.setCacheModule(module);
-      if ((AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn()) &&
+      if (AuthHelper.isLoggedIn() &&
           cacheModule != null) {
         Get.find<CartController>().getCartDataOnline();
       }
@@ -284,6 +314,13 @@ class SplashController extends GetxController implements GetxService {
   }
 
   Module getModuleConfig(String? moduleType) {
+    if (_data == null || _data!['module_config'] == null || _data!['module_config'][moduleType] == null) {
+      return Module(
+        addOn: false, stock: false, vegNonVeg: false, unit: false,
+        orderAttachment: false, showRestaurantText: false, isParcel: false,
+        isTaxi: false, newVariation: false, orderPlaceToScheduleInterval: false,
+      );
+    }
     Module module = Module.fromJson(_data!['module_config'][moduleType]);
     moduleType == 'food'
         ? module.newVariation = true
@@ -315,23 +352,14 @@ class SplashController extends GetxController implements GetxService {
 
   _prepareModuleList(List<ModuleModel>? moduleList) {
     if (moduleList != null) {
-      print('====> Received ${moduleList.length} modules from API');
       _moduleList = [];
       for (var module in moduleList) {
-        print('====> Module: ${module.moduleName}, Type: ${module.moduleType}, IsWeb: ${GetPlatform.isWeb}');
         if (module.moduleType != AppConstants.taxi && GetPlatform.isWeb) {
           _moduleList!.add(module);
-          print('====> Added module (web, non-taxi): ${module.moduleName}');
         } else if (!GetPlatform.isWeb) {
           _moduleList!.add(module);
-          print('====> Added module (mobile): ${module.moduleName}');
-        } else {
-          print('====> Filtered out module: ${module.moduleName}');
         }
       }
-      print('====> Final module list count: ${_moduleList!.length}');
-    } else {
-      print('====> Module list is NULL');
     }
     update();
   }
@@ -466,6 +494,16 @@ class SplashController extends GetxController implements GetxService {
 
   void getReferBottomSheetStatus() {
     _showReferBottomSheet = splashServiceInterface.getReferBottomSheetStatus();
+  }
+
+  void saveWelcomeLetterShownStatus(bool data) {
+    splashServiceInterface.saveWelcomeLetterShownStatus(data);
+    _welcomeLetterShown = data;
+    update();
+  }
+
+  void getWelcomeLetterShownStatus() {
+    _welcomeLetterShown = splashServiceInterface.getWelcomeLetterShownStatus();
   }
 
   var hoverStates = <bool>[];

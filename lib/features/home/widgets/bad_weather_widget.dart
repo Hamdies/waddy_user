@@ -25,7 +25,7 @@ class _BadWeatherWidgetState extends State<BadWeatherWidget> {
 
     Get.find<CheckoutController>().getSurgePrice(
       zoneId:AddressHelper.getUserAddressFromSharedPref()!.zoneId.toString(), moduleId: ModuleHelper.getModule()?.id.toString() ?? (ModuleHelper.getCacheModule()?.id.toString() ?? '0'),
-      dateTime: DateConverter.dateToDateTime(DateTime.now()), guestId: AuthHelper.getGuestId(),
+      dateTime: DateConverter.dateToDateTime(DateTime.now()), guestId: '',
     );
   }
 

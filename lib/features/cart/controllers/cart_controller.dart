@@ -274,7 +274,7 @@ class CartController extends GetxController implements GetxService {
 
   Future<void> clearCartList({bool canRemoveOnline = true}) async {
     _cartList = [];
-    if ((AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn()) &&
+    if (AuthHelper.isLoggedIn() &&
         (ModuleHelper.getModule() != null ||
             ModuleHelper.getCacheModule() != null) &&
         canRemoveOnline) {

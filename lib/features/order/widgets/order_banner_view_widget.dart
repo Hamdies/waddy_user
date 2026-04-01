@@ -35,9 +35,16 @@ class OrderBannerViewWidget extends StatelessWidget {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
 
             Text(
-              DateConverter.differenceInMinute(order.store!.deliveryTime, order.createdAt, order.processingTime, order.scheduleAt) < 5 ? '1 - 5'
-                  : '${DateConverter.differenceInMinute(order.store!.deliveryTime, order.createdAt, order.processingTime, order.scheduleAt)-5} '
-                  '- ${DateConverter.differenceInMinute(order.store!.deliveryTime, order.createdAt, order.processingTime, order.scheduleAt)}',
+              () {
+                final mins = DateConverter.estimatedDeliveryMinutes(
+                  estimatedDeliveryAt: order.estimatedDeliveryAt,
+                  storeDeliveryTime: order.store!.deliveryTime,
+                  orderTime: order.createdAt,
+                  processingTime: order.processingTime,
+                  scheduleAt: order.scheduleAt,
+                );
+                return mins < 5 ? '1 - 5' : '${mins - 5} - $mins';
+              }(),
               style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge), textDirection: TextDirection.ltr,
             ),
             const SizedBox(width: Dimensions.paddingSizeExtraSmall),

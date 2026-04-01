@@ -1,5 +1,4 @@
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:lottie/lottie.dart';
 import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
 import 'package:flutter/material.dart';
@@ -21,16 +20,16 @@ class NoDataScreen extends StatelessWidget {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.center, children: [
 
           Center(
-            child: Image.asset(
-              fromAddress ? Images.address : isCart ? Images.emptyCart : Images.noDataFound,
-              width: MediaQuery.of(context).size.height*0.15, height: MediaQuery.of(context).size.height*0.15,
+            child: Lottie.asset(
+              fromAddress ? Images.address : isCart ? Images.address : Images.address,
+              width: MediaQuery.of(context).size.height*0.5, height: MediaQuery.of(context).size.height*0.3,
             ),
           ),
           SizedBox(height: MediaQuery.of(context).size.height*0.03),
 
           Text(
             isCart ? 'cart_is_empty'.tr : text!,
-            style: robotoMedium.copyWith(fontSize: MediaQuery.of(context).size.height*0.0175, color: fromAddress ? Theme.of(context).textTheme.bodyMedium!.color : Theme.of(context).disabledColor),
+            style: robotoMedium.copyWith(fontSize: 17, color: fromAddress ? Theme.of(context).textTheme.bodyMedium!.color : Theme.of(context).disabledColor),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: MediaQuery.of(context).size.height*0.03),
@@ -42,23 +41,7 @@ class NoDataScreen extends StatelessWidget {
           ) : const SizedBox(),
           SizedBox(height: MediaQuery.of(context).size.height*0.05),
 
-          fromAddress ? InkWell(
-            onTap: () => Get.toNamed(RouteHelper.getAddAddressRoute(false, false, 0)),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                color: Theme.of(context).primaryColor,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.add_circle_outline_sharp, size: 18.0, color: Theme.of(context).cardColor),
-                  Text('add_address'.tr, style: robotoMedium.copyWith(color: Theme.of(context).cardColor)),
-                ],
-              ),
-            ),
-          ) : const SizedBox(),
+          const SizedBox(),
 
         ]),
       ),

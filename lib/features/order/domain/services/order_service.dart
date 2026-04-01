@@ -103,7 +103,10 @@ class OrderService implements OrderServiceInterface {
 
   @override
   Future<Response> reorder(int orderId) async {
-    return await orderRepositoryInterface.reorder(orderId);
+    print('📦 [REORDER SERVICE] Calling repository reorder for order: $orderId');
+    final response = await orderRepositoryInterface.reorder(orderId);
+    print('📦 [REORDER SERVICE] Repository returned status: ${response.statusCode}');
+    return response;
   }
 
   @override

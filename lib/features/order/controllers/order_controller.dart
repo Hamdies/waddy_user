@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sixam_mart/common/models/response_model.dart';
+import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
 import 'package:sixam_mart/features/order/domain/models/order_cancellation_body.dart';
 import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/features/order/domain/services/order_service_interface.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
 
 class OrderController extends GetxController implements GetxService {
   final OrderServiceInterface orderServiceInterface;
@@ -66,7 +66,7 @@ class OrderController extends GetxController implements GetxService {
   Future<void> fetchOrderDetailsForList(int orderId) async {
     if (_orderDetailsCache.containsKey(orderId)) return;
     List<OrderDetailsModel>? details = await orderServiceInterface.getOrderDetails(
-      orderId.toString(), AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+      orderId.toString(), null,
     );
     if (details != null) {
       _orderDetailsCache[orderId] = details;
@@ -184,7 +184,7 @@ class OrderController extends GetxController implements GetxService {
     _showCancelled = false;
 
     if(_trackModel == null || (_trackModel!.orderType != 'parcel' && !_trackModel!.prescriptionOrder!)) {
-      List<OrderDetailsModel>? detailsList = await orderServiceInterface.getOrderDetails(orderID, AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId());
+      List<OrderDetailsModel>? detailsList = await orderServiceInterface.getOrderDetails(orderID, null);
       _isLoading = false;
       if (detailsList != null) {
         _orderDetails = [];
@@ -209,7 +209,7 @@ class OrderController extends GetxController implements GetxService {
     if(orderModel == null) {
       _isLoading = true;
       Response response = await orderServiceInterface.trackOrder(
-        orderID, AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+        orderID, null,
         contactNumber: contactNumber,
       );
       if (response.statusCode == 200) {
@@ -231,7 +231,7 @@ class OrderController extends GetxController implements GetxService {
     _showCancelled = false;
 
     Response response = await orderServiceInterface.trackOrder(
-      orderID, AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+      orderID, null,
       contactNumber: contactNumber,
     );
     if (response.statusCode == 200) {

@@ -76,7 +76,7 @@ class BottomSection extends StatelessWidget {
   Widget build(BuildContext context) {
     bool takeAway = checkoutController.orderType == 'take_away';
     bool isDesktop = ResponsiveHelper.isDesktop(context);
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    bool isGuestLoggedIn = false;
     return Container(
       decoration:
           ResponsiveHelper.isDesktop(context)
@@ -516,10 +516,7 @@ class BottomSection extends StatelessWidget {
                         : 0.0,
               ),
 
-              (AuthHelper.isGuestLoggedIn() &&
-                      checkoutController.guestAddress == null)
-                  ? const SizedBox()
-                  : Row(
+              Row(
                     children: [
                       Text('delivery_fee'.tr, style: robotoRegular),
                       const SizedBox(width: 5),
@@ -567,8 +564,7 @@ class BottomSection extends StatelessWidget {
                     Get.find<SplashController>()
                                 .configModel!
                                 .additionalChargeStatus! &&
-                            !(AuthHelper.isGuestLoggedIn() &&
-                                checkoutController.guestAddress == null)
+                            true
                         ? Dimensions.paddingSizeSmall
                         : 0,
               ),

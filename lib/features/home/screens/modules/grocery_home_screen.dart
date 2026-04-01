@@ -152,7 +152,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
         // Banner — single, optional
         const BannerView(isFeatured: false, showRamadanWrapper: false),
-        const SizedBox(height: 8),
+        const SizedBox(height: 20),
 
         // ══════════════════════════════════════
         // "Browse all stores" — always visible
@@ -161,9 +161,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
         // Category circles (round icons with label)
         _buildCategoryCircles(context),
+        const SizedBox(height: 6),
 
         // Quick filter chips (Offers, Under 30 mins, Free delivery)
         _buildFilterChips(context),
+        const SizedBox(height: 8),
 
         // ── Store List (filtered or all) ──
         _buildStoreList(context),

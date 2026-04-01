@@ -155,7 +155,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                           zoneId: checkoutController.store!.zoneId.toString(),
                           moduleId: checkoutController.store!.moduleId.toString(),
                           dateTime: DateConverter.dateToDateAndTime(scheduleEndDate),
-                          guestId: AuthHelper.getGuestId(),
+                          guestId: '',
                         );
                         Get.back();
                       },

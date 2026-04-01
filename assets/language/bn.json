@@ -1562,5 +1562,8 @@
   "recommended_store": "সুপারিশকৃত দোকান",
   "re_enter_your_password": "আপনার পাসওয়ার্ড আবার লিখুন।",
   "no_items_found": "কোনো আইটেম পাওয়া যায়নি",
-  "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "এই ডেলিভারি ফিতে সমস্ত প্রযোজ্য চার্জ অন্তর্ভুক্ত রয়েছে।"
+  "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "এই ডেলিভারি ফিতে সমস্ত প্রযোজ্য চার্জ অন্তর্ভুক্ত রয়েছে।",
+  "no_favourites_yet": "এখনও কোনো প্রিয় নেই \n ভালোবাসা দেখানোর সময়! ❤️",
+  "no_favourite_stores_yet": "এখনও কোনো প্রিয় দোকান নেই \n ভালোবাসা দেখানোর সময়! ❤️",
+  "browse_items": "আইটেম ব্রাউজ করুন"
 }

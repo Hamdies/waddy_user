@@ -24,7 +24,7 @@ class TimeSlotSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    bool isGuestLoggedIn = false;
     return Column(children: [
       !isGuestLoggedIn && storeId == null && checkoutController.store!.scheduleOrder! && cartList!.isNotEmpty && cartList![0]!.item!.availableDateStarts == null ? Container(
         decoration: BoxDecoration(

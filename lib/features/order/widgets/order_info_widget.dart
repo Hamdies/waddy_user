@@ -7,7 +7,6 @@ import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
 import 'package:sixam_mart/features/order/controllers/order_controller.dart';
 import 'package:sixam_mart/features/order/domain/models/order_model.dart';
 import 'package:sixam_mart/features/review/domain/models/review_model.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
@@ -43,7 +42,7 @@ class OrderInfoWidget extends StatelessWidget {
 
     ExpansibleController controller = ExpansibleController();
     bool isDesktop = ResponsiveHelper.isDesktop(context);
-    bool isGuestLoggedIn = AuthHelper.isGuestLoggedIn();
+    bool isGuestLoggedIn = false;
 
     return Stack(children: [
 

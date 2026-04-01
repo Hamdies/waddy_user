@@ -21,11 +21,17 @@ class LocalClient {
           if(GetPlatform.isWeb) {
             await sharedPreferences.setString(cacheId, responseBody??'');
           } else {
+            // Strip sensitive headers before caching
+            Map<String, String>? safeHeader;
+            if (header != null) {
+              safeHeader = Map<String, String>.from(header);
+              safeHeader.remove('Authorization');
+            }
             DbHelper.insertOrUpdate(
               id: cacheId,
               data: CacheResponseCompanion(
                 endPoint: drift.Value(cacheId),
-                header: drift.Value(header.toString()),
+                header: drift.Value(safeHeader.toString()),
                 response: drift.Value(responseBody??''),
               ),
             );

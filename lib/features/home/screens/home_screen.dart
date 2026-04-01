@@ -118,6 +118,7 @@ class HomeScreen extends StatefulWidget {
       Get.find<XpController>().getAllLevels(reload: reload);
       Get.find<OrderController>().getRunningOrders(1);
     }
+    Get.find<XpController>().getXpConfig(reload: reload);
     Get.find<SplashController>().getModules();
     if (Get.find<SplashController>().module == null &&
         Get.find<SplashController>().configModel!.module == null) {
@@ -180,6 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   bool searchBgShow = false;
   final GlobalKey _headerKey = GlobalKey();
+  ScrollDirection _lastDirection = ScrollDirection.idle;
 
   @override
   void initState() {
@@ -207,75 +209,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _scrollController.addListener(() {
-      if (_scrollController.position.userScrollDirection ==
-          ScrollDirection.reverse) {
-        // Scrolling down - hide bottom nav
+      final direction = _scrollController.position.userScrollDirection;
+      if (direction == _lastDirection) return;
+      _lastDirection = direction;
+
+      if (direction == ScrollDirection.reverse) {
         Get.find<HomeController>().onScrollDown();
-        if (Get.find<HomeController>().showFavButton) {
-          Get.find<HomeController>().changeFavVisibility();
-          Future.delayed(
-            const Duration(milliseconds: 800),
-            () => Get.find<HomeController>().changeFavVisibility(),
-          );
-        }
       } else {
-        // Scrolling up - show bottom nav
         Get.find<HomeController>().onScrollUp();
-        if (Get.find<HomeController>().showFavButton) {
-          Get.find<HomeController>().changeFavVisibility();
-          Future.delayed(
-            const Duration(milliseconds: 800),
-            () => Get.find<HomeController>().changeFavVisibility(),
-          );
-        }
       }
     });
   }
 
   Future<void> _checkAndShowWelcomeLetter() async {
-    // Only show the welcome letter dialog if the user is logged in and has 0 XP
-    // This ensures only true "founding members" (users who haven't earned any XP yet) see it
     if (!AuthHelper.isLoggedIn() || !mounted) return;
 
-    final xpController = Get.find<XpController>();
+    final splashController = Get.find<SplashController>();
+    splashController.getWelcomeLetterShownStatus();
 
-    // Wait for XP data to finish loading (with timeout)
-    int waitAttempts = 0;
-    const maxAttempts = 20; // 20 * 200ms = 4 seconds max wait
+    if (splashController.welcomeLetterShown) return;
 
-    while (xpController.currentLevel == null &&
-        waitAttempts < maxAttempts &&
-        mounted) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      waitAttempts++;
-    }
+    // Wait a bit for the UI to settle
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    // If data still not loaded after waiting, don't show dialog
-    // (better to not show than to show incorrectly)
-    if (xpController.currentLevel == null || !mounted) {
-      return;
-    }
-
-    // Check if user has exactly 0 XP (founding member who hasn't engaged yet)
-    final currentXp = xpController.currentLevel!.currentXp;
-
-    // Debug log to verify XP value
-    print('_checkAndShowWelcomeLetter: currentXp = $currentXp');
-
-    // Only show the dialog if user has EXACTLY 0 XP
-    if (currentXp == 0 && mounted) {
-      // Wait a bit for the UI to settle
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const LetterDialogWidget(),
-        );
-        // Note: No longer marking as "seen" - dialog will show again
-        // on app open as long as user has 0 XP (until they engage)
-      }
+    if (mounted) {
+      splashController.saveWelcomeLetterShownStatus(true);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const LetterDialogWidget(),
+      );
     }
   }
 
@@ -361,20 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   moduleState.isParcel
                       ? const ParcelCategoryScreen()
                       : Container(
-                        decoration: BoxDecoration(
-                          // gradient: LinearGradient(
-                          //   begin: Alignment.topCenter,
-                          //   end: Alignment.bottomCenter,
-                          //   colors: [
-                          //     Theme.of(context).colorScheme.secondary
-                          //         .withOpacity(0.05), // soft neon green
-                          //     Theme.of(context).colorScheme.secondary
-                          //         .withOpacity(0.08), // soft teal
-                          //     Theme.of(context).colorScheme.surface, // white
-                          //   ],
-                          //   stops: const [0.0, 0.08, 0.15],
-                          // ),
-                        ),
                         child: SafeArea(
                           child: RefreshIndicator(
                             onRefresh:

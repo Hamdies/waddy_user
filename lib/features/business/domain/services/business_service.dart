@@ -84,7 +84,7 @@ class BusinessService implements BusinessServiceInterface{
       html.window.open(redirectUrl,"_self");
     } else{
       // Get.toNamed(RouteHelper.getPaymentRoute(OrderModel(), digitalPaymentName, subscriptionUrl: redirectUrl, guestId: Get.find<AuthController>().getGuestId(), storeId: storeId));
-      Get.toNamed(RouteHelper.getPaymentRoute('0', 0, '', 0, false, digitalPaymentName, subscriptionUrl: redirectUrl, guestId: AuthHelper.getGuestId(), storeId: storeId));
+      Get.toNamed(RouteHelper.getPaymentRoute('0', 0, '', 0, false, digitalPaymentName, subscriptionUrl: redirectUrl, guestId: '', storeId: storeId));
 
     }
 

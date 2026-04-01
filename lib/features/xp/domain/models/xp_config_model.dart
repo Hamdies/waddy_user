@@ -2,6 +2,7 @@ class XpConfigModel {
   final bool levelingEnabled;
   final int xpPerOrder;
   final int xpPerReview;
+  final int xpSignupBonus;
   final int maxLevel;
   final int streakBonusXp;
   final Map<String, double> multipliers;
@@ -11,6 +12,7 @@ class XpConfigModel {
     required this.levelingEnabled,
     required this.xpPerOrder,
     required this.xpPerReview,
+    this.xpSignupBonus = 50,
     this.maxLevel = 10,
     this.streakBonusXp = 0,
     required this.multipliers,
@@ -29,6 +31,7 @@ class XpConfigModel {
       levelingEnabled: json['enabled'] ?? false,
       xpPerOrder: json['xp_per_order'] ?? 0,
       xpPerReview: json['xp_per_review'] ?? 0,
+      xpSignupBonus: json['xp_signup_bonus'] ?? 50,
       maxLevel: json['max_level'] ?? 10,
       streakBonusXp: json['streak_bonus_xp'] ?? 0,
       multipliers: multipliersMap,
@@ -43,6 +46,7 @@ class XpConfigModel {
       'leveling_enabled': levelingEnabled,
       'xp_per_order': xpPerOrder,
       'xp_per_review': xpPerReview,
+      'xp_signup_bonus': xpSignupBonus,
       'max_level': maxLevel,
       'streak_bonus_xp': streakBonusXp,
       'multipliers': multipliers,
@@ -50,10 +54,11 @@ class XpConfigModel {
   }
 
   /// Calculate estimated XP for a given order amount and module type
-  /// Formula: xp_per_order + floor(order_amount × module_multiplier)
+  /// Formula: xp_per_order (flat) + floor(order_amount × module_multiplier × 0.1)
+  /// The 0.1 factor matches backend: floor(price × qty × multiplier × 0.1) per item
   int calculateEstimatedXp(double orderAmount, String? moduleType) {
     if (!levelingEnabled) return 0;
-    
+
     double multiplier = 1.0;
     if (moduleType != null && multipliers.containsKey(moduleType)) {
       multiplier = multipliers[moduleType]!;
@@ -63,8 +68,8 @@ class XpConfigModel {
     if (multiplierEvent != null && multiplierEvent!.isActive) {
       multiplier *= multiplierEvent!.multiplier;
     }
-    
-    return xpPerOrder + (orderAmount * multiplier).floor();
+
+    return xpPerOrder + (orderAmount * multiplier * 0.1).floor();
   }
 
   bool get hasActiveEvent => multiplierEvent != null && multiplierEvent!.isActive;

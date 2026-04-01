@@ -10,15 +10,28 @@ class XpLeaderboardModel {
   });
 
   factory XpLeaderboardModel.fromJson(Map<String, dynamic> json) {
+    // Parse current user: try nested object first, then flat fields
+    LeaderboardEntry? currentUser;
+    if (json['current_user'] != null) {
+      currentUser = LeaderboardEntry.fromJson(json['current_user']);
+    } else if (json['my_rank'] != null || json['my_xp'] != null) {
+      currentUser = LeaderboardEntry(
+        userId: json['my_id'] ?? 0,
+        name: json['my_name'] ?? 'You',
+        image: json['my_image'],
+        rank: json['my_rank'] ?? 0,
+        totalXp: json['my_xp'] ?? 0,
+        level: json['my_level'] ?? 1,
+      );
+    }
+
     return XpLeaderboardModel(
       entries: json['leaderboard'] != null
           ? (json['leaderboard'] as List)
               .map((e) => LeaderboardEntry.fromJson(e))
               .toList()
           : [],
-      currentUser: json['current_user'] != null
-          ? LeaderboardEntry.fromJson(json['current_user'])
-          : null,
+      currentUser: currentUser,
       totalParticipants: json['total_participants'] ?? 0,
     );
   }

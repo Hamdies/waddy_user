@@ -41,6 +41,10 @@ class PlaceOrderBodyModel {
   String? _password;
   bool? isPrescriptionOrder;
   int? _usePrizeId;
+  String? idempotencyKey;
+  String? deviceFingerprint;
+  String? orderSignature;
+  String? orderTimestamp;
 
   PlaceOrderBodyModel({
     required List<OnlineCart> cart,
@@ -306,6 +310,18 @@ class PlaceOrderBodyModel {
     data['is_prescription'] = isPrescriptionOrder == true ? 'true' : 'false';
     if (_usePrizeId != null) {
       data['use_prize_id'] = _usePrizeId.toString();
+    }
+    if (idempotencyKey != null) {
+      data['idempotency_key'] = idempotencyKey!;
+    }
+    if (deviceFingerprint != null) {
+      data['device_fingerprint'] = deviceFingerprint!;
+    }
+    if (orderSignature != null) {
+      data['order_signature'] = orderSignature!;
+    }
+    if (orderTimestamp != null) {
+      data['order_timestamp'] = orderTimestamp!;
     }
     return data;
   }

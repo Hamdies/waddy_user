@@ -68,7 +68,7 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
             // ─── TRENDING / HOT RIGHT NOW ───
             const TrendingPlacesView(),
 
-            const SizedBox(height: 6),
+            const SizedBox(height: 18),
 
             // ─── VIBE TAGS ───
             const TagFilterView(),

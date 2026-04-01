@@ -48,7 +48,7 @@ class VerificationRepository implements VerificationRepositoryInterface{
 
   @override
   Future<ResponseModel> verifyFirebaseOtp({required String phoneNumber, required String session, required String otp, required String loginType}) async {
-    String guestId = AuthHelper.getGuestId();
+    String guestId = '';
     Map<String, dynamic> data = {
       'session_info' : session,
       'phone' : phoneNumber,

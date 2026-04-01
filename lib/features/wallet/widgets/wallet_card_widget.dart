@@ -1,18 +1,25 @@
-import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
+import 'package:sixam_mart/features/wallet/domain/models/card_appearance_model.dart';
 import 'package:sixam_mart/helper/price_converter.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
+import 'package:sixam_mart/util/images.dart';
 import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/features/wallet/widgets/add_fund_dialogue_widget.dart';
+import 'package:sixam_mart/features/wallet/screens/add_fund_screen.dart';
+
+const int _totalSymbols = 33;
+
+String _symbolPath(int index) =>
+    'assets/image/wallet_ch/${index + 1}c.svg';
 
 class WalletCardWidget extends StatefulWidget {
-  final JustTheController tooltipController;
-  const WalletCardWidget({super.key, required this.tooltipController});
+  const WalletCardWidget({super.key});
 
   @override
   State<WalletCardWidget> createState() => _WalletCardWidgetState();
@@ -20,197 +27,192 @@ class WalletCardWidget extends StatefulWidget {
 
 class _WalletCardWidgetState extends State<WalletCardWidget> {
   bool _isBalanceHidden = false;
+  int _previewColorIndex = 0;
+  Timer? _previewTimer;
 
-  // Theme colors
-  static const Color _neonGreen = Color(0xFF1EF2A0);
-  static const Color _darkLeather = Color(0xFF1A1A1C);
-  static const Color _leatherHighlight = Color(0xFF2A2A2C);
+  @override
+  void initState() {
+    super.initState();
+    _startPreviewAnimation();
+  }
+
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPreviewAnimation() {
+    _previewTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) {
+        setState(() {
+          _previewColorIndex =
+              (_previewColorIndex + 1) % CardAppearances.options.length;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     bool isDesktop = ResponsiveHelper.isDesktop(context);
-    final ScrollController cardScrollController = ScrollController();
 
-    return GetBuilder<ProfileController>(
-      builder: (profileController) {
-        final userName = profileController.userInfoModel?.fName ?? 'User';
+    return GetBuilder<WalletController>(
+      builder: (walletController) {
+        return GetBuilder<ProfileController>(
+          builder: (profileController) {
+            final firstName = profileController.userInfoModel?.fName ?? '';
+            final lastName = profileController.userInfoModel?.lName ?? '';
+            final userName = '$firstName $lastName'.trim();
+            final selectedIndex = walletController.selectedCardAppearance;
+            final selectedSymbol = walletController.selectedCardSymbol;
+            final appearance = CardAppearances.options[selectedIndex];
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            isDesktop
-                ? const SizedBox()
-                : const SizedBox(height: Dimensions.paddingSizeSmall),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isDesktop)
+                  const SizedBox(height: Dimensions.paddingSizeSmall),
 
-            // Single wallet widget - no extra containers
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+                // Main Card
+                _buildMainCard(
+                  appearance,
+                  userName,
+                  profileController,
+                  selectedSymbol,
                 ),
-                child: Stack(
-                  children: [
-                    // Background leather texture for entire wallet
-                    Container(
-                      height: 280,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [_darkLeather, Color(0xFF161618)],
-                        ),
-                      ),
-                      child: CustomPaint(
-                        size: const Size(double.infinity, 280),
-                        painter: FullLeatherTexturePainter(),
-                      ),
+
+                const SizedBox(height: 20),
+
+                // Animated mini card preview (appearance button)
+                _buildAnimatedPreviewButton(walletController),
+
+                if (!isDesktop)
+                  const SizedBox(height: Dimensions.paddingSizeSmall),
+                if (isDesktop)
+                  const SizedBox(height: Dimensions.paddingSizeDefault),
+
+                if (isDesktop)
+                  Text(
+                    'how_to_use'.tr,
+                    style: robotoBold.copyWith(
+                      fontSize: Dimensions.fontSizeLarge,
                     ),
-
-                    // Content
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 16),
-
-                        // User Card - VISA style (no balance)
-                        _buildUserCard(context, userName, cardScrollController),
-
-                        // Wallet Pocket
-                        _buildWalletPocket(context, profileController),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            isDesktop
-                ? const SizedBox()
-                : const SizedBox(height: Dimensions.paddingSizeSmall),
-            isDesktop
-                ? const SizedBox(height: Dimensions.paddingSizeDefault)
-                : const SizedBox(),
-
-            isDesktop
-                ? Text(
-                  'how_to_use'.tr,
-                  style: robotoBold.copyWith(
-                    fontSize: Dimensions.fontSizeLarge,
                   ),
-                )
-                : const SizedBox(),
-            isDesktop
-                ? const SizedBox(height: Dimensions.paddingSizeDefault)
-                : const SizedBox(),
-
-            !isDesktop ? const SizedBox() : const WalletStepper(),
-          ],
+                if (isDesktop)
+                  const SizedBox(height: Dimensions.paddingSizeDefault),
+                if (isDesktop) const WalletStepper(),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildUserCard(
-    BuildContext context,
+  Widget _buildMainCard(
+    CardAppearance appearance,
     String userName,
-    ScrollController cardScrollController,
+    ProfileController profileController,
+    int symbolIndex,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Container(
-        height: 50,
+    return AspectRatio(
+      aspectRatio: 1.586,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: _neonGreen,
+          borderRadius: BorderRadius.circular(16),
+          color: appearance.cardColor,
           boxShadow: [
             BoxShadow(
-              color: _neonGreen.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: appearance.cardColor.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // User name on left
-              Text(
-                userName,
-                style: robotoBold.copyWith(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              // VISA simulation on right
+              // Top row: User name + Waddi logo
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '**** ',
-                    style: robotoRegular.copyWith(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      fontSize: 12,
-                      letterSpacing: 1,
+                  Expanded(
+                    child: Text(
+                      userName.isNotEmpty ? userName : 'card_holder'.tr,
+                      style: robotoBold.copyWith(
+                        color: appearance.textColor,
+                        fontSize: 18,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Text(
-                    'VISA',
-                    style: robotoBold.copyWith(
-                      color: Colors.black.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                    ),
+                  const SizedBox(width: 8),
+                  Image.asset(
+                    Images.waddyLogo,
+                    width: 32,
+                    height: 32,
+                    color: appearance.brandColor,
                   ),
-                  // Add fund button
-                  if (Get.find<SplashController>()
-                          .configModel!
-                          .addFundStatus! &&
-                      Get.find<SplashController>()
-                          .configModel!
-                          .digitalPayment!) ...[
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () {
-                        Get.dialog(
-                          Dialog(
-                            backgroundColor: Colors.transparent,
-                            surfaceTintColor: Colors.transparent,
-                            child: SizedBox(
-                              width: 500,
-                              child: SingleChildScrollView(
-                                controller: cardScrollController,
-                                child: AddFundDialogueWidget(
-                                  cardScrollController: cardScrollController,
-                                ),
-                              ),
+                ],
+              ),
+
+              const Spacer(),
+
+              // Balance with show/hide
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      _isBalanceHidden
+                          ? '\u2022\u2022\u2022\u2022\u2022\u2022'
+                          : PriceConverter.convertPrice(
+                              profileController.userInfoModel!.walletBalance,
                             ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.black,
-                          size: 16,
-                        ),
+                      textDirection: TextDirection.ltr,
+                      style: robotoBold.copyWith(
+                        color: appearance.textColor,
+                        fontSize: 30,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isBalanceHidden = !_isBalanceHidden;
+                      });
+                    },
+                    child: Icon(
+                      _isBalanceHidden
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: appearance.textColor.withValues(alpha: 0.6),
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Bottom row: Add Fund button + Symbol
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // Add Fund on card
+                  SvgPicture.asset(
+                    _symbolPath(symbolIndex),
+                    color: appearance.brandColor,
+                    width: 60,
+                    height: 60,
+                  ),
                 ],
               ),
             ],
@@ -220,424 +222,381 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
     );
   }
 
-  Widget _buildWalletPocket(
-    BuildContext context,
-    ProfileController profileController,
-  ) {
-    final ScrollController fundScrollController = ScrollController();
+  
 
-    return SizedBox(
-      height: 210,
-      child: Stack(
-        children: [
-          // Pocket with curved top
-          Positioned.fill(
-            child: CustomPaint(
-              painter: WalletPocketPainter(
-                pocketColor: _leatherHighlight,
-                stitchColor: const Color(0xFF4A4A4C),
-              ),
-            ),
+  Widget _buildAnimatedPreviewButton(WalletController walletController) {
+    final previewAppearance = CardAppearances.options[_previewColorIndex];
+    final currentAppearance =
+        CardAppearances.options[walletController.selectedCardAppearance];
+
+    return GestureDetector(
+      onTap: () => _showAppearanceBottomSheet(walletController),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
           ),
-
-          // Content
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                top: 55,
-                left: 24,
-                right: 24,
-                bottom: 16,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Animated mini card preview
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOut,
+              width: 52,
+              height: 34,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                color: previewAppearance.cardColor,
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Hide Balance Row - Improved touch target
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isBalanceHidden = !_isBalanceHidden;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _isBalanceHidden
-                                ? 'show_balance'.tr
-                                : 'hide_balance'.tr,
-                            style: robotoMedium.copyWith(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            _isBalanceHidden
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.white70,
-                            size: 18,
-                          ),
-                        ],
-                      ),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Image.asset(
+                      Images.waddyLogo,
+                      width: 10,
+                      height: 10,
+                      color: previewAppearance.brandColor,
                     ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Balance Amount
-                  Text(
-                    _isBalanceHidden
-                        ? '****'
-                        : PriceConverter.convertPrice(
-                          profileController.userInfoModel!.walletBalance,
-                        ),
-                    textDirection: TextDirection.ltr,
-                    style: robotoBold.copyWith(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Total Balance Label
-                  Text(
-                    'Total Balance',
-                    style: robotoRegular.copyWith(
-                      color: _neonGreen,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-
-                  // Add Fund Button
-                  if (Get.find<SplashController>()
-                          .configModel!
-                          .addFundStatus! &&
-                      Get.find<SplashController>()
-                          .configModel!
-                          .digitalPayment!) ...[
-                    const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: () {
-                        Get.dialog(
-                          Dialog(
-                            backgroundColor: Colors.transparent,
-                            surfaceTintColor: Colors.transparent,
-                            child: SizedBox(
-                              width: 500,
-                              child: SingleChildScrollView(
-                                controller: fundScrollController,
-                                child: AddFundDialogueWidget(
-                                  cardScrollController: fundScrollController,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _neonGreen,
-                          borderRadius: BorderRadius.circular(25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _neonGreen.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.add,
-                              color: Colors.black,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'add_fund'.tr,
-                              style: robotoBold.copyWith(
-                                color: Colors.black,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: SvgPicture.asset(
+                        _symbolPath(walletController.selectedCardSymbol),
+                        color: previewAppearance.brandColor,
+                        width: 10,
+                        height: 10,
                       ),
                     ),
                   ],
-                ],
-              ),
-            ),
-          ),
-
-          // Bottom accent tab
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: 36,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: _neonGreen,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(4),
-                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 14),
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'appearance'.tr,
+                    style: robotoBold.copyWith(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    
+                    'change_card_color_icon'.tr,
+                    style: robotoRegular.copyWith(
+                      fontSize: 12,
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).hintColor,
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }
-}
 
-// Full leather texture for the entire wallet background
-class FullLeatherTexturePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final random = Random(42);
+  void _showAppearanceBottomSheet(WalletController walletController) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.85,
+              expand: false,
+              builder: (ctx, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Drag handle
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .hintColor
+                              .withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-    // Dense cross-hatch pattern
-    final linePaint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.03)
-          ..strokeWidth = 0.4
-          ..style = PaintingStyle.stroke;
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'appearance'.tr,
+                            style: robotoBold.copyWith(
+                              fontSize: 20,
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.color,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .hintColor
+                                    .withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.close,
+                                color: Theme.of(context).hintColor,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
 
-    // Diagonal lines (/)
-    for (double i = -size.height; i < size.width + size.height; i += 3) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i + size.height, size.height),
-        linePaint,
-      );
-    }
+                      const SizedBox(height: 20),
 
-    // Diagonal lines (\)
-    for (double i = 0; i < size.width + size.height; i += 3) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i - size.height, size.height),
-        linePaint,
-      );
-    }
+                      // Scrollable content
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          children: [
+                            // Color section
+                            Text(
+                              'color'.tr,
+                              style: robotoBold.copyWith(
+                                fontSize: 16,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
 
-    // Horizontal texture lines
-    final hLinePaint =
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.15)
-          ..strokeWidth = 0.5
-          ..style = PaintingStyle.stroke;
+                            // 3x3 Color Grid
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                childAspectRatio: 1.586,
+                              ),
+                              itemCount: CardAppearances.options.length,
+                              itemBuilder: (context, index) {
+                                final cardOption =
+                                    CardAppearances.options[index];
+                                final isSelected = index ==
+                                    walletController.selectedCardAppearance;
 
-    for (double y = 0; y < size.height; y += 4) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), hLinePaint);
-    }
+                                return GestureDetector(
+                                  onTap: () {
+                                    walletController.setCardAppearance(index);
+                                    setSheetState(() {});
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      color: cardOption.cardColor,
+                                      border: isSelected
+                                          ? Border.all(
+                                              color: Theme.of(context)
+                                                  .primaryColor,
+                                              width: 2.5,
+                                            )
+                                          : null,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.08),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Image.asset(
+                                                Images.waddyLogo,
+                                                width: 14,
+                                                height: 14,
+                                                color: cardOption.brandColor,
+                                              ),
+                                              Align(
+                                                alignment:
+                                                    Alignment.bottomRight,
+                                                child: SvgPicture.asset(
+                                                  _symbolPath(walletController
+                                                      .selectedCardSymbol),
+                                                  color: cardOption.brandColor,
+                                                  width: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: Container(
+                                              width: 18,
+                                              height: 18,
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .primaryColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                                size: 12,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
 
-    // Leather grain dots
-    final dotPaint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.02)
-          ..style = PaintingStyle.fill;
+                            const SizedBox(height: 24),
 
-    for (int i = 0; i < 300; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      canvas.drawCircle(
-        Offset(x, y),
-        0.3 + random.nextDouble() * 0.5,
-        dotPaint,
-      );
-    }
+                            // Symbol section
+                            Text(
+                              'symbol'.tr,
+                              style: robotoBold.copyWith(
+                                fontSize: 16,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.color,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
 
-    // Dark grain dots
-    final darkDotPaint =
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.08)
-          ..style = PaintingStyle.fill;
+                            // Symbol Grid (33 icons, ~6 per row)
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 6,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 1,
+                              ),
+                              itemCount: _totalSymbols,
+                              itemBuilder: (context, index) {
+                                final isSelected = index ==
+                                    walletController.selectedCardSymbol;
+                                final currentAppearance =
+                                    CardAppearances.options[
+                                        walletController
+                                            .selectedCardAppearance];
 
-    for (int i = 0; i < 200; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      canvas.drawCircle(
-        Offset(x, y),
-        0.2 + random.nextDouble() * 0.3,
-        darkDotPaint,
-      );
-    }
+                                return GestureDetector(
+                                  onTap: () {
+                                    walletController.setCardSymbol(index);
+                                    setSheetState(() {});
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      color: isSelected
+                                          ? currentAppearance.cardColor
+                                          : Theme.of(context)
+                                              .hintColor
+                                              .withValues(alpha: 0.06),
+                                      border: isSelected
+                                          ? Border.all(
+                                              color: Theme.of(context)
+                                                  .primaryColor,
+                                              width: 2,
+                                            )
+                                          : null,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: SvgPicture.asset(
+                                        _symbolPath(index),
+                                        color: isSelected
+                                            ? currentAppearance.brandColor
+                                            : Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.color,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// Wallet pocket painter with curve and stitching
-class WalletPocketPainter extends CustomPainter {
-  final Color pocketColor;
-  final Color stitchColor;
-
-  WalletPocketPainter({required this.pocketColor, required this.stitchColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Draw pocket shape
-    final pocketPaint =
-        Paint()
-          ..color = pocketColor
-          ..style = PaintingStyle.fill;
-
-    final path = Path();
-    path.moveTo(0, size.height);
-    path.lineTo(0, 28);
-
-    // Concave curve
-    path.quadraticBezierTo(size.width * 0.05, 18, size.width * 0.15, 22);
-    path.quadraticBezierTo(size.width * 0.35, 38, size.width * 0.5, 42);
-    path.quadraticBezierTo(size.width * 0.65, 38, size.width * 0.85, 22);
-    path.quadraticBezierTo(size.width * 0.95, 18, size.width, 28);
-
-    path.lineTo(size.width, size.height);
-    path.close();
-
-    canvas.drawPath(path, pocketPaint);
-
-    // Add leather texture to pocket
-    _drawPocketTexture(canvas, size, path);
-
-    // Draw stitching
-    _drawStitching(canvas, size);
-  }
-
-  void _drawPocketTexture(Canvas canvas, Size size, Path clipPath) {
-    canvas.save();
-    canvas.clipPath(clipPath);
-
-    final random = Random(123);
-
-    // Cross-hatch
-    final linePaint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.025)
-          ..strokeWidth = 0.4
-          ..style = PaintingStyle.stroke;
-
-    for (double i = -size.height; i < size.width + size.height; i += 3.5) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i + size.height, size.height),
-        linePaint,
-      );
-    }
-    for (double i = 0; i < size.width + size.height; i += 3.5) {
-      canvas.drawLine(
-        Offset(i, 0),
-        Offset(i - size.height, size.height),
-        linePaint,
-      );
-    }
-
-    // Horizontal lines
-    final hPaint =
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.12)
-          ..strokeWidth = 0.4
-          ..style = PaintingStyle.stroke;
-
-    for (double y = 30; y < size.height; y += 4) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), hPaint);
-    }
-
-    // Grain dots
-    final dotPaint =
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.015)
-          ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 150; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = 30 + random.nextDouble() * (size.height - 30);
-      canvas.drawCircle(
-        Offset(x, y),
-        0.3 + random.nextDouble() * 0.4,
-        dotPaint,
-      );
-    }
-
-    canvas.restore();
-  }
-
-  void _drawStitching(Canvas canvas, Size size) {
-    final stitchPaint =
-        Paint()
-          ..color = stitchColor
-          ..style = PaintingStyle.fill;
-
-    const offset = 9.0;
-    const radius = 1.0;
-    const spacing = 7.0;
-
-    // Left side
-    for (double y = 38; y < size.height - 10; y += spacing) {
-      canvas.drawCircle(Offset(offset, y), radius, stitchPaint);
-    }
-
-    // Right side
-    for (double y = 38; y < size.height - 10; y += spacing) {
-      canvas.drawCircle(Offset(size.width - offset, y), radius, stitchPaint);
-    }
-
-    // Bottom
-    for (double x = 16; x < size.width - 16; x += spacing) {
-      canvas.drawCircle(Offset(x, size.height - offset), radius, stitchPaint);
-    }
-
-    // Top curved edge
-    for (double t = 0.02; t <= 0.98; t += 0.02) {
-      final x = size.width * t;
-      double y;
-
-      if (t < 0.15) {
-        final localT = t / 0.15;
-        y = 28 - 6 * sin(localT * pi * 0.5) + 6;
-      } else if (t < 0.5) {
-        final localT = (t - 0.15) / 0.35;
-        y = 22 + 20 * sin(localT * pi * 0.5) + 6;
-      } else if (t < 0.85) {
-        final localT = (t - 0.5) / 0.35;
-        y = 42 - 20 * sin(localT * pi * 0.5) + 6;
-      } else {
-        final localT = (t - 0.85) / 0.15;
-        y = 22 + 6 * sin(localT * pi * 0.5) + 6;
-      }
-
-      canvas.drawCircle(Offset(x, y), radius, stitchPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class WalletStepper extends StatelessWidget {
@@ -670,7 +629,8 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color:
+                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(
@@ -687,7 +647,8 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color:
+                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(
@@ -704,7 +665,8 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color:
+                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(

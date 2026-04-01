@@ -10,11 +10,14 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.hamdiesolutions.waddi/permissions"
+    private val LIVE_ACTIVITY_CHANNEL = "com.hamdiesolutions.waddi/live_activity"
     private val MIC_PERMISSION_CODE = 200
     private var permissionResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Permissions channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkMicPermission" -> {
@@ -38,6 +41,50 @@ class MainActivity: FlutterActivity() {
                         permissionResult = result
                         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), MIC_PERMISSION_CODE)
                     }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Live Activity (order tracking notification) channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LIVE_ACTIVITY_CHANNEL).setMethodCallHandler { call, result ->
+            val manager = OrderTrackingNotificationManager.getInstance(this)
+            when (call.method) {
+                "isLiveActivitySupported" -> {
+                    result.success(true)
+                }
+                "startLiveActivity" -> {
+                    val orderId = call.argument<Int>("orderId") ?: run { result.error("INVALID", "Missing orderId", null); return@setMethodCallHandler }
+                    val status = call.argument<String>("status") ?: ""
+                    val subStatus = call.argument<String>("subStatus")
+                    val title = call.argument<String>("title") ?: ""
+                    val subtitle = call.argument<String>("subtitle") ?: ""
+                    val etaText = call.argument<String>("etaText")
+                    val progress = call.argument<Double>("progress") ?: 0.0
+                    val step = call.argument<Int>("step") ?: 0
+                    val storeName = call.argument<String>("storeName")
+                    val deliveryManName = call.argument<String>("deliveryManName")
+                    manager.start(orderId, status, subStatus, title, subtitle, etaText, progress, step, storeName, deliveryManName)
+                    result.success(null) // No push token on Android
+                }
+                "updateLiveActivity" -> {
+                    val orderId = call.argument<Int>("orderId") ?: run { result.error("INVALID", "Missing orderId", null); return@setMethodCallHandler }
+                    val status = call.argument<String>("status") ?: ""
+                    val subStatus = call.argument<String>("subStatus")
+                    val title = call.argument<String>("title") ?: ""
+                    val subtitle = call.argument<String>("subtitle") ?: ""
+                    val etaText = call.argument<String>("etaText")
+                    val progress = call.argument<Double>("progress") ?: 0.0
+                    val step = call.argument<Int>("step") ?: 0
+                    val storeName = call.argument<String>("storeName")
+                    val deliveryManName = call.argument<String>("deliveryManName")
+                    manager.update(orderId, status, subStatus, title, subtitle, etaText, progress, step, storeName, deliveryManName)
+                    result.success(null)
+                }
+                "endLiveActivity" -> {
+                    val orderId = call.argument<Int>("orderId") ?: run { result.error("INVALID", "Missing orderId", null); return@setMethodCallHandler }
+                    manager.stop(orderId)
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }

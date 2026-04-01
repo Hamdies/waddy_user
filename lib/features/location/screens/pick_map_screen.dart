@@ -465,7 +465,7 @@ class _PickMapScreenState extends State<PickMapScreen> {
         );
 
         if(widget.fromLandingPage) {
-          if(!AuthHelper.isGuestLoggedIn() && !AuthHelper.isLoggedIn()) {
+          if(!AuthHelper.isLoggedIn()) {
             Get.find<AuthController>().guestLogin().then((response) {
               if(response.isSuccess) {
                 Get.find<ProfileController>().setForceFullyUserEmpty();

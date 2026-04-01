@@ -46,10 +46,7 @@ class DetailsWidget extends StatelessWidget {
         style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
       ),
 
-      AuthHelper.isGuestLoggedIn() ? Text(
-        address?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-      ) : const SizedBox(),
+      const SizedBox(),
 
     ]);
   }

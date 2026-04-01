@@ -91,7 +91,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     ];
 
     // Ensure cart data is loaded for LiveCartWidget visibility
-    if (_isLogin || AuthHelper.isGuestLoggedIn()) {
+    if (_isLogin) {
       Get.find<CartController>().getCartDataOnline();
     }
   }
@@ -346,9 +346,8 @@ class DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/// Premium Curved Notch Bottom Navigation Bar
-/// Features: Curved cutout for center FAB, theme-aware colors, smooth animations
-class _CenteredCutoutBottomNav extends StatelessWidget {
+/// Flat Bottom Navigation Bar with 5 equal tabs (Home, Rewards, Cart, Orders, Account)
+class _FlatBottomNav extends StatelessWidget {
   final int pageIndex;
   final bool isParcel;
   final bool isTaxi;
@@ -362,7 +361,7 @@ class _CenteredCutoutBottomNav extends StatelessWidget {
   final Function(int) onPageChanged;
   final VoidCallback onCenterTap;
 
-  const _CenteredCutoutBottomNav({
+  const _FlatBottomNav({
     required this.pageIndex,
     required this.isParcel,
     required this.isTaxi,
@@ -380,191 +379,76 @@ class _CenteredCutoutBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     // Theme colors
-    final primaryColor =
-        Theme.of(context).colorScheme.primary; // Dark teal #134E4A
-    final secondaryColor =
-        Theme.of(context).colorScheme.secondary; // Neon green #1EF2A0
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final secondaryColor = Theme.of(context).colorScheme.secondary;
 
-    return SizedBox(
-      height: 85 + bottomPadding,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Main nav bar with curved notch
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 70 + bottomPadding,
-              padding: EdgeInsets.only(bottom: bottomPadding),
-              child: CustomPaint(
-                painter: _CurvedNotchPainter(
-                  notchRadius: 38,
-                  backgroundColor: Colors.white,
-                  shadowColor: Colors.black.withOpacity(0.08),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    // Left side items
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _CurvedNavItem(
-                            iconData: HugeIcons.strokeRoundedHome01,
-                            label: 'Home',
-                            isSelected: pageIndex == 0,
-                            primaryColor: primaryColor,
-                            secondaryColor: secondaryColor,
-                            onTap: () => onPageChanged(0),
-                          ),
-                          _CurvedNavItem(
-                            iconData: HugeIcons.strokeRoundedWink,
-                            label: 'Earn More',
-                            isSelected: pageIndex == 1,
-                            primaryColor: primaryColor,
-                            secondaryColor: secondaryColor,
-                            onTap: () => onPageChanged(1),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Center spacer for FAB
-                    const SizedBox(width: 80),
-                    // Right side items
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _CurvedNavItem(
-                            iconData: HugeIcons.strokeRoundedProfile,
-                            label: 'Orders',
-                            isSelected: pageIndex == 3,
-                            primaryColor: primaryColor,
-                            secondaryColor: secondaryColor,
-                            onTap: () => onPageChanged(3),
-                          ),
-                          _CurvedNavItem(
-                            iconData: HugeIcons.strokeRoundedUser,
-                            label: 'Account',
-                            isSelected: pageIndex == 4,
-                            primaryColor: primaryColor,
-                            secondaryColor: secondaryColor,
-                            onTap: () => onPageChanged(4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return Container(
+      height: 70 + bottomPadding,
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
           ),
-          // Floating center cart button with badge
-          Positioned(
-            top: 0,
-            left: (screenWidth - 60) / 2,
-            child: GetBuilder<CartController>(
-              builder: (cartController) {
-                final itemCount = cartController.cartList.length;
-                return _FloatingCartButton(
-                  isSelected: pageIndex == 2,
-                  onTap: onCenterTap,
-                  primaryColor: primaryColor,
-                  secondaryColor: secondaryColor,
-                  itemCount: itemCount,
-                );
-              },
-            ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _CurvedNavItem(
+            iconData: HugeIcons.strokeRoundedHome01,
+            label: 'Home',
+            isSelected: pageIndex == 0,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            onTap: () => onPageChanged(0),
+          ),
+          _CurvedNavItem(
+            iconData: HugeIcons.strokeRoundedMoney03,
+            label: 'Rewards',
+            isSelected: pageIndex == 1,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            onTap: () => onPageChanged(1),
+          ),
+          // Cart tab with badge
+          GetBuilder<CartController>(
+            builder: (cartController) {
+              final itemCount = cartController.cartList.length;
+              return _CartNavItem(
+                isSelected: pageIndex == 2,
+                primaryColor: primaryColor,
+                secondaryColor: secondaryColor,
+                itemCount: itemCount,
+                onTap: onCenterTap,
+              );
+            },
+          ),
+          _CurvedNavItem(
+            iconData: HugeIcons.strokeRoundedFileValidation,
+            label: 'Orders',
+            isSelected: pageIndex == 3,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            onTap: () => onPageChanged(3),
+          ),
+          _CurvedNavItem(
+            iconData: HugeIcons.strokeRoundedUser,
+            label: 'Account',
+            isSelected: pageIndex == 4,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            onTap: () => onPageChanged(4),
           ),
         ],
       ),
     );
   }
-}
-
-/// Custom painter for curved notch background
-class _CurvedNotchPainter extends CustomPainter {
-  final double notchRadius;
-  final Color backgroundColor;
-  final Color shadowColor;
-
-  _CurvedNotchPainter({
-    required this.notchRadius,
-    required this.backgroundColor,
-    required this.shadowColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = backgroundColor
-          ..style = PaintingStyle.fill;
-
-    final shadowPaint =
-        Paint()
-          ..color = shadowColor
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-
-    final path = Path();
-    final centerX = size.width / 2;
-    final notchDepth = notchRadius + 8;
-    final curveWidth = notchRadius + 20;
-
-    // Start from left
-    path.moveTo(0, 0);
-
-    // Line to start of notch curve
-    path.lineTo(centerX - curveWidth, 0);
-
-    // First curve down into notch
-    path.quadraticBezierTo(
-      centerX - notchRadius * 0.6,
-      0,
-      centerX - notchRadius * 0.5,
-      notchDepth * 0.5,
-    );
-
-    // Arc around the notch
-    path.arcToPoint(
-      Offset(centerX + notchRadius * 0.5, notchDepth * 0.5),
-      radius: Radius.circular(notchRadius),
-      clockwise: false,
-    );
-
-    // Curve back up from notch
-    path.quadraticBezierTo(
-      centerX + notchRadius * 0.6,
-      0,
-      centerX + curveWidth,
-      0,
-    );
-
-    // Line to right edge
-    path.lineTo(size.width, 0);
-
-    // Complete the rectangle
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    // Draw shadow first
-    canvas.drawPath(path.shift(const Offset(0, -2)), shadowPaint);
-
-    // Draw background
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CurvedNotchPainter oldDelegate) =>
-      oldDelegate.notchRadius != notchRadius ||
-      oldDelegate.backgroundColor != backgroundColor;
 }
 
 /// Navigation item for curved notch design
@@ -632,7 +516,7 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
         scale: _scaleAnimation,
         child: SizedBox(
           width: 70,
-          height: 60,
+          height: 64,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -640,26 +524,27 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color:
                       widget.isSelected
-                          ? widget.secondaryColor.withOpacity(0.15)
+                          ? widget.secondaryColor.withValues(alpha: 0.15)
                           : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: HugeIcon(icon: widget.iconData, color: color, size: 22),
+                child: HugeIcon(icon: widget.iconData, color: color, size: 22,strokeWidth: 2,),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               // Label
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 10.5,
                   fontWeight:
                       widget.isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: color,
                   letterSpacing: 0.1,
+                  height: 1.1,
                 ),
                 child: Text(
                   widget.label,
@@ -676,27 +561,27 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
   }
 }
 
-/// Floating cart button that sits in the notch with item count badge
-class _FloatingCartButton extends StatefulWidget {
+/// Cart navigation item with badge — inline in the flat nav bar
+class _CartNavItem extends StatefulWidget {
   final bool isSelected;
-  final VoidCallback onTap;
   final Color primaryColor;
   final Color secondaryColor;
   final int itemCount;
+  final VoidCallback onTap;
 
-  const _FloatingCartButton({
+  const _CartNavItem({
     required this.isSelected,
-    required this.onTap,
     required this.primaryColor,
     required this.secondaryColor,
-    this.itemCount = 0,
+    required this.itemCount,
+    required this.onTap,
   });
 
   @override
-  State<_FloatingCartButton> createState() => _FloatingCartButtonState();
+  State<_CartNavItem> createState() => _CartNavItemState();
 }
 
-class _FloatingCartButtonState extends State<_FloatingCartButton>
+class _CartNavItemState extends State<_CartNavItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -705,12 +590,12 @@ class _FloatingCartButtonState extends State<_FloatingCartButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 100),
       vsync: this,
     );
     _scaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.85,
+      end: 0.9,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
@@ -721,116 +606,102 @@ class _FloatingCartButtonState extends State<_FloatingCartButton>
   }
 
   void _handleTap() {
-    HapticFeedback.mediumImpact();
+    HapticFeedback.selectionClick();
     _controller.forward().then((_) => _controller.reverse());
     widget.onTap();
   }
 
   @override
   Widget build(BuildContext context) {
+    final color =
+        widget.isSelected ? widget.primaryColor : const Color(0xFF9CA3AF);
     final hasItems = widget.itemCount > 0;
 
     return GestureDetector(
       onTap: _handleTap,
+      behavior: HitTestBehavior.opaque,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: SizedBox(
-          width: 68,
-          height: 68,
-          child: Stack(
-            clipBehavior: Clip.none,
+          width: 70,
+          height: 64,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Main button
-              Positioned(
-                left: 4,
-                top: 4,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    // Soft dark teal gradient - easier on the eyes
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        widget.primaryColor.withOpacity(0.95), // Dark teal
-                        widget.primaryColor,
-                      ],
-                    ),
-                    boxShadow: [
-                      // Soft shadow for depth
-                      BoxShadow(
-                        color: widget.primaryColor.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                        spreadRadius: 0,
-                      ),
-                      // Subtle ambient shadow
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: HugeIcon(
-                      icon: HugeIcons.strokeRoundedShoppingBag02,
-                      size: 26,
-                      color:
-                          Theme.of(
-                            context,
-                          ).secondaryHeaderColor, // White icon for contrast
-                    ),
-                  ),
+              // Icon with badge
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? widget.secondaryColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              // Badge with item count
-              if (hasItems)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: AnimatedScale(
-                    scale: hasItems ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.elasticOut,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 22,
-                        minHeight: 22,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444), // Red badge
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFEF4444).withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    HugeIcon(
+                      icon: HugeIcons.strokeRoundedShoppingBag02,
+                      color: color,
+                      size: 20,
+                    ),
+                    if (hasItems)
+                      Positioned(
+                        right: -8,
+                        top: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          widget.itemCount > 99 ? '99+' : '${widget.itemCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            height: 1,
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).secondaryHeaderColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              widget.itemCount > 99
+                                  ? '99+'
+                                  : '${widget.itemCount}',
+                              style:  TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                height: 1,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: 3),
+              // Label
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight:
+                      widget.isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
+                  letterSpacing: 0.1,
+                  height: 1.1,
+                ),
+                child: const Text(
+                  'Cart',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),
@@ -911,11 +782,6 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
       return const SizedBox();
     }
 
-    // Hide bottom nav entirely when on cart page — cart has its own checkout button
-    if (widget.pageIndex == 2) {
-      return const SizedBox();
-    }
-
     // Hide bottom nav for grocery or food module - show LiveCartWidget instead
     return GetBuilder<SplashController>(
       builder: (splashController) {
@@ -967,7 +833,7 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
               position: _slideAnimation,
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                child: _CenteredCutoutBottomNav(
+                child: _FlatBottomNav(
                   pageIndex: widget.pageIndex,
                   isParcel: widget.isParcel,
                   isTaxi: widget.isTaxi,

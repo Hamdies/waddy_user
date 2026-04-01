@@ -27,6 +27,7 @@ import 'package:sixam_mart/features/checkout/widgets/partial_pay_dialog_widget.d
 import 'package:sixam_mart/features/home/screens/home_screen.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/date_converter.dart';
+import 'package:sixam_mart/helper/order_security_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/helper/route_helper.dart';
 import 'package:sixam_mart/util/app_constants.dart';
@@ -199,7 +200,7 @@ class CheckoutController extends GetxController implements GetxService {
         zoneId: _store!.zoneId.toString(),
         moduleId: _store!.moduleId.toString(),
         dateTime: DateConverter.dateToDateTime(DateTime.now()),
-        guestId: AuthHelper.getGuestId(),
+        guestId: '',
       );
 
       initializeTimeSlot(_store!);
@@ -454,6 +455,18 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   Future<String> placeOrder(PlaceOrderBodyModel placeOrderBody, int? zoneID, double amount, double? maximumCodOrderAmount, bool fromCart, bool isCashOnDeliveryActive, List<XFile>? orderAttachment, {bool isOfflinePay = false}) async {
+    final security = OrderSecurityHelper();
+
+    // Rate limiting: prevent rapid-fire order submissions
+    String? securityError = security.validateOrderIntegrity(
+      orderAmount: amount,
+      token: Get.find<AuthController>().getUserToken(),
+    );
+    if (securityError != null) {
+      showCustomSnackBar(securityError);
+      return '';
+    }
+
     List<MultipartBody>? multiParts = [];
     for(XFile file in orderAttachment!) {
       multiParts.add(MultipartBody('order_attachment[]', file));
@@ -465,9 +478,25 @@ class CheckoutController extends GetxController implements GetxService {
     update();
     String orderID = '';
     String userID = '';
+
+    // Add security headers: idempotency key, device fingerprint, order signature
+    final idempotencyKey = security.generateIdempotencyKey();
+    final deviceFingerprint = security.getDeviceFingerprint();
+    final orderTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    final orderSignature = security.generateOrderSignature({
+      'amount': amount.toString(),
+      'zone_id': zoneID.toString(),
+      'timestamp': orderTimestamp,
+    });
+    placeOrderBody.idempotencyKey = idempotencyKey;
+    placeOrderBody.deviceFingerprint = deviceFingerprint;
+    placeOrderBody.orderSignature = orderSignature;
+    placeOrderBody.orderTimestamp = orderTimestamp;
+
     Response response = await checkoutServiceInterface.placeOrder(placeOrderBody, multiParts);
     _isLoading = false;
     if (response.statusCode == 200) {
+      security.recordOrderPlaced();
       String? message = response.body['message'];
       orderID = response.body['order_id'].toString();
       if(response.body['user_id'] != null) {
@@ -547,14 +576,14 @@ class CheckoutController extends GetxController implements GetxService {
           String? hostname = html.window.location.hostname;
           String protocol = html.window.location.protocol;
           String selectedUrl;
-          selectedUrl = '${AppConstants.baseUrl}/payment-mobile?order_id=$orderID&&customer_id=${Get.find<ProfileController>().userInfoModel?.id ?? (userID.isNotEmpty ? userID : AuthHelper.getGuestId())}'
+          selectedUrl = '${AppConstants.baseUrl}/payment-mobile?order_id=$orderID&&customer_id=${Get.find<ProfileController>().userInfoModel?.id ?? (userID.isNotEmpty ? userID : '')}'
               '&payment_method=$digitalPaymentName&payment_platform=web&&callback=$protocol//$hostname${RouteHelper.orderSuccess}?id=$orderID&status=';
 
           html.window.open(selectedUrl,"_self");
         } else{
           Get.offNamed(RouteHelper.getPaymentRoute(
             orderID, Get.find<ProfileController>().userInfoModel?.id ?? (userID.isNotEmpty ? int.parse(userID) : 0), orderType, amount,
-            isCashOnDeliveryActive, digitalPaymentName, guestId: userID.isNotEmpty ? userID : AuthHelper.getGuestId(),
+            isCashOnDeliveryActive, digitalPaymentName, guestId: userID.isNotEmpty ? userID : '',
             contactNumber: contactNumber,
           ));
         }

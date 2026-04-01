@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 import 'package:sixam_mart/features/address/domain/models/address_model.dart';
 import 'package:sixam_mart/features/parcel/domain/models/parcel_category_model.dart';
 import 'package:sixam_mart/features/store/domain/models/store_model.dart';
@@ -101,6 +102,38 @@ class OrderModel {
   double? flashStoreDiscountAmount;
   double? extraPackagingAmount;
   double? referrerBonusAmount;
+  String? estimatedDeliveryAt;
+
+  /// Computed human-readable estimated delivery range (e.g. "25–35 min")
+  /// Shows a range (±5 min) instead of a fixed number to set realistic expectations.
+  String? get estimatedDelivery {
+    if (estimatedDeliveryAt == null || estimatedDeliveryAt!.isEmpty) return null;
+    try {
+      DateTime? eta = DateTime.tryParse(estimatedDeliveryAt!);
+      if (eta == null) {
+        final parts = estimatedDeliveryAt!.split(' ');
+        if (parts.length >= 2) {
+          eta = DateTime.tryParse('${parts[0]}T${parts[1]}');
+        }
+      }
+      if (eta == null) return estimatedDeliveryAt;
+      final diff = eta.difference(DateTime.now()).inMinutes;
+      if (diff <= 0) return 'arriving_now'.tr;
+      // Show as range: (diff-5) – (diff+5), clamped to min 1
+      final lo = (diff - 5).clamp(1, diff);
+      final hi = diff + 5;
+      if (hi <= 60) return '$lo\u2013$hi ${'min'.tr}';
+      if (lo >= 60) {
+        final loH = lo ~/ 60; final loM = lo % 60;
+        final hiH = hi ~/ 60; final hiM = hi % 60;
+        if (loH == hiH) return '$loH ${'hour'.tr} $loM\u2013$hiM ${'min'.tr}';
+        return '$loH:${loM.toString().padLeft(2, '0')}\u2013$hiH:${hiM.toString().padLeft(2, '0')} ${'hour'.tr}';
+      }
+      return '$lo\u2013$hi ${'min'.tr}';
+    } catch (_) {
+      return estimatedDeliveryAt;
+    }
+  }
 
   OrderModel({
     this.id,
@@ -166,6 +199,7 @@ class OrderModel {
     this.flashStoreDiscountAmount,
     this.extraPackagingAmount,
     this.referrerBonusAmount,
+    this.estimatedDeliveryAt,
   });
 
   OrderModel.fromJson(Map<String, dynamic> json) {
@@ -268,6 +302,7 @@ class OrderModel {
     flashStoreDiscountAmount = json['flash_store_discount_amount']?.toDouble();
     extraPackagingAmount = json['extra_packaging_amount']?.toDouble();
     referrerBonusAmount = json['ref_bonus_amount']?.toDouble();
+    estimatedDeliveryAt = json['estimated_delivery_at'];
   }
 
   Map<String, dynamic> toJson() {
@@ -348,6 +383,7 @@ class OrderModel {
     data['flash_store_discount_amount'] = flashStoreDiscountAmount;
     data['extra_packaging_amount'] = extraPackagingAmount;
     data['ref_bonus_amount'] = referrerBonusAmount;
+    data['estimated_delivery_at'] = estimatedDeliveryAt;
     return data;
   }
 }

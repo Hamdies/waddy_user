@@ -31,6 +31,8 @@ import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
 import 'package:sixam_mart/common/widgets/menu_drawer.dart';
 import 'package:sixam_mart/features/order/widgets/track_details_view_widget.dart';
 import 'package:sixam_mart/features/order/widgets/tracking_stepper_widget.dart';
+import 'package:sixam_mart/helper/live_activity_helper.dart';
+import 'package:sixam_mart/services/live_activity_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -104,8 +106,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
           orderId: widget.orderID!,
           token: Get.find<AuthController>().getUserToken(),
           contactNumber: widget.contactNumber,
-          guestId:
-              AuthHelper.isGuestLoggedIn() ? AuthHelper.getGuestId() : null,
+          guestId: null,
         )
         .listen(
           (data) => _handleSSEUpdate(data),
@@ -124,6 +125,11 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     if (orderController.trackModel != null) {
       orderController.trackModel!.orderStatus = data.status;
       orderController.trackModel!.subStatus = data.subStatus;
+
+      // Update estimated delivery time if recalculated by backend
+      if (data.estimatedDeliveryAt != null) {
+        orderController.trackModel!.estimatedDeliveryAt = data.estimatedDeliveryAt;
+      }
 
       if (data.deliveryMan != null &&
           orderController.trackModel!.deliveryMan != null) {
@@ -149,6 +155,27 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
 
       // Calculate ETA
       _updateETA(data.deliveryMan!.lat, data.deliveryMan!.lng);
+    }
+
+    // Update Live Activity
+    final trackModel = orderController.trackModel;
+    if (trackModel != null) {
+      final orderId = trackModel.id ?? int.tryParse(widget.orderID ?? '') ?? 0;
+      if (LiveActivityHelper.isTerminalStatus(data.status)) {
+        LiveActivityService.endActivity(orderId);
+      } else {
+        LiveActivityService.updateActivity(
+          orderId: orderId,
+          status: data.status,
+          subStatus: data.subStatus,
+          eta: trackModel.estimatedDelivery,
+          deliveryManName: trackModel.deliveryMan != null
+              ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'.trim()
+              : null,
+          storeName: trackModel.store?.name,
+          orderType: trackModel.orderType ?? 'delivery',
+        );
+      }
     }
 
     // Check if order completed
@@ -522,7 +549,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
                                   orderStatus: track.orderStatus,
                                   subStatus: track.subStatus,
                                   takeAway: track.orderType == 'take_away',
-                                  eta: _currentETA?.displayText,
+                                  eta: _currentETA?.displayText ?? track.estimatedDelivery,
                                   deliveryManName: track.deliveryMan?.fName,
                                 ),
 

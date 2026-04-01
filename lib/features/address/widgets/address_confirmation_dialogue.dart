@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:sixam_mart/features/address/controllers/address_controller.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
 import 'package:sixam_mart/util/dimensions.dart';
 import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_button.dart';
 
 class AddressConfirmDialogue extends StatelessWidget {
   final String icon;
@@ -36,48 +36,115 @@ class AddressConfirmDialogue extends StatelessWidget {
                 ),
               ) : const SizedBox(),
 
-              Padding(
+              // Icon container instead of image
+              Container(
                 padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-                child: Image.asset(icon, width: isDesktop ? 90 : 50, height: isDesktop ? 90 : 50),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedDelete02,
+                  color: Theme.of(context).colorScheme.error,
+                  size: isDesktop ? 50 : 40,
+                  strokeWidth: 2,
+                ),
               ),
+
+              const SizedBox(height: Dimensions.paddingSizeLarge),
 
               title != null ? Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
                 child: Text(
-                  title!, textAlign: TextAlign.center,
-                  style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeExtraLarge, color: isDesktop ? Theme.of(context).textTheme.titleSmall!.color :Colors.red),
+                  title!, 
+                  textAlign: TextAlign.center,
+                  style: robotoBold.copyWith(
+                    fontSize: isDesktop ? Dimensions.fontSizeLarge : Dimensions.fontSizeExtraLarge,
+                    color: Theme.of(context).textTheme.titleSmall?.color,
+                  ),
                 ),
               ) : const SizedBox(),
 
+              const SizedBox(height: Dimensions.paddingSizeDefault),
+
               Padding(
-                padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-                child: Text(description, style: isDesktop ? robotoRegular.copyWith(fontSize: isDesktop ? Dimensions.fontSizeSmall : Dimensions.fontSizeLarge, color: Theme.of(context).hintColor) :
-                       robotoMedium.copyWith(fontSize: isDesktop ? Dimensions.fontSizeSmall : Dimensions.fontSizeLarge, color: Theme.of(context).hintColor), textAlign: TextAlign.center),
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeLarge),
+                child: Text(
+                  description, 
+                  style: robotoRegular.copyWith(
+                    fontSize: isDesktop ? Dimensions.fontSizeSmall : Dimensions.fontSizeDefault, 
+                    color: Theme.of(context).hintColor,
+                    height: 1.5,
+                  ), 
+                  textAlign: TextAlign.center,
+                ),
               ),
-              const SizedBox(height: Dimensions.paddingSizeLarge),
+
+              const SizedBox(height: Dimensions.paddingSizeExtraLarge),
 
               GetBuilder<AddressController>(builder: (addressController) {
-                return !addressController.isLoading ? Row( children: [
+                return !addressController.isLoading ? Row(children: [
                   SizedBox(width: isDesktop ? Dimensions.paddingSizeExtremeLarge : 0),
-                  Expanded(child: TextButton(
-                    onPressed: () => onYesPressed(),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.error, minimumSize: const Size(Dimensions.webMaxWidth, 50), padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
-                      //fixedSize: Size(115, 45),
+                  
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => onYesPressed(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
+                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            HugeIcon(
+                              icon: HugeIcons.strokeRoundedDelete02,
+                              color: Colors.white,
+                              size: 18,
+                              strokeWidth: 2,
+                            ),
+                            const SizedBox(width: Dimensions.paddingSizeSmall),
+                            Text(
+                              'delete'.tr,
+                              style: robotoBold.copyWith(
+                                color: Colors.white,
+                                fontSize: Dimensions.fontSizeDefault,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      'delete'.tr, textAlign: TextAlign.center,
-                      style: robotoBold.copyWith(color: Theme.of(context).cardColor),
-                    ),
-                  )),
+                  ),
+                  
                   SizedBox(width: isDesktop ? Dimensions.paddingSizeExtraLarge : Dimensions.paddingSizeLarge),
 
-                  Expanded(child: CustomButton(
-                    buttonText:  'cancel'.tr, textColor: Theme.of(context).textTheme.bodyMedium!.color!.withValues(alpha: 0.5),
-                    onPressed: () => Get.back(),
-                    radius: Dimensions.radiusSmall, height: 50, color: Theme.of(context).disabledColor.withValues(alpha: 0.4),
-                  )),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Get.back(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                          ),
+                          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'cancel'.tr,
+                            style: robotoBold.copyWith(
+                              color: Theme.of(context).primaryColor,
+                              fontSize: Dimensions.fontSizeDefault,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  
                   SizedBox(width: isDesktop ? Dimensions.paddingSizeExtremeLarge : 0),
                 ]) : const Center(child: CircularProgressIndicator());
               }),
@@ -91,3 +158,4 @@ class AddressConfirmDialogue extends StatelessWidget {
     );
   }
 }
+

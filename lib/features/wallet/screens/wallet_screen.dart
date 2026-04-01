@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
 import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
+import 'package:sixam_mart/features/wallet/screens/add_fund_screen.dart';
 import 'package:sixam_mart/features/wallet/widgets/bonus_banner_widget.dart';
 import 'package:sixam_mart/helper/auth_helper.dart';
 import 'package:sixam_mart/helper/responsive_helper.dart';
@@ -36,11 +36,9 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final ScrollController scrollController = ScrollController();
-  final tooltipController = JustTheController();
 
   // Theme colors
   static const Color _neonGreen = Color(0xFF1EF2A0);
-  static const Color _darkTeal = Color(0xFF134E4A);
 
   @override
   void initState() {
@@ -52,6 +50,9 @@ class _WalletScreenState extends State<WalletScreen> {
     if (AuthHelper.isLoggedIn()) {
       Get.find<WalletController>().insertFilterList();
       Get.find<WalletController>().setWalletFilerType('all', isUpdate: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Get.find<WalletController>().loadCardAppearance();
+      });
 
       if ((widget.fundStatus == 'success' ||
               widget.fundStatus == 'fail' ||
@@ -122,6 +123,10 @@ class _WalletScreenState extends State<WalletScreen> {
     scrollController.dispose();
   }
 
+  void _openAddFundScreen() {
+    Get.to(() => const AddFundScreen());
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isLoggedIn = AuthHelper.isLoggedIn();
@@ -151,154 +156,148 @@ class _WalletScreenState extends State<WalletScreen> {
             return isLoggedIn
                 ? profileController.userInfoModel != null
                     ? SafeArea(
-                      child: RefreshIndicator(
-                        color: _neonGreen,
-                        onRefresh: () async {
-                          Get.find<WalletController>().setWalletFilerType(
-                            'all',
-                          );
-                          Get.find<WalletController>().getWalletTransactionList(
-                            '1',
-                            true,
-                            'all',
-                          );
-                          Get.find<ProfileController>().getUserInfo();
-                        },
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          child: Column(
-                            children: [
-                              WebScreenTitleWidget(title: 'wallet'.tr),
-                              FooterView(
-                                child: SizedBox(
-                                  width: Dimensions.webMaxWidth,
-                                  child: GetBuilder<WalletController>(
-                                    builder: (walletController) {
-                                      return ResponsiveHelper.isDesktop(context)
-                                          ? Padding(
-                                            padding: const EdgeInsets.only(
-                                              top:
-                                                  Dimensions.paddingSizeDefault,
-                                            ),
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Expanded(
-                                                  flex: 4,
-                                                  child: Column(
-                                                    children: [
-                                                      Container(
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              Theme.of(
-                                                                context,
-                                                              ).cardColor,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                Dimensions
-                                                                    .radiusSmall,
-                                                              ),
-                                                          boxShadow: const [
-                                                            BoxShadow(
-                                                              color:
-                                                                  Colors
-                                                                      .black12,
-                                                              blurRadius: 5,
-                                                              spreadRadius: 1,
+                      child: Stack(
+                        children: [
+                          RefreshIndicator(
+                            color: _neonGreen,
+                            onRefresh: () async {
+                              Get.find<WalletController>().setWalletFilerType(
+                                'all',
+                              );
+                              Get.find<WalletController>().getWalletTransactionList(
+                                '1',
+                                true,
+                                'all',
+                              );
+                              Get.find<ProfileController>().getUserInfo();
+                            },
+                            child: SingleChildScrollView(
+                              controller: scrollController,
+                              padding: const EdgeInsets.only(bottom: 90),
+                              child: Column(
+                                children: [
+                                  WebScreenTitleWidget(title: 'wallet'.tr),
+                                  FooterView(
+                                    child: SizedBox(
+                                      width: Dimensions.webMaxWidth,
+                                      child: GetBuilder<WalletController>(
+                                        builder: (walletController) {
+                                          return ResponsiveHelper.isDesktop(context)
+                                              ? Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: Dimensions.paddingSizeDefault,
+                                                ),
+                                                child: Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      flex: 4,
+                                                      child: Column(
+                                                        children: [
+                                                          Container(
+                                                            decoration: BoxDecoration(
+                                                              color: Theme.of(context).cardColor,
+                                                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                                                              boxShadow: const [
+                                                                BoxShadow(
+                                                                  color: Colors.black12,
+                                                                  blurRadius: 5,
+                                                                  spreadRadius: 1,
+                                                                ),
+                                                              ],
                                                             ),
-                                                          ],
-                                                        ),
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              Dimensions
-                                                                  .paddingSizeLarge,
-                                                            ),
-                                                        child: WalletCardWidget(
-                                                          tooltipController:
-                                                              tooltipController,
-                                                        ),
+                                                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                                                            child: const WalletCardWidget(),
+                                                          ),
+                                                        ],
                                                       ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  width:
-                                                      Dimensions
-                                                          .paddingSizeDefault,
-                                                ),
-                                                Expanded(
-                                                  flex: 6,
-                                                  child: Column(
-                                                    children: [
-                                                      const WebBonusBannerWidget(),
-                                                      Container(
-                                                        decoration: BoxDecoration(
-                                                          color:
-                                                              Theme.of(
-                                                                context,
-                                                              ).cardColor,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                Dimensions
-                                                                    .radiusSmall,
-                                                              ),
-                                                          boxShadow: const [
-                                                            BoxShadow(
-                                                              color:
-                                                                  Colors
-                                                                      .black12,
-                                                              blurRadius: 5,
-                                                              spreadRadius: 1,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              Dimensions
-                                                                  .paddingSizeLarge,
-                                                            ),
-                                                        child:
-                                                            const WalletHistoryWidget(),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                          : Column(
-                                            children: [
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal:
-                                                          Dimensions
-                                                              .paddingSizeLarge,
                                                     ),
-                                                child: WalletCardWidget(
-                                                  tooltipController:
-                                                      tooltipController,
+                                                    const SizedBox(width: Dimensions.paddingSizeDefault),
+                                                    Expanded(
+                                                      flex: 6,
+                                                      child: Column(
+                                                        children: [
+                                                          const WebBonusBannerWidget(),
+                                                          Container(
+                                                            decoration: BoxDecoration(
+                                                              color: Theme.of(context).cardColor,
+                                                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                                                              boxShadow: const [
+                                                                BoxShadow(
+                                                                  color: Colors.black12,
+                                                                  blurRadius: 5,
+                                                                  spreadRadius: 1,
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+                                                            child: const WalletHistoryWidget(),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ),
-                                              const BonusBannerWidget(),
-                                              const Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal:
-                                                      Dimensions
-                                                          .paddingSizeLarge,
-                                                ),
-                                                child: WalletHistoryWidget(),
-                                              ),
-                                            ],
-                                          );
-                                    },
+                                              )
+                                              : Column(
+                                                children: [
+                                                  Padding(
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: Dimensions.paddingSizeLarge,
+                                                    ),
+                                                    child: const WalletCardWidget(),
+                                                  ),
+                                                  const BonusBannerWidget(),
+                                                  const Padding(
+                                                    padding: EdgeInsets.symmetric(
+                                                      horizontal: Dimensions.paddingSizeLarge,
+                                                    ),
+                                                    child: WalletHistoryWidget(),
+                                                  ),
+                                                ],
+                                              );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          // Floating Add Fund button
+                          Positioned(
+                            left: 16,
+                            right: 16,
+                            bottom: 12,
+                            child: GestureDetector(
+                              onTap: _openAddFundScreen,
+                              child: Container(
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF134E4A),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'add_fund'.tr,
+                                    style: robotoBold.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     )
                     : const Center(child: CircularProgressIndicator())

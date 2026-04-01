@@ -11,6 +11,7 @@ class TrackingStreamData {
   final String? subStatus;
   final DeliveryManLocation? deliveryMan;
   final DateTime timestamp;
+  final String? estimatedDeliveryAt;
 
   TrackingStreamData({
     required this.orderId,
@@ -18,6 +19,7 @@ class TrackingStreamData {
     this.subStatus,
     this.deliveryMan,
     required this.timestamp,
+    this.estimatedDeliveryAt,
   });
 
   factory TrackingStreamData.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class TrackingStreamData {
               ? DeliveryManLocation.fromJson(json['delivery_man'])
               : null,
       timestamp: DateTime.parse(json['timestamp']),
+      estimatedDeliveryAt: json['estimated_delivery_at'],
     );
   }
 }

@@ -121,4 +121,14 @@ class SplashService implements SplashServiceInterface {
     return await splashRepositoryInterface.saveReferBottomSheetStatus(data);
   }
 
+  @override
+  bool getWelcomeLetterShownStatus() {
+    return splashRepositoryInterface.getWelcomeLetterShownStatus();
+  }
+
+  @override
+  Future<void> saveWelcomeLetterShownStatus(bool data) async {
+    return await splashRepositoryInterface.saveWelcomeLetterShownStatus(data);
+  }
+
 }
