@@ -1,8 +1,8 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:sixam_mart/features/location/domain/models/prediction_model.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/features/location/domain/models/prediction_model.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 
 abstract class LocationServiceInterface{
   Future<Position> getPosition(LatLng? defaultLatLng, LatLng configLatLng);

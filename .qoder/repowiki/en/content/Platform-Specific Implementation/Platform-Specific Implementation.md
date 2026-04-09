@@ -5,6 +5,9 @@
 - [MainActivity.kt](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/MainActivity.kt)
 - [OrderTrackingNotificationManager.kt](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt)
 - [WaddiFirebaseMessagingService.kt](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt)
+- [proguard-rules.pro](file://android/app/proguard-rules.pro)
+- [notification_order_tracking.xml](file://android/app/src/main/res/layout/notification_order_tracking.xml)
+- [notification_order_tracking_expanded.xml](file://android/app/src/main/res/layout/notification_order_tracking_expanded.xml)
 - [AndroidManifest.xml](file://android/app/src/main/AndroidManifest.xml)
 - [build.gradle](file://android/app/build.gradle)
 - [AppDelegate.swift](file://ios/Runner/AppDelegate.swift)
@@ -21,6 +24,14 @@
 - [pubspec.yaml](file://pubspec.yaml)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Added comprehensive Android ProGuard configuration documentation
+- Enhanced custom notification layout documentation with detailed XML structure
+- Updated Firebase messaging integration with improved order status handling
+- Expanded iOS Live Activity support documentation with advanced widget features
+- Added detailed ProGuard rules for third-party libraries and model classes
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -35,8 +46,8 @@
 
 ## Introduction
 This document explains platform-specific implementations across Android, iOS, and Web for a Flutter-based application. It covers:
-- Android native integration, including MainActivity.kt, Android-specific services, and native plugin integration
-- iOS native extensions, AppDelegate.swift configuration, Live Activity support, and related Swift components
+- Android native integration, including MainActivity.kt, Android-specific services, native plugin integration, and comprehensive ProGuard configuration
+- iOS native extensions, AppDelegate.swift configuration, Live Activity support, and advanced Swift components
 - Web deployment, progressive web app configuration, and browser compatibility considerations
 - Platform-specific build configurations, permissions management, and deployment requirements
 - Examples of platform-specific features such as background processing, push notifications, and native UI components
@@ -45,7 +56,7 @@ This document explains platform-specific implementations across Android, iOS, an
 
 ## Project Structure
 The repository follows a Flutter monorepo layout with platform-specific folders:
-- android/: Android app module with Kotlin sources, manifests, and Gradle build scripts
+- android/: Android app module with Kotlin sources, manifests, Gradle build scripts, and ProGuard configuration
 - ios/: iOS app module with Swift sources, entitlements, and Xcode workspace
 - web/: Web assets for Progressive Web App (PWA) deployment
 - lib/: Shared Flutter application code
@@ -62,6 +73,7 @@ A2["OrderTrackingNotificationManager.kt"]
 A3["WaddiFirebaseMessagingService.kt"]
 A4["AndroidManifest.xml"]
 A5["build.gradle"]
+A6["proguard-rules.pro"]
 end
 subgraph "iOS"
 I1["AppDelegate.swift"]
@@ -84,6 +96,7 @@ A1 --> A3
 A3 --> A2
 A1 --> A4
 A5 --> A4
+A6 --> A5
 I1 --> I2
 I2 --> I3
 I2 --> I4
@@ -97,7 +110,7 @@ W1 --> W3
 - [MainActivity.kt:1-108](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/MainActivity.kt#L1-L108)
 - [OrderTrackingNotificationManager.kt:1-195](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L1-L195)
 - [WaddiFirebaseMessagingService.kt:1-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L1-L104)
-- [AndroidManifest.xml:1-111](file://android/app/src/main/AndroidManifest.xml#L1-L111)
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
 - [build.gradle:1-86](file://android/app/build.gradle#L1-L86)
 - [AppDelegate.swift:1-40](file://ios/Runner/AppDelegate.swift#L1-L40)
 - [LiveActivityManager.swift:1-175](file://ios/Runner/LiveActivityManager.swift#L1-L175)
@@ -121,12 +134,13 @@ This section highlights the platform-specific components responsible for native 
     - Live Activity channel for order tracking notifications
   - OrderTrackingNotificationManager.kt: Manages persistent order tracking notifications with custom collapsed and expanded views
   - WaddiFirebaseMessagingService.kt: Handles Firebase Cloud Messaging events and updates order tracking notifications accordingly
+  - **Updated**: ProGuard configuration with comprehensive rules for Firebase, Google Maps, GetX, and Facebook SDK
 
 - iOS
   - AppDelegate.swift: Configures Firebase, Google Maps, registers for remote notifications, and sets up the Live Activity MethodChannel
   - LiveActivityManager.swift: Orchestrates ActivityKit Live Activities lifecycle (start, update, end) and returns push tokens
   - OrderTrackingAttributes.swift: Defines Live Activity attributes and content state
-  - WaddiLiveActivityLiveActivity.swift: Implements the Live Activity widget and lock screen UI
+  - WaddiLiveActivityLiveActivity.swift: Implements the Live Activity widget and lock screen UI with advanced SwiftUI components
 
 - Web
   - index.html: Bootstraps the Flutter web app, registers service worker, and initializes Firebase
@@ -137,6 +151,7 @@ This section highlights the platform-specific components responsible for native 
 - [MainActivity.kt:11-108](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/MainActivity.kt#L11-L108)
 - [OrderTrackingNotificationManager.kt:13-195](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L13-L195)
 - [WaddiFirebaseMessagingService.kt:6-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L6-L104)
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
 - [AppDelegate.swift:9-39](file://ios/Runner/AppDelegate.swift#L9-L39)
 - [LiveActivityManager.swift:8-175](file://ios/Runner/LiveActivityManager.swift#L8-L175)
 - [OrderTrackingAttributes.swift:7-25](file://ios/WaddiLiveActivity/OrderTrackingAttributes.swift#L7-L25)
@@ -261,6 +276,44 @@ Service-->>FCM : "Super handler"
 **Section sources**
 - [WaddiFirebaseMessagingService.kt:6-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L6-L104)
 
+#### Android ProGuard Configuration
+**Updated**: Comprehensive ProGuard rules for production builds:
+- Flutter framework classes kept intact
+- Firebase SDK rules with warnings disabled
+- Google Maps and Play Services integration
+- GetX framework support with annotation preservation
+- Facebook SDK integration with warning suppression
+- Model class serialization rules for JSON processing
+
+```mermaid
+flowchart TD
+A["ProGuard Rules"] --> B["Flutter Framework"]
+B --> C["Firebase SDK"]
+C --> D["Google Maps"]
+D --> E["GetX Framework"]
+E --> F["Facebook SDK"]
+F --> G["Model Classes"]
+G --> H["JSON Serialization"]
+```
+
+**Diagram sources**
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
+
+**Section sources**
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
+
+#### Custom Notification Layouts
+**Updated**: Advanced notification layouts with detailed XML structure:
+- Collapsed layout: Compact view with app name, status icon, subtitle, ETA, and progress bar
+- Expanded layout: Full details with store name, delivery man info, and rate order button
+- Progress bar implementation with custom drawables
+- Conditional visibility controls for different order states
+- Tap intent handling for app navigation
+
+**Section sources**
+- [notification_order_tracking.xml:1-74](file://android/app/src/main/res/layout/notification_order_tracking.xml#L1-L74)
+- [notification_order_tracking_expanded.xml:1-118](file://android/app/src/main/res/layout/notification_order_tracking_expanded.xml#L1-L118)
+
 #### Android Build and Permissions
 - Permissions declared in AndroidManifest.xml:
   - INTERNET, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, RECORD_AUDIO, POST_NOTIFICATIONS
@@ -269,6 +322,7 @@ Service-->>FCM : "Super handler"
 - Gradle build:
   - Kotlin, Flutter, Google Services, Crashlytics plugins
   - Desugaring for Java 8 APIs, Firebase Messaging dependency, Facebook SDK
+  - **Updated**: ProGuard enabled for release builds with custom rules
 
 **Section sources**
 - [AndroidManifest.xml:8-13](file://android/app/src/main/AndroidManifest.xml#L8-L13)
@@ -351,11 +405,13 @@ LiveActivityManager --> OrderTrackingAttributes : "uses"
 - [OrderTrackingAttributes.swift:7-25](file://ios/WaddiLiveActivity/OrderTrackingAttributes.swift#L7-L25)
 
 #### Live Activity Widget and Lock Screen UI
-- WaddiLiveActivityLiveActivity.swift defines:
-  - Widget configuration with dynamic island regions
-  - Lock screen view with store info, ETA, and step tracker
-  - Status-dependent emojis and icons
-  - Store logo placeholder and fallback rendering
+**Updated**: Advanced Live Activity implementation with comprehensive SwiftUI components:
+- Widget configuration with dynamic island regions and multiple display modes
+- Lock screen view with store info, ETA, and 4-step tracker
+- Status-dependent emojis and icons with conditional logic
+- Store logo placeholder with AsyncImage fallback
+- Advanced step tracking with visual indicators and status progression
+- Responsive design with proper spacing and typography
 
 ```mermaid
 flowchart TD
@@ -431,6 +487,7 @@ subgraph "Android"
 AM["AndroidManifest.xml"]
 AG["build.gradle"]
 GS["google-services.json"]
+PR["proguard-rules.pro"]
 end
 subgraph "iOS"
 IP["Info.plist"]
@@ -444,6 +501,7 @@ SW["firebase-messaging-sw.js"]
 end
 AM --> AG
 AG --> GS
+AG --> PR
 IP --> ENT
 IP --> GSI
 IH --> MFT
@@ -454,6 +512,7 @@ IH --> SW
 - [AndroidManifest.xml:1-111](file://android/app/src/main/AndroidManifest.xml#L1-L111)
 - [build.gradle:1-86](file://android/app/build.gradle#L1-L86)
 - [google-services.json:1-29](file://android/app/google-services.json#L1-L29)
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
 - [Info.plist:1-110](file://ios/Runner/Info.plist#L1-L110)
 - [Runner.entitlements:1-13](file://ios/Runner/Runner.entitlements#L1-L13)
 - [GoogleService-Info.plist:1-30](file://ios/GoogleService-Info.plist#L1-L30)
@@ -468,25 +527,28 @@ IH --> SW
 - Android
   - Hardware acceleration enabled and cleartext traffic disabled improve responsiveness and security
   - Desugaring and Java 8 compatibility ensure modern APIs on older devices
+  - **Updated**: ProGuard optimization reduces app size and improves runtime performance
   - Notification channels and custom views minimize overhead while enhancing UX
 - iOS
   - Live Activities leverage system-level UI and lifecycle management for efficient battery usage
+  - **Updated**: Advanced SwiftUI components provide smooth animations and responsive interactions
   - WidgetKit dynamic islands provide contextual information without launching the app
 - Web
   - Service worker caching and background message handling reduce server load
   - PWA manifest enables fast installation and offline readiness
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - Android
   - Permission denials: Verify RECORD_AUDIO permission handling and rationale flows in MainActivity.kt
   - Notifications not appearing: Confirm notification channel creation and importance level in OrderTrackingNotificationManager.kt
   - FCM not updating notifications: Ensure WaddiFirebaseMessagingService.kt receives "order_status" messages and updates are called with valid orderId
+  - **Updated**: ProGuard issues: Check proguard-rules.pro for missing third-party library rules
+  - **Updated**: Notification layout problems: Verify custom XML layouts match RemoteViews implementation
 - iOS
   - Live Activity not starting: Check capability availability and authorization in LiveActivityManager.swift; verify Info.plist Live Activities support flag
   - Push token missing: Confirm Activity request completes and push token retrieval path executes
   - Widget not rendering: Validate OrderTrackingAttributes.ContentState fields and SwiftUI view composition in WaddiLiveActivityLiveActivity.swift
+  - **Updated**: Live Activity crashes: Ensure proper availability checks and error handling for iOS versions
 - Web
   - Service worker not registering: Review index.html script loading order and service worker injection
   - PWA not installable: Validate manifest.json fields and assets presence
@@ -496,6 +558,7 @@ IH --> SW
 - [MainActivity.kt:94-106](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/MainActivity.kt#L94-L106)
 - [OrderTrackingNotificationManager.kt:39-53](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L39-L53)
 - [WaddiFirebaseMessagingService.kt:20-50](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L20-L50)
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)
 - [LiveActivityManager.swift:43-48](file://ios/Runner/LiveActivityManager.swift#L43-L48)
 - [WaddiLiveActivityLiveActivity.swift:12-53](file://ios/WaddiLiveActivity/WaddiLiveActivityLiveActivity.swift#L12-L53)
 - [index.html:30-165](file://web/index.html#L30-L165)
@@ -504,18 +567,17 @@ IH --> SW
 
 ## Conclusion
 The platform-specific implementations integrate Flutter with native capabilities seamlessly:
-- Android provides robust notification management and permission handling via native services
-- iOS delivers a first-class Live Activity experience with SwiftUI widgets and system integration
+- Android provides robust notification management and permission handling via native services with comprehensive ProGuard optimization
+- iOS delivers a first-class Live Activity experience with advanced SwiftUI widgets and system integration
 - Web offers a modern PWA with service workers and push notifications
 
 Adhering to the build configurations, permissions, and deployment requirements outlined ensures reliable performance, strong security, and excellent user experience across platforms.
-
-[No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 - Platform-specific build configurations and dependencies are defined in the respective Gradle, Manifest, and Plist files
 - Firebase configurations are provided via google-services.json (Android) and GoogleService-Info.plist (iOS)
 - Flutter dependencies and assets are managed in pubspec.yaml
+- **Updated**: ProGuard configuration ensures optimal app performance and security for production deployments
 
 **Section sources**
 - [build.gradle:1-86](file://android/app/build.gradle#L1-L86)
@@ -524,3 +586,4 @@ Adhering to the build configurations, permissions, and deployment requirements o
 - [google-services.json:1-29](file://android/app/google-services.json#L1-L29)
 - [GoogleService-Info.plist:1-30](file://ios/GoogleService-Info.plist#L1-L30)
 - [pubspec.yaml:1-122](file://pubspec.yaml#L1-L122)
+- [proguard-rules.pro:1-37](file://android/app/proguard-rules.pro#L1-L37)

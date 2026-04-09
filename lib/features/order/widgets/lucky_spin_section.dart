@@ -1,14 +1,18 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
-import 'package:sixam_mart/features/order/widgets/verification_code_widget.dart';
-import 'package:sixam_mart/features/order/widgets/order_eta_badge.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/widgets/games/lucky_day_game_slide.dart';
+import 'package:waddy_app/features/order/widgets/games/vote_place_game_slide.dart';
+import 'package:waddy_app/features/order/widgets/verification_code_widget.dart';
+import 'package:waddy_app/features/order/widgets/order_eta_badge.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+
+const double _luckyShowcaseHeight = 500;
 
 class LuckySpinSection extends StatelessWidget {
   final OrderModel order;
@@ -35,9 +39,19 @@ class LuckySpinSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int? displayEta = liveEtaMinutes ?? prepMinutes;
+    final bool isMobile = ResponsiveHelper.isMobile(context);
+    const double spinBackgroundHeight = _luckyShowcaseHeight;
+    final double etaBadgeTop = isMobile ? 355 : 335;
+    final double etaBadgeBottom =
+        etaBadgeTop +
+        OrderEtaBadge.badgeSizeFor(isMobile) +
+        OrderEtaBadge.bottomPillOverlapFor(isMobile);
+    final double contentTopPadding =
+        math.max(0, etaBadgeBottom - spinBackgroundHeight) +
+        (isMobile ? 22 : 26);
 
     return Container(
-      color: const Color(0xFF051F24),
+      color:  Theme.of(context).primaryColor,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -48,9 +62,9 @@ class LuckySpinSection extends StatelessWidget {
                 children: [
                   _buildSpinWheelBackground(context),
                   Positioned(
-                    top: 16,
-                    left: 16,
-                    right: 16,
+                    top: 0,
+                    left: 0,
+                    right: 0,
                     child: SafeArea(
                       bottom: false,
                       child: _buildTopBar(context),
@@ -69,7 +83,7 @@ class LuckySpinSection extends StatelessWidget {
                 ),
                 padding: EdgeInsets.fromLTRB(
                   Dimensions.paddingSizeLarge,
-                  ResponsiveHelper.isMobile(context) ? 260 : 200,
+                  contentTopPadding,
                   Dimensions.paddingSizeLarge,
                   Dimensions.paddingSizeLarge,
                 ),
@@ -79,11 +93,11 @@ class LuckySpinSection extends StatelessWidget {
                     Text(
                       'order_placed'.tr,
                       style: robotoBold.copyWith(
-                        fontSize: ResponsiveHelper.isMobile(context) ? 24 : 28,
+                        fontSize: isMobile ? 24 : 28,
                         color: const Color(0xFF112E2C),
                       ),
                     ),
-                    SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                    const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                     Text(
                       'your_order_is_being_processed'.tr,
                       style: robotoRegular.copyWith(
@@ -92,7 +106,9 @@ class LuckySpinSection extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: Dimensions.paddingSizeLarge),
+                    SizedBox(
+                      height: isMobile ? 18 : Dimensions.paddingSizeLarge,
+                    ),
                     _buildCombinedOrderCard(context),
                   ],
                 ),
@@ -102,7 +118,7 @@ class LuckySpinSection extends StatelessWidget {
           Positioned(
             left: 0,
             right: 0,
-            top: ResponsiveHelper.isMobile(context) ? 280 : 260,
+            top: etaBadgeTop,
             child: Center(child: OrderEtaBadge(minutes: displayEta)),
           ),
         ],
@@ -111,115 +127,40 @@ class LuckySpinSection extends StatelessWidget {
   }
 
   Widget _buildTopBar(BuildContext context) {
-    return Row(
-      children: [
-        Material(
-          color: const Color(0xFF193A39).withValues(alpha: 0.94),
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onBack,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                color: Colors.white,
-                size: ResponsiveHelper.isMobile(context) ? 16 : 18,
-              ),
-            ),
-          ),
+    return Theme(
+      data: Theme.of(
+        context,
+      ).copyWith(iconTheme: const IconThemeData(color: Colors.white)),
+      child: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          color: Colors.white,
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
         ),
-        const Spacer(),
-        InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onHelp,
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-              vertical: Dimensions.paddingSizeExtraSmall,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF193A39).withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Text(
-              'help'.tr,
-              style: robotoMedium.copyWith(
-                fontSize: Dimensions.fontSizeDefault,
-                color: Colors.white,
-              ),
-            ),
+        actions: [
+          IconButton(
+            color: Colors.white,
+            onPressed: onHelp,
+            icon: const Icon(Icons.help_outline_rounded),
+            tooltip: 'help'.tr,
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+        ],
+      ),
     );
   }
 
   Widget _buildSpinWheelBackground(BuildContext context) {
-    return SizedBox(
-      height: 340,
+    return const SizedBox(
+      height: _luckyShowcaseHeight,
       width: double.infinity,
-      child: Stack(
-        children: [
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(0xFF062C30),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF0B3840),
-                    Color(0xFF082C30),
-                    Color(0xFF051F24),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: CustomPaint(painter: SpinBackgroundPainter()),
-          ),
-          Positioned(
-            top: 88,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A2E32),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFD4A84B),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Text(
-                    '✨ ${'lucky_spin'.tr.toUpperCase()} ✨',
-                    style: robotoBold.copyWith(
-                      fontSize: 12,
-                      color: const Color(0xFFFFD770),
-                      letterSpacing: 1.6,
-                    ),
-                  ),
-                ),
-                SizedBox(height: Dimensions.paddingSizeLarge),
-                SizedBox(
-                  width: 230,
-                  height: 230,
-                  child: CustomPaint(painter: LuckySpinWheelPainter()),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: _LuckyGamesSlider(),
     );
   }
 
@@ -230,8 +171,8 @@ class LuckySpinSection extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(
-        Dimensions.paddingSizeDefault + Dimensions.paddingSizeExtraSmall,
+      padding: const EdgeInsets.all(
+        Dimensions.paddingSizeDefault + Dimensions.paddingSizeLarge,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -300,9 +241,9 @@ class LuckySpinSection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: Dimensions.paddingSizeDefault),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
           const Divider(color: Color(0xFFE8EFED), height: 1),
-          SizedBox(height: Dimensions.paddingSizeDefault),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
           // Step 1: Order received
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -320,7 +261,7 @@ class LuckySpinSection extends StatelessWidget {
                   color: Color(0xFF1BA672),
                 ),
               ),
-              SizedBox(width: Dimensions.paddingSizeSmall),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
               Expanded(
                 child: RichText(
                   text: TextSpan(
@@ -344,7 +285,7 @@ class LuckySpinSection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: Dimensions.paddingSizeSmall),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
           // Dashed divider
           Padding(
             padding: EdgeInsets.only(
@@ -355,7 +296,7 @@ class LuckySpinSection extends StatelessWidget {
               painter: DashedLinePainter(),
             ),
           ),
-          SizedBox(height: Dimensions.paddingSizeSmall),
+          const SizedBox(height: Dimensions.paddingSizeSmall),
           // Step 2: Delivery partner
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -393,18 +334,19 @@ class LuckySpinSection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(
-            height: Dimensions.paddingSizeLarge + Dimensions.paddingSizeSmall,
-          ),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
           const Divider(color: Color(0xFFE8EFED), height: 1),
-          SizedBox(height: Dimensions.paddingSizeLarge),
+          const SizedBox(height: 12),
           // OTP verification card
           if (order.otp != null && order.otp!.isNotEmpty)
-            VerificationCodeWidget(otp: order.otp!, variant: VerificationCodeVariant.compact),
+            VerificationCodeWidget(
+              otp: order.otp!,
+              variant: VerificationCodeVariant.compact,
+            ),
           if (order.otp != null && order.otp!.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             const Divider(color: Color(0xFFE8EFED), height: 1),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
           ],
           // Order ID + Payment method row
           Row(
@@ -420,7 +362,7 @@ class LuckySpinSection extends StatelessWidget {
                       color: const Color(0xFF7B8C89),
                     ),
                   ),
-                  SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                  const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                   Text(
                     '#${order.id}',
                     style: robotoBold.copyWith(
@@ -492,7 +434,8 @@ class LuckySpinSection extends StatelessWidget {
                   child: Image.network(
                     '${display[i].imageFullUrl}',
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.image, size: 20),
+                    errorBuilder:
+                        (_, __, ___) => const Icon(Icons.image, size: 20),
                   ),
                 ),
               ),
@@ -526,135 +469,62 @@ class DashedLinePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class SpinBackgroundPainter extends CustomPainter {
+class _LuckyGamesSlider extends StatefulWidget {
+  const _LuckyGamesSlider();
+
   @override
-  void paint(Canvas canvas, Size size) {
-    final Rect rect = Offset.zero & size;
-    final Paint stripePaint =
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white.withValues(alpha: 0.06),
-              Colors.white.withValues(alpha: 0.01),
-            ],
-          ).createShader(rect);
+  State<_LuckyGamesSlider> createState() => _LuckyGamesSliderState();
+}
 
-    for (double x = -40; x < size.width + 40; x += 34) {
-      final Path stripe =
-          Path()
-            ..moveTo(x, 0)
-            ..lineTo(x + 12, 0)
-            ..lineTo(x - 8, size.height)
-            ..lineTo(x - 20, size.height)
-            ..close();
-      canvas.drawPath(stripe, stripePaint);
-    }
+class _LuckyGamesSliderState extends State<_LuckyGamesSlider> {
+  late final PageController _pageController;
+  int _currentIndex = 0;
 
-    final Paint dotPaint =
-        Paint()..color = const Color(0xFF96B6AF).withValues(alpha: 0.45);
-    const double radius = 1.8;
-    for (double x = 20; x < size.width - 20; x += 10) {
-      canvas.drawCircle(Offset(x, 28), radius, dotPaint);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
-class LuckySpinWheelPainter extends CustomPainter {
-  static const List<Color> _segmentColors = [
-    Color(0xFF6B35B8),
-    Color(0xFF2DC982),
-    Color(0xFF3A5EE8),
-    Color(0xFFE8721A),
-    Color(0xFFCC3333),
-    Color(0xFF7A8C8A),
-  ];
-
-  static const List<String> _labels = [
-    'Surprise',
-    'Free\nDelivery',
-    '10%\nOFF',
-    '20%\nOFF',
-    '5 EGP\nOFF',
-    'Better\nLuck',
-  ];
+  void _animateToPage(int index) {
+    if (!_pageController.hasClients || index == _currentIndex) {
+      return;
+    }
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final Offset center = size.center(Offset.zero);
-    final double radius = size.width / 2;
-    final double sweep = (math.pi * 2) / _segmentColors.length;
-
-    final Paint shadowPaint =
-        Paint()
-          ..color = Colors.black.withValues(alpha: 0.18)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
-    canvas.drawCircle(center + const Offset(0, 12), radius * 0.9, shadowPaint);
-
-    final Paint outerPaint = Paint()..color = const Color(0xFFE1FCEF);
-    canvas.drawCircle(center, radius, outerPaint);
-    canvas.drawCircle(
-      center,
-      radius - 8,
-      Paint()..color = const Color(0xFF08363B),
-    );
-
-    final Rect wheelRect = Rect.fromCircle(center: center, radius: radius - 14);
-
-    for (int i = 0; i < _segmentColors.length; i++) {
-      final double startAngle = (-math.pi / 2) + (sweep * i);
-      final Paint segmentPaint = Paint()..color = _segmentColors[i];
-      canvas.drawArc(wheelRect, startAngle, sweep, true, segmentPaint);
-
-      canvas.save();
-      canvas.translate(center.dx, center.dy);
-      canvas.rotate(startAngle + sweep / 2);
-
-      final TextPainter textPainter = TextPainter(
-        text: TextSpan(
-          text: _labels[i],
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            height: 1.1,
-          ),
+  Widget build(BuildContext context) {
+    return PageView(
+      controller: _pageController,
+      physics: const BouncingScrollPhysics(),
+      onPageChanged: (int index) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _currentIndex = index);
+      },
+      children: [
+        LuckyDayGameSlide(
+          currentIndex: _currentIndex,
+          onDotTap: _animateToPage,
         ),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 72);
-
-      textPainter.paint(canvas, Offset(radius * 0.28, -textPainter.height / 2));
-      canvas.restore();
-    }
-
-    final Paint ringPaint =
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..color = Colors.white.withValues(alpha: 0.65);
-    canvas.drawCircle(center, radius - 14, ringPaint);
-
-    canvas.drawCircle(
-      center,
-      26,
-      Paint()..color = Colors.white.withValues(alpha: 0.9),
+        VotePlaceGameSlide(
+          currentIndex: _currentIndex,
+          onDotTap: _animateToPage,
+        ),
+      ],
     );
-    canvas.drawCircle(center, 18, Paint()..color = Colors.white);
-
-    final Path pointer =
-        Path()
-          ..moveTo(center.dx, 4)
-          ..lineTo(center.dx - 14, 32)
-          ..lineTo(center.dx + 14, 32)
-          ..close();
-    canvas.drawPath(pointer, Paint()..color = const Color(0xFF1EF2A0));
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

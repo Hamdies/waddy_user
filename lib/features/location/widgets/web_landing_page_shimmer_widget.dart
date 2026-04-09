@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class WebLandingPageShimmerWidget extends StatelessWidget {
   const WebLandingPageShimmerWidget({super.key});

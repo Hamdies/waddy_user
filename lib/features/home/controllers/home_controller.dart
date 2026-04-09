@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/domain/models/cashback_model.dart';
-import 'package:sixam_mart/features/home/domain/services/home_service_interface.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/home/domain/models/cashback_model.dart';
+import 'package:waddy_app/features/home/domain/services/home_service_interface.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
 
 class HomeController extends GetxController implements GetxService {
   final HomeServiceInterface homeServiceInterface;

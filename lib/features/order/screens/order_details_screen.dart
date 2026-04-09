@@ -2,41 +2,44 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_status.dart';
-import 'package:sixam_mart/features/order/domain/services/order_tracking_stream_service.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
-import 'package:sixam_mart/helper/eta_calculator.dart';
-import 'package:sixam_mart/helper/marker_animator.dart';
-import 'package:sixam_mart/helper/marker_helper.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_dialog.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/features/checkout/widgets/offline_success_dialog.dart';
-import 'package:sixam_mart/features/order/widgets/order_calcuation_widget.dart';
-import 'package:sixam_mart/features/order/widgets/order_info_widget.dart';
-import 'package:sixam_mart/features/order/widgets/lucky_spin_section.dart';
-import 'package:sixam_mart/features/order/widgets/order_steps_card.dart';
-import 'package:sixam_mart/features/order/widgets/order_map_section.dart';
-import 'package:sixam_mart/features/order/widgets/delivery_man_card.dart';
-import 'package:sixam_mart/features/order/widgets/order_action_buttons.dart';
-import 'package:sixam_mart/features/order/widgets/order_details_bottom_sheet.dart';
+import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
+import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_status.dart';
+import 'package:waddy_app/features/order/domain/services/order_tracking_stream_service.dart';
+import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/helper/eta_calculator.dart';
+import 'package:waddy_app/helper/marker_animator.dart';
+import 'package:waddy_app/helper/marker_helper.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_dialog.dart';
+import 'package:waddy_app/common/widgets/footer_view.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/features/checkout/widgets/offline_success_dialog.dart';
+import 'package:waddy_app/features/order/widgets/order_calcuation_widget.dart';
+import 'package:waddy_app/features/order/widgets/order_info_widget.dart';
+// order_steps_card, order_map_section, delivery_man_card removed from mobile layout
+import 'package:waddy_app/features/order/widgets/order_action_buttons.dart';
+import 'package:waddy_app/features/order/widgets/zomato/zomato_order_info_card.dart';
+import 'package:waddy_app/features/order/widgets/zomato/zomato_delivery_partner_card.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart' hide Marker;
 
 class OrderDetailsScreen extends StatefulWidget {
   final OrderModel? orderModel;
@@ -58,7 +61,7 @@ class OrderDetailsScreen extends StatefulWidget {
 }
 
 class OrderDetailsScreenState extends State<OrderDetailsScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   Timer? _timer;
   double? _maxCodOrderAmount;
   bool? _isCashOnDeliveryActive = false;
@@ -79,6 +82,13 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   static const int _maxSseRetries = 3;
   Timer? _sseRetryTimer;
 
+  // ── Entrance animation ──────────────────────────────────────────────────
+  late final AnimationController _entranceController;
+  late final Animation<double> _heroFade;
+  late final Animation<Offset> _heroSlide;
+  late final Animation<double> _contentFade;
+  late final Animation<Offset> _contentSlide;
+
   void _loadData(BuildContext context, bool reload) async {
     await Get.find<OrderController>()
         .trackOrder(
@@ -98,6 +108,10 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
             );
           }
         });
+    final trackedOrder = Get.find<OrderController>().trackModel;
+    if (trackedOrder != null) {
+      await _setMapMarkers(trackedOrder);
+    }
     Get.find<OrderController>().timerTrackOrder(
       widget.orderId.toString(),
       contactNumber: widget.contactNumber,
@@ -389,6 +403,51 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadData(context, false);
+
+    // Entrance choreography: 700ms total, hero leads then content follows
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    // Hero: fade + slide up, 0→500ms
+    _heroFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+    _heroSlide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOutQuart),
+      ),
+    );
+
+    // Content cards: fade + slide up, 250ms→700ms (staggered after hero)
+    _contentFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.35, 1.0, curve: Curves.easeOut),
+      ),
+    );
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.35, 1.0, curve: Curves.easeOutQuart),
+      ),
+    );
+
+    // Start after first frame so layout is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _entranceController.forward();
+    });
   }
 
   @override
@@ -411,6 +470,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     _streamSubscription?.cancel();
     _streamService?.disconnect();
     _markerAnimator.cancel();
+    _entranceController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -428,9 +488,15 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
       final dmLng = double.tryParse(order.deliveryMan!.lng!);
       final destLat = double.tryParse(order.deliveryAddress!.latitude!);
       final destLng = double.tryParse(order.deliveryAddress!.longitude!);
-      if (dmLat != null && dmLng != null && destLat != null && destLng != null) {
+      if (dmLat != null &&
+          dmLng != null &&
+          destLat != null &&
+          destLng != null) {
         final distance = ETACalculator.calculateDistanceKm(
-          dmLat, dmLng, destLat, destLng,
+          dmLat,
+          dmLng,
+          destLat,
+          destLng,
         );
         final eta = ETACalculator.calculate(distance);
         if (eta.minMinutes > 0) return eta.minMinutes;
@@ -473,7 +539,10 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     if (order.store?.latitude != null && order.store?.longitude != null) {
       final storeLat = double.tryParse(order.store!.latitude!);
       final storeLng = double.tryParse(order.store!.longitude!);
-      if (storeLat != null && storeLng != null && storeLat != 0 && storeLng != 0) {
+      if (storeLat != null &&
+          storeLng != null &&
+          storeLat != 0 &&
+          storeLng != 0) {
         final String logoUrl = order.store?.logoFullUrl ?? '';
         BitmapDescriptor storeIcon = await MarkerHelper.createPinMarker(
           imageUrl: logoUrl,
@@ -612,10 +681,6 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     }
   }
 
-  void _handleHelp(OrderController orderController) {
-    Get.toNamed(RouteHelper.getSupportRoute());
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -630,7 +695,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
       child: Scaffold(
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: WaddyColors.canvas,
         body: SafeArea(
           child: GetBuilder<OrderController>(
             builder: (orderController) {
@@ -736,24 +801,8 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final int itemCount =
-                  parcel ? 1 : (orderController.orderDetails?.length ?? 0);
-              final String storeName =
-                  parcel
-                      ? (order.parcelCategory?.name ?? 'parcel'.tr)
-                      : (order.store?.name ?? '');
-              final String timeStr =
-                  order.createdAt != null
-                      ? DateConverter.dateTimeStringToDateTime(order.createdAt!)
-                      : '';
               final int? liveEtaMinutes = _getLiveEtaMinutes(order);
               final int? prepMinutes = _getPrepMinutes(order);
-              final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
-              final bool showLuckySpinLayout =
-                  ongoing &&
-                  !parcel &&
-                  status != null &&
-                  status.isWaitingStatus;
 
               return Column(
                 children: [
@@ -790,81 +839,47 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                               )
                               : Column(
                                 children: [
-                                  if (showLuckySpinLayout)
-                                    LuckySpinSection(
-                                      order: order,
-                                      orderController: orderController,
-                                      itemCount: itemCount,
-                                      liveEtaMinutes: liveEtaMinutes,
-                                      prepMinutes: prepMinutes,
-                                      onBack: _handleBack,
-                                      onHelp: () => _handleHelp(orderController),
-                                      onViewDetails: () =>
-                                          OrderDetailsBottomSheet.show(
-                                            context: context,
-                                            orderController: orderController,
+                                  // 1. Teal hero — animated entrance
+                                  FadeTransition(
+                                    opacity: _heroFade,
+                                    child: SlideTransition(
+                                      position: _heroSlide,
+                                      child: _buildGreenHeroWithBanner(
+                                        order,
+                                        liveEtaMinutes,
+                                        prepMinutes,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // ── Zomato-style body ──────────────────
+                                  FadeTransition(
+                                    opacity: _contentFade,
+                                    child: SlideTransition(
+                                      position: _contentSlide,
+                                      child: Column(
+                                        children: [
+                                          // 2. Order info card: item fan + steps + OTP + order ID
+                                          ZomatoOrderInfoCard(
                                             order: order,
-                                          ),
-                                    )
-                                  else ...[
-                                    _buildSwiggyAppBar(
-                                      storeName,
-                                      timeStr,
-                                      itemCount,
-                                      orderController,
-                                    ),
-                                    OrderMapSection(
-                                      order: order,
-                                      ongoing: ongoing,
-                                      parcel: parcel,
-                                      liveEtaMinutes: liveEtaMinutes,
-                                      prepMinutes: prepMinutes,
-                                      markers: _markers,
-                                      polylines: _polylines,
-                                      onMapCreated: (controller) {
-                                        _mapController = controller;
-                                        _setMapMarkers(order);
-                                      },
-                                    ),
-                                    OrderStepsCard(
-                                      order: order,
-                                      orderController: orderController,
-                                      itemCount: itemCount,
-                                      parcel: parcel,
-                                      ongoing: ongoing,
-                                      onViewDetails: () =>
-                                          OrderDetailsBottomSheet.show(
-                                            context: context,
                                             orderController: orderController,
-                                            order: order,
+                                            ongoing: ongoing,
                                           ),
+
+                                          const SizedBox(height: 12),
+
+                                          // 4. Delivery partner card
+                                          ZomatoDeliveryPartnerCard(
+                                            order: order,
+                                            showChatPermission: showChatPermission,
+                                            onTimerCancel: () => _timer?.cancel(),
+                                            onStartTracking: _startTracking,
+                                          ),
+
+                                          const SizedBox(height: 32),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-
-                                  // Coupon Savings Banner
-                                  if (couponDiscount > 0)
-                                    _buildCouponSavingsBanner(couponDiscount),
-
-                                  // Delivery Man Details
-                                  if (order.deliveryMan != null)
-                                    DeliveryManCard(
-                                      order: order,
-                                      showChatPermission: showChatPermission,
-                                      onTimerCancel: () => _timer?.cancel(),
-                                      onStartTracking: _startTracking,
-                                    ),
-
-                                  // Order Items
-                                  if (!showLuckySpinLayout &&
-                                      !parcel &&
-                                      orderController.orderDetails!.isNotEmpty)
-                                    _buildOrderItemsCard(
-                                      order,
-                                      orderController,
-                                    ),
-
-                                  const SizedBox(
-                                    height: Dimensions.paddingSizeSmall,
                                   ),
                                 ],
                               ),
@@ -879,233 +894,467 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
   }
 
-  // ─── Swiggy-style App Bar ─────────────────────────────────────────────
-  Widget _buildSwiggyAppBar(
-    String storeName,
-    String timeStr,
-    int itemCount,
-    OrderController orderController,
+  // ─── Hero Section ─────────────────────────────────────────────────────
+  Widget _buildGreenHeroWithBanner(
+    OrderModel order,
+    int? liveEtaMinutes,
+    int? prepMinutes,
   ) {
-    final order = orderController.trackModel;
+    final int? displayEta = liveEtaMinutes ?? prepMinutes;
+    final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
+    final bool isTerminal = status?.isTerminal ?? false;
 
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE8F7F2), Color(0xFFCCEEE4)],
+        ),
+      ),
+      child: Stack(
         children: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.black87, size: 22),
-            onPressed: _handleBack,
+          // Subtle decorative circles
+          Positioned(
+            right: -30,
+            top: -20,
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: WaddyColors.primary.withValues(alpha: 0.06),
+              ),
+            ),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${'order'.tr} #${order?.id ?? ''}',
-                  style: robotoBold.copyWith(
-                    fontSize: Dimensions.fontSizeDefault,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: Dimensions.paddingSizeExtraSmall),
-                Row(
+          Positioned(
+            right: 30,
+            top: 50,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: WaddyColors.primary.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Top bar ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => OrderDetailsBottomSheet.show(
-                        context: context,
-                        orderController: orderController,
-                        order: order!,
-                      ),
+                    _buildHeroIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: _handleBack,
+                    ),
+                    Expanded(
                       child: Text(
-                        'view_details'.tr,
-                        style: robotoMedium.copyWith(
-                          fontSize: Dimensions.fontSizeSmall,
-                          color: Theme.of(context).primaryColor,
+                        order.store?.name ?? 'order_details'.tr,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: waddyBodyMedium.copyWith(
+                          color: WaddyColors.ink,
+                          letterSpacing: 0.3,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    if (timeStr.isNotEmpty)
-                      Text(
-                        '  |  $timeStr',
-                        style: robotoRegular.copyWith(
-                          fontSize: Dimensions.fontSizeSmall,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
+                    _buildHeroSupportButton(),
                   ],
                 ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => _handleHelp(orderController),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeSmall,
-                vertical: Dimensions.paddingSizeExtraSmall,
               ),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              'help'.tr,
-              style: robotoMedium.copyWith(
-                fontSize: Dimensions.fontSizeDefault,
-                color: Theme.of(context).primaryColor,
+
+              // ── ETA + animation row ──
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 12, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Context label
+                          Text(
+                            _heroEtaLabel(status).toUpperCase(),
+                            style: waddyMicro.copyWith(
+                              fontSize: 11,
+                              color: WaddyColors.primary.withValues(alpha: 0.75),
+                              letterSpacing: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Big ETA number
+                          if (!isTerminal) ...[
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 500),
+                                  transitionBuilder: (child, anim) => FadeTransition(
+                                    opacity: anim,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0, 0.2),
+                                        end: Offset.zero,
+                                      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutQuart)),
+                                      child: child,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    displayEta != null ? '$displayEta' : '--',
+                                    key: ValueKey(displayEta),
+                                    style: waddyDisplay.copyWith(
+                                      fontSize: 80,
+                                      color: WaddyColors.primary,
+                                      height: 0.95,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -3,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    'min',
+                                    style: waddyTitle.copyWith(
+                                      fontSize: 22,
+                                      color: WaddyColors.inkLight,
+                                      height: 1.0,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          // Status pill
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: WaddyColors.primary,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: WaddyColors.primary.withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              _heroStatusCaption(status),
+                              style: waddyLabel.copyWith(
+                                color: WaddyColors.mint,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Lottie animation
+                    _buildStatusAnimation(status),
+                  ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 24),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // ─── Coupon Savings Banner ────────────────────────────────────────────
-  Widget _buildCouponSavingsBanner(double couponDiscount) {
-    return Transform.translate(
-      offset: const Offset(0, -16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '  ',
-              style: robotoRegular.copyWith(
-                fontSize: 12,
-                color: const Color(0xFF1BA672),
-              ),
-            ),
-            Text(
-              '${'yay'.tr}! ${PriceConverter.convertPrice(couponDiscount)} ${'saved_with_coupon'.tr}',
-              style: robotoMedium.copyWith(
-                fontSize: Dimensions.fontSizeSmall,
-                color: const Color(0xFF1BA672),
-              ),
-            ),
-            Text(
-              '  ',
-              style: robotoRegular.copyWith(
-                fontSize: 12,
-                color: const Color(0xFF1BA672),
-              ),
-            ),
-          ],
+  Widget _buildHeroIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: WaddyColors.primary.withValues(alpha: 0.08),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Icon(icon, color: WaddyColors.primary, size: 22),
         ),
       ),
     );
   }
 
-  // ─── Order Items Card ─────────────────────────────────────────────────
-  Widget _buildOrderItemsCard(
-    OrderModel order,
-    OrderController orderController,
-  ) {
-    return Container(
-      margin: EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeDefault,
-        vertical: Dimensions.paddingSizeExtraSmall,
-      ),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+  Widget _buildHeroSupportButton() {
+    return Material(
+      color: WaddyColors.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.headset_mic_outlined, color: WaddyColors.primary, size: 18),
+              const SizedBox(width: 5),
+              Text(
+                'support'.tr,
+                style: waddyLabel.copyWith(
+                  color: WaddyColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'item_info'.tr,
-            style: robotoMedium.copyWith(
-              fontSize: Dimensions.fontSizeDefault,
-              color: Colors.black87,
-            ),
-          ),
-          SizedBox(
-            height:
-                Dimensions.paddingSizeSmall + Dimensions.paddingSizeExtraSmall,
-          ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: orderController.orderDetails!.length,
-            separatorBuilder:
-                (_, __) => Divider(color: Colors.grey.shade100, height: 16),
-            itemBuilder: (context, index) {
-              final detail = orderController.orderDetails![index];
-              return Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CustomImage(
-                      image: '${detail.imageFullUrl}',
-                      height: 48,
-                      width: 48,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          detail.itemDetails?.name ?? '',
-                          style: robotoMedium.copyWith(
-                            fontSize: Dimensions.fontSizeSmall,
-                            color: Colors.black87,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          PriceConverter.convertPrice(detail.price),
-                          style: robotoMedium.copyWith(
-                            fontSize: Dimensions.fontSizeSmall,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          textDirection: TextDirection.ltr,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'x${detail.quantity}',
-                      style: robotoMedium.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  LatLng? _getMapFocus(OrderModel order) {
+    if (order.store?.latitude != null && order.store?.longitude != null) {
+      final storeLat = double.tryParse(order.store!.latitude!);
+      final storeLng = double.tryParse(order.store!.longitude!);
+      if (storeLat != null && storeLng != null && storeLat != 0 && storeLng != 0) {
+        return LatLng(storeLat, storeLng);
+      }
+    }
+    if (order.deliveryAddress?.latitude != null &&
+        order.deliveryAddress?.longitude != null) {
+      final destLat = double.tryParse(order.deliveryAddress!.latitude!);
+      final destLng = double.tryParse(order.deliveryAddress!.longitude!);
+      if (destLat != null && destLng != null && destLat != 0 && destLng != 0) {
+        return LatLng(destLat, destLng);
+      }
+    }
+    return null;
+  }
+
+  Widget _buildMapPreviewCard(OrderModel order) {
+    final focus = _getMapFocus(order);
+
+    final VoidCallback? mapTap = order.deliveryAddress != null
+        ? () => Get.toNamed(RouteHelper.getMapRoute(
+              order.deliveryAddress!,
+              'order',
+              true,
+              storeName: order.store?.name,
+            ))
+        : null;
+
+    return mapTap != null
+        ? _TapScaleButton(
+            onTap: mapTap,
+            child: _mapCardContent(focus),
+          )
+        : _mapCardContent(focus);
+  }
+
+  Widget _mapCardContent(dynamic focus) {
+    return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        height: 72,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: WaddyColors.shadowDeep,
+              blurRadius: 20,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Row(
+            children: [
+              // Map thumbnail
+              SizedBox(
+                width: 80,
+                height: 72,
+                child: focus != null
+                    ? IgnorePointer(
+                        child: GoogleMap(
+                          liteModeEnabled: true,
+                          initialCameraPosition: CameraPosition(
+                            target: focus,
+                            zoom: 14.0,
+                          ),
+                          zoomControlsEnabled: false,
+                          myLocationButtonEnabled: false,
+                          mapToolbarEnabled: false,
+                          scrollGesturesEnabled: false,
+                          zoomGesturesEnabled: false,
+                          rotateGesturesEnabled: false,
+                          tiltGesturesEnabled: false,
+                          markers: _markers,
+                          polylines: _polylines,
+                          onMapCreated: (controller) {
+                            _mapController = controller;
+                            final trackedOrder =
+                                Get.find<OrderController>().trackModel;
+                            if (trackedOrder != null) {
+                              _setMapMarkers(trackedOrder);
+                            }
+                          },
+                        ),
+                      )
+                    : Container(
+                        color: Colors.grey.shade200,
+                        child: Icon(
+                          Icons.map_outlined,
+                          size: 28,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+              ),
+              // Right-side text
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'track_on_map'.tr,
+                        style: waddyBodyMedium.copyWith(
+                          color: WaddyColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'see_live_rider'.tr,
+                        style: waddyMicro.copyWith(
+                          fontSize: 12,
+                          color: WaddyColors.inkLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: WaddyColors.primarySurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: WaddyColors.primary,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
+  Widget _buildStatusAnimation(OrderStatus? status) {
+    final double size = MediaQuery.of(context).size.width < 360 ? 120 : 140;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Lottie.asset(
+        _statusAnimationAsset(status),
+        fit: BoxFit.contain,
+        repeat: status == null || !status.isTerminal,
+      ),
+    );
+  }
+
+  String _heroEtaLabel(OrderStatus? status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Hang tight, confirming your order...';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return 'Order confirmed! Arriving in';
+      case OrderStatus.processing:
+        return 'Chef is cooking 🍳 Arriving in';
+      case OrderStatus.handover:
+      case OrderStatus.pickedUp:
+        return 'On the way! Arriving in';
+      case OrderStatus.delivered:
+        return 'Delivered!';
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return 'Order cancelled';
+      default:
+        return 'Arriving in';
+    }
+  }
+
+  String _heroStatusCaption(OrderStatus? status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return '⏳ Waiting for restaurant';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return '✅ Confirmed';
+      case OrderStatus.processing:
+        return '👨‍🍳 Being prepared';
+      case OrderStatus.handover:
+      case OrderStatus.pickedUp:
+        return '🛵 Out for delivery';
+      case OrderStatus.delivered:
+        return '🎉 Enjoy your meal!';
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return '❌ Cancelled';
+      default:
+        return '📦 Processing';
+    }
+  }
+
+  String _statusAnimationAsset(OrderStatus? status) {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'assets/animation/order_placed.json';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return 'assets/animation/order_confirmed.json';
+      case OrderStatus.processing:
+        return 'assets/animation/preparing_order.json';
+      case OrderStatus.handover:
+      case OrderStatus.pickedUp:
+        return 'assets/animation/delivery_order.json';
+      case OrderStatus.delivered:
+      case OrderStatus.refunded:
+        return 'assets/animation/completed_order.json';
+      case OrderStatus.failed:
+      case OrderStatus.canceled:
+      case OrderStatus.refundRequested:
+      case OrderStatus.refundRequestCanceled:
+        return 'assets/animation/off.json';
+      case null:
+        return 'assets/animation/order_placed.json';
+    }
   }
 
   // ─── Desktop Layout ───────────────────────────────────────────────────
@@ -1225,4 +1474,103 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
       );
     },
   );
+}
+
+// ─── Tap scale feedback widget ─────────────────────────────────────────────
+// Applies a quick 0.92 scale-down on press, restores on release.
+// GPU-only (transform + opacity) — 60fps on low-end devices.
+class _TapScaleButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _TapScaleButton({required this.child, required this.onTap});
+
+  @override
+  State<_TapScaleButton> createState() => _TapScaleButtonState();
+}
+
+class _TapScaleButtonState extends State<_TapScaleButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 150),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onTapDown(TapDownDetails _) => _ctrl.forward();
+  void _onTapUp(TapUpDetails _) {
+    _ctrl.reverse();
+    widget.onTap();
+  }
+  void _onTapCancel() => _ctrl.reverse();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: _onTapDown,
+      onTapUp: _onTapUp,
+      onTapCancel: _onTapCancel,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// ─── Pulsing opacity badge ─────────────────────────────────────────────────
+// Loops between 60%→100% opacity — communicates "waiting" without distraction.
+class _PulsingBadge extends StatefulWidget {
+  final Widget child;
+  const _PulsingBadge({required this.child});
+
+  @override
+  State<_PulsingBadge> createState() => _PulsingBadgeState();
+}
+
+class _PulsingBadgeState extends State<_PulsingBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _opacity = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _opacity, child: widget.child);
+  }
 }

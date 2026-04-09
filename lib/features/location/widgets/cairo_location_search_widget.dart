@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
-import 'package:sixam_mart/features/location/domain/models/prediction_model.dart';
+import 'package:waddy_app/features/location/controllers/location_controller.dart';
+import 'package:waddy_app/features/location/domain/models/prediction_model.dart';
 
 class CairoLocationSearchWidget extends StatefulWidget {
   final GoogleMapController? mapController;

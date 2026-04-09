@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/order/domain/models/order_cancellation_body.dart';
-import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/order/domain/services/order_service_interface.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/order/domain/models/order_cancellation_body.dart';
+import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/domain/services/order_service_interface.dart';
 
 class OrderController extends GetxController implements GetxService {
   final OrderServiceInterface orderServiceInterface;

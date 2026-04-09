@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/xp/domain/models/prize_model.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 
 class PrizeCardWidget extends StatelessWidget {
   final Prize prize;

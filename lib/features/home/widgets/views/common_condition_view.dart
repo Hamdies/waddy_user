@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/features/home/widgets/web/web_basic_medicine_nearby_view_widget.dart';
-import 'package:sixam_mart/features/home/widgets/web/widgets/medicine_item_card.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/home/widgets/web/web_basic_medicine_nearby_view_widget.dart';
+import 'package:waddy_app/features/home/widgets/web/widgets/medicine_item_card.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class CommonConditionView extends StatelessWidget {
   const CommonConditionView({super.key});

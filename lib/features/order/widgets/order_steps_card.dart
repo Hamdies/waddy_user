@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_status.dart';
-import 'package:sixam_mart/features/order/widgets/lucky_spin_section.dart';
-import 'package:sixam_mart/features/order/widgets/verification_code_widget.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_status.dart';
+import 'package:waddy_app/features/order/widgets/verification_code_widget.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 
 class OrderStepsCard extends StatelessWidget {
   final OrderModel order;
@@ -97,17 +96,18 @@ class OrderStepsCard extends StatelessWidget {
                         parcel
                             ? '1 ${'parcel'.tr}'
                             : '$itemCount ${'items'.tr}',
-                        style: robotoBold.copyWith(
+                        style: waddyBodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
                           fontSize: Dimensions.fontSizeDefault,
-                          color: Colors.black,
+                          color: WaddyColors.ink,
                         ),
                       ),
                       SizedBox(height: Dimensions.paddingSizeExtraSmall),
                       Text(
                         'to_be_packed'.tr,
-                        style: robotoRegular.copyWith(
+                        style: waddyBody.copyWith(
                           fontSize: Dimensions.fontSizeSmall,
-                          color: Colors.grey.shade500,
+                          color: WaddyColors.inkLight,
                         ),
                       ),
                     ],
@@ -117,9 +117,9 @@ class OrderStepsCard extends StatelessWidget {
                   onTap: onViewDetails,
                   child: Text(
                     'view_details'.tr,
-                    style: robotoMedium.copyWith(
-                      fontSize: Dimensions.fontSizeSmall,
-                      color: Theme.of(context).primaryColor,
+                    style: waddyLabel.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: WaddyColors.primary,
                     ),
                   ),
                 ),
@@ -139,67 +139,88 @@ class OrderStepsCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
+                // Bold step circle — solid primary when active
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutQuart,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color:
-                        orderReceived
-                            ? const Color(0xFF1BA672).withValues(alpha: 0.12)
-                            : Colors.grey.shade100,
+                    color: orderReceived
+                        ? WaddyColors.primary
+                        : Colors.grey.shade100,
+                    boxShadow: orderReceived
+                        ? [
+                            BoxShadow(
+                              color: WaddyColors.primary.withValues(alpha: 0.30),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
-                  child: Icon(
-                    orderReceived
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.hourglass_empty_rounded,
-                    size: 20,
-                    color:
-                        orderReceived
-                            ? const Color(0xFF1BA672)
-                            : Colors.grey.shade400,
-                  ),
-                ),
-                SizedBox(width: Dimensions.paddingSizeSmall),
-                Expanded(
-                  child: RichText(
-                    text: TextSpan(
-                      style: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        color: Colors.black87,
-                      ),
-                      children: [
-                        TextSpan(text: '${'yay'.tr}! ${'we_have'.tr} '),
-                        TextSpan(
-                          text: 'received'.tr,
-                          style: robotoBold.copyWith(
-                            fontSize: Dimensions.fontSizeSmall,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        TextSpan(text: ' ${'your_order'.tr}'),
-                      ],
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, anim) => ScaleTransition(
+                      scale: anim,
+                      child: FadeTransition(opacity: anim, child: child),
+                    ),
+                    child: Icon(
+                      orderReceived
+                          ? Icons.check_rounded
+                          : Icons.hourglass_empty_rounded,
+                      key: ValueKey(orderReceived),
+                      size: 22,
+                      color: orderReceived
+                          ? WaddyColors.mint
+                          : Colors.grey.shade400,
                     ),
                   ),
+                ),
+                const SizedBox(width: Dimensions.paddingSizeDefault),
+                Expanded(
+                  child: Text(
+                    'We got your order 🎉',
+                    style: waddyBodyMedium.copyWith(
+                      fontSize: Dimensions.fontSizeDefault,
+                      color: orderReceived ? WaddyColors.ink : WaddyColors.inkLight,
+                      fontWeight: orderReceived ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) => FadeTransition(
+                    opacity: anim,
+                    child: ScaleTransition(scale: anim, child: child),
+                  ),
+                  child: orderReceived
+                      ? Container(
+                          key: const ValueKey('check'),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: const BoxDecoration(
+                            color: WaddyColors.mintSurface,
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                          child: Text(
+                            '✓ Done',
+                            style: waddyMicro.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: WaddyColors.primary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('empty')),
                 ),
               ],
             ),
           ),
 
-          // Dashed divider
-          Padding(
-            padding: EdgeInsets.only(
-              left: ResponsiveHelper.isMobile(context) ? 50 : 54,
-            ),
-            child: CustomPaint(
-              size: const Size(double.infinity, 1),
-              painter: DashedLinePainter(),
-            ),
-          ),
-
           // Step 2: Delivery partner
           Padding(
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               Dimensions.paddingSizeDefault,
               Dimensions.paddingSizeSmall,
               Dimensions.paddingSizeDefault,
@@ -208,35 +229,82 @@ class OrderStepsCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
+                // Bold step circle
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOutQuart,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color:
-                        deliveryAssigned
-                            ? const Color(0xFF1BA672).withValues(alpha: 0.12)
-                            : Colors.grey.shade100,
+                    color: deliveryAssigned
+                        ? WaddyColors.primary
+                        : Colors.grey.shade100,
+                    boxShadow: deliveryAssigned
+                        ? [
+                            BoxShadow(
+                              color: WaddyColors.primary.withValues(alpha: 0.30),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                   child: Icon(
                     Icons.delivery_dining_rounded,
-                    size: 20,
-                    color:
-                        deliveryAssigned
-                            ? const Color(0xFF1BA672)
-                            : Colors.grey.shade400,
+                    size: 22,
+                    color: deliveryAssigned
+                        ? WaddyColors.mint
+                        : Colors.grey.shade400,
                   ),
                 ),
-                SizedBox(width: Dimensions.paddingSizeSmall),
+                const SizedBox(width: Dimensions.paddingSizeDefault),
+                // Animated text — switches when rider is assigned
                 Expanded(
-                  child: Text(
-                    deliveryAssigned
-                        ? '${'your_delivery_partner_is'.tr} ${order.deliveryMan!.fName ?? ''}'
-                        : 'we_will_assign_a_delivery_partner_soon'.tr,
-                    style: robotoRegular.copyWith(
-                      fontSize: Dimensions.fontSizeSmall,
-                      color: Colors.black87,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 350),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.05, 0),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: anim,
+                          curve: Curves.easeOutQuart,
+                        )),
+                        child: child,
+                      ),
                     ),
+                    child: deliveryAssigned
+                        ? RichText(
+                            key: const ValueKey('assigned'),
+                            text: TextSpan(
+                              style: waddyBodyMedium.copyWith(
+                                fontSize: Dimensions.fontSizeDefault,
+                                color: WaddyColors.ink,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: order.deliveryMan!.fName ?? 'your_delivery_partner_is'.tr,
+                                  style: waddyBodyMedium.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: Dimensions.fontSizeDefault,
+                                    color: WaddyColors.ink,
+                                  ),
+                                ),
+                                const TextSpan(text: ' is on the way 🛵'),
+                              ],
+                            ),
+                          )
+                        : Text(
+                            key: const ValueKey('finding'),
+                            'finding_rider_maadi'.tr,
+                            style: waddyBody.copyWith(
+                              fontSize: Dimensions.fontSizeDefault,
+                              color: WaddyColors.inkLight,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -245,7 +313,7 @@ class OrderStepsCard extends StatelessWidget {
 
           // OTP / Delivery code
           if (order.otp != null && order.otp!.isNotEmpty && ongoing) ...[
-            SizedBox(height: Dimensions.paddingSizeSmall),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
             Divider(color: Colors.grey.shade200, height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -263,24 +331,23 @@ class OrderStepsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(Icons.info_outline, size: 16, color: Colors.red),
-                  SizedBox(width: Dimensions.paddingSizeExtraSmall),
+                  const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'cancellation_note'.tr,
-                          style: robotoMedium.copyWith(
+                          style: waddyBodyMedium.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
-                            color: Colors.red,
+                            color: WaddyColors.error,
                           ),
                         ),
-                        SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                        const SizedBox(height: Dimensions.paddingSizeExtraSmall),
                         Text(
                           order.cancellationReason!,
-                          style: robotoRegular.copyWith(
-                            fontSize: Dimensions.fontSizeExtraSmall,
-                            color: Colors.grey.shade600,
+                          style: waddyMicro.copyWith(
+                            color: WaddyColors.inkLight,
                           ),
                         ),
                       ],
@@ -299,28 +366,27 @@ class OrderStepsCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.edit_note_rounded,
                     size: 18,
-                    color: Colors.grey.shade500,
+                    color: WaddyColors.inkLight,
                   ),
-                  SizedBox(width: Dimensions.paddingSizeExtraSmall),
+                  const SizedBox(width: Dimensions.paddingSizeExtraSmall),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'delivery_instruction'.tr,
-                          style: robotoMedium.copyWith(
+                          style: waddyBodyMedium.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
-                            color: Colors.black87,
+                            color: WaddyColors.ink,
                           ),
                         ),
                         Text(
                           order.deliveryInstruction!,
-                          style: robotoRegular.copyWith(
-                            fontSize: Dimensions.fontSizeExtraSmall,
-                            color: Colors.grey.shade600,
+                          style: waddyMicro.copyWith(
+                            color: WaddyColors.inkLight,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -336,7 +402,7 @@ class OrderStepsCard extends StatelessWidget {
           // Order ID + payment method
           Divider(color: Colors.grey.shade200, height: 1),
           Padding(
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               Dimensions.paddingSizeDefault,
               Dimensions.paddingSizeExtraSmall,
               Dimensions.paddingSizeDefault,
@@ -346,21 +412,20 @@ class OrderStepsCard extends StatelessWidget {
               children: [
                 Text(
                   '${'order_id'.tr}: ',
-                  style: robotoRegular.copyWith(
-                    fontSize: Dimensions.fontSizeExtraSmall,
-                    color: Colors.grey,
+                  style: waddyMicro.copyWith(
+                    color: WaddyColors.inkMuted,
                   ),
                 ),
                 Text(
                   '#${order.id}',
-                  style: robotoMedium.copyWith(
-                    fontSize: Dimensions.fontSizeExtraSmall,
-                    color: Colors.black87,
+                  style: waddyLabel.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: WaddyColors.ink,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: Dimensions.paddingSizeExtraSmall,
                     vertical: Dimensions.paddingSizeExtraSmall / 2,
                   ),
@@ -378,9 +443,9 @@ class OrderStepsCard extends StatelessWidget {
                         : order.paymentMethod == 'offline_payment'
                         ? 'offline_payment'.tr
                         : 'digital_payment'.tr,
-                    style: robotoMedium.copyWith(
-                      color: Theme.of(context).primaryColor,
-                      fontSize: Dimensions.fontSizeOverSmall,
+                    style: waddyMicro.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: WaddyColors.primary,
                     ),
                   ),
                 ),

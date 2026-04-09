@@ -1,7 +1,7 @@
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

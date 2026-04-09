@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/util/app_design_tokens.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/util/app_design_tokens.dart';
 
 /// Compact widget showing the next reward and XP needed to reach it
 /// Used in the cart bar to motivate users

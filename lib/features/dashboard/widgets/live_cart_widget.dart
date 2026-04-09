@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Live cart widget - floating green pill with stacked item images,
 /// "View cart" text, item count, and chevron arrow.

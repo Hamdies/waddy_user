@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// A live XP counter widget shown during shopping (cart screen)
 /// Encourages users to add more items to earn more XP

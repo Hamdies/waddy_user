@@ -2,8 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Wraps content with bottom light string and Celebrate Ramadan button
 class RamadanCelebrateButtonWrapper extends StatelessWidget {

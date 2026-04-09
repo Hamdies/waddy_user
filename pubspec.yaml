@@ -1,4 +1,4 @@
-name: sixam_mart
+name: waddy_app
 description: A Multi-vendor1 Food. Grocery, eCommerce, Pharmacy & Parcel service.
 publish_to: 'none' #
 version: 1.0.0+1
@@ -118,5 +118,25 @@ flutter:
           weight: 500
         - asset: assets/font/Alexandria-Bold.ttf
           weight: 700
+        - asset: assets/font/Alexandria-Black.ttf
+          weight: 900
+    - family: Alexandria
+      fonts:
+        - asset: assets/font/Alexandria-Thin.ttf
+          weight: 100
+        - asset: assets/font/Alexandria-ExtraLight.ttf
+          weight: 200
+        - asset: assets/font/Alexandria-Light.ttf
+          weight: 300
+        - asset: assets/font/Alexandria-Regular.ttf
+          weight: 400
+        - asset: assets/font/Alexandria-Medium.ttf
+          weight: 500
+        - asset: assets/font/Alexandria-SemiBold.ttf
+          weight: 600
+        - asset: assets/font/Alexandria-Bold.ttf
+          weight: 700
+        - asset: assets/font/Alexandria-ExtraBold.ttf
+          weight: 800
         - asset: assets/font/Alexandria-Black.ttf
           weight: 900

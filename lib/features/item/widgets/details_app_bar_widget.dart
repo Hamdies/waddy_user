@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 
 class DetailsAppBarWidget extends StatefulWidget implements PreferredSizeWidget {
   const DetailsAppBarWidget({super.key});

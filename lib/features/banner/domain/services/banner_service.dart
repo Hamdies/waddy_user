@@ -1,11 +1,11 @@
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/banner/domain/models/banner_model.dart';
-import 'package:sixam_mart/features/banner/domain/models/others_banner_model.dart';
-import 'package:sixam_mart/features/banner/domain/models/promotional_banner_model.dart';
-import 'package:sixam_mart/features/banner/domain/repositories/banner_repository_interface.dart';
-import 'package:sixam_mart/features/banner/domain/services/banner_service_interface.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/banner/domain/models/banner_model.dart';
+import 'package:waddy_app/features/banner/domain/models/others_banner_model.dart';
+import 'package:waddy_app/features/banner/domain/models/promotional_banner_model.dart';
+import 'package:waddy_app/features/banner/domain/repositories/banner_repository_interface.dart';
+import 'package:waddy_app/features/banner/domain/services/banner_service_interface.dart';
+import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/helper/address_helper.dart';
 
 class BannerService implements BannerServiceInterface {
   final BannerRepositoryInterface bannerRepositoryInterface;
@@ -13,12 +13,10 @@ class BannerService implements BannerServiceInterface {
 
   @override
   Future<BannerModel?> getBannerList({required DataSourceEnum source}) async {
-    return await bannerRepositoryInterface.getList(isBanner: true, source: source);
-  }
-
-  @override
-  Future<BannerModel?> getTaxiBannerList() async {
-    return await bannerRepositoryInterface.getList(isTaxiBanner: true);
+    return await bannerRepositoryInterface.getList(
+      isBanner: true,
+      source: source,
+    );
   }
 
   @override
@@ -27,8 +25,13 @@ class BannerService implements BannerServiceInterface {
   }
 
   @override
-  Future<ParcelOtherBannerModel?> getParcelOtherBannerList({required DataSourceEnum source}) async {
-    return await bannerRepositoryInterface.getList(isParcelOtherBanner: true, source: source);
+  Future<ParcelOtherBannerModel?> getParcelOtherBannerList({
+    required DataSourceEnum source,
+  }) async {
+    return await bannerRepositoryInterface.getList(
+      isParcelOtherBanner: true,
+      source: source,
+    );
   }
 
   @override
@@ -39,12 +42,12 @@ class BannerService implements BannerServiceInterface {
   @override
   List<int?> moduleIdList() {
     List<int?> moduleIdList = [];
-    for (ZoneData zone in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
+    for (ZoneData zone
+        in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
       for (Modules module in zone.modules ?? []) {
         moduleIdList.add(module.id);
       }
     }
     return moduleIdList;
   }
-
 }

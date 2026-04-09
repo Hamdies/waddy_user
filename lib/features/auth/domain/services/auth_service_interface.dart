@@ -1,6 +1,6 @@
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/auth/domain/models/signup_body_model.dart';
+import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
 
 abstract class AuthServiceInterface{
   bool isSharedPrefNotificationActive();

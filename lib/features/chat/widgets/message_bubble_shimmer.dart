@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/chat/controllers/chat_controller.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class MessageBubbleShimmer extends StatelessWidget {
   final bool isMe;

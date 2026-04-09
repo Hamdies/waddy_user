@@ -1,4 +1,4 @@
-import 'package:sixam_mart/features/payment/domain/models/offline_method_model.dart';
+import 'package:waddy_app/features/payment/domain/models/offline_method_model.dart';
 
 abstract class PaymentServiceInterface {
   Future<List<OfflineMethodModel>?> getOfflineMethodList();

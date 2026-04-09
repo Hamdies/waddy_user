@@ -1,5 +1,5 @@
-import 'package:sixam_mart/features/auth/domain/models/auth_response_model.dart';
-import 'package:sixam_mart/features/profile/domain/models/update_profile_response_model.dart';
+import 'package:waddy_app/features/auth/domain/models/auth_response_model.dart';
+import 'package:waddy_app/features/profile/domain/models/update_profile_response_model.dart';
 
 class ResponseModel {
   final bool _isSuccess;

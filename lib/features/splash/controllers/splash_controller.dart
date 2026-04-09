@@ -1,32 +1,30 @@
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
-import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/features/item/controllers/campaign_controller.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/splash/domain/models/landing_model.dart';
-import 'package:sixam_mart/common/models/config_model.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
+import 'package:waddy_app/features/banner/controllers/banner_controller.dart';
+import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/item/controllers/campaign_controller.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/splash/domain/models/landing_model.dart';
+import 'package:waddy_app/common/models/config_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/address/controllers/address_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_favourite/controllers/taxi_favourite_controller.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/home/screens/home_screen.dart';
-import 'package:sixam_mart/features/splash/domain/services/splash_service_interface.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/helper/splash_route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/features/address/controllers/address_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/home/screens/home_screen.dart';
+import 'package:waddy_app/features/splash/domain/services/splash_service_interface.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/helper/splash_route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:universal_html/html.dart' as html;
 
 class SplashController extends GetxController implements GetxService {
@@ -167,7 +165,9 @@ class SplashController extends GetxController implements GetxService {
       _data = response.body;
       _configModel = ConfigModel.fromJson(response.body);
       _configModel!.guestCheckoutStatus = false;
-      Get.find<HomeController>().initRamadanMode(_configModel!.ramadanMode == true);
+      Get.find<HomeController>().initRamadanMode(
+        _configModel!.ramadanMode == true,
+      );
       if (_configModel!.module != null) {
         setModule(_configModel!.module);
       } else if (GetPlatform.isWeb || (loadModuleData && _module != null)) {
@@ -277,6 +277,10 @@ class SplashController extends GetxController implements GetxService {
   Future<void> setModule(ModuleModel? module, {bool notify = true}) async {
     _module = module;
     splashServiceInterface.setModule(module);
+
+    // Check if Places module - skip cart/cashback/favorites
+    final isPlacesModule = module?.moduleType.toString() == AppConstants.places;
+
     if (module != null) {
       if (_configModel != null) {
         _configModel!.moduleConfig!.module = Module.fromJson(
@@ -284,28 +288,17 @@ class SplashController extends GetxController implements GetxService {
         );
       }
       _cacheModule = await splashServiceInterface.setCacheModule(module);
-      if (AuthHelper.isLoggedIn() &&
-          cacheModule != null) {
+      // Only load cart for non-Places modules
+      if (AuthHelper.isLoggedIn() && cacheModule != null && !isPlacesModule) {
         Get.find<CartController>().getCartDataOnline();
       }
     }
 
-    if (_cacheModule != null &&
-        _cacheModule!.moduleType.toString() == AppConstants.taxi) {
-      Get.find<TaxiCartController>().getCarCartList();
-    }
-
-    if (AuthHelper.isLoggedIn()) {
+    // Skip cashback and favorites for Places module
+    if (AuthHelper.isLoggedIn() && !isPlacesModule) {
       if (Get.find<SplashController>().module != null) {
         Get.find<HomeController>().getCashBackOfferList();
-        if (module?.moduleType.toString() == AppConstants.taxi) {
-          Get.find<TaxiFavouriteController>().getFavouriteTaxiList();
-        } else {
-          Get.find<FavouriteController>().getFavouriteList();
-        }
-      } else if (_cacheModule != null &&
-          _cacheModule!.moduleType.toString() == AppConstants.taxi) {
-        Get.find<TaxiCartController>().getCarCartList();
+        Get.find<FavouriteController>().getFavouriteList();
       }
     }
     if (notify) {
@@ -314,11 +307,19 @@ class SplashController extends GetxController implements GetxService {
   }
 
   Module getModuleConfig(String? moduleType) {
-    if (_data == null || _data!['module_config'] == null || _data!['module_config'][moduleType] == null) {
+    if (_data == null ||
+        _data!['module_config'] == null ||
+        _data!['module_config'][moduleType] == null) {
       return Module(
-        addOn: false, stock: false, vegNonVeg: false, unit: false,
-        orderAttachment: false, showRestaurantText: false, isParcel: false,
-        isTaxi: false, newVariation: false, orderPlaceToScheduleInterval: false,
+        addOn: false,
+        stock: false,
+        vegNonVeg: false,
+        unit: false,
+        orderAttachment: false,
+        showRestaurantText: false,
+        isParcel: false,
+        newVariation: false,
+        orderPlaceToScheduleInterval: false,
       );
     }
     Module module = Module.fromJson(_data!['module_config'][moduleType]);
@@ -354,9 +355,7 @@ class SplashController extends GetxController implements GetxService {
     if (moduleList != null) {
       _moduleList = [];
       for (var module in moduleList) {
-        if (module.moduleType != AppConstants.taxi && GetPlatform.isWeb) {
-          _moduleList!.add(module);
-        } else if (!GetPlatform.isWeb) {
+        if (module.moduleType != 'rental') {
           _moduleList!.add(module);
         }
       }
@@ -367,11 +366,13 @@ class SplashController extends GetxController implements GetxService {
   Future<void> _showInterestPage() async {
     final userInfoModel = Get.find<ProfileController>().userInfoModel;
     final module = Get.find<SplashController>().module;
-    
-    if (userInfoModel == null || module == null || userInfoModel.selectedModuleForInterest == null) {
+
+    if (userInfoModel == null ||
+        module == null ||
+        userInfoModel.selectedModuleForInterest == null) {
       return;
     }
-    
+
     if (!userInfoModel.selectedModuleForInterest!.contains(module.id)) {
       await Get.find<CategoryController>()
           .getCategoryList(true, allCategory: false)
@@ -390,25 +391,18 @@ class SplashController extends GetxController implements GetxService {
     if (_module == null || _module!.id != _moduleList![index].id) {
       await Get.find<SplashController>().setModule(_moduleList![index]);
 
-      if (_module!.moduleType.toString() != AppConstants.taxi) {
-        Get.find<CartController>().getCartDataOnline();
-        Get.find<ItemController>().clearItemLists();
-        Get.find<BannerController>().clearBanner();
-        Get.find<CategoryController>().clearCategoryList();
-        Get.find<CampaignController>().itemAndBasicCampaignNull();
-        Get.find<FlashSaleController>().setEmptyFlashSale(fromModule: true);
+      Get.find<CartController>().getCartDataOnline();
+      Get.find<ItemController>().clearItemLists();
+      Get.find<BannerController>().clearBanner();
+      Get.find<CategoryController>().clearCategoryList();
+      Get.find<CampaignController>().itemAndBasicCampaignNull();
+      Get.find<FlashSaleController>().setEmptyFlashSale(fromModule: true);
 
-        if (AuthHelper.isLoggedIn()) {
-          Get.find<HomeController>().getCashBackOfferList();
-          await _showInterestPage();
-        }
-        HomeScreen.loadData(true, fromModule: true);
-      } else {
-        if (AuthHelper.isLoggedIn()) {
-          Get.find<HomeController>().getCashBackOfferList();
-        }
-        Get.find<TaxiCartController>().getCarCartList();
+      if (AuthHelper.isLoggedIn()) {
+        Get.find<HomeController>().getCashBackOfferList();
+        await _showInterestPage();
       }
+      HomeScreen.loadData(true, fromModule: true);
     }
   }
 

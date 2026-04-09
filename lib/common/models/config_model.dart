@@ -1,4 +1,4 @@
-import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
 
 class ConfigModel {
   String? businessName;
@@ -179,10 +179,14 @@ class ConfigModel {
     phone = json['phone'];
     email = json['email'];
     country = json['country'];
-    defaultLocation = json['default_location'] != null ? DefaultLocation.fromJson(json['default_location']) : null;
+    defaultLocation =
+        json['default_location'] != null
+            ? DefaultLocation.fromJson(json['default_location'])
+            : null;
     currencySymbol = json['currency_symbol'];
     currencySymbolDirection = json['currency_symbol_direction'];
-    appMinimumVersionAndroid = json['app_minimum_version_android']?.toDouble() ?? 0.0;
+    appMinimumVersionAndroid =
+        json['app_minimum_version_android']?.toDouble() ?? 0.0;
     appUrlAndroid = json['app_url_android'];
     appMinimumVersionIos = json['app_minimum_version_ios']?.toDouble() ?? 0.0;
     appUrlIos = json['app_url_ios'];
@@ -208,13 +212,25 @@ class ConfigModel {
     toggleVegNonVeg = json['toggle_veg_non_veg'];
     toggleDmRegistration = json['toggle_dm_registration'];
     toggleStoreRegistration = json['toggle_store_registration'];
-    scheduleOrderSlotDuration = json['schedule_order_slot_duration'] == 0 ? 30 : json['schedule_order_slot_duration'];
+    scheduleOrderSlotDuration =
+        json['schedule_order_slot_duration'] == 0
+            ? 30
+            : json['schedule_order_slot_duration'];
     digitAfterDecimalPoint = json['digit_after_decimal_point'];
-    module = json['module'] != null ? ModuleModel.fromJson(json['module']) : null;
-    moduleConfig = json['module_config'] != null ? ModuleConfig.fromJson(json['module_config']) : null;
-    parcelPerKmShippingCharge = json['parcel_per_km_shipping_charge']?.toDouble();
-    parcelMinimumShippingCharge = json['parcel_minimum_shipping_charge']?.toDouble();
-    landingPageSettings = json['landing_page_settings'] != null ? LandingPageSettings.fromJson(json['landing_page_settings']) : null;
+    module =
+        json['module'] != null ? ModuleModel.fromJson(json['module']) : null;
+    moduleConfig =
+        json['module_config'] != null
+            ? ModuleConfig.fromJson(json['module_config'])
+            : null;
+    parcelPerKmShippingCharge =
+        json['parcel_per_km_shipping_charge']?.toDouble();
+    parcelMinimumShippingCharge =
+        json['parcel_minimum_shipping_charge']?.toDouble();
+    landingPageSettings =
+        json['landing_page_settings'] != null
+            ? LandingPageSettings.fromJson(json['landing_page_settings'])
+            : null;
     if (json['social_media'] != null) {
       socialMedia = <SocialMedia>[];
       json['social_media'].forEach((v) {
@@ -222,10 +238,14 @@ class ConfigModel {
       });
     }
     footerText = json['footer_text'];
-    landingPageLinks = json['landing_page_links'] != null ? LandingPageLinks.fromJson(json['landing_page_links']) : null;
+    landingPageLinks =
+        json['landing_page_links'] != null
+            ? LandingPageLinks.fromJson(json['landing_page_links'])
+            : null;
     loyaltyPointExchangeRate = json['loyalty_point_exchange_rate'];
-    loyaltyPointItemPurchasePoint = json['loyalty_point_item_purchase_point']?.toDouble();
-    loyaltyPointStatus = json['loyalty_point_status'] ;
+    loyaltyPointItemPurchasePoint =
+        json['loyalty_point_item_purchase_point']?.toDouble();
+    loyaltyPointStatus = json['loyalty_point_status'];
     minimumPointToTransfer = json['loyalty_point_minimum_point'];
     customerWalletStatus = json['customer_wallet_status'];
     dmTipsStatus = json['dm_tips_status'];
@@ -262,23 +282,33 @@ class ConfigModel {
         activePaymentMethodList!.add(PaymentBody.fromJson(v));
       });
     }
-    digitalPaymentInfo = json['digital_payment_info'] != null ? DigitalPaymentInfo.fromJson(json['digital_payment_info']) : null;
+    digitalPaymentInfo =
+        json['digital_payment_info'] != null
+            ? DigitalPaymentInfo.fromJson(json['digital_payment_info'])
+            : null;
     addFundStatus = json['add_fund_status'] == 1;
     offlinePaymentStatus = json['offline_payment_status'] == 1;
     guestCheckoutStatus = json['guest_checkout_status'] == 1;
     adminCommission = json['admin_commission']?.toDouble();
     subscriptionFreeTrialDays = json['subscription_free_trial_days'];
-    subscriptionFreeTrialStatus = json['subscription_free_trial_status'] == 1 ? true : false;
+    subscriptionFreeTrialStatus =
+        json['subscription_free_trial_status'] == 1 ? true : false;
     subscriptionBusinessModel = json['subscription_business_model'];
     commissionBusinessModel = json['commission_business_model'];
     subscriptionFreeTrialType = json['subscription_free_trial_type'];
     countryPickerStatus = json['country_picker_status'] == 1;
     firebaseOtpVerification = json['firebase_otp_verification'] == 1;
-    centralizeLoginSetup = json['centralize_login'] != null ? CentralizeLoginSetup.fromJson(json['centralize_login']) : null;
+    centralizeLoginSetup =
+        json['centralize_login'] != null
+            ? CentralizeLoginSetup.fromJson(json['centralize_login'])
+            : null;
     vehicleDistanceMinPrice = json['vehicle_distance_min']?.toDouble();
     vehicleHourlyMinPrice = json['vehicle_hourly_min']?.toDouble();
     vehicleDayWiseMinPrice = json['vehicle_day_wise_min']?.toDouble();
-    adminFreeDelivery = json['admin_free_delivery'] != null ? AdminFreeDelivery.fromJson(json['admin_free_delivery']) : null;
+    adminFreeDelivery =
+        json['admin_free_delivery'] != null
+            ? AdminFreeDelivery.fromJson(json['admin_free_delivery'])
+            : null;
     isSmsActive = json['is_sms_active'];
     isMailActive = json['is_mail_active'];
     ramadanMode = json['ramadan_mode'] == 1 || json['ramadan_mode'] == true;
@@ -364,7 +394,8 @@ class ConfigModel {
     data['additional_charge_name'] = additionalChargeName;
     data['additional_charge'] = additionCharge;
     if (activePaymentMethodList != null) {
-      data['active_payment_method_list'] = activePaymentMethodList!.map((v) => v.toJson()).toList();
+      data['active_payment_method_list'] =
+          activePaymentMethodList!.map((v) => v.toJson()).toList();
     }
     if (digitalPaymentInfo != null) {
       data['digital_payment_info'] = digitalPaymentInfo!.toJson();
@@ -544,7 +575,10 @@ class ModuleConfig {
 
   ModuleConfig.fromJson(Map<String, dynamic> json) {
     moduleType = json['module_type'].cast<String>();
-    module = json[moduleType![0]] != null ? Module.fromJson(json[moduleType![0]]) : null;
+    module =
+        json[moduleType![0]] != null
+            ? Module.fromJson(json[moduleType![0]])
+            : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -566,7 +600,6 @@ class Module {
   bool? orderAttachment;
   bool? showRestaurantText;
   bool? isParcel;
-  bool? isTaxi;
   bool? newVariation;
   String? description;
 
@@ -579,7 +612,6 @@ class Module {
     this.orderAttachment,
     this.showRestaurantText,
     this.isParcel,
-    this.isTaxi,
     this.newVariation,
     this.description,
   });
@@ -593,7 +625,6 @@ class Module {
     orderAttachment = json['order_attachment'];
     showRestaurantText = json['show_restaurant_text'];
     isParcel = json['is_parcel'];
-    isTaxi = json['is_taxi']?? false;
     newVariation = json['new_variation'];
     description = json['description'];
   }
@@ -608,7 +639,6 @@ class Module {
     data['order_attachment'] = orderAttachment;
     data['show_restaurant_text'] = showRestaurantText;
     data['is_parcel'] = isParcel;
-    data['is_taxi'] = isTaxi;
     data['new_variation'] = newVariation;
     data['description'] = description;
     return data;
@@ -656,12 +686,7 @@ class SocialMedia {
   String? link;
   int? status;
 
-  SocialMedia({
-    this.id,
-    this.name,
-    this.link,
-    this.status,
-  });
+  SocialMedia({this.id, this.name, this.link, this.status});
 
   SocialMedia.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -762,10 +787,14 @@ class DigitalPaymentInfo {
   bool? pluginPaymentGateways;
   bool? defaultPaymentGateways;
 
-  DigitalPaymentInfo({this.digitalPayment, this.pluginPaymentGateways, this.defaultPaymentGateways});
+  DigitalPaymentInfo({
+    this.digitalPayment,
+    this.pluginPaymentGateways,
+    this.defaultPaymentGateways,
+  });
 
   DigitalPaymentInfo.fromJson(Map<String, dynamic> json) {
-    digitalPayment =  json['digital_payment'];
+    digitalPayment = json['digital_payment'];
     pluginPaymentGateways = json['plugin_payment_gateways'];
     defaultPaymentGateways = json['default_payment_gateways'];
   }

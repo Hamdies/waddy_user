@@ -1,13 +1,13 @@
 import 'package:card_swiper/card_swiper.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/auth/controllers/store_registration_controller.dart';
-import 'package:sixam_mart/features/auth/widgets/business/base_card_widget.dart';
-import 'package:sixam_mart/features/business/widgets/package_card_widget.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/auth/controllers/store_registration_controller.dart';
+import 'package:waddy_app/features/auth/widgets/business/base_card_widget.dart';
+import 'package:waddy_app/features/business/widgets/package_card_widget.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class WebBusinessPlanWidget extends StatelessWidget {
   const WebBusinessPlanWidget({super.key});

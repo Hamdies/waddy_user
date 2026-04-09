@@ -1,10 +1,10 @@
 import 'package:get/get_connect/connect.dart';
 import 'package:get/get_utils/get_utils.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/address/domain/repositories/address_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/address/domain/repositories/address_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class AddressRepository implements AddressRepositoryInterface<AddressModel> {
   final ApiClient apiClient;

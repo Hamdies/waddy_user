@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
 
 enum WrapperPosition { top, middle, bottom }
 

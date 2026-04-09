@@ -1,9 +1,8 @@
 import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' as intl;
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class PriceConverter {
   /// Returns localized currency symbol: "LE" for English, "ج.م" for Arabic
@@ -22,7 +21,6 @@ class PriceConverter {
     bool forDM = false,
     bool isFoodVariation = false,
     String? formatedStringPrice,
-    bool forTaxi = false,
   }) {
     if (discount != null && discountType != null) {
       if (discountType == 'amount' && !isFoodVariation) {
@@ -36,11 +34,6 @@ class PriceConverter {
         'right';
     String currencySymbol = _getCurrencySymbol();
 
-    if (forTaxi && price! > 100000) {
-      return '${isRightSide ? '' : '$currencySymbol '}'
-          '${intl.NumberFormat.compact().format(price)}'
-          '${isRightSide ? ' $currencySymbol' : ''}';
-    }
     return '${isRightSide ? '' : '$currencySymbol '}'
         '${formatedStringPrice ?? toFixed(price!).toStringAsFixed(forDM ? 0 : Get.find<SplashController>().configModel!.digitAfterDecimalPoint!).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'
         '${isRightSide ? ' $currencySymbol' : ''}';

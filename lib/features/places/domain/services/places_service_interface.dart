@@ -1,14 +1,17 @@
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:sixam_mart/features/places/domain/models/place_category_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_banner_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_vote_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_review_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_submission_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_category_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_banner_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_vote_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
 
 abstract class PlacesServiceInterface {
   /// Get all place categories
   Future<List<PlaceCategory>?> getCategories();
+
+  /// Get all zones for filter chips
+  Future<List<PlaceZone>?> getZones();
 
   /// Get places with optional filters
   Future<PlaceList?> getPlaces({
@@ -18,11 +21,16 @@ abstract class PlacesServiceInterface {
     double? lng,
     String? sort,
     List<int>? tagIds,
+    int? zoneId,
     int offset = 1,
   });
 
   /// Get leaderboard (top voted places)
-  Future<PlaceList?> getLeaderboard({String? period});
+  Future<PlaceList?> getLeaderboard({
+    String? period,
+    int? zoneId,
+    int? limit,
+  });
 
   /// Get trending/rising places
   Future<PlaceList?> getTrending();
@@ -38,6 +46,9 @@ abstract class PlacesServiceInterface {
 
   /// Get paginated reviews for a place
   Future<PlaceReviewList?> getPlaceReviews(int placeId, {int offset = 1});
+
+  /// Get top voters
+  Future<TopVoterList?> getTopVoters({int? zoneId, int limit = 10});
 
   /// Submit or update vote (now supports photo)
   Future<Response> submitVote(int placeId, int rating, String? comment, {String? imagePath});

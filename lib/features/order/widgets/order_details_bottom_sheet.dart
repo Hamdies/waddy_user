@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class OrderDetailsBottomSheet {
   static void show({

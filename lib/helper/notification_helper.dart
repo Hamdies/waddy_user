@@ -2,27 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/common/widgets/demo_reset_dialog_widget.dart';
-import 'package:sixam_mart/common/widgets/taxi_make_payment_bottomsheet.dart';
-import 'package:sixam_mart/features/chat/controllers/chat_controller.dart';
-import 'package:sixam_mart/features/chat/enums/user_type_enum.dart';
-import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
-import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_order/controllers/taxi_order_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_order/screens/taxi_order_details_screen.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:waddy_app/common/widgets/demo_reset_dialog_widget.dart';
+import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
+import 'package:waddy_app/features/chat/enums/user_type_enum.dart';
+import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:sixam_mart/features/dashboard/screens/dashboard_screen.dart';
-import 'package:sixam_mart/features/notification/widgets/notifiation_popup_dialog_widget.dart';
-import 'package:sixam_mart/helper/live_activity_helper.dart';
-import 'package:sixam_mart/services/live_activity_service.dart';
+import 'package:waddy_app/features/notification/widgets/notifiation_popup_dialog_widget.dart';
+import 'package:waddy_app/helper/live_activity_helper.dart';
+import 'package:waddy_app/services/live_activity_service.dart';
 
 class NotificationHelper {
   static Future<void> initialize(
@@ -52,12 +48,12 @@ class NotificationHelper {
 
             final Map<NotificationType, Function> notificationActions = {
               NotificationType.order: () {
-                  Get.toNamed(
-                    RouteHelper.getOrderDetailsRoute(
-                      int.parse(payload.orderId.toString()),
-                      fromNotification: true,
-                    ),
-                  );
+                Get.toNamed(
+                  RouteHelper.getOrderDetailsRoute(
+                    int.parse(payload.orderId.toString()),
+                    fromNotification: true,
+                  ),
+                );
               },
               NotificationType.block:
                   () => Get.toNamed(
@@ -95,12 +91,6 @@ class NotificationHelper {
               NotificationType.general:
                   () => Get.toNamed(
                     RouteHelper.getNotificationRoute(fromNotification: true),
-                  ),
-              NotificationType.trip:
-                  () => Get.to(
-                    () => TaxiOrderDetailsScreen(
-                      tripId: int.parse(payload.orderId.toString()),
-                    ),
                   ),
             };
 
@@ -162,23 +152,6 @@ class NotificationHelper {
           flutterLocalNotificationsPlugin,
         );
       } else if (message.data['type'] == 'demo_reset') {
-      } else if (message.data['type'] == 'trip_status' &&
-          message.data['status'] == 'completed' &&
-          message.data['order_id'] != '' &&
-          message.data['order_id'] != null) {
-        if (!Get.currentRoute.contains('/TaxiOrderDetailsScreen')) {
-          Get.bottomSheet(
-            TaxiMakePaymentBottomSheet(orderId: message.data['order_id']),
-          );
-        }
-        Get.find<TaxiOrderController>().getTripList(1, isRunning: true);
-        Get.find<TaxiOrderController>().getTripList(1, isRunning: false);
-        if (Get.currentRoute.contains('/TaxiOrderDetailsScreen')) {
-          Get.find<TaxiOrderController>().getTripDetails(
-            int.parse(message.data['order_id']),
-            willUpdate: false,
-          );
-        }
       } else {
         NotificationHelper.showNotification(
           message,
@@ -192,39 +165,9 @@ class NotificationHelper {
         }
 
         if (AuthHelper.isLoggedIn()) {
-          if (message.data['type'] != 'trip_status') {
-            Get.find<OrderController>().getRunningOrders(1);
-            Get.find<OrderController>().getHistoryOrders(1);
-          }
-
+          Get.find<OrderController>().getRunningOrders(1);
+          Get.find<OrderController>().getHistoryOrders(1);
           Get.find<NotificationController>().getNotificationList(true);
-          if (message.data['type'] == 'trip_status' &&
-              message.data['order_id'] != '' &&
-              message.data['order_id'] != null) {
-            if (Get.isBottomSheetOpen!) {
-              Get.back();
-            }
-            if (Get.currentRoute.contains('/TaxiOrderDetailsScreen')) {
-              await Get.find<TaxiOrderController>().getTripDetails(
-                int.parse(message.data['order_id']),
-                willUpdate: false,
-              );
-            }
-            Get.find<TaxiOrderController>().getTripList(1, isRunning: true);
-            Get.find<TaxiOrderController>().getTripList(1, isRunning: false);
-          }
-        } else if (message.data['type'] == 'trip_status' &&
-            message.data['order_id'] != '' &&
-            message.data['order_id'] != null) {
-          if (Get.isBottomSheetOpen!) {
-            Get.back();
-          }
-          if (Get.currentRoute.contains('/TaxiOrderDetailsScreen')) {
-            await Get.find<TaxiOrderController>().getTripDetails(
-              int.parse(message.data['order_id']),
-              willUpdate: false,
-            );
-          }
         }
       }
 
@@ -303,12 +246,6 @@ class NotificationHelper {
                 () => Get.toNamed(
                   RouteHelper.getNotificationRoute(fromNotification: true),
                 ),
-            NotificationType.trip:
-                () => Get.to(
-                  () => TaxiOrderDetailsScreen(
-                    tripId: int.parse(message.data['order_id']),
-                  ),
-                ),
           };
 
           notificationActions[notificationBody.notificationType]?.call();
@@ -326,7 +263,8 @@ class NotificationHelper {
     final storeName = data['store_name'] as String?;
     final deliveryManName = data['delivery_man_name'] as String?;
     final etaMinutes = int.tryParse(data['eta_minutes']?.toString() ?? '');
-    final etaText = data['eta_text'] as String? ??
+    final etaText =
+        data['eta_text'] as String? ??
         (etaMinutes != null ? 'Arriving in $etaMinutes mins' : null);
 
     // If status not in FCM payload, try to get it from the cached track model

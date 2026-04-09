@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/order/screens/order_details_screen.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/app_design_tokens.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/screens/order_details_screen.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/app_design_tokens.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class CurrentOrderWidget extends StatelessWidget {
   const CurrentOrderWidget({super.key});
@@ -28,10 +27,7 @@ class CurrentOrderWidget extends StatelessWidget {
         if (orders == null || orders.isEmpty) return const SizedBox.shrink();
 
         return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-            vertical: 6,
-          ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: _OrderCard(order: orders.first),
         );
       },
@@ -121,8 +117,15 @@ class _OrderCard extends StatelessWidget {
     final segment     = _segmentForStatus(status);
     final lottie      = _lottieForStatus(status);
 
-    // "Waddy Food · 12 mins away"
-    final subtitle = eta.isNotEmpty ? '$storeName \u00b7 $eta away' : storeName;
+    // "Waddy Food · ETA 12 mins" or "Waddy Food · Arriving now"
+    final String subtitle;
+    if (eta == 'Now') {
+      subtitle = '$storeName \u00b7 Arriving now';
+    } else if (eta.isNotEmpty) {
+      subtitle = '$storeName \u00b7 ETA $eta';
+    } else {
+      subtitle = storeName;
+    }
 
     return GestureDetector(
       onTap: _goToDetails,
@@ -131,10 +134,10 @@ class _OrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).secondaryHeaderColor.withOpacity(0.2), width: 1.5),
+          border: Border.all(color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.2), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -147,7 +150,7 @@ class _OrderCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.12),
+                color: accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: ClipRRect(

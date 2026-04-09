@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
 
 abstract class ChatServiceInterface {
   Future<ConversationsModel?> getConversationList(int offset, String type);

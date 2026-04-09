@@ -1,18 +1,19 @@
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_divider.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/common/widgets/rating_bar.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_divider.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/common/widgets/rating_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/order/widgets/address_details_widget.dart';
+import 'package:waddy_app/features/order/widgets/address_details_widget.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:sixam_mart/features/order/widgets/eta_chip_widget.dart';
+import 'package:waddy_app/features/order/widgets/eta_chip_widget.dart';
 
 class TrackDetailsViewWidget extends StatelessWidget {
   final String? status;
@@ -46,7 +47,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
       padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-        color: Theme.of(context).cardColor,
+        color: WaddyColors.surface,
       ),
       alignment: Alignment.center,
       child:
@@ -55,7 +56,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
                 padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
                 child: Text(
                   'delivery_man_not_assigned'.tr,
-                  style: robotoMedium,
+                  style: waddyBodyMedium.copyWith(color: WaddyColors.inkMid),
                   textAlign: TextAlign.center,
                 ),
               )
@@ -63,7 +64,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
                 children: [
                   EtaChipWidget(order: track),
                   const SizedBox(height: Dimensions.paddingSizeLarge),
-                  Text('trip_route'.tr, style: robotoMedium),
+                  Text('trip_route'.tr, style: waddyBodyMedium.copyWith(color: WaddyColors.ink)),
                   const SizedBox(height: Dimensions.paddingSizeLarge),
 
                   Row(
@@ -74,8 +75,9 @@ class TrackDetailsViewWidget extends StatelessWidget {
                           takeAway
                               ? track.deliveryAddress?.address ?? ''
                               : track.deliveryMan?.location ?? '',
-                          style: robotoRegular.copyWith(
+                          style: waddyBody.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
+                            color: WaddyColors.inkMid,
                           ),
                           maxLines: 5,
                           overflow: TextOverflow.ellipsis,
@@ -109,8 +111,9 @@ class TrackDetailsViewWidget extends StatelessWidget {
                                   track.store != null
                                       ? track.store!.address!
                                       : '',
-                                  style: robotoRegular.copyWith(
+                                  style: waddyBody.copyWith(
                                     fontSize: Dimensions.fontSizeSmall,
+                                    color: WaddyColors.inkMid,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -154,9 +157,8 @@ class TrackDetailsViewWidget extends StatelessWidget {
                             ),
                             Text(
                               'direction'.tr,
-                              style: robotoRegular.copyWith(
-                                fontSize: Dimensions.fontSizeExtraSmall,
-                                color: Theme.of(context).disabledColor,
+                              style: waddyMicro.copyWith(
+                                color: WaddyColors.inkMuted,
                               ),
                             ),
                             const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -194,8 +196,9 @@ class TrackDetailsViewWidget extends StatelessWidget {
                               ? 'store'.tr
                               : 'store'.tr
                           : 'delivery_man'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyBodyMedium.copyWith(
                         fontSize: Dimensions.fontSizeSmall,
+                        color: WaddyColors.ink,
                       ),
                     ),
                   ),
@@ -225,8 +228,8 @@ class TrackDetailsViewWidget extends StatelessWidget {
                                   : '${track.deliveryMan!.fName} ${track.deliveryMan!.lName}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: robotoMedium.copyWith(
-                                fontSize: Dimensions.fontSizeExtraSmall,
+                              style: waddyLabel.copyWith(
+                                color: WaddyColors.ink,
                               ),
                             ),
                             RatingBar(
@@ -283,13 +286,12 @@ class TrackDetailsViewWidget extends StatelessWidget {
                             borderRadius: BorderRadius.circular(
                               Dimensions.radiusSmall,
                             ),
-                            color: Colors.green,
+                            color: WaddyColors.mint,
                           ),
                           child: Text(
                             'call'.tr,
-                            style: robotoRegular.copyWith(
-                              fontSize: Dimensions.fontSizeExtraSmall,
-                              color: Theme.of(context).cardColor,
+                            style: waddyLabel.copyWith(
+                              color: WaddyColors.primary,
                             ),
                           ),
                         ),
@@ -311,7 +313,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(
                                   Dimensions.radiusSmall,
                                 ),
-                                color: Colors.green,
+                                color: WaddyColors.mint,
                               ),
                               child: Icon(
                                 Icons.chat,

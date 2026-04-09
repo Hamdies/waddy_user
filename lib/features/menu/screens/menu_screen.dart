@@ -3,32 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/auth/widgets/auth_dialog_widget.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/features/language/widgets/language_bottom_sheet_widget.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/favourite/controllers/favourite_controller.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_level_model.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/confirmation_dialog.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/auth/widgets/auth_dialog_widget.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/language/widgets/language_bottom_sheet_widget.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
+import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:sixam_mart/features/wallet/controllers/wallet_controller.dart';
-import 'package:sixam_mart/features/wallet/domain/models/card_appearance_model.dart';
+import 'package:waddy_app/features/wallet/controllers/wallet_controller.dart';
+import 'package:waddy_app/features/wallet/domain/models/card_appearance_model.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -121,7 +119,8 @@ class _MenuScreenState extends State<MenuScreen> {
                     icon: HugeIcons.strokeRoundedUser,
                     title: 'profile'.tr,
                     onTap:
- () => Get.toNamed(RouteHelper.getUpdateProfileRoute()),                  ),
+                        () => Get.toNamed(RouteHelper.getUpdateProfileRoute()),
+                  ),
                   _buildFlatItem(
                     context,
                     icon: HugeIcons.strokeRoundedLocation01,
@@ -320,7 +319,6 @@ class _MenuScreenState extends State<MenuScreen> {
                                   .clearSharedData();
                               Get.find<HomeController>()
                                   .forcefullyNullCashBackOffers();
-                              Get.find<TaxiCartController>().getCarCartList();
                               Get.offAllNamed(RouteHelper.getInitialRoute());
                             },
                           ),
@@ -796,8 +794,6 @@ class _MenuScreenState extends State<MenuScreen> {
                             ],
                           ),
                         ],
-
-                     
                       ],
                     ),
                   ),
@@ -923,11 +919,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: HugeIcon(
-                  icon: item.icon,
-                  color: primaryColor,
-                  size: 24,
-                ),
+                child: HugeIcon(icon: item.icon, color: primaryColor, size: 24),
               ),
             ),
             const SizedBox(height: 8),
@@ -1011,7 +1003,10 @@ class _MenuScreenState extends State<MenuScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'my_wallet'.tr,
-                  style: robotoMedium.copyWith(fontSize: 11, color: _titleColor),
+                  style: robotoMedium.copyWith(
+                    fontSize: 11,
+                    color: _titleColor,
+                  ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

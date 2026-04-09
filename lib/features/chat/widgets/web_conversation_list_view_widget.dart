@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/chat/controllers/chat_controller.dart';
-import 'package:sixam_mart/features/chat/enums/user_type_enum.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/notification/domain/models/notification_body_model.dart';
-import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/common/widgets/custom_ink_well.dart';
-import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
+import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
+import 'package:waddy_app/features/chat/enums/user_type_enum.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
+import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/custom_ink_well.dart';
+import 'package:waddy_app/common/widgets/paginated_list_view.dart';
 
 class WebConversationListViewWidget extends StatefulWidget {
   final ScrollController scrollController;

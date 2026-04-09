@@ -8,6 +8,7 @@ class Place {
   final int votesCount;
   final int? rank;
   final String? image;
+  final String? coverImage;
   final double? lat;
   final double? lng;
   final String? address;
@@ -21,6 +22,7 @@ class Place {
   final dynamic openingHours;
   final List<PlaceImage>? gallery;
   final List<PlaceTag>? tags;
+  final PlaceZone? zone;
 
   Place({
     required this.id,
@@ -32,6 +34,7 @@ class Place {
     this.votesCount = 0,
     this.rank,
     this.image,
+    this.coverImage,
     this.lat,
     this.lng,
     this.address,
@@ -45,6 +48,7 @@ class Place {
     this.openingHours,
     this.gallery,
     this.tags,
+    this.zone,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -53,7 +57,7 @@ class Place {
       title: json['title'] ?? json['name'] ?? '',
       description: json['description'],
       categoryId: json['category_id'],
-      categoryName: json['category_name'] ?? json['category']?['name'],
+      categoryName: _safeCategoryName(json['category_name'], json['category']),
       rating:
           _parseDouble(
             json['rating'] ?? json['votes_avg_rating'] ?? json['avg_rating'],
@@ -62,6 +66,7 @@ class Place {
       votesCount: json['votes_count'] ?? 0,
       rank: json['rank'],
       image: json['image'] ?? json['image_full_url'],
+      coverImage: json['cover_image'] ?? json['cover_image_full_url'],
       lat: _parseDouble(json['lat'] ?? json['latitude']),
       lng: _parseDouble(json['lng'] ?? json['longitude']),
       address: json['address'],
@@ -73,15 +78,64 @@ class Place {
       isFavorited: json['is_favorited'],
       favoritesCount: json['favorites_count'] ?? 0,
       openingHours: json['opening_hours'],
-      gallery: json['gallery'] != null
-          ? (json['gallery'] as List).map((e) => PlaceImage.fromJson(e)).toList()
-          : (json['images'] != null
-              ? (json['images'] as List).map((e) => PlaceImage.fromJson(e)).toList()
-              : null),
-      tags: json['tags'] != null
-          ? (json['tags'] as List).map((e) => PlaceTag.fromJson(e)).toList()
-          : null,
+      gallery: _parseGallery(json['gallery']) ?? _parseGallery(json['images']),
+      tags: _parseTags(json['tags']),
+      zone: _parseZone(json['zone']),
     );
+  }
+
+  /// Safely parse category name from either a direct string or nested object
+  static String? _safeCategoryName(dynamic directValue, dynamic categoryObj) {
+    if (directValue is String) return directValue;
+    if (categoryObj is Map<String, dynamic>) {
+      return categoryObj['name'] as String?;
+    }
+    return null;
+  }
+
+  /// Safely parse gallery list, handling various response formats
+  static List<PlaceImage>? _parseGallery(dynamic galleryData) {
+    try {
+      if (galleryData == null || galleryData is String) return null;
+      if (galleryData is List) {
+        return galleryData
+            .whereType<Map<String, dynamic>>()
+            .map((e) => PlaceImage.fromJson(e))
+            .toList();
+      }
+    } catch (e) {
+      print('Error parsing gallery: $e');
+    }
+    return null;
+  }
+
+  /// Safely parse tags list, handling various response formats
+  static List<PlaceTag>? _parseTags(dynamic tagsData) {
+    try {
+      if (tagsData == null || tagsData is String) return null;
+      if (tagsData is List) {
+        return tagsData
+            .whereType<Map<String, dynamic>>()
+            .map((e) => PlaceTag.fromJson(e))
+            .toList();
+      }
+    } catch (e) {
+      print('Error parsing tags: $e');
+    }
+    return null;
+  }
+
+  /// Safely parse zone object, handling various response formats
+  static PlaceZone? _parseZone(dynamic zoneData) {
+    try {
+      if (zoneData == null || zoneData is String) return null;
+      if (zoneData is Map<String, dynamic>) {
+        return PlaceZone.fromJson(zoneData);
+      }
+    } catch (e) {
+      print('Error parsing zone: $e');
+    }
+    return null;
   }
 
   /// Safely parse a value to double (handles both String and numeric types)
@@ -104,6 +158,7 @@ class Place {
       'votes_count': votesCount,
       'rank': rank,
       'image': image,
+      'cover_image': coverImage,
       'lat': lat,
       'lng': lng,
       'address': address,
@@ -117,6 +172,7 @@ class Place {
       'opening_hours': openingHours,
       'gallery': gallery?.map((e) => e.toJson()).toList(),
       'tags': tags?.map((e) => e.toJson()).toList(),
+      'zone': zone?.toJson(),
     };
   }
 }
@@ -199,6 +255,100 @@ class PlaceList {
               : [],
       totalSize: json['total_size'] ?? json['total'],
       offset: json['offset'],
+      period: json['period'],
+    );
+  }
+}
+
+/// Zone model for place location
+
+class PlaceZone {
+  final int id;
+  final String? name;
+  final String? displayName;
+
+  PlaceZone({required this.id, this.name, this.displayName});
+
+  factory PlaceZone.fromJson(Map<String, dynamic> json) {
+    return PlaceZone(
+      id: json['id'] ?? 0,
+      name: json['name'],
+      displayName: json['display_name'] ?? json['name'],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'display_name': displayName,
+  };
+}
+
+class PlaceZoneList {
+  final List<PlaceZone> zones;
+
+  PlaceZoneList({required this.zones});
+
+  factory PlaceZoneList.fromJson(Map<String, dynamic> json) {
+    return PlaceZoneList(
+      zones: json['data'] != null
+          ? (json['data'] as List)
+              .map((item) => PlaceZone.fromJson(item))
+              .toList()
+          : [],
+    );
+  }
+}
+
+/// Top Voter model for leaderboard display
+
+class TopVoter {
+  final int id;
+  final int? position;
+  final String name;
+  final String? avatar;
+  final int votesCount;
+
+  TopVoter({
+    required this.id,
+    this.position,
+    required this.name,
+    this.avatar,
+    this.votesCount = 0,
+  });
+
+  factory TopVoter.fromJson(Map<String, dynamic> json) {
+    return TopVoter(
+      id: json['id'] ?? json['user_id'] ?? 0,
+      position: json['position'],
+      name: json['username'] ?? json['name'] ?? json['user']?['name'] ?? '',
+      avatar: json['image'] ?? json['image_full_url'] ?? json['avatar'] ?? json['user']?['image_full_url'] ?? json['user']?['avatar'],
+      votesCount: json['votes_count'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'position': position,
+    'username': name,
+    'image': avatar,
+    'votes_count': votesCount,
+  };
+}
+
+/// Top Voter List wrapper
+
+class TopVoterList {
+  final List<TopVoter> voters;
+  final String? period;
+
+  TopVoterList({required this.voters, this.period});
+
+  factory TopVoterList.fromJson(Map<String, dynamic> json) {
+    return TopVoterList(
+      voters: json['data'] != null
+          ? (json['data'] as List).map((e) => TopVoter.fromJson(e)).toList()
+          : [],
       period: json['period'],
     );
   }

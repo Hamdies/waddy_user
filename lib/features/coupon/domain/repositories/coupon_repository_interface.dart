@@ -1,8 +1,7 @@
-import 'package:sixam_mart/interfaces/repository_interface.dart';
+import 'package:waddy_app/interfaces/repository_interface.dart';
 
-abstract class CouponRepositoryInterface extends RepositoryInterface{
+abstract class CouponRepositoryInterface extends RepositoryInterface {
   @override
-  Future getList({int? offset, bool couponList = false, bool taxiCouponList = false});
+  Future getList({int? offset, bool couponList = false});
   Future<dynamic> applyCoupon(String couponCode, int? storeID);
-  Future<dynamic> applyTaxiCoupon(String couponCode, int? providerId);
 }

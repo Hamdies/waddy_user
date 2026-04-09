@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/onboard/controllers/onboard_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_button.dart';
-import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/onboard/controllers/onboard_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_button.dart';
+import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
@@ -1131,7 +1131,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                         curve: Curves.easeInOut,
                       );
                     },
-                    buttonText: 'Next',
+                    buttonText: 'onboarding_next'.tr,
                     color: Theme.of(context).primaryColor,
                     icon: Icons.arrow_downward,
                     margin: EdgeInsets.symmetric(horizontal: 80),

@@ -1,10 +1,10 @@
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/auth/domain/models/store_body_model.dart';
-import 'package:sixam_mart/features/auth/domain/reposotories/store_registration_repository_interface.dart';
-import 'package:sixam_mart/features/business/domain/models/package_model.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/auth/domain/models/store_body_model.dart';
+import 'package:waddy_app/features/auth/domain/reposotories/store_registration_repository_interface.dart';
+import 'package:waddy_app/features/business/domain/models/package_model.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class StoreRegistrationRepository implements StoreRegistrationRepositoryInterface {
   final ApiClient apiClient;

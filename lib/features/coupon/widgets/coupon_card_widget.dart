@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/coupon/domain/models/coupon_model.dart';
-import 'package:sixam_mart/features/coupon/widgets/scratch_card_dialog.dart';
-import 'package:sixam_mart/helper/date_converter.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/coupon/domain/models/coupon_model.dart';
+import 'package:waddy_app/features/coupon/widgets/scratch_card_dialog.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class CouponCardWidget extends StatelessWidget {
   final CouponModel coupon;

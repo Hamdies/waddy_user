@@ -266,40 +266,6 @@ class Images {
       'assets/image/landing_choose_location.svg';
   static const String guestLocationIcon = 'assets/image/guest_location.png';
 
-  ///Rental module
-  static const String searchIconNewHome = 'assets/image/search.png';
-  static const String addAddress = 'assets/image/trip_address.png';
-  static const String success = 'assets/image/success.png';
-  static const String checkMark = 'assets/image/check_mark.png';
-  static const String referIconNew = 'assets/image/refer_icon_new.png';
-  static const String navigationArrowIcon = 'assets/image/navigation_arrow.svg';
-  static const String taxiPickup = 'assets/image/taxi_pickup.png';
-  static const String taxiDestination = 'assets/image/taxi_destination.png';
-  static const String taxiEditIcon = 'assets/image/taxi_edit.png';
-  static const String undoIcon = 'assets/image/undo.png';
-  static const String taxiCopyIcon = 'assets/image/copy_icon.png';
-  static const String taxiStarIcon = 'assets/image/star.png';
-  static const String taxiSeatIcon = 'assets/image/seat.png';
-  static const String taxiACIcon = 'assets/image/ac.png';
-  static const String taxiAutomaticIcon = 'assets/image/auto.png';
-  static const String taxiLiterIcon = 'assets/image/liter.png';
-  static const String taxiPetrolIcon = 'assets/image/petrol_icon.png';
-  static const String taxiCarSideIcon = 'assets/image/car_side.png';
-  static const String taxiCartIcon = 'assets/image/taxi_cart.png';
-  static const String taxiHomeAddressIcon =
-      'assets/image/taxi_home_address.png';
-  static const String taxiOfficeAddressIcon =
-      'assets/image/taxi_office_address.png';
-  static const String taxiOtherAddressIcon =
-      'assets/image/taxi_other_address.png';
-  static const String taxiPending = 'assets/image/taxi_panding.png';
-  static const String taxiCompletedGif = 'assets/image/taxi_completed.gif';
-  static const String taxiCouponSvg = 'assets/image/taxi_coupon.svg';
-  static const String taxiCouponSvg2 = 'assets/image/taxi_coupon_2.svg';
-  static const String taxiPay = 'assets/image/taxi_pay.png';
-  static const String taxiEmptyCart = 'assets/image/taxi_empty_cart.svg';
-  static const String taxiEnjoyIcon = 'assets/image/enjoy_image.svg';
-
   static const String mapIconExtended = 'assets/json/map-picker-1.json';
   static const String mapIconMinimised = 'assets/json/map-picker-2.json';
 }

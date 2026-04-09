@@ -1,32 +1,25 @@
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_order/controllers/taxi_order_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_order/widgets/trip_order_view_widget.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/taxi_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/features/order/widgets/order_view_widget.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/features/order/widgets/order_view_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class OrderScreen extends StatefulWidget {
-  final int? index;
-  const OrderScreen({super.key, this.index = 0});
+  const OrderScreen({super.key});
 
   @override
   OrderScreenState createState() => OrderScreenState();
 }
 
-class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin {
+class OrderScreenState extends State<OrderScreen>
+    with TickerProviderStateMixin {
   TabController? _tabController;
   bool _isLoggedIn = AuthHelper.isLoggedIn();
-  List<String> type = ['orders', 'trips'];
-  int selectTypeIndex = 0;
-  bool haveTaxiModule = false;
 
   @override
   void initState() {
@@ -34,31 +27,15 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
 
     _tabController = TabController(length: 2, initialIndex: 0, vsync: this);
     _tabController!.addListener(() => setState(() {}));
-    selectTypeIndex = widget.index!;
-    haveTaxiModule = TaxiHelper.haveTaxiModule();
 
     initCall();
   }
 
-  void initCall(){
-    if(AuthHelper.isLoggedIn()) {
-      if(selectTypeIndex == 0) {
-        Get.find<OrderController>().getRunningOrders(1);
-        Get.find<OrderController>().getHistoryOrders(1);
-      } else {
-        Get.find<TaxiOrderController>().getTripList(1, isRunning: true);
-        Get.find<TaxiOrderController>().getTripList(1, isRunning: false);
-      }
+  void initCall() {
+    if (AuthHelper.isLoggedIn()) {
+      Get.find<OrderController>().getRunningOrders(1);
+      Get.find<OrderController>().getHistoryOrders(1);
     }
-  }
-
-  void _switchOrderType(int newIndex) {
-    setState(() {
-      selectTypeIndex = newIndex;
-      // Reset tab to first tab when switching types
-      _tabController?.index = 0;
-    });
-    initCall();
   }
 
   @override
@@ -70,7 +47,10 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: _CoinsPill(teal: Theme.of(context).primaryColor, textDark: Theme.of(context).textTheme.bodyLarge!.color!),
+            child: _CoinsPill(
+              teal: Theme.of(context).primaryColor,
+              textDark: Theme.of(context).textTheme.bodyLarge!.color!,
+            ),
           ),
         ],
         centerTitle: false,
@@ -82,16 +62,17 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
             color: const Color(0xFF134E4A),
           ),
         ),
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
+        leading:
+            Navigator.canPop(context)
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                  onPressed: () => Navigator.pop(context),
+                )
+                : null,
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      endDrawer: const MenuDrawer(), 
+      endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
       body: SafeArea(
         child: GetBuilder<OrderController>(
@@ -106,23 +87,16 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
             }
             return Column(
               children: [
-                if (haveTaxiModule && !ResponsiveHelper.isDesktop(context))
-                  _buildTypeSelector(),
                 if (_isLoggedIn) _buildCustomTabSelector(),
                 Expanded(
                   child: NestedScrollView(
                     headerSliverBuilder: (context, innerBoxIsScrolled) => [],
                     body: TabBarView(
                       controller: _tabController,
-                      children: selectTypeIndex == 0
-                          ? const [
-                              OrderViewWidget(isRunning: true),
-                              OrderViewWidget(isRunning: false),
-                            ]
-                          : const [
-                              TripOrderViewWidget(isRunning: true),
-                              TripOrderViewWidget(isRunning: false),
-                            ],
+                      children: const [
+                        OrderViewWidget(isRunning: true),
+                        OrderViewWidget(isRunning: false),
+                      ],
                     ),
                   ),
                 ),
@@ -130,41 +104,6 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
             );
           },
         ),
-      ),
-    );
-  }
-
-
-  // Type selector (Orders/Trips) — only when taxi module is active
-  Widget _buildTypeSelector() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: List.generate(type.length, (index) {
-          bool selected = index == selectTypeIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => _switchOrderType(index),
-              child: Container(
-                margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: selected ? Theme.of(context).primaryColor : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  type[index].tr,
-                  style: robotoMedium.copyWith(
-                    fontSize: 14,
-                    color: selected ? Colors.white : Colors.black54,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
       ),
     );
   }
@@ -185,17 +124,9 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              _buildTab(
-                index: 0,
-                label: 'running'.tr,
-                count: runningCount,
-              ),
+              _buildTab(index: 0, label: 'running'.tr, count: runningCount),
               const SizedBox(width: 10),
-              _buildTab(
-                index: 1,
-                label: 'history'.tr,
-                count: historyCount,
-              ),
+              _buildTab(index: 1, label: 'history'.tr, count: historyCount),
             ],
           ),
         );
@@ -203,9 +134,13 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
     );
   }
 
-  Widget _buildTab({required int index, required String label, required int count}) {
+  Widget _buildTab({
+    required int index,
+    required String label,
+    required int count,
+  }) {
     final bool selected = _tabController?.index == index;
-    final Color primary = const Color(0xFF134E4A);
+    const Color primary = Color(0xFF134E4A);
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -222,9 +157,13 @@ class OrderScreenState extends State<OrderScreen> with TickerProviderStateMixin 
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 '$label ($count)',
-                style: selected
-                    ? robotoBold.copyWith(fontSize: 14, color: primary)
-                    : robotoRegular.copyWith(fontSize: 14, color: Colors.grey.shade500),
+                style:
+                    selected
+                        ? robotoBold.copyWith(fontSize: 14, color: primary)
+                        : robotoRegular.copyWith(
+                          fontSize: 14,
+                          color: Colors.grey.shade500,
+                        ),
               ),
             ),
             AnimatedContainer(
@@ -273,10 +212,7 @@ class _CoinsPill extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '$xpPoints',
-                  style: robotoBold.copyWith(
-                    fontSize: 15,
-                    color: Colors.white,
-                  ),
+                  style: robotoBold.copyWith(fontSize: 15, color: Colors.white),
                 ),
               ],
             ),

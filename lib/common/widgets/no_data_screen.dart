@@ -1,9 +1,9 @@
 import 'package:lottie/lottie.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:waddy_app/common/widgets/footer_view.dart';
 
 class NoDataScreen extends StatelessWidget {
   final bool isCart;

@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/favourite/domain/repositories/favourite_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/favourite/domain/repositories/favourite_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class FavouriteRepository implements FavouriteRepositoryInterface<ResponseModel> {
   final ApiClient apiClient;

@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_level_model.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 
 class LevelClaimCelebrationWidget extends StatefulWidget {
   final int level;

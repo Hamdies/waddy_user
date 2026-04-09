@@ -1,4 +1,4 @@
-import 'package:sixam_mart/features/chat/domain/models/conversation_model.dart';
+import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
 
 class UserInfoModel {
   int? id;

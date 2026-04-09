@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/order/widgets/games/reflex_tap_game.dart';
-import 'package:sixam_mart/features/order/widgets/games/simon_says_game.dart';
-import 'package:sixam_mart/features/order/widgets/games/speed_math_game.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/images.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/order/widgets/games/reflex_tap_game.dart';
+import 'package:waddy_app/features/order/widgets/games/simon_says_game.dart';
+import 'package:waddy_app/features/order/widgets/games/speed_math_game.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/images.dart';
 
 /// Compact "While you wait" section with dropdown expand.
 /// 2 tabs: Games (3 game picker) + Featured Items.

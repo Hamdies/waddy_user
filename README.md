@@ -1,4 +1,4 @@
-# sixam_mart
+# waddy_app
 
 A new Flutter application.
 

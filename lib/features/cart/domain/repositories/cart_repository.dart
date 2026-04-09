@@ -2,13 +2,13 @@ import 'dart:convert';
 
 import 'package:get/get_connect.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
-import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart';
-import 'package:sixam_mart/features/cart/domain/repositories/cart_repository_interface.dart';
-import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
-import 'package:sixam_mart/helper/module_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
+import 'package:waddy_app/features/cart/domain/models/online_cart_model.dart';
+import 'package:waddy_app/features/cart/domain/repositories/cart_repository_interface.dart';
+import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:waddy_app/helper/module_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class CartRepository implements CartRepositoryInterface<OnlineCart> {
   final ApiClient apiClient;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/features/xp/widgets/prize_card_widget.dart';
+import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/widgets/prize_card_widget.dart';
 
 class XpPrizesScreen extends StatefulWidget {
   const XpPrizesScreen({super.key});

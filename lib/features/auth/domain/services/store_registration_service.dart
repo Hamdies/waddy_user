@@ -1,13 +1,13 @@
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
-import 'package:sixam_mart/features/business/domain/models/package_model.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_data_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/store_body_model.dart';
-import 'package:sixam_mart/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
-import 'package:sixam_mart/features/auth/domain/reposotories/store_registration_repository_interface.dart';
-import 'package:sixam_mart/features/auth/domain/services/store_registration_service_interface.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/features/business/domain/models/package_model.dart';
+import 'package:waddy_app/features/location/domain/models/zone_data_model.dart';
+import 'package:waddy_app/features/auth/domain/models/store_body_model.dart';
+import 'package:waddy_app/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
+import 'package:waddy_app/features/auth/domain/reposotories/store_registration_repository_interface.dart';
+import 'package:waddy_app/features/auth/domain/services/store_registration_service_interface.dart';
 
 class StoreRegistrationService implements StoreRegistrationServiceInterface {
   final StoreRegistrationRepositoryInterface storeRegistrationRepoInterface;

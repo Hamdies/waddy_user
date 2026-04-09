@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/language/domain/repository/language_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/language/domain/repository/language_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class LanguageRepository implements LanguageRepositoryInterface {
   final ApiClient apiClient;

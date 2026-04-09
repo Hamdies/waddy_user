@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 
 class XpProgressBar extends StatelessWidget {
   final double? width;

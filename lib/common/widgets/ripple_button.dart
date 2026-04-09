@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class RippleButton extends StatelessWidget {
   const RippleButton({super.key, required this.onTap, this.radius = Dimensions.radiusDefault});

@@ -1,11 +1,11 @@
-import 'package:sixam_mart/features/search/controllers/search_controller.dart' as search;
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
+import 'package:waddy_app/features/search/controllers/search_controller.dart' as search;
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/item_view.dart';
-import 'package:sixam_mart/common/widgets/web_item_view.dart';
+import 'package:waddy_app/common/widgets/item_view.dart';
+import 'package:waddy_app/common/widgets/web_item_view.dart';
 
 class ItemViewWidget extends StatelessWidget {
   final bool isItem;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class CategoryFilterWidget extends StatefulWidget {
   final double? maxValue;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/places/controllers/places_controller.dart';
-import 'package:sixam_mart/features/places/domain/models/place_banner_model.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/places/domain/models/place_banner_model.dart';
+import 'package:waddy_app/util/dimensions.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class PlacesBannerView extends StatefulWidget {

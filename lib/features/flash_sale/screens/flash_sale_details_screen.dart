@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
-import 'package:sixam_mart/features/flash_sale/widgets/flash_product_card_widget.dart';
-import 'package:sixam_mart/features/flash_sale/widgets/flash_sale_timer_view_widget.dart';
+import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/common/widgets/footer_view.dart';
+import 'package:waddy_app/common/widgets/paginated_list_view.dart';
+import 'package:waddy_app/features/flash_sale/widgets/flash_product_card_widget.dart';
+import 'package:waddy_app/features/flash_sale/widgets/flash_sale_timer_view_widget.dart';
 
 class FlashSaleDetailsScreen extends StatefulWidget {
   final int id;

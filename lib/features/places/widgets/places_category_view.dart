@@ -1,178 +1,285 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/places/controllers/places_controller.dart';
-import 'package:sixam_mart/features/places/domain/models/place_category_model.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class PlacesCategoryView extends StatelessWidget {
   const PlacesCategoryView({super.key});
 
-  // Neo palette derived from brand teal/neon
-  static const List<Color> _vibeColors = [
-    Color(0xFF1EF2A0), // neon green
-    Color(0xFF0F766E), // teal
-    Color(0xFF14B8A6), // lighter teal
-    Color(0xFF34D399), // emerald
-    Color(0xFF06B6D4), // cyan
-    Color(0xFF22D3EE), // sky
-    Color(0xFF10B981), // green
-    Color(0xFF2DD4BF), // teal light
-  ];
-
-  static const List<String> _defaultEmojis = [
-    '☕', '🍕', '🎭', '🎵', '🏖️', '🎨', '🍸', '🎪',
+  static const List<_SortOption> _sortOptions = [
+    _SortOption(key: 'rating', label: 'Top'),
+    _SortOption(key: 'votes', label: 'Popular'),
+    _SortOption(key: 'newest', label: 'New'),
+    _SortOption(key: 'distance', label: 'Nearby'),
   ];
 
   @override
   Widget build(BuildContext context) {
     return GetBuilder<PlacesController>(
-      builder: (placesController) {
-        List<PlaceCategory>? categories = placesController.categories;
-
-        if (placesController.isCategoriesLoading) {
+      builder: (controller) {
+        if (controller.isCategoriesLoading) {
           return _buildShimmer(context);
         }
 
-        if (categories == null || categories.isEmpty) {
-          return const SizedBox.shrink();
-        }
+        final categories = controller.categories ?? const [];
+        final currentSort = controller.sortBy;
+        final primary = Theme.of(context).primaryColor;
+        final accent = Theme.of(context).secondaryHeaderColor;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeDefault,
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: primary.withValues(alpha: 0.14),
+                  width: 1.2,
+                ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('✨', style: TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
                   Text(
-                    'explore_vibes'.tr,
-                    style: robotoBold.copyWith(fontSize: 18),
+                    'Filter by category',
+                    style: robotoBold.copyWith(
+                      fontSize: 12,
+                      color: primary.withValues(alpha: 0.45),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        _CategorySegment(
+                          label: 'All',
+                          selected: controller.selectedCategoryId == null,
+                          onTap: () => controller.setSelectedCategory(null),
+                          selectedColor: accent,
+                          borderColor: primary.withValues(alpha: 0.25),
+                          textColor: primary,
+                        ),
+                        for (final category in categories)
+                          _CategorySegment(
+                            label: category.name,
+                            selected: controller.selectedCategoryId == category.id,
+                            onTap: () => controller.setSelectedCategory(category.id),
+                            selectedColor: accent,
+                            borderColor: primary.withValues(alpha: 0.25),
+                            textColor: primary,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Sort by',
+                    style: robotoBold.copyWith(
+                      fontSize: 12,
+                      color: primary.withValues(alpha: 0.45),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        for (final option in _sortOptions)
+                          _SortSegment(
+                            label: option.label,
+                            selected: currentSort == option.key,
+                            onTap: () => controller.setSortBy(option.key),
+                            selectedColor: accent,
+                            borderColor: primary.withValues(alpha: 0.25),
+                            textColor: primary,
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 12),
-
-            SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  PlaceCategory category = categories[index];
-                  bool isSelected = placesController.selectedCategoryId == category.id;
-                  final primary = Theme.of(context).primaryColor;
-                  final neon = Theme.of(context).secondaryHeaderColor;
-                  final vibeColor = _vibeColors[index % _vibeColors.length];
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (isSelected) {
-                          placesController.setSelectedCategory(null);
-                        } else {
-                          placesController.setSelectedCategory(category.id);
-                        }
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        width: 76,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? primary
-                              : primary.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected
-                                ? neon
-                                : vibeColor.withValues(alpha: 0.25),
-                            width: 1.5,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: neon.withValues(alpha: 0.4),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (category.icon != null && category.icon!.isNotEmpty)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CustomImage(
-                                  image: category.icon!,
-                                  height: 32,
-                                  width: 32,
-                                ),
-                              )
-                            else
-                              Text(
-                                _defaultEmojis[index % _defaultEmojis.length],
-                                style: const TextStyle(fontSize: 26),
-                              ),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: Text(
-                                category.name,
-                                style: robotoBold.copyWith(
-                                  fontSize: 10,
-                                  color: isSelected
-                                      ? neon
-                                      : vibeColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
   Widget _buildShimmer(BuildContext context) {
-    return SizedBox(
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        itemCount: 5,
-        itemBuilder: (context, index) {
-          return Container(
-            width: 76,
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(16),
+    final primary = Theme.of(context).primaryColor;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
             ),
-          );
-        },
+            child: Container(
+              width: 128,
+              height: 12,
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
+            child: Container(
+              height: 118,
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SortOption {
+  final String key;
+  final String label;
+
+  const _SortOption({required this.key, required this.label});
+}
+
+class _CategorySegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color selectedColor;
+  final Color borderColor;
+  final Color textColor;
+
+  const _CategorySegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.selectedColor,
+    required this.borderColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: selected ? selectedColor : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? Colors.black87 : borderColor,
+              width: 1.4,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: selectedColor.withValues(alpha: 0.22),
+                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label.toUpperCase(),
+            style: robotoBold.copyWith(
+              fontSize: 11,
+              color: selected ? Colors.black87 : textColor.withValues(alpha: 0.72),
+              letterSpacing: 0.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SortSegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color selectedColor;
+  final Color borderColor;
+  final Color textColor;
+
+  const _SortSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.selectedColor,
+    required this.borderColor,
+    required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? selectedColor.withValues(alpha: 0.96) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? Colors.black87 : borderColor,
+              width: 1.4,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: selectedColor.withValues(alpha: 0.18),
+                      offset: const Offset(0, 2),
+                      blurRadius: 4,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label.toUpperCase(),
+            style: selected
+                ? robotoBold.copyWith(
+                    fontSize: 11,
+                    color: Colors.black87,
+                    letterSpacing: 0.3,
+                  )
+                : robotoBold.copyWith(
+                    fontSize: 11,
+                    color: textColor.withValues(alpha: 0.72),
+                    letterSpacing: 0.3,
+                  ),
+          ),
+        ),
       ),
     );
   }

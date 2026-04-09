@@ -1,17 +1,17 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/hover/text_hover.dart';
-import 'package:sixam_mart/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/flash_sale/domain/models/flash_sale_model.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/cart_count_view.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/common/widgets/discount_tag.dart';
-import 'package:sixam_mart/common/widgets/organic_tag.dart';
+import 'package:waddy_app/common/widgets/hover/text_hover.dart';
+import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/cart_count_view.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/discount_tag.dart';
+import 'package:waddy_app/common/widgets/organic_tag.dart';
 
 class FlashSaleCard extends StatefulWidget {
   final List<ActiveProducts> activeProducts;

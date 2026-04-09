@@ -1,12 +1,12 @@
-import 'package:sixam_mart/features/order/domain/models/order_details_model.dart';
-import 'package:sixam_mart/features/order/domain/models/order_model.dart';
-import 'package:sixam_mart/features/review/controllers/review_controller.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/features/review/widgets/deliver_man_review_widget.dart';
-import 'package:sixam_mart/features/review/widgets/item_review_widget.dart';
+import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/review/controllers/review_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/features/review/widgets/deliver_man_review_widget.dart';
+import 'package:waddy_app/features/review/widgets/item_review_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

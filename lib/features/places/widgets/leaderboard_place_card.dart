@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/places/domain/models/place_model.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/places/domain/models/place_model.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class LeaderboardPlaceCard extends StatelessWidget {
   final Place place;

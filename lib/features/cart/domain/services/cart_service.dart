@@ -1,15 +1,15 @@
 import 'package:get/get_utils/get_utils.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
-import 'package:sixam_mart/features/cart/domain/models/cart_model.dart';
-import 'package:sixam_mart/features/cart/domain/models/online_cart_model.dart';
-import 'package:sixam_mart/features/cart/domain/repositories/cart_repository_interface.dart';
-import 'package:sixam_mart/features/cart/domain/services/cart_service_interface.dart';
-import 'package:sixam_mart/features/checkout/domain/models/place_order_body_model.dart';
-import 'package:sixam_mart/helper/module_helper.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart'
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
+import 'package:waddy_app/features/cart/domain/models/online_cart_model.dart';
+import 'package:waddy_app/features/cart/domain/repositories/cart_repository_interface.dart';
+import 'package:waddy_app/features/cart/domain/services/cart_service_interface.dart';
+import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
+import 'package:waddy_app/helper/module_helper.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart'
     as item_variation;
 
 class CartService implements CartServiceInterface {

@@ -1,5 +1,5 @@
-import 'package:sixam_mart/common/widgets/coustom_toast.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/coustom_toast.dart';
+import 'package:waddy_app/util/dimensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

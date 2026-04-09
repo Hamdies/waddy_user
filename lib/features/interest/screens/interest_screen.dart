@@ -1,11 +1,11 @@
 import 'dart:math' as math;
-import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/common/widgets/no_data_screen.dart';
-import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
+import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/common/widgets/no_data_screen.dart';
+import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

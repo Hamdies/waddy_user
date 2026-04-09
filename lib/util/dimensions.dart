@@ -1,13 +1,14 @@
 import 'package:get/get.dart';
 
 class Dimensions {
-  static double fontSizeOverSmall = Get.context!.width >= 1300 ? 10 : 8;
-  static double fontSizeExtraSmall = Get.context!.width >= 1300 ? 12 : 10;
-  static double fontSizeSmall = Get.context!.width >= 1300 ? 14 : 12;
-  static double fontSizeDefault = Get.context!.width >= 1300 ? 16 : 14;
-  static double fontSizeLarge = Get.context!.width >= 1300 ? 18 : 16;
-  static double fontSizeExtraLarge = Get.context!.width >= 1300 ? 20 : 18;
-  static double fontSizeOverLarge = Get.context!.width >= 1300 ? 26 : 24;
+  // Type scale — Major Third (×1.25) from base 14sp
+  static double fontSizeOverSmall = Get.context!.width >= 1300 ? 12 : 10;   // micro
+  static double fontSizeExtraSmall = Get.context!.width >= 1300 ? 14 : 12;  // label
+  static double fontSizeSmall = Get.context!.width >= 1300 ? 16 : 14;       // body (base)
+  static double fontSizeDefault = Get.context!.width >= 1300 ? 16 : 14;     // body
+  static double fontSizeLarge = Get.context!.width >= 1300 ? 20 : 18;       // title
+  static double fontSizeExtraLarge = Get.context!.width >= 1300 ? 26 : 22;  // headline
+  static double fontSizeOverLarge = Get.context!.width >= 1300 ? 34 : 28;   // display
 
   static const double paddingSizeExtraSmall = 5.0;
   static const double paddingSizeSmall = 10.0;

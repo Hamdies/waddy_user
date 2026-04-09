@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Zomato-style "Lucky Spin" wheel shown while waiting for an order.
 class LuckySpinWidget extends StatefulWidget {

@@ -2,12 +2,12 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/common/widgets/card_design/visit_again_card.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
-import 'package:sixam_mart/features/home/widgets/components/custom_triangle_shape.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/common/widgets/card_design/visit_again_card.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/home/widgets/components/custom_triangle_shape.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class VisitAgainView extends StatefulWidget {
   final bool? fromFood;

@@ -1,15 +1,15 @@
 import 'dart:convert';
 
 import 'package:get/get.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/api/local_client.dart';
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/item/domain/models/basic_medicine_model.dart';
-import 'package:sixam_mart/features/item/domain/models/common_condition_model.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/item/domain/repositories/item_repository_interface.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/api/local_client.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/item/domain/models/basic_medicine_model.dart';
+import 'package:waddy_app/features/item/domain/models/common_condition_model.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/item/domain/repositories/item_repository_interface.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class ItemRepository implements ItemRepositoryInterface {
   final ApiClient apiClient;

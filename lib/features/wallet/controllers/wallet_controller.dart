@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/models/transaction_model.dart';
-import 'package:sixam_mart/features/wallet/domain/models/wallet_filter_body_model.dart';
-import 'package:sixam_mart/features/wallet/domain/models/fund_bonus_model.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/common/models/transaction_model.dart';
+import 'package:waddy_app/features/wallet/domain/models/wallet_filter_body_model.dart';
+import 'package:waddy_app/features/wallet/domain/models/fund_bonus_model.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:universal_html/html.dart' as html;
-import 'package:sixam_mart/features/wallet/domain/services/wallet_service_interface.dart';
+import 'package:waddy_app/features/wallet/domain/services/wallet_service_interface.dart';
 
 class WalletController extends GetxController implements GetxService {
   final WalletServiceInterface walletServiceInterface;

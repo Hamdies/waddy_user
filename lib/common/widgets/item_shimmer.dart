@@ -1,5 +1,5 @@
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
 import 'package:flutter/material.dart';
 
 class ItemShimmer extends StatelessWidget {

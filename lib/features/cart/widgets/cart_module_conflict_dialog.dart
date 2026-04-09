@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/util/app_design_tokens.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/app_design_tokens.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Dialog shown when user tries to add items from a different module
 /// while cart already has items from another module.

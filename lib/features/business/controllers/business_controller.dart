@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/business/domain/models/business_plan_body.dart';
-import 'package:sixam_mart/features/business/domain/services/business_service_interface.dart';
+import 'package:waddy_app/features/business/domain/models/business_plan_body.dart';
+import 'package:waddy_app/features/business/domain/services/business_service_interface.dart';
 
 class BusinessController extends GetxController implements GetxService {
   final BusinessServiceInterface businessServiceInterface;

@@ -1,5 +1,5 @@
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/features/order/widgets/enhanced_stepper_widget.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/features/order/widgets/enhanced_stepper_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

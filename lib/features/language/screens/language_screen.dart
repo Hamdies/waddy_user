@@ -1,18 +1,18 @@
-import 'package:sixam_mart/common/widgets/custom_asset_image_widget.dart';
-import 'package:sixam_mart/features/language/screens/web_language_screen.dart';
-import 'package:sixam_mart/features/language/widgets/language_card_widget.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
+import 'package:waddy_app/features/language/screens/web_language_screen.dart';
+import 'package:waddy_app/features/language/widgets/language_card_widget.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/common/widgets/custom_button.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/common/widgets/custom_button.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:get/get.dart';
 
 class ChooseLanguageScreen extends StatefulWidget {

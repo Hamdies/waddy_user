@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/places/controllers/places_controller.dart';
-import 'package:sixam_mart/features/places/domain/models/place_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_review_model.dart';
-import 'package:sixam_mart/features/places/widgets/place_vote_sheet.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/places/widgets/place_vote_sheet.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
 
 class PlaceDetailsScreen extends StatefulWidget {
   final int placeId;
@@ -18,818 +15,937 @@ class PlaceDetailsScreen extends StatefulWidget {
 }
 
 class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
-  final PageController _galleryController = PageController();
-  int _currentGalleryIndex = 0;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
-    final controller = Get.find<PlacesController>();
-    await controller.getPlaceDetails(widget.placeId);
-    controller.getPlaceReviews(widget.placeId);
-    if (AuthHelper.isLoggedIn()) {
-      controller.getVoteStatus(widget.placeId);
-    }
+    final c = Get.find<PlacesController>();
+    await c.getPlaceDetails(widget.placeId);
+    c.getPlaceReviews(widget.placeId);
+    if (AuthHelper.isLoggedIn()) c.getVoteStatus(widget.placeId);
   }
 
-  @override
-  void dispose() {
-    _galleryController.dispose();
-    super.dispose();
+  void _onVoteTap(int placeId) {
+    if (AuthHelper.isLoggedIn()) {
+      Get.bottomSheet(PlaceVoteSheet(placeId: placeId), isScrollControlled: true);
+    } else {
+      Get.snackbar('Alert', 'Please login to vote');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    final neon = Theme.of(context).secondaryHeaderColor;
+    return GetBuilder<PlacesController>(builder: (c) {
+      final place = c.placeDetails;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: GetBuilder<PlacesController>(
-        builder: (controller) {
-          final place = controller.placeDetails;
+      if (place == null) {
+        return const Scaffold(
+          backgroundColor: Color(0xFFF6F6F6),
+          body: Center(
+            child: CircularProgressIndicator(color: Color(0xFF00693E), strokeWidth: 4),
+          ),
+        );
+      }
 
-          if (controller.isDetailsLoading || place == null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      final hasSocials = place.website != null || place.instagram != null || place.phone != null;
+      final hasTags = place.tags != null && place.tags!.isNotEmpty;
+
+      return Scaffold(
+        backgroundColor: const Color(0xFFF6F6F6),
+
+        // ── Sticky Vote CTA ───────────────────────────────────
+        bottomNavigationBar: Container(
+          padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).padding.bottom + 8),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF6F6F6),
+            border: Border(top: BorderSide(color: Colors.black, width: 2)),
+          ),
+          child: InkWell(
+            onTap: () => _onVoteTap(place.id),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00FC9B),
+                border: Border.all(color: Colors.black, width: 2),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('💎', style: TextStyle(fontSize: 40)),
-                  const SizedBox(height: 12),
-                  CircularProgressIndicator(color: neon),
+                  Icon(Icons.bolt, size: 26, color: Colors.black),
+                  SizedBox(width: 8),
+                  Text(
+                    'DROP YOUR VIBE NOW',
+                    style: TextStyle(
+                      fontFamily: 'SpaceGrotesk',
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ],
               ),
-            );
-          }
-
-          return CustomScrollView(
-            slivers: [
-              _buildGalleryAppBar(context, place, primary, neon),
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(context, place, primary, neon, controller),
-                    if (place.tags != null && place.tags!.isNotEmpty)
-                      _buildTags(context, place),
-                    _buildQuickActions(context, place, primary, neon),
-                    _buildInfoSection(context, place, primary, neon),
-                    if (place.address != null)
-                      _buildAddress(context, place, primary, neon),
-                    _buildVoteCTA(context, controller, place, primary, neon),
-                    _buildReviewsSection(context, controller, primary, neon),
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // GALLERY APP BAR — immersive full-bleed gallery
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildGalleryAppBar(BuildContext context, Place place, Color primary, Color neon) {
-    final images = <String>[];
-    if (place.gallery != null && place.gallery!.isNotEmpty) {
-      images.addAll(place.gallery!.map((e) => e.image));
-    } else if (place.image != null) {
-      images.add(place.image!);
-    }
-
-    return SliverAppBar(
-      expandedHeight: 320,
-      pinned: true,
-      backgroundColor: primary,
-      leading: _circleButton(
-        icon: Icons.arrow_back_rounded,
-        onTap: () => Get.back(),
-      ),
-      actions: [
-        if (AuthHelper.isLoggedIn())
-          GetBuilder<PlacesController>(
-            builder: (c) {
-              final isFav = place.isFavorited == true;
-              return _circleButton(
-                icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: isFav ? const Color(0xFFFF5252) : Colors.white,
-                onTap: () => c.toggleFavorite(place.id),
-              );
-            },
+            ),
           ),
-        const SizedBox(width: 8),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: images.isEmpty
-            ? Container(
-                color: primary.withValues(alpha: 0.2),
-                child: const Center(child: Text('📍', style: TextStyle(fontSize: 60))),
-              )
-            : Stack(
-                fit: StackFit.expand,
+        ),
+
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6F6F6),
+              border: const Border(bottom: BorderSide(width: 2, color: Colors.black)),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+            ),
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
                 children: [
-                  PageView.builder(
-                    controller: _galleryController,
-                    itemCount: images.length,
-                    onPageChanged: (i) => setState(() => _currentGalleryIndex = i),
-                    itemBuilder: (_, i) => CustomImage(image: images[i], fit: BoxFit.cover),
+                  InkWell(
+                    onTap: () => Get.back(),
+                    highlightColor: Colors.transparent,
+                    splashColor: const Color(0xFF00FC9B).withOpacity(0.3),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.arrow_back, color: Color(0xFF00693E), size: 22),
+                    ),
                   ),
-                  // Bottom gradient
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      place.title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF00693E),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    highlightColor: Colors.transparent,
+                    splashColor: const Color(0xFF00FC9B).withOpacity(0.3),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.bookmark_border, color: Color(0xFF2D2F2F), size: 22),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              // ── Hero Image ────────────────────────────────────
+              Stack(
+                children: [
+                  Container(
+                    height: 240,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
+                      color: const Color(0xFFF0F1F1),
+                    ),
+                    child: CustomImage(
+                      image: place.coverImage ?? place.image ?? '',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  // Logo overlay
                   Positioned(
-                    bottom: 0, left: 0, right: 0,
+                    top: 12,
+                    right: 12,
                     child: Container(
-                      height: 120,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [Colors.black87, Colors.transparent],
-                        ),
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 2),
+                        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+                        color: Colors.white,
                       ),
+                      child: CustomImage(image: place.image ?? '', fit: BoxFit.cover),
                     ),
                   ),
-                  // Top gradient for status bar
-                  Positioned(
-                    top: 0, left: 0, right: 0,
-                    child: Container(
-                      height: 100,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.black45, Colors.transparent],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Page indicator
-                  if (images.length > 1)
+                  // Open / Closed badge
+                  if (place.isOpenNow != null)
                     Positioned(
-                      bottom: 16, left: 0, right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(images.length, (i) {
-                          final isActive = _currentGalleryIndex == i;
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            width: isActive ? 24 : 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            decoration: BoxDecoration(
-                              color: isActive ? Colors.white : Colors.white38,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  // Photo count badge
-                  if (images.length > 1)
-                    Positioned(
-                      bottom: 16, right: 16,
+                      top: 12,
+                      left: 12,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(12),
+                          color: place.isOpenNow! ? const Color(0xFF00FC9B) : Colors.redAccent,
+                          border: Border.all(color: Colors.black, width: 2),
+                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.photo_library_rounded, size: 14, color: Colors.white),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${_currentGalleryIndex + 1}/${images.length}',
-                              style: robotoMedium.copyWith(fontSize: 11, color: Colors.white),
-                            ),
-                          ],
+                        child: Text(
+                          place.isOpenNow! ? 'OPEN NOW' : 'CLOSED',
+                          style: const TextStyle(
+                            fontFamily: 'SpaceGrotesk',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
                 ],
               ),
-      ),
-    );
-  }
+              const SizedBox(height: 12),
 
-  Widget _circleButton({required IconData icon, Color? color, required VoidCallback onTap}) {
-    final p = Theme.of(context).primaryColor;
-    final n = Theme.of(context).secondaryHeaderColor;
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38, height: 38,
-          decoration: BoxDecoration(
-            color: p.withValues(alpha: 0.5),
-            shape: BoxShape.circle,
-            border: Border.all(color: n.withValues(alpha: 0.3)),
-          ),
-          child: Icon(icon, color: color ?? Colors.white, size: 20),
-        ),
-      ),
-    );
-  }
+              // ── Stats Block ────────────────────────────────────
+              _buildStatsBar(place.votesCount, place.rating),
+              const SizedBox(height: 16),
 
-  // ═══════════════════════════════════════════════════════════════
-  // HEADER — title, category, rating, open status
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildHeader(BuildContext context, Place place, Color primary, Color neon, PlacesController controller) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  place.title,
-                  style: robotoBold.copyWith(fontSize: 24, height: 1.2),
+              // ── Title & Address ────────────────────────────────
+              Text(
+                place.title.toUpperCase(),
+                style: const TextStyle(
+                  fontFamily: 'SpaceGrotesk',
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.5,
+                  height: 1.0,
                 ),
               ),
-              if (place.isOpenNow != null)
-                Container(
-                  margin: const EdgeInsets.only(left: 10, top: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: place.isOpenNow == true
-                        ? const Color(0xFF00C853)
-                        : const Color(0xFFFF5252),
-                    borderRadius: BorderRadius.circular(20),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF00693E)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      place.address?.toUpperCase() ?? 'ADDRESS NOT PROVIDED',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF00693E),
+                      ),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 6, height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
+                ],
+              ),
+              if (place.categoryName != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D2F2F),
+                    border: Border.all(color: Colors.black, width: 2),
+                  ),
+                  child: Text(
+                    place.categoryName!.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'SpaceGrotesk',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              if (hasTags) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: place.tags!.map((tag) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Text(
+                        tag.name.toUpperCase(),
+                        style: const TextStyle(
+                          fontFamily: 'SpaceGrotesk',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(width: 5),
+                    );
+                  }).toList(),
+                ),
+              ],
+              if (hasSocials) ...[
+                const SizedBox(height: 16),
+                _buildSocialRow(place.website, place.instagram, place.phone),
+              ],
+              const SizedBox(height: 24),
+
+              // ── What's The Vibe ───────────────────────────────
+              _sectionHeader("WHAT'S THE VIBE TODAY?"),
+              const SizedBox(height: 10),
+              Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.black, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+                    ),
+                    child: Text(
+                      place.description?.isNotEmpty == true ? place.description! : '—',
+                      style: const TextStyle(
+                        fontFamily: 'Manrope',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      color: const Color(0xFF00693E),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: const Text(
+                        'VIBE CHECK',
+                        style: TextStyle(
+                          color: Color(0xFFCBFFDA),
+                          fontFamily: 'SpaceGrotesk',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // ── Photos From The Spot ──────────────────────────
+              _sectionHeader('PHOTOS FROM THE SPOT'),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 140,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  children: _buildGallery(place, context),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── How To Get Here ───────────────────────────────
+              _sectionHeader('HOW TO GET HERE'),
+              const SizedBox(height: 10),
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(place.lat ?? 30.0311, place.lng ?? 31.2390),
+                    zoom: 15,
+                  ),
+                  zoomControlsEnabled: false,
+                  myLocationButtonEnabled: false,
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('place'),
+                      position: LatLng(place.lat ?? 30.0311, place.lng ?? 31.2390),
+                    ),
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Text(
+                  'Tap the button below to open in Google Maps',
+                  style: TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Secondary CTA — white/outline style
+              InkWell(
+                onTap: () {
+                  // TODO: open in Google Maps / Apple Maps
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.navigation_outlined, color: Colors.black, size: 20),
+                      SizedBox(width: 8),
                       Text(
-                        place.isOpenNow == true ? 'open'.tr : 'closed'.tr,
-                        style: robotoBold.copyWith(fontSize: 10, color: Colors.white),
+                        'GET DIRECTIONS',
+                        style: TextStyle(
+                          fontFamily: 'SpaceGrotesk',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── What Maadi Says ───────────────────────────────
+              _sectionHeader('WHAT MAADI SAYS'),
+              const SizedBox(height: 12),
+              _buildReviews(c, place.id),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () {},
+                child: CustomPaint(
+                  painter: DashedBorderPainter(),
+                  child: const SizedBox(
+                    width: double.infinity,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      child: Center(
+                        child: Text(
+                          'SEE MORE FROM THE NEIGHBORHOOD',
+                          style: TextStyle(
+                            fontFamily: 'SpaceGrotesk',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
+        ),
+      );
+    });
+  }
 
-          const SizedBox(height: 6),
+  // ── Stats Bar ──────────────────────────────────────────────
+  Widget _buildStatsBar(int votes, double rating) {
+    final hasVotes = votes > 0;
+    final votesLabel = votes >= 1000
+        ? '${(votes / 1000).toStringAsFixed(1)}K'
+        : votes.toString();
 
-          // Category
-          if (place.categoryName != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: neon.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: neon.withValues(alpha: 0.2)),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.black, width: 2),
+        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.star_rounded,
+                color: hasVotes ? const Color(0xFFFDD400) : Colors.grey.shade400,
+                size: 22,
               ),
-              child: Text(
-                place.categoryName!,
-                style: robotoMedium.copyWith(fontSize: 12, color: neon),
-              ),
-            ),
-
-          const SizedBox(height: 14),
-
-          // Rating row — vibrant style
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: neon.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(color: neon.withValues(alpha: 0.05), blurRadius: 8),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Big rating number
-                Column(
-                  children: [
-                    Text(
-                      place.rating.toStringAsFixed(1),
-                      style: robotoBold.copyWith(fontSize: 28),
-                    ),
-                    Row(
-                      children: List.generate(5, (i) => Icon(
-                        i < place.rating.round() ? Icons.star_rounded : Icons.star_border_rounded,
-                        size: 14,
-                        color: Colors.amber.shade700,
-                      )),
-                    ),
-                  ],
+              const SizedBox(width: 8),
+              Text(
+                hasVotes ? rating.toStringAsFixed(1) : 'No ratings yet',
+                style: TextStyle(
+                  fontFamily: 'SpaceGrotesk',
+                  fontSize: hasVotes ? 20 : 15,
+                  fontWeight: FontWeight.w900,
+                  color: hasVotes ? Colors.black : Colors.grey,
                 ),
-                const SizedBox(width: 16),
-                Container(width: 1, height: 40, color: neon.withValues(alpha: 0.2)),
-                const SizedBox(width: 16),
-                // Stats
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _statItem('🗳️', '${place.votesCount}', 'votes'.tr),
-                      _statItem('❤️', '${place.favoritesCount}', 'favorites'.tr),
-                    ],
+              ),
+              if (hasVotes) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '· $votesLabel VOTES',
+                  style: const TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D2F2F),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
+          if (!hasVotes) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Be the first local to vote',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF00693E),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _statItem(String emoji, String value, String label) {
+  // ── Social Row with Labels ─────────────────────────────────
+  Widget _buildSocialRow(String? website, String? instagram, String? phone) {
+    final items = <Map<String, dynamic>>[];
+    if (website != null) items.add({'icon': Icons.language, 'label': 'WEBSITE', 'onTap': () {}});
+    if (instagram != null) items.add({'icon': Icons.alternate_email, 'label': 'INSTAGRAM', 'onTap': () {}});
+    if (phone != null) items.add({'icon': Icons.phone_outlined, 'label': 'CALL US', 'onTap': () {}});
+
+    return Row(
+      children: items.expand((item) {
+        final idx = items.indexOf(item);
+        return [
+          InkWell(
+            onTap: item['onTap'] as VoidCallback,
+            highlightColor: Colors.transparent,
+            splashColor: const Color(0xFF00FC9B).withOpacity(0.3),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
+                  ),
+                  child: Icon(item['icon'] as IconData, color: Colors.black, size: 20),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item['label'] as String,
+                  style: const TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2D2F2F),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (idx < items.length - 1) const SizedBox(width: 16),
+        ];
+      }).toList(),
+    );
+  }
+
+  // ── Gallery ────────────────────────────────────────────────
+  List<Widget> _buildGallery(place, BuildContext context) {
+    var gallery = place.gallery as List?;
+
+    // Show mock photos if gallery is null/empty
+    if (gallery == null || gallery.isEmpty) {
+      final mockUrls = [
+        'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=400&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1442512595331-e89e30ea369e?w=400&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1514432324607-2e467f4af445?w=400&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1459925985917-f1db0ab26ba9?w=400&h=300&fit=crop',
+        'https://images.unsplash.com/photo-1493857671505-72967e2e2760?w=400&h=300&fit=crop',
+      ];
+      return mockUrls
+          .take(5)
+          .toList()
+          .asMap()
+          .entries
+          .expand((e) => [
+                _imageCard(e.value, e.key.isEven ? -0.015 : 0.015),
+                if (e.key < mockUrls.length - 1) const SizedBox(width: 16),
+              ])
+          .toList();
+    }
+
+    if (gallery.isNotEmpty) {
+      return gallery
+          .take(5)
+          .toList()
+          .asMap()
+          .entries
+          .expand((e) => [
+                _imageCard(e.value.image as String, e.key.isEven ? -0.015 : 0.015),
+                if (e.key < gallery.length - 1) const SizedBox(width: 16),
+              ])
+          .toList();
+    }
+
+    return [
+      SizedBox(
+        width: MediaQuery.of(context).size.width - 24,
+        height: 140,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.camera_alt_outlined, size: 32, color: Colors.grey),
+            SizedBox(height: 8),
+            Text(
+              'NO PHOTOS YET',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Be the first to drop your shots from here',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 11,
+                color: Color(0xFF00693E),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  // ── Reviews ────────────────────────────────────────────────
+  Widget _buildReviews(PlacesController c, int placeId) {
+    if (c.isReviewsLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(color: Color(0xFF00693E), strokeWidth: 3)),
+      );
+    }
+
+    var reviews = c.reviews;
+
+    // Show mock reviews if empty
+    if (reviews == null || reviews.isEmpty) {
+      return _buildMockReviewsList();
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          children: [
+            const Icon(Icons.chat_bubble_outline, size: 36, color: Colors.grey),
+            const SizedBox(height: 10),
+            const Text(
+              'NO ONE HAS SHARED THEIR VIBE YET',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Be the first local to drop a review',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 11,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => _onVoteTap(placeId),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+                ),
+                child: const Text(
+                  'DROP THE FIRST REVIEW',
+                  style: TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final avatarColors = [
+      const Color(0xFF00693E),
+      const Color(0xFF6D5A00),
+      const Color(0xFF1A237E),
+      const Color(0xFF880E4F),
+    ];
+
     return Column(
+      children: List.generate(reviews.length, (i) {
+        final r = reviews[i];
+        final name = (r.userName?.isNotEmpty == true ? r.userName! : 'CITIZEN_${r.userId}').toUpperCase();
+        final comment = r.comment ?? '';
+        return Padding(
+          padding: EdgeInsets.only(
+            left: i.isEven ? 12 : 0,
+            right: i.isOdd ? 12 : 0,
+            bottom: i < reviews.length - 1 ? 16 : 0,
+          ),
+          child: _reviewCard(
+            name,
+            '${r.rating} ★ · ${_timeAgo(r.createdAt)}',
+            comment,
+            avatarColors[i % avatarColors.length],
+            isNew: i == 0,
+          ),
+        );
+      }),
+    );
+  }
+
+  String _timeAgo(DateTime? dt) {
+    if (dt == null) return '';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 30) return '${(diff.inDays / 30).floor()}mo ago';
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    return 'Just now';
+  }
+
+  Widget _sectionHeader(String title) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFF00693E), width: 3)),
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'SpaceGrotesk',
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _imageCard(String url, double angle) {
+    return Transform.rotate(
+      angle: angle,
+      child: Container(
+        width: 200,
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+        ),
+        child: CustomImage(image: url, fit: BoxFit.cover),
+      ),
+    );
+  }
+
+  Widget _reviewCard(String name, String sub, String review, Color avatarColor,
+      {String? rank, bool isNew = false}) {
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
-        const SizedBox(height: 2),
-        Text(value, style: robotoBold.copyWith(fontSize: 16)),
-        Text(label, style: robotoRegular.copyWith(fontSize: 10, color: Colors.grey[500])),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: Colors.black, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: avatarColor,
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            style: const TextStyle(
+                                fontFamily: 'SpaceGrotesk',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900)),
+                        Text(sub.toUpperCase(),
+                            style: const TextStyle(
+                                fontFamily: 'SpaceGrotesk',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  if (rank != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDD400),
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Text('RANK: $rank',
+                          style: const TextStyle(
+                              fontFamily: 'SpaceGrotesk',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('"$review"',
+                  style: const TextStyle(
+                      fontFamily: 'Manrope',
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                      height: 1.4)),
+            ],
+          ),
+        ),
+        if (isNew)
+          Positioned(
+            top: -10,
+            right: -10,
+            child: Transform.rotate(
+              angle: 0.1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  border: Border.all(color: Colors.black, width: 2),
+                ),
+                child: const Text('NEW ENTRY',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // TAGS — colorful vibe pills
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildTags(BuildContext context, Place place) {
-    const tagColors = [
-      Color(0xFFFF6B6B), Color(0xFF4ECDC4), Color(0xFF7C4DFF),
-      Color(0xFFFFAB00), Color(0xFF448AFF), Color(0xFFE040FB),
+  // ── Mock Reviews Helper ────────────────────────────────────
+  Widget _buildMockReviewsList() {
+    final mockReviews = [
+      {
+        'userName': 'Ahmed Hassan',
+        'userId': 123,
+        'rating': 4.5,
+        'comment': 'Amazing vibes and perfect coffee! The atmosphere is unmatched in Maadi.',
+        'createdAt': DateTime.now().subtract(const Duration(hours: 2)),
+      },
+      {
+        'userName': 'Sara Mohamed',
+        'userId': 456,
+        'rating': 5.0,
+        'comment': 'Best spot in Maadi! Highly recommend for meetings and hangouts.',
+        'createdAt': DateTime.now().subtract(const Duration(days: 1)),
+      },
+      {
+        'userName': 'Karim Farah',
+        'userId': 789,
+        'rating': 4.0,
+        'comment': 'Cool place, great for studying and working. Quiet and focused.',
+        'createdAt': DateTime.now().subtract(const Duration(days: 3)),
+      },
     ];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: place.tags!.asMap().entries.map((entry) {
-          final tag = entry.value;
-          final color = tagColors[entry.key % tagColors.length];
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (tag.icon != null && tag.icon!.isNotEmpty) ...[
-                  Text(tag.icon!, style: const TextStyle(fontSize: 13)),
-                  const SizedBox(width: 4),
-                ],
-                Text(tag.localizedName,
-                    style: robotoMedium.copyWith(fontSize: 12, color: color)),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+    final avatarColors = [
+      const Color(0xFF00693E),
+      const Color(0xFF6D5A00),
+      const Color(0xFF1A237E),
+      const Color(0xFF880E4F),
+    ];
 
-  // ═══════════════════════════════════════════════════════════════
-  // QUICK ACTIONS — call, website, instagram, directions
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildQuickActions(BuildContext context, Place place, Color primary, Color neon) {
-    final actions = <_QuickAction>[];
-
-    if (place.phone != null && place.phone!.isNotEmpty) {
-      actions.add(_QuickAction('📞', 'call'.tr, () {
-        launchUrl(Uri.parse('tel:${place.phone}'));
-      }));
-    }
-    if (place.website != null && place.website!.isNotEmpty) {
-      actions.add(_QuickAction('🌐', 'website'.tr, () {
-        launchUrl(Uri.parse(place.website!), mode: LaunchMode.externalApplication);
-      }));
-    }
-    if (place.instagram != null && place.instagram!.isNotEmpty) {
-      actions.add(_QuickAction('📸', 'instagram'.tr, () {
-        launchUrl(Uri.parse('https://instagram.com/${place.instagram}'),
-            mode: LaunchMode.externalApplication);
-      }));
-    }
-    if (place.lat != null && place.lng != null) {
-      actions.add(_QuickAction('🗺️', 'directions'.tr, () {
-        launchUrl(Uri.parse('https://maps.google.com/?q=${place.lat},${place.lng}'),
-            mode: LaunchMode.externalApplication);
-      }));
-    }
-
-    if (actions.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      child: Row(
-        children: actions.map((action) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: GestureDetector(
-              onTap: action.onTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: neon.withValues(alpha: 0.15)),
-                  boxShadow: [
-                    BoxShadow(color: neon.withValues(alpha: 0.04), blurRadius: 6),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Text(action.emoji, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 4),
-                    Text(
-                      action.label,
-                      style: robotoMedium.copyWith(fontSize: 10, color: neon),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return Column(
+      children: List.generate(mockReviews.length, (i) {
+        final r = mockReviews[i];
+        final name = (r['userName'] as String?)?.isNotEmpty == true
+            ? (r['userName'] as String).toUpperCase()
+            : 'CITIZEN_${r['userId']}';
+        final comment = r['comment'] as String? ?? '';
+        final createdAt = r['createdAt'] as DateTime?;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: i.isEven ? 12 : 0,
+            right: i.isOdd ? 12 : 0,
+            bottom: i < mockReviews.length - 1 ? 16 : 0,
           ),
-        )).toList(),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // INFO SECTION — hours
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildInfoSection(BuildContext context, Place place, Color primary, Color neon) {
-    if (place.openingHours == null) return const SizedBox.shrink();
-
-    String hours = '';
-    if (place.openingHours is String) {
-      hours = place.openingHours;
-    } else if (place.openingHours is Map) {
-      hours = (place.openingHours as Map).entries
-          .map((e) => '${e.key}: ${e.value}')
-          .join('\n');
-    }
-    if (hours.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: neon.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('🕐', style: TextStyle(fontSize: 18)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('opening_hours'.tr,
-                    style: robotoBold.copyWith(fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(hours,
-                    style: robotoRegular.copyWith(fontSize: 12, color: Theme.of(context).disabledColor, height: 1.5)),
-              ],
-            ),
+          child: _reviewCard(
+            name,
+            '${r['rating']} ★ · ${_timeAgo(createdAt)}',
+            comment,
+            avatarColors[i % avatarColors.length],
+            isNew: i == 0,
           ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // ADDRESS
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildAddress(BuildContext context, Place place, Color primary, Color neon) {
-    return GestureDetector(
-      onTap: () {
-        if (place.lat != null && place.lng != null) {
-          launchUrl(Uri.parse('https://maps.google.com/?q=${place.lat},${place.lng}'),
-              mode: LaunchMode.externalApplication);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: primary.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: neon.withValues(alpha: 0.12)),
-        ),
-        child: Row(
-          children: [
-            const Text('📍', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(place.address!,
-                  style: robotoRegular.copyWith(fontSize: 13, height: 1.3),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-            ),
-            Icon(Icons.directions_rounded, size: 22, color: neon),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // VOTE CTA — gradient button
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildVoteCTA(BuildContext context, PlacesController controller, Place place, Color primary, Color neon) {
-    final hasVoted = controller.voteStatus?.hasVoted == true;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      child: GestureDetector(
-        onTap: () {
-          if (!AuthHelper.isLoggedIn()) {
-            Get.snackbar('login_required'.tr, 'please_login_to_vote'.tr);
-            return;
-          }
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => PlaceVoteSheet(placeId: place.id, hasVoted: hasVoted),
-          );
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            gradient: hasVoted
-                ? LinearGradient(colors: [neon, neon.withValues(alpha: 0.8)])
-                : LinearGradient(colors: [primary, primary.withValues(alpha: 0.85)]),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: neon.withValues(alpha: hasVoted ? 0.5 : 0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: neon.withValues(alpha: 0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                hasVoted ? '✅' : '🗳️',
-                style: const TextStyle(fontSize: 20),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                hasVoted ? 'you_voted'.tr : 'vote_for_this_place'.tr,
-                style: robotoBold.copyWith(fontSize: 15, color: hasVoted ? primary : Colors.white),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // REVIEWS SECTION
-  // ═══════════════════════════════════════════════════════════════
-  Widget _buildReviewsSection(BuildContext context, PlacesController controller, Color primary, Color neon) {
-    final reviews = controller.reviews;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Text('💬', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Text('reviews'.tr, style: robotoBold.copyWith(fontSize: 18)),
-              const Spacer(),
-              if (controller.totalReviews != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: neon.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${controller.totalReviews}',
-                    style: robotoMedium.copyWith(fontSize: 11, color: neon),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (controller.isReviewsLoading && (reviews == null || reviews.isEmpty))
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: CircularProgressIndicator(color: neon, strokeWidth: 2),
-              ),
-            )
-          else if (reviews == null || reviews.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    const Text('📝', style: TextStyle(fontSize: 36)),
-                    const SizedBox(height: 8),
-                    Text('no_reviews_yet'.tr,
-                        style: robotoMedium.copyWith(fontSize: 14, color: Colors.grey[400])),
-                    const SizedBox(height: 4),
-                    Text('be_the_first'.tr,
-                        style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey[350])),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...reviews.map((review) => _buildReviewCard(context, review, primary, neon)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReviewCard(BuildContext context, PlaceReview review, Color primary, Color neon) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.02),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: neon.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // User info + rating
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: neon.withValues(alpha: 0.1),
-                backgroundImage: review.userImage != null
-                    ? NetworkImage(review.userImage!)
-                    : null,
-                child: review.userImage == null
-                    ? const Text('👤', style: TextStyle(fontSize: 16))
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(review.userName ?? 'anonymous'.tr,
-                        style: robotoMedium.copyWith(fontSize: 13)),
-                    if (review.createdAt != null)
-                      Text(_formatDate(review.createdAt!),
-                          style: robotoRegular.copyWith(fontSize: 10, color: Colors.grey[400])),
-                  ],
-                ),
-              ),
-              // Star rating pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.star_rounded, size: 14, color: Colors.amber.shade700),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${review.rating}',
-                      style: robotoBold.copyWith(fontSize: 12, color: Colors.amber.shade800),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Comment
-          if (review.comment != null && review.comment!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(review.comment!,
-                style: robotoRegular.copyWith(fontSize: 13, height: 1.5, color: Colors.grey[700])),
-          ],
-
-          // Photo review
-          if (review.imageUrl != null && review.imageUrl!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CustomImage(
-                image: review.imageUrl!,
-                height: 140,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ],
-
-          // Report
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () => _showReportDialog(context, review.id),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text('report'.tr,
-                    style: robotoRegular.copyWith(fontSize: 10, color: Colors.grey[350])),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  void _showReportDialog(BuildContext context, int voteId) {
-    if (!AuthHelper.isLoggedIn()) return;
-
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Text('🚩', style: TextStyle(fontSize: 20)),
-            const SizedBox(width: 8),
-            Text('report_review'.tr, style: robotoBold.copyWith(fontSize: 16)),
-          ],
-        ),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: 'reason'.tr,
-            hintStyle: robotoRegular.copyWith(color: Colors.grey[400]),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Get.find<PlacesController>().reportReview(voteId, controller.text.trim());
-                Get.back();
-              }
-            },
-            child: Text('submit'.tr),
-          ),
-        ],
-      ),
+        );
+      }),
     );
   }
 }
 
-class _QuickAction {
-  final String emoji;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickAction(this.emoji, this.label, this.onTap);
+class DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    const double dashWidth = 8, dashSpace = 5;
+    double distance = 0;
+
+    for (final pathMetric in path.computeMetrics()) {
+      while (distance < pathMetric.length) {
+        canvas.drawPath(pathMetric.extractPath(distance, distance + dashWidth), paint);
+        distance += dashWidth + dashSpace;
+      }
+      distance = 0;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

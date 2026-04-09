@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 enum VerificationCodeVariant { standard, compact }
 
@@ -40,7 +40,7 @@ class VerificationCodeWidget extends StatelessWidget {
         ),
         const Spacer(),
         Container(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeSmall,
             vertical: Dimensions.paddingSizeExtraSmall,
           ),
@@ -65,12 +65,16 @@ class VerificationCodeWidget extends StatelessWidget {
   }
 
   Widget _buildCompact(BuildContext context) {
-    return Center(
+    final bool isSmallScreen = MediaQuery.sizeOf(context).width < 380;
+
+    return Align(
+      alignment: Alignment.center,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+       width: double.infinity,
+       height: isSmallScreen ? 60 : 70,
         decoration: BoxDecoration(
           color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.7),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -82,19 +86,19 @@ class VerificationCodeWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: isSmallScreen ? 24 : 26,
+                  height: isSmallScreen ? 24 : 26,
                   decoration: BoxDecoration(
                     color: const Color(0xFF184541),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.verified_user_rounded,
-                    color: Color(0xFF6FCF97),
-                    size: 15,
+                    color: const Color(0xFF6FCF97),
+                    size: isSmallScreen ? 14 : 15,
                   ),
                 ),
-                const SizedBox(width: 6),
+                SizedBox(width: isSmallScreen ? 6 : 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -102,33 +106,37 @@ class VerificationCodeWidget extends StatelessWidget {
                     Text(
                       'VERIFICATION CODE',
                       style: robotoBold.copyWith(
-                        fontSize: 8,
+                        fontSize: isSmallScreen ? 7.5 : 8.5,
                         color: const Color(0xFF112E2C),
+                        height: 1,
                       ),
                     ),
                     Text(
                       'SHARE WITH DRIVER ONLY',
                       style: robotoRegular.copyWith(
-                        fontSize: 6,
+                        fontSize: isSmallScreen ? 5.5 : 6.5,
                         color: const Color(0xFF4A6B66),
+                        height: 1.1,
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: isSmallScreen ? 8 : 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: otp.split('').map((digit) {
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: 24,
-                  height: 28,
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 2.5 : 3,
+                  ),
+                  width: isSmallScreen ? 22 : 24,
+                  height: isSmallScreen ? 26 : 28,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(6),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.06),
@@ -141,7 +149,7 @@ class VerificationCodeWidget extends StatelessWidget {
                   child: Text(
                     digit,
                     style: robotoBold.copyWith(
-                      fontSize: 10,
+                      fontSize: isSmallScreen ? 11 : 12,
                       color: const Color(0xFF112E2C),
                     ),
                   ),

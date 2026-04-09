@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/helper/price_converter.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Store-specific Ramadan stall — real tent awning design with Islamic arch cards.
 /// Shows a **mix** of discounted (offers) + recommended (popular) items.

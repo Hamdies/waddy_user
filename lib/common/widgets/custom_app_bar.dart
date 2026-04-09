@@ -1,10 +1,10 @@
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/cart_widget.dart';
-import 'package:sixam_mart/common/widgets/veg_filter_widget.dart';
-import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/cart_widget.dart';
+import 'package:waddy_app/common/widgets/veg_filter_widget.dart';
+import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

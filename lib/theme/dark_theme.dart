@@ -1,25 +1,61 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 
-ThemeData dark({Color color = const Color(0xFF0F766E)}) => ThemeData(
+// ─── Waddy Dark Theme ──────────────────────────────────────────────────────────
+// Dark surfaces use teal-tinted near-blacks — avoids the generic blue-gray dark
+// Shadows shift warm to add depth without pure black
+
+ThemeData dark({Color color = const Color(0xFF1D706A)}) => ThemeData(
   fontFamily: AppConstants.fontFamily,
   primaryColor: color,
-  secondaryHeaderColor: const Color(0xFF134E4A),
-  disabledColor: const Color(0xffa2a7ad),
+  secondaryHeaderColor: WaddyColors.primary,
+  disabledColor: const Color(0xFF5A6360),
   brightness: Brightness.dark,
-  hintColor: const Color(0xFFbebebe),
-  cardColor: const Color(0xFF30313C),
-  shadowColor: Colors.white.withValues(alpha: 0.03),
-  textTheme: const TextTheme(bodyMedium: TextStyle(color: Colors.white70)),
-  textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: color)),
-  colorScheme: ColorScheme.dark(primary: color, secondary: color).copyWith(surface: const Color(0xFF191A26)).copyWith(error: const Color(0xFFdd3135)),
-  popupMenuTheme: const PopupMenuThemeData(color: Color(0xFF29292D), surfaceTintColor: Color(0xFF29292D)),
-  dialogTheme: const DialogThemeData(surfaceTintColor: Colors.white10),
-  floatingActionButtonTheme: FloatingActionButtonThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(500))),
-  bottomAppBarTheme: const BottomAppBarThemeData(
-    surfaceTintColor: Colors.black, height: 60,
-    padding: EdgeInsets.symmetric(vertical: 5),
+  hintColor: const Color(0xFF8A9896),
+  cardColor: const Color(0xFF1E2926),      // teal-tinted dark card
+  shadowColor: const Color(0x33000000),
+  scaffoldBackgroundColor: const Color(0xFF111715), // very dark teal-black
+  textTheme: const TextTheme(bodyMedium: TextStyle(color: Color(0xFFDDE8E6))),
+  textButtonTheme: TextButtonThemeData(
+    style: TextButton.styleFrom(foregroundColor: WaddyColors.mint),
   ),
-  dividerTheme: const DividerThemeData(thickness: 0.5, color: Color(0xFFA0A4A8)),
-  tabBarTheme: const TabBarThemeData(dividerColor: Colors.transparent),
+  colorScheme: ColorScheme.dark(
+    primary:    color,
+    secondary:  WaddyColors.mint,
+    tertiary:   WaddyColors.coral,
+    surface:    const Color(0xFF1E2926),
+    error:      const Color(0xFFFF6B6B),
+    onPrimary:  Colors.white,
+    onSecondary: WaddyColors.primary,
+    onTertiary:  Colors.white,
+    onSurface:   const Color(0xFFDDE8E6),
+    onError:     Colors.white,
+  ),
+  popupMenuTheme: const PopupMenuThemeData(
+    color: Color(0xFF243029),
+    surfaceTintColor: Color(0xFF243029),
+  ),
+  dialogTheme: const DialogThemeData(surfaceTintColor: Color(0xFF1E2926)),
+  floatingActionButtonTheme: FloatingActionButtonThemeData(
+    backgroundColor: WaddyColors.mint,
+    foregroundColor: WaddyColors.primary,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(500)),
+  ),
+  bottomAppBarTheme: const BottomAppBarThemeData(
+    surfaceTintColor: Color(0xFF111715),
+    height: 60,
+    padding: EdgeInsets.symmetric(vertical: 5),
+    color: Color(0xFF111715),
+  ),
+  dividerTheme: const DividerThemeData(
+    thickness: 0.5,
+    color: Color(0xFF2A3532),
+  ),
+  tabBarTheme: const TabBarThemeData(
+    indicatorColor: WaddyColors.mint,
+    labelColor: WaddyColors.mint,
+    unselectedLabelColor: Color(0xFF8A9896),
+    dividerColor: Colors.transparent,
+  ),
 );

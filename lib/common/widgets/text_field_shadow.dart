@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class TextFieldShadow extends StatelessWidget {
   final Widget child;

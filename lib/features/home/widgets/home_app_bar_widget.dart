@@ -2,18 +2,18 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/widgets/letter_dialog_widget.dart';
+import 'package:waddy_app/features/home/widgets/letter_dialog_widget.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
-import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
+import 'package:waddy_app/features/location/controllers/location_controller.dart';
+import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
 
 // ── Design tokens matching the reference ──
 const Color _mintLight = Color(0xFFE8F5F0);
@@ -410,32 +410,34 @@ class _CoinsPill extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _mintLight,
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(
+                color: teal.withValues(alpha: 0.15),
+                width: 1,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset(
                   'assets/image/waddy_coin.png',
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   '$xpPoints',
                   style: robotoBold.copyWith(
-                    fontSize: 14,
-                    color: textDark,
+                    fontSize: 13,
+                    color: teal,
                   ),
+                ),
+                const SizedBox(width: 3),
+                Icon(
+                  Icons.keyboard_arrow_right_rounded,
+                  size: 14,
+                  color: teal.withValues(alpha: 0.6),
                 ),
               ],
             ),

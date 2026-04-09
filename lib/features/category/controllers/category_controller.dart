@@ -1,10 +1,10 @@
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/category/domain/models/category_model.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/category/domain/services/category_service_interface.dart';
-import 'package:sixam_mart/helper/cache_ttl_helper.dart';
+import 'package:waddy_app/features/category/domain/services/category_service_interface.dart';
+import 'package:waddy_app/helper/cache_ttl_helper.dart';
 
 class CategoryController extends GetxController implements GetxService {
   final CategoryServiceInterface categoryServiceInterface;

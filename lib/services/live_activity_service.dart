@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/helper/live_activity_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/helper/live_activity_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class LiveActivityService {
   static const _channel = MethodChannel('com.hamdiesolutions.waddi/live_activity');

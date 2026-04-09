@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sixam_mart/util/images.dart';
+import 'package:waddy_app/util/images.dart';
 
 /// Reflex Tap Challenge — 4x4 grid, tiles light up, tap before they vanish.
 /// Speed increases every 8 points. Miss 3 = game over. Combo streaks.

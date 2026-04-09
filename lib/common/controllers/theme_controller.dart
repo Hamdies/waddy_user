@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

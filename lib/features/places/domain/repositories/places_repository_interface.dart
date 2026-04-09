@@ -4,6 +4,9 @@ abstract class PlacesRepositoryInterface {
   /// Get all place categories
   Future<Response> getCategories();
 
+  /// Get all zones for filter chips
+  Future<Response> getZones();
+
   /// Get all places with optional filters
   Future<Response> getPlaces({
     int? categoryId,
@@ -12,11 +15,16 @@ abstract class PlacesRepositoryInterface {
     double? lng,
     String? sort,
     List<int>? tagIds,
+    int? zoneId,
     int offset = 1,
   });
 
   /// Get leaderboard (top voted places)
-  Future<Response> getLeaderboard({String? period});
+  Future<Response> getLeaderboard({
+    String? period,
+    int? zoneId,
+    int? limit,
+  });
 
   /// Get trending/rising places
   Future<Response> getTrending();
@@ -32,6 +40,9 @@ abstract class PlacesRepositoryInterface {
 
   /// Get paginated reviews for a place
   Future<Response> getPlaceReviews(int placeId, {int offset = 1});
+
+  /// Get top voters
+  Future<Response> getTopVoters({int? zoneId, int limit = 10});
 
   /// Submit or update vote (requires auth) — now supports photo
   Future<Response> submitVote(int placeId, int rating, String? comment, {String? imagePath});

@@ -4,17 +4,17 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get_connect/connect.dart';
 import 'package:get/get_utils/src/platform/platform.dart';
-import 'package:sixam_mart/api/api_client.dart';
+import 'package:waddy_app/api/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
-import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_interface.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
-import 'package:sixam_mart/helper/module_helper.dart';
-import 'package:sixam_mart/helper/secure_storage_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/auth/domain/models/signup_body_model.dart';
+import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
+import 'package:waddy_app/features/auth/domain/reposotories/auth_repository_interface.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/module_helper.dart';
+import 'package:waddy_app/helper/secure_storage_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class AuthRepository implements AuthRepositoryInterface {
   final ApiClient apiClient;

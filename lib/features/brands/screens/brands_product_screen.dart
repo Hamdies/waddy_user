@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/common/widgets/custom_app_bar.dart';
-import 'package:sixam_mart/common/widgets/footer_view.dart';
-import 'package:sixam_mart/common/widgets/item_view.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/common/widgets/web_page_title_widget.dart';
-import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/common/widgets/footer_view.dart';
+import 'package:waddy_app/common/widgets/item_view.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/common/widgets/web_page_title_widget.dart';
+import 'package:waddy_app/features/brands/controllers/brands_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class BrandsItemScreen extends StatefulWidget {
   final int brandId;

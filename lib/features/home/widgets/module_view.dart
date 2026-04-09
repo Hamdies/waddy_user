@@ -1,22 +1,22 @@
 import 'package:lottie/lottie.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/places/controllers/places_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/home/widgets/views/top_restaurants_view.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/home/widgets/views/top_restaurants_view.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/widgets/current_order_widget.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_celebrate_button_wrapper.dart';
+import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
+import 'package:waddy_app/features/home/widgets/ramadan/ramadan_celebrate_button_wrapper.dart';
 
 class ModuleView extends StatelessWidget {
   final SplashController splashController;
@@ -27,20 +27,15 @@ class ModuleView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 0. Current Order (top priority — show active order first, above everything)
-        if (AuthHelper.isLoggedIn()) const Padding(
-          padding: EdgeInsets.only(top: 5, bottom: 5),
-          child: CurrentOrderWidget(),
-        ),
+        // 0. Current Order — elevated hero when active, tight spacing otherwise
+        if (AuthHelper.isLoggedIn()) const CurrentOrderWidget(),
 
-        const SizedBox(height: 4),
-
-        // 1. Modules grid - custom layout with Ramadan decorations
+        // 1. Modules grid — primary action, generous top breathing room
         splashController.moduleList != null
             ? splashController.moduleList!.isNotEmpty
                 ? RamadanCelebrateButtonWrapper(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: 20, bottom: 4),
                     child: _buildModulesLayout(context, splashController),
                   ),
                 )
@@ -54,14 +49,15 @@ class ModuleView extends StatelessWidget {
                 )
             : ModuleShimmer(isEnabled: splashController.moduleList == null),
 
-        const SizedBox(height: 8),
+        // Section divider — generous gap before secondary content
+        const SizedBox(height: 28),
 
-        // 2. Speed Mode — nearest best restaurants (replaces Featured Stores)
+        // 2. Quick Delivery — secondary section, clearly subordinate
         const TopRestaurantsView(),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 20),
 
-        // 3. Food Offers — discounted food items (replaces Trending Now)
+        // 3. Food Offers — tertiary content
         const _FoodOffersSection(),
 
         const SizedBox(height: 100),
@@ -77,7 +73,7 @@ class ModuleView extends StatelessWidget {
     SplashController splashController,
   ) {
     final modules = splashController.moduleList!;
-    const double cardSize = 95.0; // Larger cards for visual hierarchy
+    const double cardSize = 105.0; // Dominant primary action — hero size
 
     // Separate normal modules from Hidden Gem
     final normalModules = <dynamic>[];
@@ -106,7 +102,7 @@ class ModuleView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (int i = 0; i < normalModules.length; i++) ...[
-              if (i > 0) const SizedBox(width: 24),
+              if (i > 0) const SizedBox(width: 30),
               _ModuleCard(
                 module: normalModules[i]['module'],
                 cardSize: cardSize,
@@ -244,14 +240,15 @@ class _ModuleCardState extends State<_ModuleCard>
                   ),
                 ),
               ),
-              // Text label below image
+              // Text label below image — medium weight, clear hierarchy
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.only(top: 10),
                 child: Text(
                   widget.module.moduleName ?? '',
-                  style: robotoRegular.copyWith(
-                    fontSize: Dimensions.fontSizeDefault,
+                  style: robotoMedium.copyWith(
+                    fontSize: 13,
                     color: Theme.of(context).textTheme.bodyLarge?.color,
+                    letterSpacing: 0.1,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 1,
@@ -376,90 +373,89 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
         },
         child: Container(
           width: double.infinity,
-          height: 68,
+          height: 72,
           decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                primaryColor,
-                secondaryColor.withValues(alpha: 0.85),
-              ],
+            border: Border.all(
+              color: const Color(0xFFEEEEEE),
+              width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: primaryColor.withValues(alpha: 0.25),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  // Location pin icon — compact circle
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.18),
-                    ),
-                    child:  Lottie.asset(
-                      'assets/animation/gem.json',
-                     
-                    ),
+            child: Row(
+              children: [
+                // Left teal accent stripe — signals "special" without breaking the card language
+                Container(
+                  width: 4,
+                  color: primaryColor,
+                ),
+                const SizedBox(width: 12),
+                // Lottie icon in tinted circle
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primaryColor.withValues(alpha: 0.08),
                   ),
-                  const SizedBox(width: 10),
-                  // Text content
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Places to Visit',
-                          style: robotoMedium.copyWith(
-                            fontSize: Dimensions.fontSizeDefault,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  child: Lottie.asset('assets/animation/gem.json'),
+                ),
+                const SizedBox(width: 10),
+                // Text content
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Places to Visit',
+                        style: robotoMedium.copyWith(
+                          fontSize: 14,
+                          color: const Color(0xFF1A1A1A),
+                          fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 3),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Top spots in Maadi ✨',
-                            style: robotoRegular.copyWith(
-                              fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.95),
-                            ),
-                          ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Top spots near you ✨',
+                        style: robotoRegular.copyWith(
+                          fontSize: 11,
+                          color: const Color(0xFF8E9A98),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // Right: stacked images
-                  _buildStackedImages(primaryColor, secondaryColor),
-                  const SizedBox(width: 6),
-                  // Arrow
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Colors.white.withValues(alpha: 0.75),
+                ),
+                // Right: stacked images
+                _buildStackedImages(primaryColor, secondaryColor),
+                const SizedBox(width: 10),
+                // Arrow in tinted circle
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primaryColor.withValues(alpha: 0.08),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    color: primaryColor,
                     size: 14,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+              ],
             ),
           ),
         ),
@@ -546,7 +542,7 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
                   placeholder:
                       (_, __) => Container(
                         color: borderColor.withValues(alpha: 0.3),
-                        child: Icon(
+                        child: const Icon(
                           Icons.place,
                           color: Colors.white54,
                           size: 20,
@@ -555,7 +551,7 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
                   errorWidget:
                       (_, __, ___) => Container(
                         color: borderColor.withValues(alpha: 0.3),
-                        child: Icon(
+                        child: const Icon(
                           Icons.place,
                           color: Colors.white54,
                           size: 20,
@@ -564,7 +560,7 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
                 )
                 : Container(
                   color: borderColor.withValues(alpha: 0.3),
-                  child: Icon(Icons.place, color: Colors.white54, size: 20),
+                  child: const Icon(Icons.place, color: Colors.white54, size: 20),
                 ),
       ),
     );
@@ -625,57 +621,6 @@ class _FullWidthShimmerGemCardState extends State<_FullWidthShimmerGemCard>
   }
 }
 
-/// Custom painter for animated diagonal shimmer stripes
-class _ShimmerStripesPainter extends CustomPainter {
-  final double progress;
-  final Color stripeColor;
-
-  _ShimmerStripesPainter({required this.progress, required this.stripeColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const int stripeCount = 4;
-    const double stripeWidth = 30.0;
-    const double angle = 0.5; // ~30 degrees
-
-    // Calculate total travel distance for stripes
-    final double totalWidth =
-        size.width + size.height * angle + stripeWidth * stripeCount * 2;
-    final double startOffset = -stripeWidth * stripeCount - size.height * angle;
-
-    for (int i = 0; i < stripeCount; i++) {
-      // Calculate position of each stripe
-      final double baseX = startOffset + (i * stripeWidth * 2);
-      final double animatedX = baseX + (progress * totalWidth);
-
-      // Calculate opacity - center stripes more opaque
-      final double normalizedPos =
-          (i - stripeCount / 2).abs() / (stripeCount / 2);
-      final double opacity = 0.15 - (normalizedPos * 0.08);
-
-      final paint =
-          Paint()
-            ..color = stripeColor.withValues(alpha: opacity)
-            ..style = PaintingStyle.fill;
-
-      final path = Path();
-
-      // Draw diagonal stripe
-      path.moveTo(animatedX, 0);
-      path.lineTo(animatedX + stripeWidth, 0);
-      path.lineTo(animatedX + stripeWidth - size.height * angle, size.height);
-      path.lineTo(animatedX - size.height * angle, size.height);
-      path.close();
-
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ShimmerStripesPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
 
 /// Food Offers section — shows discounted food items only (not grocery)
 class _FoodOffersSection extends StatelessWidget {

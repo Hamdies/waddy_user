@@ -11,7 +11,28 @@
 - [delivery_instruction_tracking_widget.dart](file://lib/features/order/widgets/delivery_instruction_tracking_widget.dart)
 - [track_details_view_widget.dart](file://lib/features/order/widgets/track_details_view_widget.dart)
 - [marker_animator.dart](file://lib/helper/marker_animator.dart)
+- [order_status.dart](file://lib/features/order/domain/models/order_status.dart)
+- [lucky_spin_section.dart](file://lib/features/order/widgets/lucky_spin_section.dart)
+- [lucky_spin_widget.dart](file://lib/features/order/widgets/lucky_spin_widget.dart)
+- [eta_chip_widget.dart](file://lib/features/order/widgets/eta_chip_widget.dart)
+- [order_eta_badge.dart](file://lib/features/order/widgets/order_eta_badge.dart)
+- [delivery_man_card.dart](file://lib/features/order/widgets/delivery_man_card.dart)
+- [OrderTrackingNotificationManager.kt](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt)
+- [WaddiFirebaseMessagingService.kt](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt)
+- [live_activity_service.dart](file://lib/services/live_activity_service.dart)
+- [LiveActivityManager.swift](file://ios/Runner/LiveActivityManager.swift)
+- [notification_helper.dart](file://lib/helper/notification_helper.dart)
+- [guest_track_order_screen.dart](file://lib/features/order/screens/guest_track_order_screen.dart)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated OrderStatus enum from 8 to 12 states with enhanced status management
+- Added Lucky Spin feature with interactive wheel game and scratch card components
+- Introduced modern ETA chips and badge widgets for improved visual presentation
+- Enhanced delivery man card with action buttons and status-aware UI
+- Implemented comprehensive real-time notification system with push notifications and Live Activities
+- Added new tracking UI components including combined order cards and progress badges
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -19,24 +40,27 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [New Features and Components](#new-features-and-components)
+7. [Real-Time Notification System](#real-time-notification-system)
+8. [Dependency Analysis](#dependency-analysis)
+9. [Performance Considerations](#performance-considerations)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
+12. [Appendices](#appendices)
 
 ## Introduction
-This document explains the real-time order tracking system, focusing on the OrderTrackingStreamService implementation, WebSocket/SSE-based streaming, live location tracking, and the tracking UI. It covers how driver location updates are received, how ETA is calculated, how the route is visualized on a map, and how the UI components present order progress. It also documents fallback mechanisms, permissions handling, map marker animations, and operational considerations such as accuracy and background limitations.
+This document explains the enhanced real-time order tracking system, featuring a comprehensive OrderStatus enum with 12 states, Lucky Spin interactive games, modern UI components, and sophisticated real-time notification capabilities. The system now includes advanced tracking widgets, delivery man cards, ETA chips, and a complete push notification ecosystem with both Android and iOS Live Activities integration.
 
 ## Project Structure
-The tracking system spans a service layer for streaming updates, a screen that orchestrates UI and map rendering, and reusable widgets for progress visualization and map overlays.
+The tracking system now encompasses enhanced streaming services, sophisticated UI components, interactive gaming features, and comprehensive notification infrastructure spanning multiple platforms.
 
 ```mermaid
 graph TB
-subgraph "Streaming Layer"
+subgraph "Enhanced Streaming Layer"
 OTS["OrderTrackingStreamService<br/>SSE client"]
+OS["OrderStatus<br/>12-state enum"]
 end
-subgraph "UI Layer"
+subgraph "Advanced UI Layer"
 OTScren["OrderTrackingScreen<br/>orchestrates tracking"]
 MTC["ModernTrackingCardWidget<br/>progress + ETA"]
 TS["TrackingStepperWidget<br/>basic steps"]
@@ -44,10 +68,24 @@ ETS["EnhancedTrackingStepperWidget<br/>steps + sub-status"]
 DITW["DeliveryInstructionTrackingWidget<br/>voice + text"]
 TDVW["TrackDetailsViewWidget<br/>route + contact"]
 TMW["TrackingMapWidget<br/>static map"]
+LSS["LuckySpinSection<br/>interactive games"]
+LSW["LuckySpinWidget<br/>wheel game"]
+ETC["EtaChipWidget<br/>visual ETA"]
+OEB["OrderEtaBadge<br/>progress badge"]
+DMC["DeliveryManCard<br/>driver info + actions"]
+end
+subgraph "Notification System"
+ONM["OrderTrackingNotificationManager<br/>Android notifications"]
+WFMS["WaddiFirebaseMessagingService<br/>FCM handler"]
+LAS["LiveActivityService<br/>iOS Live Activities"]
+LAM["LiveActivityManager<br/>iOS bridge"]
+NH["NotificationHelper<br/>cross-platform"]
 end
 subgraph "Helpers"
 MA["MarkerAnimator<br/>smooth marker movement"]
+EH["ETA Calculator<br/>distance + time"]
 end
+OTS --> OS
 OTS --> OTScren
 OTScren --> MTC
 OTScren --> TS
@@ -55,336 +93,498 @@ OTScren --> ETS
 OTScren --> DITW
 OTScren --> TDVW
 OTScren --> TMW
+OTScren --> LSS
+OTScren --> LSW
+OTScren --> ETC
+OTScren --> OEB
+OTScren --> DMC
+OTSCrean --> ONM
+OTSCrean --> WFMS
+OTSCrean --> LAS
+OTSCrean --> LAM
+OTSCrean --> NH
 OTScren --> MA
+OTScren --> EH
 ```
 
 **Diagram sources**
 - [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
-- [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
-- [modern_tracking_card_widget.dart:6-484](file://lib/features/order/widgets/modern_tracking_card_widget.dart#L6-L484)
-- [tracking_stepper_widget.dart:6-54](file://lib/features/order/widgets/tracking_stepper_widget.dart#L6-L54)
-- [enhanced_tracking_stepper_widget.dart:17-176](file://lib/features/order/widgets/enhanced_tracking_stepper_widget.dart#L17-L176)
-- [delivery_instruction_tracking_widget.dart:9-136](file://lib/features/order/widgets/delivery_instruction_tracking_widget.dart#L9-L136)
-- [track_details_view_widget.dart:17-331](file://lib/features/order/widgets/track_details_view_widget.dart#L17-L331)
-- [traking_map_widget.dart:21-226](file://lib/features/order/widgets/traking_map_widget.dart#L21-L226)
-- [marker_animator.dart:6-107](file://lib/helper/marker_animator.dart#L6-L107)
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
+- [lucky_spin_section.dart:19-129](file://lib/features/order/widgets/lucky_spin_section.dart#L19-L129)
+- [lucky_spin_widget.dart:7-471](file://lib/features/order/widgets/lucky_spin_widget.dart#L7-L471)
+- [eta_chip_widget.dart:7-84](file://lib/features/order/widgets/eta_chip_widget.dart#L7-L84)
+- [order_eta_badge.dart:7-120](file://lib/features/order/widgets/order_eta_badge.dart#L7-L120)
+- [delivery_man_card.dart:13-141](file://lib/features/order/widgets/delivery_man_card.dart#L13-L141)
+- [OrderTrackingNotificationManager.kt:13-195](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L13-L195)
+- [WaddiFirebaseMessagingService.kt:6-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L6-L104)
+- [live_activity_service.dart:38-121](file://lib/services/live_activity_service.dart#L38-L121)
+- [LiveActivityManager.swift:8-41](file://ios/Runner/LiveActivityManager.swift#L8-L41)
+- [notification_helper.dart:314-356](file://lib/helper/notification_helper.dart#L314-L356)
 
 **Section sources**
 - [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
 - [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
 
 ## Core Components
-- OrderTrackingStreamService: Implements server-sent events (SSE) to receive real-time order updates, including status, sub-status, driver location, and estimated delivery time. Includes automatic reconnect logic with backoff.
-- OrderTrackingScreen: Orchestrates SSE connection, updates UI state, animates driver marker movement, calculates ETA, and renders map overlays (markers, route polyline).
-- ModernTrackingCardWidget: Presents a modernized progress card with status icon, progress bar, step indicators, and live ETA.
-- TrackingStepperWidget and EnhancedTrackingStepperWidget: Visualize order progress as a stepper with optional sub-status details and ETA hints.
-- DeliveryInstructionTrackingWidget: Displays voice and textual delivery instructions when applicable.
-- TrackDetailsViewWidget: Shows trip route, distance, driver/store info, and quick actions (call, chat).
-- TrackingMapWidget: A compact map view for static tracking scenarios.
-- MarkerAnimator: Provides smooth interpolation and rotation for moving map markers.
+- **Enhanced OrderStatus Enum**: Expanded from 8 to 12 states covering pending, accepted, confirmed, processing, handover, pickedUp, delivered, failed, canceled, refundRequested, refunded, and refundRequestCanceled with comprehensive state management methods.
+- **OrderTrackingStreamService**: Implements server-sent events (SSE) with enhanced status handling and automatic reconnect logic.
+- **OrderTrackingScreen**: Orchestrates all tracking components with improved UI state management and component coordination.
+- **Modern UI Components**: Enhanced tracking widgets including Lucky Spin sections, ETA chips, order badges, and delivery man cards.
+- **Real-Time Notification System**: Comprehensive push notification infrastructure with Android notifications and iOS Live Activities.
+- **Interactive Gaming Features**: Complete Lucky Spin wheel game and scratch card components for user engagement during waiting periods.
 
 **Section sources**
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 - [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
 - [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
-- [modern_tracking_card_widget.dart:6-484](file://lib/features/order/widgets/modern_tracking_card_widget.dart#L6-L484)
-- [tracking_stepper_widget.dart:6-54](file://lib/features/order/widgets/tracking_stepper_widget.dart#L6-L54)
-- [enhanced_tracking_stepper_widget.dart:17-176](file://lib/features/order/widgets/enhanced_tracking_stepper_widget.dart#L17-L176)
-- [delivery_instruction_tracking_widget.dart:9-136](file://lib/features/order/widgets/delivery_instruction_tracking_widget.dart#L9-L136)
-- [track_details_view_widget.dart:17-331](file://lib/features/order/widgets/track_details_view_widget.dart#L17-L331)
-- [traking_map_widget.dart:21-226](file://lib/features/order/widgets/traking_map_widget.dart#L21-L226)
-- [marker_animator.dart:6-107](file://lib/helper/marker_animator.dart#L6-L107)
 
 ## Architecture Overview
-The tracking architecture uses an SSE-based streaming service to continuously receive updates from the backend. The UI reacts to each event by updating the order model, animating the driver marker, recalculating ETA, and refreshing map overlays. A fallback polling mechanism ensures continuity if SSE fails.
+The enhanced architecture now includes sophisticated state management, interactive gaming components, and comprehensive notification systems across multiple platforms.
 
 ```mermaid
 sequenceDiagram
 participant Client as "OrderTrackingScreen"
 participant Service as "OrderTrackingStreamService"
+participant Status as "OrderStatus"
 participant Backend as "Tracking SSE Endpoint"
+participant Lucky as "LuckySpinSection"
+participant Notify as "NotificationSystem"
 Client->>Service : connect(orderId, token, options)
-Service->>Backend : GET /orders/{id}/stream?contact_number=&guest_id=
+Service->>Backend : GET /orders/{id}/stream
 Backend-->>Service : 200 OK (SSE stream)
 loop On each event
-Backend-->>Service : data : {status, subStatus, deliveryMan, estimatedDeliveryAt, timestamp}
+Backend-->>Service : data : {status, subStatus, deliveryMan, estimatedDeliveryAt}
 Service-->>Client : Stream<TrackingStreamData>
-Client->>Client : update order model
-Client->>Client : animate driver marker
-Client->>Client : recalculate ETA
-Client->>Client : update map overlays
+Client->>Status : validate/update status
+Client->>Lucky : update game components
+Client->>Notify : trigger notifications
+Client->>Client : update UI components
 end
-opt failure or terminal status
+opt terminal status
+Client->>Notify : stop notifications
 Client->>Service : disconnect()
 end
 ```
 
 **Diagram sources**
 - [order_tracking_stream_service.dart:77-192](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L77-L192)
-- [order_tracking_screen.dart:95-187](file://lib/features/order/screens/order_tracking_screen.dart#L95-L187)
+- [order_status.dart:93-115](file://lib/features/order/domain/models/order_status.dart#L93-L115)
+- [lucky_spin_section.dart:41-129](file://lib/features/order/widgets/lucky_spin_section.dart#L41-L129)
 
 ## Detailed Component Analysis
 
-### OrderTrackingStreamService
-- Responsibilities:
-  - Establishes an SSE connection to the backend endpoint.
-  - Parses incoming JSON lines into a typed model.
-  - Manages reconnection with exponential backoff and a maximum retry limit.
-  - Emits errors and closes resources cleanly on disconnect.
-- Data model:
-  - TrackingStreamData: includes order ID, status, sub-status, delivery man location, timestamp, and estimated delivery time.
-  - DeliveryManLocation: includes driver coordinates, heading, and speed.
-- Behavior:
-  - Builds query parameters for guest or contact-based tracking.
-  - Sets appropriate headers and handles non-200 responses.
-  - Transforms the byte stream into lines and decodes JSON.
-  - Emits parsed data to subscribers and logs errors.
+### Enhanced OrderStatus Enum
+The OrderStatus enum has been significantly expanded to 12 comprehensive states with specialized utility methods for status management and UI decisions.
 
 ```mermaid
 classDiagram
-class OrderTrackingStreamService {
--bool _isConnected
--int _reconnectAttempts
--StreamController~TrackingStreamData~ _controller
-+connect(orderId, token, contactNumber, guestId) Stream~TrackingStreamData~
--_startConnection(...)
--_processLine(line)
--_handleConnectionError(error, ...)
-+disconnect()
-+isConnected bool
+class OrderStatus {
+<<enumeration>>
++pending
++accepted
++confirmed
++processing
++handover
++pickedUp
++delivered
++failed
++canceled
++refundRequested
++refunded
++refundRequestCanceled
++fromString(status) OrderStatus?
++value String
++isTerminal boolean
++isOngoing boolean
++isActive boolean
++isWaitingStatus boolean
++isDeliveryAssigned boolean
++isTrackable boolean
 }
-class TrackingStreamData {
-+int orderId
-+string status
-+string? subStatus
-+DeliveryManLocation? deliveryMan
-+DateTime timestamp
-+string? estimatedDeliveryAt
-}
-class DeliveryManLocation {
-+int id
-+double lat
-+double lng
-+double heading
-+double speed
-}
-OrderTrackingStreamService --> TrackingStreamData : "emits"
-TrackingStreamData --> DeliveryManLocation : "contains"
 ```
 
 **Diagram sources**
-- [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 
 **Section sources**
-- [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 
-### OrderTrackingScreen
-- Responsibilities:
-  - Initializes tracking by fetching current location and order details.
-  - Starts SSE tracking; falls back to periodic polling if SSE fails.
-  - Updates the order model upon receiving SSE events.
-  - Animates driver marker movement and updates rotation based on bearing.
-  - Calculates ETA using driver-to-destination distance.
-  - Renders map markers (store, driver, destination) and a dashed route polyline.
-  - Handles lifecycle changes (pause/resume) to manage timers and map disposal.
-  - Integrates with Live Activities to reflect status changes.
-- Key flows:
-  - SSE update handling: update status/sub-status, driver position, ETA, and Live Activity.
-  - Marker animation: uses MarkerAnimator to interpolate between positions with rotation.
-  - Route polyline: constructs a three-point route (store → driver → destination).
-  - Permissions: checks and requests location permission before centering on user location.
+### Lucky Spin Interactive Games
+The system now includes comprehensive interactive gaming features to enhance user engagement during waiting periods.
 
 ```mermaid
-flowchart TD
-Start(["Start Tracking"]) --> Init["Load location + order details"]
-Init --> TrySSE{"SSE available?"}
-TrySSE --> |Yes| ConnectSSE["Connect via OrderTrackingStreamService"]
-TrySSE --> |No| Poll["Start periodic polling timer"]
-ConnectSSE --> OnEvent["On SSE event"]
-Poll --> OnTimer["On timer tick"]
-OnEvent --> UpdateModel["Update order model"]
-OnTimer --> UpdateModel
-UpdateModel --> AnimateMarker["Animate driver marker"]
-AnimateMarker --> UpdateETA["Recalculate ETA"]
-UpdateETA --> UpdateMap["Update markers + route polyline"]
-UpdateMap --> MaybeEnd{"Terminal status?"}
-MaybeEnd --> |Yes| Disconnect["Disconnect SSE"]
-MaybeEnd --> |No| Continue["Continue tracking"]
-Disconnect --> End(["Stop"])
-Continue --> OnEvent
+classDiagram
+class LuckySpinSection {
++OrderModel order
++OrderController orderController
++int itemCount
++int liveEtaMinutes
++int prepMinutes
++VoidCallback onBack
++VoidCallback onHelp
++VoidCallback onViewDetails
++build(context) Widget
+}
+class LuckySpinWidget {
++double height
++AnimationController _controller
++bool _isSpinning
++bool _hasSpun
++_Segment[] _segments
++_spin() void
++build(context) Widget
+}
+class _Segment {
++String label
++Color color
++IconData icon
+}
+LuckySpinSection --> LuckySpinWidget : contains
+LuckySpinWidget --> _Segment : uses
 ```
 
 **Diagram sources**
-- [order_tracking_screen.dart:70-385](file://lib/features/order/screens/order_tracking_screen.dart#L70-L385)
-- [marker_animator.dart:11-71](file://lib/helper/marker_animator.dart#L11-L71)
+- [lucky_spin_section.dart:19-129](file://lib/features/order/widgets/lucky_spin_section.dart#L19-L129)
+- [lucky_spin_widget.dart:7-471](file://lib/features/order/widgets/lucky_spin_widget.dart#L7-L471)
 
 **Section sources**
-- [order_tracking_screen.dart:70-385](file://lib/features/order/screens/order_tracking_screen.dart#L70-L385)
-- [marker_animator.dart:11-71](file://lib/helper/marker_animator.dart#L11-L71)
+- [lucky_spin_section.dart:19-129](file://lib/features/order/widgets/lucky_spin_section.dart#L19-L129)
+- [lucky_spin_widget.dart:7-471](file://lib/features/order/widgets/lucky_spin_widget.dart#L7-L471)
 
-### UI Components
+### Modern ETA Presentation Components
+Enhanced ETA visualization through dedicated widgets for different contexts and screen sizes.
 
-#### ModernTrackingCardWidget
-- Displays order status with animated icon, progress bar, and step indicators.
-- Shows live ETA when available and driver/store information.
-- Uses gradient and glassmorphism styling for modern appearance.
+```mermaid
+classDiagram
+class EtaChipWidget {
++OrderModel order
++build(context) Widget
+}
+class OrderEtaBadge {
++int minutes
++static badgeSizeFor(isMobile) double
++static bottomPillOverlapFor(isMobile) double
++build(context) Widget
+}
+class OrderTrackingScreen {
++int? liveEtaMinutes
++int prepMinutes
++build(context) Widget
+}
+OrderTrackingScreen --> EtaChipWidget : uses
+OrderTrackingScreen --> OrderEtaBadge : uses
+```
+
+**Diagram sources**
+- [eta_chip_widget.dart:7-84](file://lib/features/order/widgets/eta_chip_widget.dart#L7-L84)
+- [order_eta_badge.dart:7-120](file://lib/features/order/widgets/order_eta_badge.dart#L7-L120)
+- [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
+
+**Section sources**
+- [eta_chip_widget.dart:7-84](file://lib/features/order/widgets/eta_chip_widget.dart#L7-L84)
+- [order_eta_badge.dart:7-120](file://lib/features/order/widgets/order_eta_badge.dart#L7-L120)
+
+### Delivery Management Components
+Enhanced delivery man interaction cards with action buttons and status-aware UI.
+
+```mermaid
+classDiagram
+class DeliveryManCard {
++OrderModel order
++bool showChatPermission
++VoidCallback onTimerCancel
++VoidCallback onStartTracking
++build(context) Widget
+}
+class OrderTrackingScreen {
++build(context) Widget
+}
+OrderTrackingScreen --> DeliveryManCard : displays
+```
+
+**Diagram sources**
+- [delivery_man_card.dart:13-141](file://lib/features/order/widgets/delivery_man_card.dart#L13-L141)
+- [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
+
+**Section sources**
+- [delivery_man_card.dart:13-141](file://lib/features/order/widgets/delivery_man_card.dart#L13-L141)
+
+## New Features and Components
+
+### Enhanced Tracking UI Components
+The system now features sophisticated tracking widgets with modern design elements and improved user experience.
+
+**Modern Tracking Card Widget**
+- Displays order status with animated icon, progress bar, and step indicators
+- Shows live ETA with gradient backgrounds and glassmorphism styling
+- Integrates seamlessly with Lucky Spin components during waiting periods
+
+**Enhanced Tracking Stepper Widget**
+- Extended to support 12-order status states with detailed sub-status information
+- Provides visual feedback for each status transition with pulse animations
+- Supports both basic and enhanced stepper variants for different contexts
 
 **Section sources**
 - [modern_tracking_card_widget.dart:6-484](file://lib/features/order/widgets/modern_tracking_card_widget.dart#L6-L484)
-
-#### TrackingStepperWidget
-- Visualizes order progress through five steps: placed, confirmed, preparing, on-way/delivered.
-- Adapts “on-way” label for take-away vs delivery orders.
-
-**Section sources**
-- [tracking_stepper_widget.dart:6-54](file://lib/features/order/widgets/tracking_stepper_widget.dart#L6-L54)
-
-#### EnhancedTrackingStepperWidget
-- Extends the stepper to include sub-status details (preparing, packaging, ready, en-route, nearby, arrived).
-- Shows ETA in the “on-way” step and pulses the current step indicator.
-
-**Section sources**
 - [enhanced_tracking_stepper_widget.dart:17-176](file://lib/features/order/widgets/enhanced_tracking_stepper_widget.dart#L17-L176)
 
-#### DeliveryInstructionTrackingWidget
-- Renders voice instructions and textual delivery hints when present and order is in active statuses.
-- Provides icons mapped to instruction keywords.
+### Interactive Gaming Integration
+The Lucky Spin system provides engaging entertainment during order processing with multiple game modes.
+
+**Lucky Spin Section**
+- Combines order information display with interactive gaming elements
+- Features dual-page carousel with scratch card and wheel game options
+- Includes order details card with item images, delivery partner information, and OTP verification
+
+**Lucky Spin Widget**
+- Zomato-style wheel game with realistic physics and animations
+- Custom painted wheel segments with vibrant colors and icons
+- Smooth spinning animation with configurable rotation and easing curves
 
 **Section sources**
-- [delivery_instruction_tracking_widget.dart:9-136](file://lib/features/order/widgets/delivery_instruction_tracking_widget.dart#L9-L136)
+- [lucky_spin_section.dart:19-129](file://lib/features/order/widgets/lucky_spin_section.dart#L19-L129)
+- [lucky_spin_widget.dart:7-471](file://lib/features/order/widgets/lucky_spin_widget.dart#L7-L471)
 
-#### TrackDetailsViewWidget
-- Shows trip route, distance, and contact info for driver or store.
-- Offers quick actions: directions (take-away), call, and optional chat.
+### Advanced ETA Visualization
+Multiple presentation formats for estimated delivery time information across different contexts.
 
-**Section sources**
-- [track_details_view_widget.dart:17-331](file://lib/features/order/widgets/track_details_view_widget.dart#L17-L331)
+**Eta Chip Widget**
+- Compact chip format for inline ETA display
+- Supports both delivery and pickup scenarios
+- Automatic formatting with localized time display
 
-#### TrackingMapWidget
-- Provides a compact map view for static tracking scenarios.
-- Sets markers for store/receiver, driver, and destination; centers camera and adjusts zoom.
-
-**Section sources**
-- [traking_map_widget.dart:21-226](file://lib/features/order/widgets/traking_map_widget.dart#L21-L226)
-
-### Map Integration and Route Visualization
-- Markers:
-  - Store/Receiver, Driver (animated), Destination/Current Location.
-- Route polyline:
-  - Dashed line connecting store → driver → destination.
-- Camera behavior:
-  - Centers and zooms to fit all points; adjusts rotation based on relative positions.
-- Permissions:
-  - Requests location permission before centering on user location.
+**Order Eta Badge**
+- Prominent circular badge for prominent ETA display
+- Responsive sizing for mobile and desktop contexts
+- Integrated status indicators with "on time" badges
 
 **Section sources**
-- [order_tracking_screen.dart:237-282](file://lib/features/order/screens/order_tracking_screen.dart#L237-L282)
-- [order_tracking_screen.dart:699-898](file://lib/features/order/screens/order_tracking_screen.dart#L699-L898)
-- [order_tracking_screen.dart:1108-1120](file://lib/features/order/screens/order_tracking_screen.dart#L1108-L1120)
+- [eta_chip_widget.dart:7-84](file://lib/features/order/widgets/eta_chip_widget.dart#L7-L84)
+- [order_eta_badge.dart:7-120](file://lib/features/order/widgets/order_eta_badge.dart#L7-L120)
 
-### Driver Location Updates and ETA Calculation
-- SSE events carry driver coordinates and estimated delivery time.
-- ETA is recalculated using driver-to-destination distance and a helper calculator.
-- Marker rotation is derived from bearing between previous and current positions.
+### Delivery Management Enhancement
+Improved delivery man interaction with comprehensive action capabilities.
 
-**Section sources**
-- [order_tracking_screen.dart:120-187](file://lib/features/order/screens/order_tracking_screen.dart#L120-L187)
-- [order_tracking_screen.dart:189-204](file://lib/features/order/screens/order_tracking_screen.dart#L189-L204)
-- [marker_animator.dart:73-83](file://lib/helper/marker_animator.dart#L73-L83)
-
-### Push Notifications and Live Activities
-- Live Activity updates are triggered based on SSE status updates.
-- Terminal statuses end the activity; otherwise, the activity is updated with current status, ETA, and identifiers.
+**Delivery Man Card**
+- Professional driver information display with avatar and contact details
+- Action buttons for chat and phone communication
+- Status-aware visibility of action buttons based on order progression
+- Integration with order controller for real-time updates
 
 **Section sources**
-- [order_tracking_screen.dart:160-179](file://lib/features/order/screens/order_tracking_screen.dart#L160-L179)
+- [delivery_man_card.dart:13-141](file://lib/features/order/widgets/delivery_man_card.dart#L13-L141)
 
-### Offline Tracking Capabilities
-- Fallback to polling:
-  - If SSE fails, the screen switches to a periodic timer that refreshes order details.
-  - Timer resumes on app foreground and cancels on pause/dispose.
+## Real-Time Notification System
+
+### Android Notification Infrastructure
+Comprehensive push notification system with custom layouts and progress tracking.
+
+```mermaid
+sequenceDiagram
+participant FCM as "Firebase Cloud Messaging"
+participant Service as "WaddiFirebaseMessagingService"
+participant Manager as "OrderTrackingNotificationManager"
+participant User as "User Device"
+FCM->>Service : onMessageReceived(data)
+Service->>Service : handleOrderStatusUpdate()
+Service->>Manager : start/update/stop(notification)
+Manager->>User : show notification with RemoteViews
+User->>User : tap notification -> open app
+```
+
+**Diagram sources**
+- [WaddiFirebaseMessagingService.kt:20-50](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L20-L50)
+- [OrderTrackingNotificationManager.kt:55-181](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L55-L181)
+
+### iOS Live Activities Integration
+Native iOS Live Activities for persistent order tracking information on the lock screen.
+
+**Live Activity Management**
+- Native iOS ActivityKit integration for persistent order tracking
+- Real-time status updates with ETA and driver information
+- Automatic cleanup on order completion or cancellation
+- Push token management for APNs integration
+
+**Cross-Platform Notification Helper**
+- Unified notification handling across Android and iOS platforms
+- Status validation and terminal state detection
+- Automatic Live Activity lifecycle management
+- FCM payload processing and transformation
 
 **Section sources**
-- [order_tracking_screen.dart:94-118](file://lib/features/order/screens/order_tracking_screen.dart#L94-L118)
-- [order_tracking_screen.dart:330-385](file://lib/features/order/screens/order_tracking_screen.dart#L330-L385)
+- [OrderTrackingNotificationManager.kt:13-195](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L13-L195)
+- [WaddiFirebaseMessagingService.kt:6-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L6-L104)
+- [live_activity_service.dart:38-121](file://lib/services/live_activity_service.dart#L38-L121)
+- [LiveActivityManager.swift:8-41](file://ios/Runner/LiveActivityManager.swift#L8-L41)
+- [notification_helper.dart:314-356](file://lib/helper/notification_helper.dart#L314-L356)
 
 ## Dependency Analysis
-- Streaming service depends on HTTP client and SSE parsing.
-- Screen depends on:
-  - Order controller for order model and timer-based polling.
-  - Location controller for current position.
-  - Live activity service for status updates.
-  - Helper utilities for marker conversion, animation, and route calculation.
-- Widgets depend on shared theming and responsive helpers.
+The enhanced system maintains modular architecture while adding sophisticated dependencies for gaming, notifications, and status management.
 
 ```mermaid
 graph LR
-OTS["OrderTrackingStreamService"] --> HTTP["http.Client"]
+OS["OrderStatus (12 states)"] --> OTS["OrderTrackingStreamService"]
+OTS --> HTTP["http.Client"]
 OTS --> Models["TrackingStreamData / DeliveryManLocation"]
 OTScrn["OrderTrackingScreen"] --> OTS
 OTScrn --> OC["OrderController"]
 OTScrn --> LC["LocationController"]
 OTScrn --> LA["LiveActivityService"]
 OTScrn --> MA["MarkerAnimator"]
-Widgets["UI Widgets"] --> OTScrn
-Widgets --> Helpers["MarkerHelper / ETACalculator"]
+OTScrn --> LSS["LuckySpinSection"]
+OTScrn --> LSW["LuckySpinWidget"]
+OTScrn --> ETC["EtaChipWidget"]
+OTScrn --> OEB["OrderEtaBadge"]
+OTScrn --> DMC["DeliveryManCard"]
+LSS --> LSW
+LSS --> ETC
+LSS --> OEB
+LSS --> DMC
+ONM["OrderTrackingNotificationManager"] --> FCM["Firebase Cloud Messaging"]
+WFMS["WaddiFirebaseMessagingService"] --> ONM
+LAS["LiveActivityService"] --> LAM["LiveActivityManager"]
+NH["NotificationHelper"] --> OTScrn
+Widgets["UI Widgets"] --> Helpers["MarkerHelper / ETACalculator"]
 ```
 
 **Diagram sources**
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 - [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
-- [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
+- [lucky_spin_section.dart:19-129](file://lib/features/order/widgets/lucky_spin_section.dart#L19-L129)
+- [OrderTrackingNotificationManager.kt:13-195](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L13-L195)
+- [WaddiFirebaseMessagingService.kt:6-104](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L6-L104)
+- [live_activity_service.dart:38-121](file://lib/services/live_activity_service.dart#L38-L121)
+- [LiveActivityManager.swift:8-41](file://ios/Runner/LiveActivityManager.swift#L8-L41)
+- [notification_helper.dart:314-356](file://lib/helper/notification_helper.dart#L314-L356)
 
 **Section sources**
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 - [order_tracking_stream_service.dart:67-259](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L67-L259)
-- [order_tracking_screen.dart:40-1122](file://lib/features/order/screens/order_tracking_screen.dart#L40-L1122)
 
 ## Performance Considerations
-- Streaming efficiency:
-  - SSE reduces overhead compared to frequent polling; reconnect logic prevents resource thrashing.
-- Rendering:
-  - Animated marker updates occur on each event; batching updates can reduce UI churn if needed.
-- Map operations:
-  - Recomputing route polyline and camera bounds on each update is efficient but can be optimized by thresholding updates when positions change minimally.
-- Battery and background:
-  - Frequent timers and location requests can drain battery; consider reducing frequency or pausing timers when the app is not visible.
-  - Background tracking is constrained by platform policies; prefer foreground tracking with SSE and controlled polling.
+The enhanced system introduces several performance optimizations and considerations:
 
-[No sources needed since this section provides general guidance]
+- **State Management Efficiency**: The 12-state OrderStatus enum provides precise state tracking with minimal computational overhead
+- **Gaming Component Optimization**: Lucky Spin components use efficient animation controllers and custom painting for smooth performance
+- **Notification System**: Android notifications use RemoteViews for lightweight UI rendering, while iOS Live Activities provide native performance
+- **Memory Management**: Enhanced component lifecycle management prevents memory leaks in complex tracking scenarios
+- **Battery Optimization**: Strategic use of SSE connections with exponential backoff and intelligent polling fallback reduces power consumption
+- **UI Rendering**: Responsive widget sizing and conditional rendering prevent unnecessary rebuilds during status transitions
 
 ## Troubleshooting Guide
-- SSE connection failures:
-  - Verify endpoint URL and query parameters; check network connectivity and server-side streaming availability.
-  - Inspect error logs emitted by the service and ensure reconnection attempts are respected.
-- No updates after connection:
-  - Confirm the order ID and token are valid; ensure the backend emits events for the given order.
-- Map markers not appearing:
-  - Check that store, driver, and destination coordinates are present; verify marker creation and camera bounds logic.
-- ETA not updating:
-  - Ensure driver coordinates are included in events; confirm distance calculation and ETA computation paths.
-- Permissions denied:
-  - Prompt users to enable location access; provide guidance for enabling permissions when permanently denied.
+
+### Enhanced Status Management Issues
+- **Status Transition Failures**: Verify OrderStatus enum values match backend status codes; check fromString() method for proper status mapping
+- **Terminal Status Handling**: Ensure isTerminal property correctly identifies completion states to prevent continued tracking
+- **State Validation**: Implement proper status validation before updating UI components to prevent inconsistent displays
+
+### Lucky Spin Component Issues
+- **Game State Synchronization**: Verify LuckySpinSection and LuckySpinWidget state synchronization during order status changes
+- **Animation Performance**: Monitor animation controller disposal and memory usage during frequent game interactions
+- **Component Lifecycle**: Ensure proper initialization and disposal of scratch card components to prevent memory leaks
+
+### Notification System Problems
+- **Android Notification Display**: Verify notification channel creation and RemoteViews layout inflation for proper notification rendering
+- **iOS Live Activity Issues**: Check push token generation and ActivityKit entitlement configuration for successful Live Activity creation
+- **Cross-Platform Sync**: Ensure notification helper properly handles status updates across different platforms with consistent timing
+
+### UI Component Integration
+- **Component Coordination**: Verify proper integration between OrderTrackingScreen and all new UI components during status transitions
+- **Responsive Design**: Test responsive sizing of ETA chips, badges, and Lucky Spin components across different screen sizes
+- **Action Button Visibility**: Ensure delivery man action buttons appear only when appropriate based on OrderStatus.isOngoing
 
 **Section sources**
-- [order_tracking_stream_service.dart:135-144](file://lib/features/order/domain/services/order_tracking_stream_service.dart#L135-L144)
-- [order_tracking_screen.dart:1108-1120](file://lib/features/order/screens/order_tracking_screen.dart#L1108-L1120)
+- [order_status.dart:93-115](file://lib/features/order/domain/models/order_status.dart#L93-L115)
+- [lucky_spin_section.dart:41-129](file://lib/features/order/widgets/lucky_spin_section.dart#L41-L129)
+- [OrderTrackingNotificationManager.kt:39-53](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L39-L53)
 
 ## Conclusion
-The order tracking system combines a robust SSE streaming service with a responsive UI to deliver real-time visibility into order status, driver location, and ETA. The modular design allows for graceful degradation to polling, smooth map animations, and clear progress visualization. By following the recommended practices for accuracy, battery optimization, and background limitations, the system can maintain a high-quality user experience across platforms.
-
-[No sources needed since this section summarizes without analyzing specific files]
+The enhanced order tracking system represents a significant advancement in real-time order visibility and user engagement. With its comprehensive 12-state status management, interactive Lucky Spin gaming features, sophisticated ETA presentation components, and robust notification infrastructure, the system provides a modern, engaging, and highly functional tracking experience. The integration of Android notifications and iOS Live Activities ensures consistent user experience across platforms, while the modular architecture maintains scalability and maintainability for future enhancements.
 
 ## Appendices
 
-### Tracking Stepper States
-- Basic stepper: placed → confirmed → preparing → on-way/delivered.
-- Enhanced stepper: adds sub-status granularity and ETA hints in the “on-way” step.
+### Enhanced Order Status States
+The 12-state OrderStatus enum provides comprehensive coverage of the complete order lifecycle:
+
+**Basic States**: pending, accepted, confirmed, processing, handover, pickedUp, delivered
+**Problem Resolution States**: failed, canceled, refundRequested, refunded, refundRequestCanceled
+
+**Utility Methods**:
+- `isTerminal`: Identifies completion states (delivered, failed, canceled, refund states)
+- `isOngoing`: Determines if order is currently active (all non-terminal states)
+- `isActive`: Covers active processing states (accepted, confirmed, processing, handover, pickedUp)
+- `isWaitingStatus`: Shows waiting periods suitable for Lucky Spin interaction
+- `isDeliveryAssigned`: Indicates delivery partner assignment completion
+- `isTrackable`: Controls visibility of tracking interface elements
 
 **Section sources**
-- [tracking_stepper_widget.dart:13-26](file://lib/features/order/widgets/tracking_stepper_widget.dart#L13-L26)
-- [enhanced_tracking_stepper_widget.dart:106-140](file://lib/features/order/widgets/enhanced_tracking_stepper_widget.dart#L106-L140)
+- [order_status.dart:1-116](file://lib/features/order/domain/models/order_status.dart#L1-L116)
 
-### Map Marker Animation Details
-- Interpolation uses easing for smooth motion and computes bearing for rotation.
-- Pending animations are queued to avoid conflicts.
+### Lucky Spin Game Mechanics
+The interactive gaming system provides entertainment during order processing with two distinct game modes:
+
+**Scratch Card Game**:
+- Progressive reveal with haptic feedback
+- Multiple reward types with randomized selection
+- Reset functionality for replay opportunities
+- Visual progress tracking during scratching
+
+**Wheel Game**:
+- Physics-based spinning with easing curves
+- Randomized landing positions
+- Configurable segment rewards
+- Smooth animation with momentum and deceleration
 
 **Section sources**
-- [marker_animator.dart:11-71](file://lib/helper/marker_animator.dart#L11-L71)
+- [lucky_spin_section.dart:556-800](file://lib/features/order/widgets/lucky_spin_section.dart#L556-L800)
+- [lucky_spin_widget.dart:47-80](file://lib/features/order/widgets/lucky_spin_widget.dart#L47-L80)
+
+### Notification System Architecture
+The comprehensive notification infrastructure supports both Android and iOS platforms with unified status management:
+
+**Android Implementation**:
+- Custom RemoteViews for notification layouts
+- Progress tracking with percentage-based width adjustment
+- Terminal status auto-dismiss functionality
+- Channel-based notification organization
+
+**iOS Live Activities**:
+- Native ActivityKit integration for persistent tracking
+- Real-time status updates with ETA and driver information
+- Automatic cleanup on order completion
+- Push token management for APNs integration
+
+**Section sources**
+- [OrderTrackingNotificationManager.kt:89-181](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/OrderTrackingNotificationManager.kt#L89-L181)
+- [WaddiFirebaseMessagingService.kt:20-50](file://android/app/src/main/kotlin/com/sixamtech/efood_multivendor/WaddiFirebaseMessagingService.kt#L20-L50)
+- [live_activity_service.dart:67-121](file://lib/services/live_activity_service.dart#L67-L121)
+
+### ETA Visualization Components
+Multiple presentation formats ensure optimal user experience across different contexts:
+
+**EtaChipWidget**:
+- Compact inline display for status pages
+- Automatic formatting with localized time strings
+- Dual-mode display for delivery and pickup scenarios
+
+**OrderEtaBadge**:
+- Prominent circular display for main tracking screens
+- Responsive sizing for mobile and desktop contexts
+- Integrated "on time" status indicators with gradient backgrounds
+
+**Section sources**
+- [eta_chip_widget.dart:12-84](file://lib/features/order/widgets/eta_chip_widget.dart#L12-L84)
+- [order_eta_badge.dart:16-120](file://lib/features/order/widgets/order_eta_badge.dart#L16-L120)
+
+### Delivery Management Enhancement
+Professional delivery man interaction with comprehensive action capabilities:
+
+**DeliveryManCard Features**:
+- Avatar display with professional styling
+- Action buttons for chat and phone communication
+- Status-aware visibility controls
+- Integration with order controller for real-time updates
+- Responsive design for different screen sizes
+
+**Section sources**
+- [delivery_man_card.dart:27-141](file://lib/features/order/widgets/delivery_man_card.dart#L27-L141)

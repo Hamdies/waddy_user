@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/flash_sale/domain/models/flash_sale_model.dart';
-import 'package:sixam_mart/features/flash_sale/domain/models/product_flash_sale.dart';
-import 'package:sixam_mart/features/flash_sale/domain/services/flash_sale_service_interface.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/product_flash_sale.dart';
+import 'package:waddy_app/features/flash_sale/domain/services/flash_sale_service_interface.dart';
 
 class FlashSaleController extends GetxController implements GetxService {
   final FlashSaleServiceInterface flashSaleServiceInterface;

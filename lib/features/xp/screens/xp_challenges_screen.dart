@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/features/xp/domain/models/challenge_model.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class XpChallengesScreen extends StatefulWidget {
   const XpChallengesScreen({super.key});

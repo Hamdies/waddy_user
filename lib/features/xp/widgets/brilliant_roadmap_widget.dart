@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_level_model.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/features/xp/widgets/level_claim_celebration_widget.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/widgets/level_claim_celebration_widget.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/styles.dart';
 
 /// Compact card-based roadmap — each level is a tappable horizontal card
 class BrilliantRoadmapWidget extends StatelessWidget {

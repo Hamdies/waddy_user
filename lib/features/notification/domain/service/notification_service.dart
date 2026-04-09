@@ -1,6 +1,6 @@
-import 'package:sixam_mart/features/notification/domain/models/notification_model.dart';
-import 'package:sixam_mart/features/notification/domain/repository/notification_repository_interface.dart';
-import 'package:sixam_mart/features/notification/domain/service/notification_service_interface.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_model.dart';
+import 'package:waddy_app/features/notification/domain/repository/notification_repository_interface.dart';
+import 'package:waddy_app/features/notification/domain/service/notification_service_interface.dart';
 
 class NotificationService implements NotificationServiceInterface {
   final NotificationRepositoryInterface notificationRepositoryInterface;

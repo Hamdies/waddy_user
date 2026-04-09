@@ -1,5 +1,5 @@
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/interfaces/repository_interface.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/interfaces/repository_interface.dart';
 
 abstract class CampaignRepositoryInterface implements RepositoryInterface {
   @override

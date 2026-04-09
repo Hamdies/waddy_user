@@ -1,6 +1,6 @@
-import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
-import 'package:sixam_mart/features/search/domain/models/search_suggestion_model.dart';
-import 'package:sixam_mart/interfaces/repository_interface.dart';
+import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
+import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
+import 'package:waddy_app/interfaces/repository_interface.dart';
 
 abstract class SearchRepositoryInterface extends RepositoryInterface {
   Future<bool> saveSearchHistory(List<String> searchHistories);

@@ -1,4 +1,4 @@
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
 
 class CustomCheckBoxWidget extends StatelessWidget {

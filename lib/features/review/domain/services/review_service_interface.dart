@@ -1,6 +1,6 @@
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/review/domain/models/review_body_model.dart';
-import 'package:sixam_mart/features/review/domain/models/review_model.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/review/domain/models/review_body_model.dart';
+import 'package:waddy_app/features/review/domain/models/review_model.dart';
 
 abstract class ReviewServiceInterface {
   Future<List<ReviewModel>?> getStoreReviewList(String? storeID);

@@ -1,9 +1,9 @@
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_data_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/delivery_man_body.dart';
-import 'package:sixam_mart/features/auth/domain/models/delivery_man_vehicles_model.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/features/location/domain/models/zone_data_model.dart';
+import 'package:waddy_app/features/auth/domain/models/delivery_man_body.dart';
+import 'package:waddy_app/features/auth/domain/models/delivery_man_vehicles_model.dart';
 
 abstract class DeliverymanRegistrationServiceInterface{
   Future<List<ZoneDataModel>?> getZoneList();

@@ -1,4 +1,4 @@
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
 
 class CartModel {
   int? _id;

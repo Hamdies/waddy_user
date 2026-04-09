@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/features/places/domain/repositories/places_repository_interface.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/features/places/domain/repositories/places_repository_interface.dart';
 
 class PlacesRepository implements PlacesRepositoryInterface {
   final ApiClient apiClient;
@@ -11,7 +12,20 @@ class PlacesRepository implements PlacesRepositoryInterface {
 
   @override
   Future<Response> getCategories() async {
-    return await apiClient.getData(AppConstants.placesCategoriesUri);
+    final uri = AppConstants.placesCategoriesUri;
+    debugPrint('🌐 [REPO] getCategories() - URI: $uri');
+    final response = await apiClient.getData(uri);
+    debugPrint('🌐 [REPO] getCategories() - Response status: ${response.statusCode}');
+    return response;
+  }
+
+  @override
+  Future<Response> getZones() async {
+    final uri = AppConstants.placesZonesUri;
+    debugPrint('🌐 [REPO] getZones() - URI: $uri');
+    final response = await apiClient.getData(uri);
+    debugPrint('🌐 [REPO] getZones() - Response status: ${response.statusCode}');
+    return response;
   }
 
   @override
@@ -22,6 +36,7 @@ class PlacesRepository implements PlacesRepositoryInterface {
     double? lng,
     String? sort,
     List<int>? tagIds,
+    int? zoneId,
     int offset = 1,
   }) async {
     String uri = '${AppConstants.placesUri}?offset=$offset';
@@ -33,16 +48,26 @@ class PlacesRepository implements PlacesRepositoryInterface {
     if (tagIds != null && tagIds.isNotEmpty) {
       uri += '&tag_ids=${tagIds.join(',')}';
     }
+    if (zoneId != null) uri += '&zone_id=$zoneId';
     return await apiClient.getData(uri);
   }
 
   @override
-  Future<Response> getLeaderboard({String? period}) async {
+  Future<Response> getLeaderboard({
+    String? period,
+    int? zoneId,
+    int? limit,
+  }) async {
     String uri = AppConstants.placesLeaderboardUri;
-    if (period != null && period.isNotEmpty) {
-      uri += '?period=$period';
-    }
-    return await apiClient.getData(uri);
+    List<String> params = [];
+    if (period != null && period.isNotEmpty) params.add('period=$period');
+    if (zoneId != null) params.add('zone_id=$zoneId');
+    if (limit != null) params.add('limit=$limit');
+    if (params.isNotEmpty) uri += '?${params.join('&')}';
+    debugPrint('🌐 [REPO] getLeaderboard() - URI: $uri');
+    final response = await apiClient.getData(uri);
+    debugPrint('🌐 [REPO] getLeaderboard() - Response status: ${response.statusCode}');
+    return response;
   }
 
   @override
@@ -70,6 +95,16 @@ class PlacesRepository implements PlacesRepositoryInterface {
     return await apiClient.getData(
       '${AppConstants.placesUri}/$placeId/reviews?offset=$offset',
     );
+  }
+
+  @override
+  Future<Response> getTopVoters({int? zoneId, int limit = 10}) async {
+    String uri = '${AppConstants.placesTopVotersUri}?limit=$limit';
+    if (zoneId != null) uri += '&zone_id=$zoneId';
+    debugPrint('🌐 [REPO] getTopVoters() - URI: $uri');
+    final response = await apiClient.getData(uri);
+    debugPrint('🌐 [REPO] getTopVoters() - Response status: ${response.statusCode}');
+    return response;
   }
 
   @override

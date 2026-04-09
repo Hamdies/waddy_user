@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 
 class ZoneModel {
   List<int>? zoneIds;

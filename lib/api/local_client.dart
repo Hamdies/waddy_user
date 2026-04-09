@@ -2,10 +2,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:drift/drift.dart' as drift;
-import 'package:sixam_mart/helper/db_helper.dart';
-import 'package:sixam_mart/local/cache_response.dart';
+import 'package:waddy_app/helper/db_helper.dart';
+import 'package:waddy_app/local/cache_response.dart';
 
 class LocalClient {
 

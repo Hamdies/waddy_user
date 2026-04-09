@@ -1,14 +1,14 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_level_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/challenge_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/prize_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/checkout_prize_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_config_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_history_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/user_streak_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_leaderboard_model.dart';
-import 'package:sixam_mart/features/xp/domain/services/xp_service_interface.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
+import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
+import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
+import 'package:waddy_app/features/xp/domain/models/user_streak_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
+import 'package:waddy_app/features/xp/domain/services/xp_service_interface.dart';
 
 class XpController extends GetxController implements GetxService {
   final XpServiceInterface xpServiceInterface;

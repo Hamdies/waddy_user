@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/common/widgets/item_view.dart';
-import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
-import 'package:sixam_mart/features/store/widgets/bottom_cart_widget.dart';
-import 'package:sixam_mart/features/store/widgets/filter_widget.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/item_view.dart';
+import 'package:waddy_app/common/widgets/paginated_list_view.dart';
+import 'package:waddy_app/features/store/widgets/bottom_cart_widget.dart';
+import 'package:waddy_app/features/store/widgets/filter_widget.dart';
+import 'package:waddy_app/helper/route_helper.dart';
 
 /// Screen that shows all items from a specific category within a store.
 /// The category is pre-selected via [categoryIndex] on the StoreController

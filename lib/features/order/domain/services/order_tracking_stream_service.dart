@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 /// Model for tracking stream data
 class TrackingStreamData {

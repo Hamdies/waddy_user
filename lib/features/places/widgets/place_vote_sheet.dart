@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:sixam_mart/features/places/controllers/places_controller.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'dart:io';
 
 class PlaceVoteSheet extends StatefulWidget {
@@ -21,8 +20,7 @@ class _PlaceVoteSheetState extends State<PlaceVoteSheet> {
   String? _imagePath;
   bool _isSubmitting = false;
 
-  static const List<String> _ratingEmojis = ['😐', '🙂', '😊', '🤩', '🔥'];
-  static const List<String> _ratingLabels = ['okay', 'good', 'great', 'amazing', 'legendary'];
+  static const List<String> _ratingLabels = ['OKAY', 'GOOD', 'GREAT', 'AMAZING', 'LEGENDARY'];
 
   @override
   void dispose() {
@@ -32,133 +30,175 @@ class _PlaceVoteSheetState extends State<PlaceVoteSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    final neon = Theme.of(context).secondaryHeaderColor;
-
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF6F6F6),
+        border: Border(top: BorderSide(color: Colors.black, width: 4)),
       ),
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 12, 22, 22),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
-            Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+            // ── Drag handle ──────────────────────────────────
+            Center(
+              child: Container(
+                width: 48,
+                height: 4,
+                color: Colors.black,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
 
-            // Header with emoji
+            // ── Header ───────────────────────────────────────
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('🗳️', style: TextStyle(fontSize: 24)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.hasVoted ? 'update_your_vote'.tr : 'rate_this_place'.tr,
-                        style: robotoBold.copyWith(fontSize: 18),
-                      ),
-                      Text(
-                        'share_your_experience'.tr,
-                        style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                    ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDD400),
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
                   ),
+                  child: const Icon(Icons.bolt, color: Colors.black, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.hasVoted ? 'UPDATE YOUR VOTE' : 'CAST YOUR VOTE',
+                      style: const TextStyle(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        height: 1.1,
+                      ),
+                    ),
+                    const Text(
+                      'YOUR SIGNAL MATTERS',
+                      style: TextStyle(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF00693E),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 22),
+            // ── Rating label ─────────────────────────────────
+            const Text(
+              'SIGNAL STRENGTH',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 10),
 
-            // Star Rating with emoji feedback
+            // ── Stars ────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: primary.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: neon.withValues(alpha: 0.15)),
-                boxShadow: [
-                  BoxShadow(color: neon.withValues(alpha: 0.05), blurRadius: 8),
-                ],
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
               ),
               child: Column(
                 children: [
-                  if (_rating > 0) ...[
-                    Text(
-                      _ratingEmojis[_rating - 1],
-                      style: const TextStyle(fontSize: 36),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _ratingLabels[_rating - 1].tr,
-                      style: robotoMedium.copyWith(fontSize: 13, color: Colors.amber.shade800),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (i) => GestureDetector(
-                      onTap: () => setState(() => _rating = i + 1),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: AnimatedScale(
-                          scale: i < _rating ? 1.15 : 1.0,
-                          duration: const Duration(milliseconds: 200),
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(5, (i) {
+                      final selected = i < _rating;
+                      return GestureDetector(
+                        onTap: () => setState(() => _rating = i + 1),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: selected ? const Color(0xFFFDD400) : const Color(0xFFF6F6F6),
+                            border: Border.all(color: Colors.black, width: 2),
+                            boxShadow: selected
+                                ? const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)]
+                                : null,
+                          ),
                           child: Icon(
-                            i < _rating ? Icons.star_rounded : Icons.star_border_rounded,
-                            size: 40,
-                            color: i < _rating ? Colors.amber.shade600 : Colors.grey.shade300,
+                            selected ? Icons.star : Icons.star_border,
+                            color: Colors.black,
+                            size: 28,
                           ),
                         ),
-                      ),
-                    )),
+                      );
+                    }),
                   ),
+                  if (_rating > 0) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00FC9B),
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Text(
+                        _ratingLabels[_rating - 1],
+                        style: const TextStyle(
+                          fontFamily: 'SpaceGrotesk',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 18),
-
-            // Comment
-            TextField(
-              controller: _commentController,
-              maxLines: 3,
-              style: robotoRegular.copyWith(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'write_a_review'.tr,
-                hintStyle: robotoRegular.copyWith(fontSize: 14, color: Theme.of(context).disabledColor),
-                filled: true,
-                fillColor: primary.withValues(alpha: 0.03),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: primary.withValues(alpha: 0.15)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: primary.withValues(alpha: 0.15)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: neon, width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.all(14),
+            // ── Comment ──────────────────────────────────────
+            const Text(
+              'YOUR TRANSMISSION',
+              style: TextStyle(
+                fontFamily: 'SpaceGrotesk',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
               ),
             ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+              ),
+              child: TextField(
+                controller: _commentController,
+                maxLines: 3,
+                style: const TextStyle(fontFamily: 'Manrope', fontSize: 14),
+                decoration: const InputDecoration(
+                  hintText: 'Describe your experience...',
+                  hintStyle: TextStyle(fontFamily: 'Manrope', fontSize: 14, color: Colors.grey),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-            const SizedBox(height: 14),
-
-            // Photo upload row
+            // ── Photo upload ─────────────────────────────────
             Row(
               children: [
                 GestureDetector(
@@ -166,44 +206,53 @@ class _PlaceVoteSheetState extends State<PlaceVoteSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: neon.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: neon.withValues(alpha: 0.2)),
+                      color: Colors.white,
+                      border: Border.all(color: Colors.black, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text('📸', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 6),
-                        Text('add_photo'.tr,
-                            style: robotoMedium.copyWith(fontSize: 12, color: neon)),
+                        Icon(Icons.add_a_photo_outlined, size: 18, color: Colors.black),
+                        SizedBox(width: 8),
+                        Text(
+                          'ADD PHOTO',
+                          style: TextStyle(
+                            fontFamily: 'SpaceGrotesk',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 if (_imagePath != null) ...[
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.file(
-                          File(_imagePath!),
-                          width: 50, height: 50, fit: BoxFit.cover,
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 2),
+                          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0)],
                         ),
+                        child: Image.file(File(_imagePath!), fit: BoxFit.cover),
                       ),
                       Positioned(
-                        top: -6, right: -6,
+                        top: -8,
+                        right: -8,
                         child: GestureDetector(
                           onTap: () => setState(() => _imagePath = null),
                           child: Container(
                             padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF5252),
-                              shape: BoxShape.circle,
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              border: Border.all(color: Colors.black, width: 2),
                             ),
-                            child: const Icon(Icons.close, size: 10, color: Colors.white),
+                            child: const Icon(Icons.close, size: 12, color: Colors.white),
                           ),
                         ),
                       ),
@@ -213,77 +262,82 @@ class _PlaceVoteSheetState extends State<PlaceVoteSheet> {
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('✨', style: TextStyle(fontSize: 10)),
-                      const SizedBox(width: 3),
-                      Text('earn_xp_for_photo'.tr,
-                          style: robotoMedium.copyWith(fontSize: 9, color: Colors.amber.shade800)),
-                    ],
+                  color: const Color(0xFFFDD400),
+                  child: const Text(
+                    '+XP',
+                    style: TextStyle(
+                      fontFamily: 'SpaceGrotesk',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 22),
-
-            // Submit button — gradient
+            // ── Submit ────────────────────────────────────────
             GestureDetector(
               onTap: _rating == 0 || _isSubmitting ? null : _submit,
               child: Container(
                 width: double.infinity,
-                height: 52,
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
-                  gradient: _rating > 0 && !_isSubmitting
-                      ? LinearGradient(colors: [neon, neon.withValues(alpha: 0.8)])
-                      : null,
-                  color: _rating == 0 || _isSubmitting ? Theme.of(context).disabledColor.withValues(alpha: 0.15) : null,
-                  borderRadius: BorderRadius.circular(16),
+                  color: _rating > 0 && !_isSubmitting
+                      ? const Color(0xFF00FC9B)
+                      : const Color(0xFFE0E0E0),
+                  border: Border.all(color: Colors.black, width: 3),
                   boxShadow: _rating > 0 && !_isSubmitting
-                      ? [BoxShadow(
-                          color: neon.withValues(alpha: 0.4),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        )]
+                      ? const [BoxShadow(color: Colors.black, offset: Offset(5, 5), blurRadius: 0)]
                       : null,
                 ),
                 child: Center(
                   child: _isSubmitting
-                      ? SizedBox(
-                          width: 22, height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black),
                         )
                       : Text(
-                          widget.hasVoted ? 'update_vote'.tr : 'submit_vote'.tr,
-                          style: robotoBold.copyWith(
-                            fontSize: 15,
-                            color: _rating > 0 ? primary : Theme.of(context).disabledColor,
+                          widget.hasVoted ? 'UPDATE VOTE' : 'SUBMIT VOTE',
+                          style: TextStyle(
+                            fontFamily: 'SpaceGrotesk',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            color: _rating > 0 ? Colors.black : Colors.grey,
                           ),
                         ),
                 ),
               ),
             ),
 
-            // Remove vote
+            // ── Remove vote ───────────────────────────────────
             if (widget.hasVoted) ...[
               const SizedBox(height: 12),
-              Center(
-                child: GestureDetector(
-                  onTap: _isSubmitting ? null : _removeVote,
-                  child: Text(
-                    'remove_vote'.tr,
-                    style: robotoRegular.copyWith(fontSize: 13, color: const Color(0xFFFF5252)),
+              GestureDetector(
+                onTap: _isSubmitting ? null : _removeVote,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.redAccent, width: 2),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'REMOVE VOTE',
+                      style: TextStyle(
+                        fontFamily: 'SpaceGrotesk',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
-
-            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -293,9 +347,7 @@ class _PlaceVoteSheetState extends State<PlaceVoteSheet> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024);
-    if (image != null) {
-      setState(() => _imagePath = image.path);
-    }
+    if (image != null) setState(() => _imagePath = image.path);
   }
 
   Future<void> _submit() async {

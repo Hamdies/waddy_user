@@ -3,14 +3,14 @@ import 'dart:math';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/auth/widgets/social_login_widget.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
-import 'package:sixam_mart/helper/validate_check.dart';
-import 'package:sixam_mart/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
+import 'package:waddy_app/features/auth/widgets/social_login_widget.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/helper/validate_check.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
 
 class OtpLoginWidget extends StatefulWidget {
   final bool socialEnable;

@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_asset_image_widget.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sixam_mart/common/widgets/code_picker_widget.dart';
+import 'package:waddy_app/common/widgets/code_picker_widget.dart';
 
 class CustomTextField extends StatefulWidget {
   final String titleText;

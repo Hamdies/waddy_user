@@ -1,5 +1,5 @@
-import 'package:sixam_mart/features/flash_sale/domain/models/flash_sale_model.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
 
 class ProductFlashSale {
   int? totalSize;

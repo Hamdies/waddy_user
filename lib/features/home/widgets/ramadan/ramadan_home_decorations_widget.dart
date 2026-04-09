@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
 
 /// 🎨 IMPROVED Ramadan Decorations Widget
 ///

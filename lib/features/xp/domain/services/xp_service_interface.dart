@@ -1,11 +1,11 @@
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_level_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/challenge_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/prize_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/checkout_prize_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_config_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_history_model.dart';
-import 'package:sixam_mart/features/xp/domain/models/xp_leaderboard_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
+import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
+import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 
 abstract class XpServiceInterface {
   Future<XpLevelModel?> getCurrentLevel();

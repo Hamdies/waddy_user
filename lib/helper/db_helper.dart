@@ -1,5 +1,5 @@
 
-import 'package:sixam_mart/local/cache_response.dart';
+import 'package:waddy_app/local/cache_response.dart';
 
 final database = AppDatabase();
 

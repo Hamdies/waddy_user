@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 
-import 'package:sixam_mart/util/app_design_tokens.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
-import 'package:sixam_mart/features/store/screens/store_screen.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/app_design_tokens.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/store/screens/store_screen.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
 
 /// Top Restaurants view - shows only food module stores
 /// with full-bleed card style + "Waddy's Choice" sticker
@@ -64,27 +64,43 @@ class TopRestaurantsView extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          IntrinsicWidth(
-                            child: Stack(
+                          // Title + subtitle stacked
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Positioned(
-                                  bottom: 2, left: 0, right: 0,
-                                  child: Container(
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
+                                IntrinsicWidth(
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        bottom: 2, left: 0, right: 0,
+                                        child: Container(
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.25),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        'speed_mode'.tr,
+                                        style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+                                      ),
+                                    ],
                                   ),
                                 ),
+                                const SizedBox(height: 3),
                                 Text(
-                                  'speed_mode'.tr,
-                                  style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+                                  'fastest_near_you'.tr,
+                                  style: robotoRegular.copyWith(
+                                    fontSize: 12,
+                                    color: const Color(0xFF8E9A98),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const Spacer(),
                           GestureDetector(
                             onTap: () => Get.toNamed(RouteHelper.getAllStoreRoute('featured')),
                             child: Container(

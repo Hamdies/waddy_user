@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/auth_response_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/signup_body_model.dart';
-import 'package:sixam_mart/features/auth/domain/models/social_log_in_body.dart';
-import 'package:sixam_mart/features/auth/domain/reposotories/auth_repository_interface.dart';
-import 'package:sixam_mart/features/auth/domain/services/auth_service_interface.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/auth/domain/models/auth_response_model.dart';
+import 'package:waddy_app/features/auth/domain/models/signup_body_model.dart';
+import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
+import 'package:waddy_app/features/auth/domain/reposotories/auth_repository_interface.dart';
+import 'package:waddy_app/features/auth/domain/services/auth_service_interface.dart';
 
 class AuthService implements AuthServiceInterface{
   final AuthRepositoryInterface authRepositoryInterface;

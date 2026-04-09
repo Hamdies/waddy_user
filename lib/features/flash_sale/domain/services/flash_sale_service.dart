@@ -1,8 +1,8 @@
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/flash_sale/domain/models/flash_sale_model.dart';
-import 'package:sixam_mart/features/flash_sale/domain/models/product_flash_sale.dart';
-import 'package:sixam_mart/features/flash_sale/domain/repositories/flash_sale_repository_interface.dart';
-import 'package:sixam_mart/features/flash_sale/domain/services/flash_sale_service_interface.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
+import 'package:waddy_app/features/flash_sale/domain/models/product_flash_sale.dart';
+import 'package:waddy_app/features/flash_sale/domain/repositories/flash_sale_repository_interface.dart';
+import 'package:waddy_app/features/flash_sale/domain/services/flash_sale_service_interface.dart';
 
 class FlashSaleService implements FlashSaleServiceInterface{
   final FlashSaleRepositoryInterface flashSaleRepositoryInterface;

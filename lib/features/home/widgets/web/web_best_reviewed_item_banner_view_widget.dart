@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/images.dart';
-import 'package:sixam_mart/common/widgets/custom_image.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 
 class WebStoreWiseBannerViewWidget extends StatelessWidget {
   const WebStoreWiseBannerViewWidget({super.key});

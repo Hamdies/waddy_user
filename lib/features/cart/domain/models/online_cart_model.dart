@@ -1,4 +1,4 @@
-import 'package:sixam_mart/features/item/domain/models/item_model.dart' as product_variation;
+import 'package:waddy_app/features/item/domain/models/item_model.dart' as product_variation;
 
 class OnlineCartModel {
   int? id;

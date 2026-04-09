@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/places/domain/models/place_category_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_banner_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_vote_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_review_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_submission_model.dart';
-import 'package:sixam_mart/features/places/domain/services/places_service_interface.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/places/domain/models/place_category_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_banner_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_vote_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
+import 'package:waddy_app/features/places/domain/services/places_service_interface.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 
 class PlacesController extends GetxController implements GetxService {
   final PlacesServiceInterface placesServiceInterface;
@@ -92,14 +93,79 @@ class PlacesController extends GetxController implements GetxService {
   // ─── Filters ───
   int? _selectedCategoryId;
   int? get selectedCategoryId => _selectedCategoryId;
+  int? _selectedZoneId;
+  int? get selectedZoneId => _selectedZoneId;
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
   String _sortBy = 'rating';
   String get sortBy => _sortBy;
 
+  // ─── Initialization State ───
+  bool _isInitializing = false;
+  bool get isInitializing => _isInitializing;
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+
+  // ─── Top Voters ───
+  TopVoterList? _topVotersList;
+  List<TopVoter>? get topVoters => _topVotersList?.voters;
+  bool _isTopVotersLoading = false;
+  bool get isTopVotersLoading => _isTopVotersLoading;
+
+  // ─── Current User Rank (derived from top voters) ───
+  int? get currentUserRank {
+    try {
+      final userId = Get.find<ProfileController>().userInfoModel?.id;
+      if (userId == null || topVoters == null) return null;
+      final match = topVoters!.where((v) => v.id == userId);
+      if (match.isEmpty) return null;
+      return match.first.position ?? (topVoters!.indexOf(match.first) + 1);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? get currentUserVotes {
+    try {
+      final userId = Get.find<ProfileController>().userInfoModel?.id;
+      if (userId == null || topVoters == null) return null;
+      final match = topVoters!.where((v) => v.id == userId);
+      if (match.isEmpty) return null;
+      return match.first.votesCount;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ─── Zones ───
+  List<PlaceZone>? _zones;
+  List<PlaceZone>? get zones => _zones;
+  bool _isZonesLoading = false;
+  bool get isZonesLoading => _isZonesLoading;
+
   // ═══════════════════════════════════════════════════════════════
   // FETCH METHODS
   // ═══════════════════════════════════════════════════════════════
+
+  /// Fetch zones for filter chips
+  Future<void> getZones({bool reload = false, bool notify = true}) async {
+    if (_zones != null && !reload) return;
+    if (notify) {
+      _isZonesLoading = true;
+      update();
+    }
+
+    debugPrint('📡 [PLACES] getZones() - Calling API...');
+    _zones = await placesServiceInterface.getZones();
+    debugPrint('📥 [PLACES] getZones() - Response: ${_zones?.length ?? 0} zones');
+    if (_zones != null && _zones!.isNotEmpty) {
+      debugPrint('   Zones: ${_zones!.map((z) => z.displayName ?? z.name).join(', ')}');
+    } else {
+      debugPrint('   ⚠️ Zones response is null or empty!');
+    }
+    _isZonesLoading = false;
+    update();
+  }
 
   /// Fetch categories
   Future<void> getCategories({bool reload = false, bool notify = true}) async {
@@ -109,7 +175,14 @@ class PlacesController extends GetxController implements GetxService {
       update();
     }
 
+    debugPrint('📡 [PLACES] getCategories() - Calling API...');
     _categories = await placesServiceInterface.getCategories();
+    debugPrint('📥 [PLACES] getCategories() - Response: ${_categories?.length ?? 0} categories');
+    if (_categories != null && _categories!.isNotEmpty) {
+      debugPrint('   Categories: ${_categories!.map((c) => c.name).join(', ')}');
+    } else {
+      debugPrint('   ⚠️ Categories response is null or empty!');
+    }
     _isCategoriesLoading = false;
     update();
   }
@@ -122,6 +195,7 @@ class PlacesController extends GetxController implements GetxService {
     double? lng,
     String? sort,
     List<int>? tagIds,
+    int? zoneId,
     int offset = 1,
     bool reload = false,
     bool notify = true,
@@ -138,6 +212,7 @@ class PlacesController extends GetxController implements GetxService {
       lng: lng,
       sort: sort ?? _sortBy,
       tagIds: tagIds ?? (_selectedTagIds.isNotEmpty ? _selectedTagIds : null),
+      zoneId: zoneId ?? _selectedZoneId,
       offset: offset,
     );
 
@@ -158,7 +233,13 @@ class PlacesController extends GetxController implements GetxService {
   }
 
   /// Fetch leaderboard
-  Future<void> getLeaderboard({String? period, bool reload = false, bool notify = true}) async {
+  Future<void> getLeaderboard({
+    String? period,
+    int? zoneId,
+    int? limit,
+    bool reload = false,
+    bool notify = true,
+  }) async {
     if (_leaderboardList != null && !reload && period == null) return;
     if (notify) {
       _isLeaderboardLoading = true;
@@ -167,10 +248,44 @@ class PlacesController extends GetxController implements GetxService {
       _isLeaderboardLoading = true;
     }
 
+    debugPrint('📡 [PLACES] getLeaderboard() - Calling API (zoneId: ${zoneId ?? _selectedZoneId}, limit: $limit)...');
     _leaderboardList = await placesServiceInterface.getLeaderboard(
       period: period,
+      zoneId: zoneId ?? _selectedZoneId,
+      limit: limit,
     );
+    debugPrint('📥 [PLACES] getLeaderboard() - Response: ${_leaderboardList?.places.length ?? 0} places');
+    if (_leaderboardList != null && _leaderboardList!.places.isNotEmpty) {
+      debugPrint('   Places: ${_leaderboardList!.places.map((p) => '${p.title}(${p.votesCount} votes)').join(', ')}');
+    } else {
+      debugPrint('   ⚠️ Leaderboard response is null or empty!');
+    }
     _isLeaderboardLoading = false;
+    update();
+  }
+
+  /// Fetch top voters
+  Future<void> getTopVoters({int? zoneId, int limit = 10, bool reload = false, bool notify = true}) async {
+    if (_topVotersList != null && !reload) return;
+    if (notify) {
+      _isTopVotersLoading = true;
+      update();
+    } else {
+      _isTopVotersLoading = true;
+    }
+
+    debugPrint('📡 [PLACES] getTopVoters() - Calling API (zoneId: ${zoneId ?? _selectedZoneId}, limit: $limit)...');
+    _topVotersList = await placesServiceInterface.getTopVoters(
+      zoneId: zoneId ?? _selectedZoneId,
+      limit: limit,
+    );
+    debugPrint('📥 [PLACES] getTopVoters() - Response: ${_topVotersList?.voters.length ?? 0} voters');
+    if (_topVotersList != null && _topVotersList!.voters.isNotEmpty) {
+      debugPrint('   Voters: ${_topVotersList!.voters.map((v) => '${v.name}(${v.votesCount} votes)').join(', ')}');
+    } else {
+      debugPrint('   ⚠️ TopVoters response is null or empty!');
+    }
+    _isTopVotersLoading = false;
     update();
   }
 
@@ -453,6 +568,16 @@ class PlacesController extends GetxController implements GetxService {
     getPlaces(reload: true);
   }
 
+  /// Set zone filter
+  void setSelectedZone(int? zoneId) {
+    _selectedZoneId = zoneId;
+    update();
+    // Refresh leaderboard, places, and top voters when zone changes
+    getLeaderboard(zoneId: zoneId, limit: 3, reload: true);
+    getTopVoters(zoneId: zoneId, reload: true);
+    getPlaces(zoneId: zoneId, reload: true);
+  }
+
   /// Set banner index
   void setCurrentBannerIndex(int index) {
     _currentBannerIndex = index;
@@ -463,30 +588,87 @@ class PlacesController extends GetxController implements GetxService {
   // INITIALIZATION & CLEANUP
   // ═══════════════════════════════════════════════════════════════
 
-  /// Initialize places module data
-  Future<void> initializePlacesData() async {
-    // Batch all loading flags into a single update() to avoid
-    // multiple update() calls colliding during the build phase.
+  /// Initialize places module data (home screen only needs categories + leaderboard + top voters)
+  Future<void> initializePlacesData({bool reload = false}) async {
+    // Prevent double initialization
+    if (_isInitializing) {
+      debugPrint('⏭️ [PLACES] initializePlacesData() - Already initializing, skipping...');
+      return;
+    }
+    if (_isInitialized && !reload) {
+      debugPrint('⏭️ [PLACES] initializePlacesData() - Already initialized, skipping (call with reload: true to force)');
+      return;
+    }
+
+    _isInitializing = true;
+    debugPrint('══════════════════════════════════════════════════════════════');
+    debugPrint('🚀 [PLACES] initializePlacesData() STARTED (reload: $reload)');
+    debugPrint('══════════════════════════════════════════════════════════════');
+
+    // Set loading flags and show shimmer
+    _isZonesLoading = true;
     _isCategoriesLoading = true;
-    _isTagsLoading = true;
-    _isBannersLoading = true;
-    _isPlacesLoading = true;
     _isLeaderboardLoading = true;
-    _isTrendingLoading = true;
+    _isTopVotersLoading = true;
+    _isPlacesLoading = true;
     update();
 
     try {
+      // Call APIs
+      debugPrint('📡 [PLACES] Calling APIs in parallel...');
       await Future.wait([
-        getCategories(notify: false),
-        getTags(notify: false),
-        getFeaturedBanners(notify: false),
-        getPlaces(reload: true, notify: false),
-        getLeaderboard(notify: false),
-        getTrending(notify: false),
+        getZones(reload: reload, notify: false),
+        getCategories(reload: reload, notify: false),
+        getLeaderboard(limit: 3, reload: reload, notify: false),
+        getTopVoters(reload: reload, notify: false),
+        getPlaces(reload: reload, notify: false),
       ]);
-    } catch (e) {
-      debugPrint('PlacesController.initializePlacesData error: $e');
+      debugPrint('✅ [PLACES] All API calls completed');
+    } catch (e, stackTrace) {
+      debugPrint('❌ [PLACES] initializePlacesData error: $e');
+      debugPrint('❌ [PLACES] StackTrace: $stackTrace');
     }
+
+    // Log current state before fallback check
+    debugPrint('────────────────────────────────────────────────────────────────');
+    debugPrint('📊 [PLACES] API Response Status:');
+    debugPrint('   Zones: ${_zones?.length ?? 0} zones');
+    debugPrint('   Categories: ${_categories?.length ?? 0} items');
+    debugPrint('   Leaderboard: ${_leaderboardList?.places.length ?? 0} places');
+    debugPrint('   Top Voters: ${_topVotersList?.voters.length ?? 0} voters');
+    debugPrint('────────────────────────────────────────────────────────────────');
+
+    // If leaderboard is empty, fetch real places as fallback for podium
+    if (_leaderboardList == null || _leaderboardList!.places.isEmpty) {
+      debugPrint('📡 [PLACES] Leaderboard empty - fetching real places as podium fallback...');
+      try {
+        final fallbackPlaces = await placesServiceInterface.getPlaces(offset: 1);
+        if (fallbackPlaces != null && fallbackPlaces.places.isNotEmpty) {
+          _leaderboardList = PlaceList(
+            places: fallbackPlaces.places.take(3).toList(),
+            totalSize: fallbackPlaces.places.take(3).length,
+          );
+          debugPrint('✅ [PLACES] Loaded ${_leaderboardList!.places.length} real places for podium: ${_leaderboardList!.places.map((p) => p.title).join(', ')}');
+        } else {
+          debugPrint('⚠️ [PLACES] No places available at all');
+        }
+      } catch (e) {
+        debugPrint('❌ [PLACES] Failed to fetch fallback places: $e');
+      }
+    }
+
+    // Clear loading flags
+    _isZonesLoading = false;
+    _isCategoriesLoading = false;
+    _isLeaderboardLoading = false;
+    _isTopVotersLoading = false;
+    _isInitializing = false;
+    _isInitialized = true;
+    update();
+
+    debugPrint('══════════════════════════════════════════════════════════════');
+    debugPrint('🎉 [PLACES] initializePlacesData() COMPLETED');
+    debugPrint('══════════════════════════════════════════════════════════════');
   }
 
   /// Clear all data
@@ -503,7 +685,9 @@ class PlacesController extends GetxController implements GetxService {
     _voteStatus = null;
     _favoritesList = null;
     _submissionsList = null;
+    _topVotersList = null;
     _selectedCategoryId = null;
+    _selectedZoneId = null;
     _searchQuery = '';
     _sortBy = 'rating';
     _currentBannerIndex = 0;

@@ -1,8 +1,8 @@
 import 'package:get/get.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
-import 'package:sixam_mart/features/loyalty/domain/services/loyalty_service_interface.dart';
-import 'package:sixam_mart/common/models/transaction_model.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/loyalty/domain/services/loyalty_service_interface.dart';
+import 'package:waddy_app/common/models/transaction_model.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 
 class LoyaltyController extends GetxController implements GetxService {
   final LoyaltyServiceInterface loyaltyServiceInterface;

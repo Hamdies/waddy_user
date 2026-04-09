@@ -2,22 +2,22 @@ import 'dart:convert';
 
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/api/local_client.dart';
-import 'package:sixam_mart/common/enums/data_source_enum.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/store/domain/models/cart_suggested_item_model.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/common/models/module_model.dart';
-import 'package:sixam_mart/features/store/domain/models/recommended_product_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_banner_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_bundle_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/store/domain/repositories/store_repository_interface.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
-import 'package:sixam_mart/helper/header_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/api/local_client.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/store/domain/models/cart_suggested_item_model.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/features/store/domain/models/recommended_product_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_banner_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_bundle_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/store/domain/repositories/store_repository_interface.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/header_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class StoreRepository implements StoreRepositoryInterface {
   final ApiClient apiClient;

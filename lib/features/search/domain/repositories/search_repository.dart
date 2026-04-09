@@ -1,11 +1,11 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/search/domain/models/popular_categories_model.dart';
-import 'package:sixam_mart/features/search/domain/models/search_suggestion_model.dart';
-import 'package:sixam_mart/features/search/domain/repositories/search_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
+import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
+import 'package:waddy_app/features/search/domain/repositories/search_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class SearchRepository implements SearchRepositoryInterface {
   final ApiClient apiClient;

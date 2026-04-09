@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import 'package:sixam_mart/features/review/controllers/review_controller.dart';
-import 'package:sixam_mart/features/review/widgets/review_widget.dart';
+import 'package:waddy_app/features/review/controllers/review_controller.dart';
+import 'package:waddy_app/features/review/widgets/review_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
 
 class ReviewListWidget extends StatelessWidget {
   final ReviewController reviewController;

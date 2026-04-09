@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/features/language/domain/models/language_model.dart';
-import 'package:sixam_mart/features/address/domain/models/address_model.dart';
-import 'package:sixam_mart/features/language/domain/repository/language_repository_interface.dart';
-import 'package:sixam_mart/features/language/domain/service/language_service_interface.dart';
+import 'package:waddy_app/features/language/domain/models/language_model.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/features/language/domain/repository/language_repository_interface.dart';
+import 'package:waddy_app/features/language/domain/service/language_service_interface.dart';
 
 class LanguageService implements LanguageServiceInterface {
   final LanguageRepositoryInterface languageRepositoryInterface;

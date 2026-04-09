@@ -1,20 +1,18 @@
 import 'package:get/get.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/coupon/domain/models/coupon_model.dart';
-import 'package:sixam_mart/features/coupon/domain/repositories/coupon_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/coupon/domain/models/coupon_model.dart';
+import 'package:waddy_app/features/coupon/domain/repositories/coupon_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
 
 class CouponRepository implements CouponRepositoryInterface {
   final ApiClient apiClient;
   CouponRepository({required this.apiClient});
 
   @override
-  Future getList({int? offset, bool couponList = false, bool taxiCouponList = false}) async {
-    if(couponList) {
+  Future getList({int? offset, bool couponList = false}) async {
+    if (couponList) {
       return await _getCouponList();
-    } else if(taxiCouponList) {
-      return await _getTaxiCouponList();
     }
   }
 
@@ -32,20 +30,12 @@ class CouponRepository implements CouponRepositoryInterface {
     return couponList;
   }
 
-  Future<List<CouponModel>?> _getTaxiCouponList() async {
-    List<CouponModel>? taxiCouponList;
-    Response response = await apiClient.getData(AppConstants.taxiCouponUri);
-    if (response.statusCode == 200) {
-      taxiCouponList = [];
-      response.body.forEach((category) => taxiCouponList!.add(CouponModel.fromJson(category)));
-    }
-    return taxiCouponList;
-  }
-
   @override
   Future<CouponModel?> applyCoupon(String couponCode, int? storeID) async {
     CouponModel? couponModel;
-    Response response = await apiClient.getData('${AppConstants.couponApplyUri}$couponCode&store_id=$storeID');
+    Response response = await apiClient.getData(
+      '${AppConstants.couponApplyUri}$couponCode&store_id=$storeID',
+    );
     if (response.statusCode == 200) {
       couponModel = CouponModel.fromJson(response.body);
     }
@@ -53,15 +43,6 @@ class CouponRepository implements CouponRepositoryInterface {
   }
 
   @override
-  Future<CouponModel?> applyTaxiCoupon(String couponCode, int? providerId) async {
-    CouponModel? taxiCouponModel;
-    Response response = await apiClient.getData('${AppConstants.taxiCouponApplyUri}$couponCode&provider_id=$providerId');
-    if (response.statusCode == 200) {
-      taxiCouponModel = CouponModel.fromJson(response.body);
-    }
-    return taxiCouponModel;
-  }
-
   @override
   Future add(value) {
     throw UnimplementedError();
@@ -81,5 +62,4 @@ class CouponRepository implements CouponRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

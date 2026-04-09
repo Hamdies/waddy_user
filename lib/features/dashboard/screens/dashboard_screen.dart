@@ -1,35 +1,32 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 
-import 'package:sixam_mart/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/auth/controllers/auth_controller.dart';
-import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/cart/controllers/cart_controller.dart';
-import 'package:sixam_mart/features/rental_module/rental_cart_screen/taxi_cart_screen.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/helper/taxi_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
+import 'package:waddy_app/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/location/controllers/location_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
+import 'package:waddy_app/features/parcel/controllers/parcel_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
-import 'package:sixam_mart/common/widgets/custom_dialog.dart';
-import 'package:sixam_mart/features/checkout/widgets/congratulation_dialogue.dart';
-import 'package:sixam_mart/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
-import 'package:sixam_mart/features/home/screens/home_screen.dart';
-import 'package:sixam_mart/features/dashboard/widgets/live_cart_widget.dart';
-import 'package:sixam_mart/helper/route_helper.dart';
-import 'package:sixam_mart/features/xp/screens/xp_levels_screen.dart';
-import 'package:sixam_mart/features/menu/screens/menu_screen.dart';
-import 'package:sixam_mart/features/order/screens/order_screen.dart';
-import 'package:sixam_mart/features/cart/screens/cart_screen.dart';
+import 'package:waddy_app/common/widgets/custom_dialog.dart';
+import 'package:waddy_app/features/checkout/widgets/congratulation_dialogue.dart';
+import 'package:waddy_app/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
+import 'package:waddy_app/features/home/screens/home_screen.dart';
+import 'package:waddy_app/features/dashboard/widgets/live_cart_widget.dart';
+import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/features/xp/screens/xp_levels_screen.dart';
+import 'package:waddy_app/features/menu/screens/menu_screen.dart';
+import 'package:waddy_app/features/order/screens/order_screen.dart';
+import 'package:waddy_app/features/cart/screens/cart_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -91,7 +88,11 @@ class DashboardScreenState extends State<DashboardScreen> {
     ];
 
     // Ensure cart data is loaded for LiveCartWidget visibility
-    if (_isLogin) {
+    // Skip cart for Places module - it doesn't use cart
+    final isPlacesModule =
+        Get.find<SplashController>().module?.moduleType.toString() ==
+        AppConstants.places;
+    if (_isLogin && !isPlacesModule) {
       Get.find<CartController>().getCartDataOnline();
     }
   }
@@ -233,30 +234,12 @@ class DashboardScreenState extends State<DashboardScreen> {
                                         .moduleConfig!
                                         .module!
                                         .isParcel!;
-                                bool isTaxiWithCache =
-                                    ((splashController.module != null &&
-                                            splashController.module!.moduleType
-                                                    .toString() ==
-                                                AppConstants.taxi) ||
-                                        (splashController.cacheModule != null &&
-                                            splashController
-                                                    .cacheModule!
-                                                    .moduleType
-                                                    .toString() ==
-                                                AppConstants.taxi)) &&
-                                    TaxiHelper.haveTaxiModule();
-                                bool isTaxi =
-                                    (splashController.module != null &&
-                                        splashController.module!.moduleType
-                                                .toString() ==
-                                            AppConstants.taxi);
-                                isParcel = isParcel && !isTaxiWithCache;
 
                                 _screens = [
                                   const HomeScreen(),
                                   const XpLevelsScreen(),
                                   const CartScreen(fromNav: true),
-                                  OrderScreen(index: isTaxi ? 1 : 0),
+                                  const OrderScreen(),
                                   const MenuScreen(),
                                 ];
                                 // Modern Floating Bottom Nav Bar with Center Cutout
@@ -264,8 +247,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 return _BottomNavWithLiveCart(
                                   pageIndex: _pageIndex,
                                   isParcel: isParcel,
-                                  isTaxi: isTaxi,
-                                  isTaxiWithCache: isTaxiWithCache,
                                   isLogin: _isLogin,
                                   showBottomSheet:
                                       orderController.showBottomSheet,
@@ -295,8 +276,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                                                       .parcelCategoryList,
                                             ),
                                       );
-                                    } else if (isTaxiWithCache) {
-                                      Get.to(() => const TaxiCartScreen());
                                     } else {
                                       _setPage(2); // Switch to Cart tab
                                     }
@@ -350,8 +329,6 @@ class DashboardScreenState extends State<DashboardScreen> {
 class _FlatBottomNav extends StatelessWidget {
   final int pageIndex;
   final bool isParcel;
-  final bool isTaxi;
-  final bool isTaxiWithCache;
   final bool isLogin;
   final bool showBottomSheet;
   final bool hasRunningOrders;
@@ -364,8 +341,6 @@ class _FlatBottomNav extends StatelessWidget {
   const _FlatBottomNav({
     required this.pageIndex,
     required this.isParcel,
-    required this.isTaxi,
-    required this.isTaxiWithCache,
     required this.isLogin,
     required this.showBottomSheet,
     required this.hasRunningOrders,
@@ -532,7 +507,12 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
                           : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: HugeIcon(icon: widget.iconData, color: color, size: 22,strokeWidth: 2,),
+                child: HugeIcon(
+                  icon: widget.iconData,
+                  color: color,
+                  size: 22,
+                  strokeWidth: 2,
+                ),
               ),
               const SizedBox(height: 3),
               // Label
@@ -634,9 +614,10 @@ class _CartNavItemState extends State<_CartNavItem>
                 curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? widget.secondaryColor.withValues(alpha: 0.15)
-                      : Colors.transparent,
+                  color:
+                      widget.isSelected
+                          ? widget.secondaryColor.withValues(alpha: 0.15)
+                          : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -670,7 +651,7 @@ class _CartNavItemState extends State<_CartNavItem>
                               widget.itemCount > 99
                                   ? '99+'
                                   : '${widget.itemCount}',
-                              style:  TextStyle(
+                              style: TextStyle(
                                 color: Theme.of(context).primaryColor,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
@@ -715,8 +696,6 @@ class _CartNavItemState extends State<_CartNavItem>
 class _BottomNavWithLiveCart extends StatefulWidget {
   final int pageIndex;
   final bool isParcel;
-  final bool isTaxi;
-  final bool isTaxiWithCache;
   final bool isLogin;
   final bool showBottomSheet;
   final bool hasRunningOrders;
@@ -729,8 +708,6 @@ class _BottomNavWithLiveCart extends StatefulWidget {
   const _BottomNavWithLiveCart({
     required this.pageIndex,
     required this.isParcel,
-    required this.isTaxi,
-    required this.isTaxiWithCache,
     required this.isLogin,
     required this.showBottomSheet,
     required this.hasRunningOrders,
@@ -836,8 +813,6 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
                 child: _FlatBottomNav(
                   pageIndex: widget.pageIndex,
                   isParcel: widget.isParcel,
-                  isTaxi: widget.isTaxi,
-                  isTaxiWithCache: widget.isTaxiWithCache,
                   isLogin: widget.isLogin,
                   showBottomSheet: widget.showBottomSheet,
                   hasRunningOrders: widget.hasRunningOrders,

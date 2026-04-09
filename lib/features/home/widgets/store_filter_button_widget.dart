@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/styles.dart';
 
 class StoreFilterButtonWidget extends StatelessWidget {
   const StoreFilterButtonWidget({super.key, this.isSelected, this.onTap, required this.buttonText});

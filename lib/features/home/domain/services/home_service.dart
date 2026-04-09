@@ -1,6 +1,6 @@
-import 'package:sixam_mart/features/home/domain/models/cashback_model.dart';
-import 'package:sixam_mart/features/home/domain/repositories/home_repository_interface.dart';
-import 'package:sixam_mart/features/home/domain/services/home_service_interface.dart';
+import 'package:waddy_app/features/home/domain/models/cashback_model.dart';
+import 'package:waddy_app/features/home/domain/repositories/home_repository_interface.dart';
+import 'package:waddy_app/features/home/domain/services/home_service_interface.dart';
 
 class HomeService implements HomeServiceInterface{
   final HomeRepositoryInterface homeRepositoryInterface;

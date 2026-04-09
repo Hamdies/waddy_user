@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:sixam_mart/common/models/response_model.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/item/domain/models/item_model.dart';
-import 'package:sixam_mart/features/store/domain/models/store_model.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/common/models/response_model.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:get/get.dart';
-import 'package:sixam_mart/features/favourite/domain/services/favourite_service_interface.dart';
+import 'package:waddy_app/features/favourite/domain/services/favourite_service_interface.dart';
 
 class FavouriteController extends GetxController implements GetxService {
   final FavouriteServiceInterface favouriteServiceInterface;

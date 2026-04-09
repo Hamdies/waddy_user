@@ -1,11 +1,11 @@
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:sixam_mart/api/api_client.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_model.dart';
-import 'package:sixam_mart/features/location/domain/models/zone_response_model.dart';
-import 'package:sixam_mart/features/location/domain/repositories/location_repository_interface.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/location/domain/models/zone_model.dart';
+import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/features/location/domain/repositories/location_repository_interface.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 
 class LocationRepository implements LocationRepositoryInterface {
   final ApiClient apiClient;

@@ -1,12 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:sixam_mart/features/places/domain/models/place_category_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_banner_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_vote_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_review_model.dart';
-import 'package:sixam_mart/features/places/domain/models/place_submission_model.dart';
-import 'package:sixam_mart/features/places/domain/repositories/places_repository_interface.dart';
-import 'package:sixam_mart/features/places/domain/services/places_service_interface.dart';
+import 'package:waddy_app/features/places/domain/models/place_category_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_banner_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_vote_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
+import 'package:waddy_app/features/places/domain/repositories/places_repository_interface.dart';
+import 'package:waddy_app/features/places/domain/services/places_service_interface.dart';
 
 class PlacesService implements PlacesServiceInterface {
   final PlacesRepositoryInterface placesRepositoryInterface;
@@ -15,10 +16,41 @@ class PlacesService implements PlacesServiceInterface {
 
   @override
   Future<List<PlaceCategory>?> getCategories() async {
+    debugPrint('🔵 [SERVICE] getCategories() - Calling repository...');
     Response response = await placesRepositoryInterface.getCategories();
+    debugPrint('🔵 [SERVICE] getCategories() - Response status: ${response.statusCode}');
+    debugPrint('🔵 [SERVICE] getCategories() - Response body: ${response.body}');
     if (response.statusCode == 200 && response.body != null) {
-      return PlaceCategoryList.fromJson(response.body).categories;
+      try {
+        final result = PlaceCategoryList.fromJson(response.body).categories;
+        debugPrint('✅ [SERVICE] getCategories() - Parsed ${result?.length ?? 0} categories');
+        return result;
+      } catch (e) {
+        debugPrint('❌ [SERVICE] getCategories() - Parse error: $e');
+        return null;
+      }
     }
+    debugPrint('⚠️ [SERVICE] getCategories() - Returning null (status: ${response.statusCode})');
+    return null;
+  }
+
+  @override
+  Future<List<PlaceZone>?> getZones() async {
+    debugPrint('🔵 [SERVICE] getZones() - Calling repository...');
+    Response response = await placesRepositoryInterface.getZones();
+    debugPrint('🔵 [SERVICE] getZones() - Response status: ${response.statusCode}');
+    debugPrint('🔵 [SERVICE] getZones() - Response body: ${response.body}');
+    if (response.statusCode == 200 && response.body != null) {
+      try {
+        final result = PlaceZoneList.fromJson(response.body).zones;
+        debugPrint('✅ [SERVICE] getZones() - Parsed ${result.length} zones');
+        return result;
+      } catch (e) {
+        debugPrint('❌ [SERVICE] getZones() - Parse error: $e');
+        return null;
+      }
+    }
+    debugPrint('⚠️ [SERVICE] getZones() - Returning null (status: ${response.statusCode})');
     return null;
   }
 
@@ -30,6 +62,7 @@ class PlacesService implements PlacesServiceInterface {
     double? lng,
     String? sort,
     List<int>? tagIds,
+    int? zoneId,
     int offset = 1,
   }) async {
     Response response = await placesRepositoryInterface.getPlaces(
@@ -39,6 +72,7 @@ class PlacesService implements PlacesServiceInterface {
       lng: lng,
       sort: sort,
       tagIds: tagIds,
+      zoneId: zoneId,
       offset: offset,
     );
     if (response.statusCode == 200 && response.body != null) {
@@ -48,13 +82,30 @@ class PlacesService implements PlacesServiceInterface {
   }
 
   @override
-  Future<PlaceList?> getLeaderboard({String? period}) async {
+  Future<PlaceList?> getLeaderboard({
+    String? period,
+    int? zoneId,
+    int? limit,
+  }) async {
+    debugPrint('🔵 [SERVICE] getLeaderboard() - Calling repository (zoneId: $zoneId, limit: $limit)...');
     Response response = await placesRepositoryInterface.getLeaderboard(
       period: period,
+      zoneId: zoneId,
+      limit: limit,
     );
+    debugPrint('🔵 [SERVICE] getLeaderboard() - Response status: ${response.statusCode}');
+    debugPrint('🔵 [SERVICE] getLeaderboard() - Response body: ${response.body}');
     if (response.statusCode == 200 && response.body != null) {
-      return PlaceList.fromJson(response.body);
+      try {
+        final result = PlaceList.fromJson(response.body);
+        debugPrint('✅ [SERVICE] getLeaderboard() - Parsed ${result.places.length} places');
+        return result;
+      } catch (e) {
+        debugPrint('❌ [SERVICE] getLeaderboard() - Parse error: $e');
+        return null;
+      }
     }
+    debugPrint('⚠️ [SERVICE] getLeaderboard() - Returning null (status: ${response.statusCode})');
     return null;
   }
 
@@ -85,6 +136,29 @@ class PlacesService implements PlacesServiceInterface {
     if (response.statusCode == 200 && response.body != null) {
       return PlaceBannerList.fromJson(response.body).banners;
     }
+    return null;
+  }
+
+  @override
+  Future<TopVoterList?> getTopVoters({int? zoneId, int limit = 10}) async {
+    debugPrint('🔵 [SERVICE] getTopVoters() - Calling repository (zoneId: $zoneId, limit: $limit)...');
+    Response response = await placesRepositoryInterface.getTopVoters(
+      zoneId: zoneId,
+      limit: limit,
+    );
+    debugPrint('🔵 [SERVICE] getTopVoters() - Response status: ${response.statusCode}');
+    debugPrint('🔵 [SERVICE] getTopVoters() - Response body: ${response.body}');
+    if (response.statusCode == 200 && response.body != null) {
+      try {
+        final result = TopVoterList.fromJson(response.body);
+        debugPrint('✅ [SERVICE] getTopVoters() - Parsed ${result.voters.length} voters');
+        return result;
+      } catch (e) {
+        debugPrint('❌ [SERVICE] getTopVoters() - Parse error: $e');
+        return null;
+      }
+    }
+    debugPrint('⚠️ [SERVICE] getTopVoters() - Returning null (status: ${response.statusCode})');
     return null;
   }
 

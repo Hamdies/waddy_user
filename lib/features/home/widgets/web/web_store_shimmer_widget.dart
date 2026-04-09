@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/common/widgets/rating_bar.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/rating_bar.dart';
 
 class WebStoreShimmerWidget extends StatelessWidget {
   const WebStoreShimmerWidget({super.key});

@@ -1,54 +1,51 @@
 import 'package:flutter/rendering.dart';
-import 'package:sixam_mart/features/banner/controllers/banner_controller.dart';
-import 'package:sixam_mart/features/brands/controllers/brands_controller.dart';
-import 'package:sixam_mart/features/home/controllers/advertisement_controller.dart';
-import 'package:sixam_mart/features/home/controllers/home_controller.dart';
-import 'package:sixam_mart/features/home/widgets/all_store_filter_widget.dart';
-import 'package:sixam_mart/features/home/widgets/cashback_logo_widget.dart';
-import 'package:sixam_mart/features/home/widgets/cashback_dialog_widget.dart';
-import 'package:sixam_mart/features/home/widgets/current_order_widget.dart';
-import 'package:sixam_mart/features/home/widgets/home_app_bar_widget.dart';
-import 'package:sixam_mart/features/home/widgets/home_search_widget.dart';
-import 'package:sixam_mart/features/home/widgets/refer_bottom_sheet_widget.dart';
-import 'package:sixam_mart/features/item/controllers/campaign_controller.dart';
-import 'package:sixam_mart/features/category/controllers/category_controller.dart';
-import 'package:sixam_mart/features/coupon/controllers/coupon_controller.dart';
-import 'package:sixam_mart/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:sixam_mart/features/location/controllers/location_controller.dart';
-import 'package:sixam_mart/features/notification/controllers/notification_controller.dart';
-import 'package:sixam_mart/features/order/controllers/order_controller.dart';
-import 'package:sixam_mart/features/item/controllers/item_controller.dart';
-import 'package:sixam_mart/features/store/controllers/store_controller.dart';
-import 'package:sixam_mart/features/splash/controllers/splash_controller.dart';
-import 'package:sixam_mart/features/profile/controllers/profile_controller.dart';
-import 'package:sixam_mart/features/address/controllers/address_controller.dart';
-import 'package:sixam_mart/features/home/screens/modules/food_home_screen.dart';
-import 'package:sixam_mart/features/home/screens/modules/grocery_home_screen.dart';
-import 'package:sixam_mart/features/home/screens/modules/pharmacy_home_screen.dart';
-import 'package:sixam_mart/features/home/screens/modules/shop_home_screen.dart';
-import 'package:sixam_mart/features/parcel/controllers/parcel_controller.dart';
-import 'package:sixam_mart/features/rental_module/home/controllers/taxi_home_controller.dart';
-import 'package:sixam_mart/features/rental_module/home/screens/taxi_home_screen.dart';
-import 'package:sixam_mart/features/places/screens/places_home_screen.dart';
-import 'package:sixam_mart/features/rental_module/rental_cart_screen/controllers/taxi_cart_controller.dart';
-import 'package:sixam_mart/helper/address_helper.dart';
-import 'package:sixam_mart/helper/auth_helper.dart';
-import 'package:sixam_mart/helper/responsive_helper.dart';
-import 'package:sixam_mart/util/app_constants.dart';
-import 'package:sixam_mart/util/dimensions.dart';
-import 'package:sixam_mart/common/widgets/item_view.dart';
-import 'package:sixam_mart/common/widgets/menu_drawer.dart';
-import 'package:sixam_mart/common/widgets/paginated_list_view.dart';
-import 'package:sixam_mart/common/widgets/web_menu_bar.dart';
-import 'package:sixam_mart/features/home/screens/web_new_home_screen.dart';
+import 'package:waddy_app/features/banner/controllers/banner_controller.dart';
+import 'package:waddy_app/features/brands/controllers/brands_controller.dart';
+import 'package:waddy_app/features/home/controllers/advertisement_controller.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/home/widgets/all_store_filter_widget.dart';
+import 'package:waddy_app/features/home/widgets/cashback_logo_widget.dart';
+import 'package:waddy_app/features/home/widgets/cashback_dialog_widget.dart';
+import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
+import 'package:waddy_app/features/home/widgets/home_app_bar_widget.dart';
+import 'package:waddy_app/features/home/widgets/home_search_widget.dart';
+import 'package:waddy_app/features/home/widgets/refer_bottom_sheet_widget.dart';
+import 'package:waddy_app/features/item/controllers/campaign_controller.dart';
+import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
+import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';
+import 'package:waddy_app/features/location/controllers/location_controller.dart';
+import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
+import 'package:waddy_app/features/order/controllers/order_controller.dart';
+import 'package:waddy_app/features/item/controllers/item_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/address/controllers/address_controller.dart';
+import 'package:waddy_app/features/home/screens/modules/food_home_screen.dart';
+import 'package:waddy_app/features/home/screens/modules/grocery_home_screen.dart';
+import 'package:waddy_app/features/home/screens/modules/pharmacy_home_screen.dart';
+import 'package:waddy_app/features/home/screens/modules/shop_home_screen.dart';
+import 'package:waddy_app/features/parcel/controllers/parcel_controller.dart';
+import 'package:waddy_app/features/places/screens/places_home_screen.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/common/widgets/item_view.dart';
+import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/common/widgets/paginated_list_view.dart';
+import 'package:waddy_app/common/widgets/web_menu_bar.dart';
+import 'package:waddy_app/features/home/screens/web_new_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:sixam_mart/features/home/widgets/module_view.dart';
-import 'package:sixam_mart/features/parcel/screens/parcel_category_screen.dart';
-import 'package:sixam_mart/features/home/widgets/letter_dialog_widget.dart';
-import 'package:sixam_mart/features/xp/controllers/xp_controller.dart';
-import 'package:sixam_mart/features/home/widgets/ramadan/ramadan_home_decorations_widget.dart';
+import 'package:waddy_app/features/home/widgets/module_view.dart';
+import 'package:waddy_app/features/parcel/screens/parcel_category_screen.dart';
+import 'package:waddy_app/features/home/widgets/letter_dialog_widget.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/home/widgets/ramadan/ramadan_home_decorations_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -56,6 +53,22 @@ class HomeScreen extends StatefulWidget {
   static Future<void> loadData(bool reload, {bool fromModule = false}) async {
     Get.find<LocationController>().syncZoneData();
     Get.find<FlashSaleController>().setEmptyFlashSale(fromModule: fromModule);
+
+    final splashController = Get.find<SplashController>();
+    final moduleType = splashController.module?.moduleType.toString();
+    final isPlacesModule = moduleType == AppConstants.places;
+
+    // For Places module, only load essential data and skip unnecessary APIs
+    if (isPlacesModule) {
+      Get.find<LocationController>().getZone(
+        AddressHelper.getUserAddressFromSharedPref()!.latitude,
+        AddressHelper.getUserAddressFromSharedPref()!.longitude,
+        false,
+        updateInAddress: true,
+      );
+      return;
+    }
+
     if (AuthHelper.isLoggedIn()) {
       Get.find<StoreController>().getVisitAgainStoreList(
         fromModule: fromModule,
@@ -66,12 +79,7 @@ class HomeScreen extends StatefulWidget {
             .configModel!
             .moduleConfig!
             .module!
-            .isParcel! &&
-        !Get.find<SplashController>()
-            .configModel!
-            .moduleConfig!
-            .module!
-            .isTaxi!) {
+            .isParcel!) {
       Get.find<BannerController>().getBannerList(reload);
       Get.find<StoreController>().getRecommendedStoreList();
       if (Get.find<SplashController>().module!.moduleType.toString() ==
@@ -289,16 +297,6 @@ class _HomeScreenState extends State<HomeScreen> {
         );
   }
 
-  Future<void> loadTaxiApis() async {
-    await Get.find<TaxiHomeController>().getTaxiBannerList(true);
-    await Get.find<TaxiHomeController>().getTopRatedCarList(1, true);
-    if (AuthHelper.isLoggedIn()) {
-      await Get.find<AddressController>().getAddressList();
-      await Get.find<TaxiHomeController>().getTaxiCouponList(true);
-      await Get.find<TaxiCartController>().getCarCartList();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return GetBuilder<SplashController>(
@@ -323,25 +321,21 @@ class _HomeScreenState extends State<HomeScreen> {
               body:
                   moduleState.isParcel
                       ? const ParcelCategoryScreen()
-                      : Container(
-                        child: SafeArea(
-                          child: RefreshIndicator(
-                            onRefresh:
-                                () => _handleRefresh(
-                                  splashController,
-                                  moduleState,
-                                ),
-                            child:
-                                ResponsiveHelper.isDesktop(context)
-                                    ? WebNewHomeScreen(
-                                      scrollController: _scrollController,
-                                    )
-                                    : _buildMobileHomeContent(
-                                      context,
-                                      splashController,
-                                      moduleState,
-                                    ),
-                          ),
+                      : SafeArea(
+                        child: RefreshIndicator(
+                          onRefresh:
+                              () =>
+                                  _handleRefresh(splashController, moduleState),
+                          child:
+                              ResponsiveHelper.isDesktop(context)
+                                  ? WebNewHomeScreen(
+                                    scrollController: _scrollController,
+                                  )
+                                  : _buildMobileHomeContent(
+                                    context,
+                                    splashController,
+                                    moduleState,
+                                  ),
                         ),
                       ),
               floatingActionButton: _buildFloatingActionButton(homeController),
@@ -362,21 +356,24 @@ class _HomeScreenState extends State<HomeScreen> {
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        // Modern App Bar with Greeting (hide for grocery module)
-        if (!moduleState.isGrocery && !moduleState.isFood)
+        // Modern App Bar with Greeting (hide for grocery, food, and places modules)
+        if (!moduleState.isGrocery &&
+            !moduleState.isFood &&
+            !moduleState.isPlaces)
           const SliverToBoxAdapter(child: HomeAppBarWidget()),
 
         // Current Order Status (show at top when there's an active order)
         if (!moduleState.showMobileModule &&
             !moduleState.isGrocery &&
-            !moduleState.isFood)
+            !moduleState.isFood &&
+            !moduleState.isPlaces)
           const SliverToBoxAdapter(child: CurrentOrderWidget()),
 
-        // Search Bar (hide for grocery module)
+        // Search Bar (hide for grocery, food, and places modules)
         if (!moduleState.showMobileModule &&
-            !moduleState.isTaxi &&
             !moduleState.isGrocery &&
-            !moduleState.isFood)
+            !moduleState.isFood &&
+            !moduleState.isPlaces)
           const SliverToBoxAdapter(child: HomeSearchWidget()),
 
         // Module Content
@@ -392,11 +389,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // Store Filter (hide for grocery — grocery has its own inline filtered list)
+        // Store Filter (hide for grocery, food, and places modules)
         if (!moduleState.showMobileModule &&
-            !moduleState.isTaxi &&
             !moduleState.isGrocery &&
-            !moduleState.isFood)
+            !moduleState.isFood &&
+            !moduleState.isPlaces)
           SliverPersistentHeader(
             key: _headerKey,
             pinned: true,
@@ -407,11 +404,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-        // Store List (hide for grocery — grocery has its own inline filtered list)
+        // Store List (hide for grocery, food, and places modules)
         if (!moduleState.showMobileModule &&
-            !moduleState.isTaxi &&
             !moduleState.isGrocery &&
-            !moduleState.isFood)
+            !moduleState.isFood &&
+            !moduleState.isPlaces)
           SliverToBoxAdapter(child: _buildStoreList(moduleState)),
       ],
     );
@@ -432,7 +429,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (state.isPharmacy) return const PharmacyHomeScreen();
     if (state.isFood) return const FoodHomeScreen();
     if (state.isShop) return const ShopHomeScreen();
-    if (state.isTaxi) return const TaxiHomeScreen();
     if (state.isPlaces) return const PlacesHomeScreen();
     return const SizedBox();
   }
@@ -500,10 +496,8 @@ class _HomeScreenState extends State<HomeScreen> {
   ) async {
     splashController.setRefreshing(true);
 
-    if (Get.find<SplashController>().module != null && !state.isTaxi) {
+    if (Get.find<SplashController>().module != null) {
       await _refreshModuleData(state);
-    } else if (state.isTaxi) {
-      await loadTaxiApis();
     } else {
       await _refreshHomeData();
     }
@@ -570,7 +564,6 @@ class _ModuleState {
   final bool isFood;
   final bool isShop;
   final bool isGrocery;
-  final bool isTaxi;
   final bool isPlaces;
 
   const _ModuleState({
@@ -580,7 +573,6 @@ class _ModuleState {
     required this.isFood,
     required this.isShop,
     required this.isGrocery,
-    required this.isTaxi,
     required this.isPlaces,
   });
 
@@ -598,7 +590,6 @@ class _ModuleState {
       isFood: module != null && moduleType == AppConstants.food,
       isShop: module != null && moduleType == AppConstants.ecommerce,
       isGrocery: module != null && moduleType == AppConstants.grocery,
-      isTaxi: module != null && moduleType == AppConstants.taxi,
       isPlaces: module != null && moduleType == AppConstants.places,
     );
   }
