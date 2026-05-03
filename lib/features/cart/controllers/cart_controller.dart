@@ -61,6 +61,9 @@ class CartController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isCartLoading = false;
+  bool get isCartLoading => _isCartLoading;
+
   bool _needExtraPackage = true;
   bool get needExtraPackage => _needExtraPackage;
 
@@ -272,6 +275,32 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
+  /// Removes the item from local state ONLY — call [confirmCartRemoval] after
+  /// the undo window expires, or [restoreCartItem] if the user undoes.
+  ({CartModel removed, int cartId}) removeFromCartOptimistic(int index) {
+    final CartModel removed = _cartList[index];
+    final int cartId = removed.id!;
+    _cartList.removeAt(index);
+    calculationCart();
+    update();
+    Get.find<ItemController>().cartIndexSet();
+    return (removed: removed, cartId: cartId);
+  }
+
+  /// Re-inserts a previously removed item at its original position.
+  void restoreCartItem(CartModel cart, int originalIndex) {
+    final int insertAt = originalIndex.clamp(0, _cartList.length);
+    _cartList.insert(insertAt, cart);
+    calculationCart();
+    update();
+    Get.find<ItemController>().cartIndexSet();
+  }
+
+  /// Fires the server-side delete — call this after the undo window expires.
+  Future<void> confirmCartRemoval(int cartId, {Item? item}) async {
+    await removeCartItemOnline(cartId, item: item);
+  }
+
   Future<void> clearCartList({bool canRemoveOnline = true}) async {
     _cartList = [];
     if (AuthHelper.isLoggedIn() &&
@@ -381,10 +410,14 @@ class CartController extends GetxController implements GetxService {
     update();
   }
 
-  Future<void> getCartDataOnline() async {
-    if (ModuleHelper.getModule() != null ||
-        ModuleHelper.getCacheModule() != null) {
-      _isLoading = true;
+  Future<void> getCartDataOnline({bool initialLoad = false}) async {
+    if (AuthHelper.isLoggedIn()) {
+      if (initialLoad) {
+        _isCartLoading = true;
+        update();
+      } else {
+        _isLoading = true;
+      }
       List<OnlineCartModel>? onlineCartList =
           await cartServiceInterface.getCartDataOnline();
       if (onlineCartList != null) {
@@ -396,6 +429,7 @@ class CartController extends GetxController implements GetxService {
         );
         calculationCart();
       }
+      _isCartLoading = false;
       _isLoading = false;
       update();
     }

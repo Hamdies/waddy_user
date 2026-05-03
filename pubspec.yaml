@@ -107,6 +107,7 @@ flutter:
     - assets/map/
     - assets/json/
     - assets/animation/
+    - assets/animation/bottom_nav/
     - assets/on_boarding/
 
   fonts:

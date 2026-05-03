@@ -148,4 +148,25 @@ class ETAResult {
 
   /// Check if driver is nearby (under 5 minutes)
   bool get isNearby => minMinutes < 5;
+
+  /// Format as a clock-time window: "3:45 – 4:00"
+  /// Uses the current time + min/max minutes.
+  String get clockWindow {
+    if (minMinutes < 1) return 'Arriving now';
+    final now = DateTime.now();
+    final lo = now.add(Duration(minutes: minMinutes));
+    final hi = now.add(Duration(minutes: maxMinutes));
+    final loStr = fmtTime(lo);
+    final hiStr = fmtTime(hi);
+    if (loStr == hiStr) return loStr;
+    return '$loStr\u2013$hiStr';
+  }
+
+  static String fmtTime(DateTime t) {
+    final h = t.hour;
+    final m = t.minute.toString().padLeft(2, '0');
+    final period = h >= 12 ? 'PM' : 'AM';
+    final hour12 = h % 12 == 0 ? 12 : h % 12;
+    return '$hour12:$m $period';
+  }
 }

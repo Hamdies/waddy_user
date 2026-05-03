@@ -27,7 +27,13 @@ class GroceryHomeScreen extends StatefulWidget {
   State<GroceryHomeScreen> createState() => _GroceryHomeScreenState();
 }
 
-class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProviderStateMixin {
+class _GroceryHomeScreenState extends State<GroceryHomeScreen>
+    with TickerProviderStateMixin {
+  static const double _sectionGapXS = 8;
+  static const double _sectionGapS = 12;
+  static const double _sectionGapM = 16;
+  static const double _sectionGapL = 24;
+
   int? _selectedCategoryId;
   bool _filterOffers = false;
   bool _filterUnder30 = false;
@@ -35,6 +41,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
   late final AnimationController _categoryAnimController;
   late final Animation<double> _categoryFadeAnim;
+  late final AnimationController _freshBadgeController;
+  late final Animation<double> _freshBadgeAnim;
 
   // Store slideshow for "All Stores" category
   int _storeSlideIndex = 0;
@@ -50,6 +58,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   @override
   void dispose() {
     _categoryAnimController.dispose();
+    _freshBadgeController.dispose();
     _storeSlideTimer?.cancel();
     super.dispose();
   }
@@ -65,6 +74,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
       parent: _categoryAnimController,
       curve: Curves.easeOutCubic,
     );
+    _freshBadgeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    )..repeat(reverse: true);
+    _freshBadgeAnim = CurvedAnimation(
+      parent: _freshBadgeController,
+      curve: Curves.easeInOut,
+    );
     _categoryAnimController.forward();
     _startStoreSlideshow();
     _loadData();
@@ -79,7 +96,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
   void _onCategoryTap(int? categoryId) {
     setState(() {
-      _selectedCategoryId = (_selectedCategoryId == categoryId) ? null : categoryId;
+      _selectedCategoryId =
+          (_selectedCategoryId == categoryId) ? null : categoryId;
     });
   }
 
@@ -89,41 +107,337 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
     // Category filter
     if (_selectedCategoryId != null) {
-      result = result.where((store) {
-        return store.categoryIds != null && store.categoryIds!.contains(_selectedCategoryId);
-      }).toList();
+      result =
+          result.where((store) {
+            return store.categoryIds != null &&
+                store.categoryIds!.contains(_selectedCategoryId);
+          }).toList();
     }
 
     // Offers filter
     if (_filterOffers) {
-      result = result.where((store) {
-        return store.discount != null &&
-            store.discount!.discount != null &&
-            store.discount!.discount! > 0;
-      }).toList();
+      result =
+          result.where((store) {
+            return store.discount != null &&
+                store.discount!.discount != null &&
+                store.discount!.discount! > 0;
+          }).toList();
     }
 
     // Under 30 min filter
     if (_filterUnder30) {
-      result = result.where((store) {
-        if (store.deliveryTime == null || store.deliveryTime!.isEmpty) return false;
-        final parts = store.deliveryTime!.split('-');
-        final maxTime = int.tryParse(parts.last.trim()) ?? 999;
-        return maxTime <= 30;
-      }).toList();
+      result =
+          result.where((store) {
+            if (store.deliveryTime == null || store.deliveryTime!.isEmpty) {
+              return false;
+            }
+            final parts = store.deliveryTime!.split('-');
+            final maxTime = int.tryParse(parts.last.trim()) ?? 999;
+            return maxTime <= 30;
+          }).toList();
     }
 
     // Free delivery filter
     if (_filterFreeDelivery) {
-      result = result.where((store) {
-        return store.freeDelivery == true;
-      }).toList();
+      result =
+          result.where((store) {
+            return store.freeDelivery == true;
+          }).toList();
     }
 
     return result;
   }
 
-  bool get _hasActiveChipFilter => _filterOffers || _filterUnder30 || _filterFreeDelivery;
+  bool get _hasActiveChipFilter =>
+      _filterOffers || _filterUnder30 || _filterFreeDelivery;
+
+  bool get _hasAnyBrowseFilters =>
+      _selectedCategoryId != null || _hasActiveChipFilter;
+
+  void _clearAllBrowseFilters() {
+    _selectedCategoryId = null;
+    _filterOffers = false;
+    _filterUnder30 = false;
+    _filterFreeDelivery = false;
+  }
+
+  void _showBrowseRefineSheet(BuildContext context) {
+    final categoryController = Get.find<CategoryController>();
+    final categories = categoryController.categoryList ?? [];
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+
+    Get.bottomSheet(
+      SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) {
+              void syncSheet(void Function() update) {
+                setState(update);
+                setSheetState(() {});
+              }
+
+              Widget buildCategoryTile({
+                required String label,
+                String? imageUrl,
+                required bool isSelected,
+                required VoidCallback onTap,
+              }) {
+                return _PressableScale(
+                  onTap: onTap,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 92,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected ? primaryColor : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color:
+                            isSelected
+                                ? primaryColor.withValues(alpha: 0.22)
+                                : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color:
+                                isSelected
+                                    ? accentColor.withValues(alpha: 0.15)
+                                    : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child:
+                                imageUrl != null && imageUrl.isNotEmpty
+                                    ? CustomImage(
+                                      image: imageUrl,
+                                      fit: BoxFit.cover,
+                                    )
+                                    : Icon(
+                                      Icons.storefront_rounded,
+                                      color:
+                                          isSelected
+                                              ? Colors.white
+                                              : Colors.grey.shade500,
+                                    ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: robotoMedium.copyWith(
+                            fontSize: 11,
+                            color: isSelected ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              Widget buildFilterTile({
+                required String label,
+                required bool isActive,
+                required VoidCallback onTap,
+                required IconData icon,
+              }) {
+                return _PressableScale(
+                  onTap: onTap,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive ? primaryColor : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isActive ? primaryColor : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isActive ? Icons.check_circle_rounded : icon,
+                          size: 16,
+                          color: isActive ? accentColor : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          label,
+                          style: robotoMedium.copyWith(
+                            fontSize: 12,
+                            color: isActive ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'apply_filters'.tr,
+                            style: robotoBold.copyWith(
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed:
+                              _hasAnyBrowseFilters
+                                  ? () {
+                                    syncSheet(_clearAllBrowseFilters);
+                                  }
+                                  : null,
+                          child: Text('reset'.tr),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'browse_all_stores'.tr,
+                      style: robotoMedium.copyWith(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        buildCategoryTile(
+                          label: 'all_stores'.tr,
+                          isSelected: _selectedCategoryId == null,
+                          onTap:
+                              () => syncSheet(() {
+                                _selectedCategoryId = null;
+                              }),
+                        ),
+                        ...categories.map(
+                          (category) => buildCategoryTile(
+                            label: category.name ?? '',
+                            imageUrl: category.imageFullUrl,
+                            isSelected: _selectedCategoryId == category.id,
+                            onTap:
+                                () => syncSheet(() {
+                                  _selectedCategoryId = category.id;
+                                }),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'filter'.tr,
+                      style: robotoMedium.copyWith(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        buildFilterTile(
+                          label: 'offers'.tr,
+                          isActive: _filterOffers,
+                          onTap:
+                              () => syncSheet(
+                                () => _filterOffers = !_filterOffers,
+                              ),
+                          icon: Icons.local_offer_outlined,
+                        ),
+                        buildFilterTile(
+                          label: 'under_30_mins'.tr,
+                          isActive: _filterUnder30,
+                          onTap:
+                              () => syncSheet(
+                                () => _filterUnder30 = !_filterUnder30,
+                              ),
+                          icon: Icons.access_time_rounded,
+                        ),
+                        buildFilterTile(
+                          label: 'free_delivery'.tr,
+                          isActive: _filterFreeDelivery,
+                          onTap:
+                              () => syncSheet(
+                                () =>
+                                    _filterFreeDelivery = !_filterFreeDelivery,
+                              ),
+                          icon: Icons.delivery_dining_outlined,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Get.back(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text('done'.tr),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,39 +452,23 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
         // ── Current Order Status ──
         const CurrentOrderWidget(),
-        const SizedBox(height: 16),
+        const SizedBox(height: _sectionGapM),
 
-        // ══════════════════════════════════════
-        // Always visible sections
-        // ══════════════════════════════════════
         // Re-Order (Buy Again) — first if exists
         _buildBuyAgainSection(context),
-        const SizedBox(height: 8),
 
         // "Big brands near you" — hero horizontal store cards
         _buildBigBrandsSection(context),
 
-        // Banner — single, optional
+        // Browse area is grouped as one visual band to reduce section noise.
+        _buildBrowseSection(context),
+
+        const SizedBox(height: _sectionGapL),
+
+        // Banner — single, optional, now treated as a secondary promo.
         const BannerView(isFeatured: false, showRamadanWrapper: false),
-        const SizedBox(height: 20),
 
-        // ══════════════════════════════════════
-        // "Browse all stores" — always visible
-        // ══════════════════════════════════════
-        _buildBrowseAllStoresHeader(context),
-
-        // Category circles (round icons with label)
-        _buildCategoryCircles(context),
-        const SizedBox(height: 6),
-
-        // Quick filter chips (Offers, Under 30 mins, Free delivery)
-        _buildFilterChips(context),
-        const SizedBox(height: 8),
-
-        // ── Store List (filtered or all) ──
-        _buildStoreList(context),
-
-        const SizedBox(height: 20),
+        const SizedBox(height: _sectionGapL),
       ],
     );
   }
@@ -207,7 +505,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
               },
               child: const Padding(
                 padding: EdgeInsets.all(12),
-                child: Icon(Icons.arrow_back_rounded, size: 22, color: Colors.black87),
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  size: 22,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ),
@@ -216,8 +518,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
           // "Deliver to" + address
           Expanded(
-            child: GestureDetector(
-              onTap: () => Get.toNamed(RouteHelper.getAccessLocationRoute('home')),
+            child: _PressableScale(
+              onTap:
+                  () => Get.toNamed(RouteHelper.getAccessLocationRoute('home')),
               child: Row(
                 children: [
                   Flexible(
@@ -244,7 +547,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                         ),
                         Builder(
                           builder: (context) {
-                            final address = AddressHelper.getUserAddressFromSharedPref();
+                            final address =
+                                AddressHelper.getUserAddressFromSharedPref();
                             return Text(
                               address?.address ?? 'Select Location',
                               style: robotoMedium.copyWith(
@@ -291,24 +595,30 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                       builder: (cartController) {
                         return cartController.cartList.isNotEmpty
                             ? Positioned(
-                                top: -4,
-                                right: -4,
-                                child: Container(
-                                  height: 18,
-                                  width: 18,
-                                  decoration: BoxDecoration(
-                                    color: accentColor,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                              top: -4,
+                              right: -4,
+                              child: Container(
+                                height: 18,
+                                width: 18,
+                                decoration: BoxDecoration(
+                                  color: accentColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      cartController.cartList.length.toString(),
-                                      style: robotoBold.copyWith(fontSize: 9, color: primaryColor),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    cartController.cartList.length.toString(),
+                                    style: robotoBold.copyWith(
+                                      fontSize: 9,
+                                      color: primaryColor,
                                     ),
                                   ),
                                 ),
-                              )
+                              ),
+                            )
                             : const SizedBox();
                       },
                     ),
@@ -326,28 +636,70 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   // SEARCH BAR — Talabat style (simple, full width)
   // ═══════════════════════════════════════════
   Widget _buildSearchBar(BuildContext context) {
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        Dimensions.paddingSizeDefault, 12, Dimensions.paddingSizeDefault, 0,
+        Dimensions.paddingSizeDefault,
+        12,
+        Dimensions.paddingSizeDefault,
+        0,
       ),
-      child: GestureDetector(
+      child: _PressableScale(
         onTap: () => Get.toNamed(RouteHelper.getSearchRoute()),
         child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: accentColor.withValues(alpha: 0.12),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Icon(Icons.search, size: 22, color: Colors.grey.shade500),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.search, size: 20, color: primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'search_products_or_stores'.tr,
+                  style: robotoRegular.copyWith(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               const SizedBox(width: 10),
-              Text(
-                'search_products_or_stores'.tr,
-                style: robotoRegular.copyWith(
-                  color: Colors.grey.shade500,
-                  fontSize: 14,
+              ScaleTransition(
+                scale: _freshBadgeAnim,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.eco_rounded, size: 18, color: accentColor),
                 ),
               ),
             ],
@@ -366,7 +718,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
     return GetBuilder<StoreController>(
       builder: (storeController) {
-        final stores = storeController.popularStoreList ?? storeController.latestStoreList;
+        final stores =
+            storeController.popularStoreList ?? storeController.latestStoreList;
 
         if (stores == null) {
           return _buildBigBrandsShimmer();
@@ -374,13 +727,15 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
         if (stores.isEmpty) return const SizedBox();
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 28),
+          padding: const EdgeInsets.only(bottom: _sectionGapL),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Section title + View All
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeDefault,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -388,7 +743,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                       child: Stack(
                         children: [
                           Positioned(
-                            bottom: 2, left: 0, right: 0,
+                            bottom: 2,
+                            left: 0,
+                            right: 0,
                             child: Container(
                               height: 8,
                               decoration: BoxDecoration(
@@ -399,27 +756,50 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                           ),
                           Text(
                             'best_store_nearby'.tr,
-                            style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+                            style: robotoBold.copyWith(
+                              fontSize: 18,
+                              color: Colors.black87,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: () => Get.toNamed(RouteHelper.getAllStoreRoute('popular', isNearbyStore: true)),
+                    _PressableScale(
+                      onTap:
+                          () => Get.toNamed(
+                            RouteHelper.getAllStoreRoute(
+                              'popular',
+                              isNearbyStore: true,
+                            ),
+                          ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppDesignTokens.secondaryNeon.withValues(alpha: 0.08),
+                          color: AppDesignTokens.secondaryNeon.withValues(
+                            alpha: 0.08,
+                          ),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('view_all'.tr,
-                              style: robotoMedium.copyWith(fontSize: 12, color: primaryColor)),
+                            Text(
+                              'view_all'.tr,
+                              style: robotoMedium.copyWith(
+                                fontSize: 12,
+                                color: primaryColor,
+                              ),
+                            ),
                             const SizedBox(width: 4),
-                            Icon(Icons.arrow_forward_rounded, size: 14, color: primaryColor),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: primaryColor,
+                            ),
                           ],
                         ),
                       ),
@@ -436,10 +816,15 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   itemCount: stores.length > 8 ? 8 : stores.length,
-                  padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
+                  padding: const EdgeInsets.only(
+                    left: Dimensions.paddingSizeDefault,
+                  ),
                   itemBuilder: (context, index) {
                     return _buildBestNearbyCard(
-                      context, stores[index], primaryColor, accentColor,
+                      context,
+                      stores[index],
+                      primaryColor,
+                      accentColor,
                     );
                   },
                 ),
@@ -458,57 +843,81 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
     final stickers = <_StickerData>[];
 
     if (store.featured == 1) {
-      stickers.add(const _StickerData(
-        text: 'FASSSST', icon: Icons.electric_bolt,
-        bgColor: Color(0xFF134E4A), textColor: Color(0xFF1EF2A0),
-        rotation: -0.08,
-      ));
+      stickers.add(
+        const _StickerData(
+          text: 'FAST',
+          icon: Icons.electric_bolt,
+          bgColor: Color(0xFF134E4A),
+          textColor: Color(0xFF1EF2A0),
+          rotation: -0.05,
+        ),
+      );
     }
 
     if (store.deliveryTime != null && store.deliveryTime!.isNotEmpty) {
       final parts = store.deliveryTime!.split('-');
       final maxTime = int.tryParse(parts.last.trim()) ?? 999;
       if (maxTime <= 30) {
-        stickers.add(const _StickerData(
-          text: 'OFFERSSS ⚡', icon: Icons.bolt_rounded,
-          bgColor: Color(0xFFFFD600), textColor: Color(0xFF3E2700),
-          rotation: 0.1,
-        ));
+        stickers.add(
+          const _StickerData(
+            text: '30 MIN',
+            icon: Icons.schedule_rounded,
+            bgColor: Color(0xFFFFD600),
+            textColor: Color(0xFF3E2700),
+            rotation: 0.06,
+          ),
+        );
       }
     }
 
     if (store.freeDelivery == true) {
-      stickers.add(const _StickerData(
-        text: 'FREE 🚚', icon: Icons.local_shipping_rounded,
-        bgColor: Color(0xFFFF5252), textColor: Colors.white,
-        rotation: -0.06,
-      ));
+      stickers.add(
+        const _StickerData(
+          text: 'FREE',
+          icon: Icons.local_shipping_rounded,
+          bgColor: Color(0xFFFF5252),
+          textColor: Colors.white,
+          rotation: -0.04,
+        ),
+      );
     }
 
     if (store.discount != null &&
         store.discount!.discount != null &&
         store.discount!.discount! > 0) {
-      stickers.add(_StickerData(
-        text: 'OFFERSSS 🔥', icon: Icons.local_offer_rounded,
-        bgColor: const Color(0xFFFF6D00), textColor: Colors.white,
-        rotation: 0.08,
-      ));
+      stickers.add(
+        const _StickerData(
+          text: 'DEAL',
+          icon: Icons.local_offer_rounded,
+          bgColor: Color(0xFFFF6D00),
+          textColor: Colors.white,
+          rotation: 0.05,
+        ),
+      );
     }
 
     if (store.avgRating != null && store.avgRating! >= 4.5) {
-      stickers.add(const _StickerData(
-        text: 'TOP ⭐', icon: Icons.workspace_premium_rounded,
-        bgColor: Color(0xFF7C4DFF), textColor: Colors.white,
-        rotation: -0.07,
-      ));
+      stickers.add(
+        const _StickerData(
+          text: 'TOP',
+          icon: Icons.workspace_premium_rounded,
+          bgColor: Color(0xFF7C4DFF),
+          textColor: Colors.white,
+          rotation: -0.05,
+        ),
+      );
     }
 
     if ((store.ratingCount ?? 0) < 5 && stickers.length < 2) {
-      stickers.add(const _StickerData(
-        text: 'OFFFEEERSS!', icon: Icons.auto_awesome_rounded,
-        bgColor: Color(0xFF00E676), textColor: Color(0xFF0D3B2E),
-        rotation: 0.12,
-      ));
+      stickers.add(
+        const _StickerData(
+          text: 'NEW',
+          icon: Icons.auto_awesome_rounded,
+          bgColor: Color(0xFF00E676),
+          textColor: Color(0xFF0D3B2E),
+          rotation: 0.07,
+        ),
+      );
     }
 
     return stickers.take(1).toList();
@@ -543,7 +952,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
           mainAxisSize: MainAxisSize.min,
           children: [
             if (sticker.icon != null) ...[
-              Icon(sticker.icon, size: compact ? 10 : 12, color: sticker.textColor),
+              Icon(
+                sticker.icon,
+                size: compact ? 10 : 12,
+                color: sticker.textColor,
+              ),
               SizedBox(width: compact ? 3 : 4),
             ],
             Text(
@@ -565,16 +978,20 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   // BEST NEARBY CARD — full-bleed magazine style
   // ═══════════════════════════════════════════
   Widget _buildBestNearbyCard(
-    BuildContext context, Store store, Color primaryColor, Color accentColor,
+    BuildContext context,
+    Store store,
+    Color primaryColor,
+    Color accentColor,
   ) {
     final bool isOpen = store.open == 1;
     final stickers = _getStickersForStore(store);
 
-    return GestureDetector(
-      onTap: () => Get.toNamed(
-        RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-        arguments: StoreScreen(store: store, fromModule: false),
-      ),
+    return _PressableScale(
+      onTap:
+          () => Get.toNamed(
+            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+            arguments: StoreScreen(store: store, fromModule: false),
+          ),
       child: Container(
         width: 210,
         margin: const EdgeInsets.only(right: 12),
@@ -628,7 +1045,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                       child: Transform.rotate(
                         angle: -0.12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(4),
@@ -639,11 +1059,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                               ),
                             ],
                           ),
-                          child: Text('CLOSED',
+                          child: Text(
+                            'CLOSED',
                             style: robotoBold.copyWith(
-                              fontSize: 16, color: Colors.black87,
+                              fontSize: 16,
+                              color: Colors.black87,
                               letterSpacing: 3,
-                            )),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -652,9 +1075,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
               // ── Logo floating top-left ──
               Positioned(
-                top: 12, left: 12,
+                top: 12,
+                left: 12,
                 child: Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: Colors.white,
@@ -668,7 +1093,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: CustomImage(image: store.logoFullUrl ?? '', fit: BoxFit.cover),
+                    child: CustomImage(
+                      image: store.logoFullUrl ?? '',
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -676,25 +1104,31 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
               // ── Single sticker ribbon — right edge ──
               if (stickers.isNotEmpty && isOpen)
                 Positioned(
-                  top: 12, right: 0,
+                  top: 12,
+                  right: 0,
                   child: _buildRibbonSticker(stickers.first),
                 ),
 
               // ── Bottom info overlay ──
               Positioned(
-                left: 0, right: 0, bottom: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Store name — big bold white
-                      Text(store.name ?? '',
+                      Text(
+                        store.name ?? '',
                         style: robotoBold.copyWith(
-                          fontSize: 15, color: Colors.white,
-                          
+                          fontSize: 15,
+                          color: Colors.white,
                         ),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 4),
 
                       // Delivery time pill
@@ -734,7 +1168,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
         children: [
           Icon(icon, size: 11, color: textColor),
           const SizedBox(width: 3),
-          Text(text, style: robotoBold.copyWith(fontSize: 10, color: textColor)),
+          Text(
+            text,
+            style: robotoBold.copyWith(fontSize: 10, color: textColor),
+          ),
         ],
       ),
     );
@@ -742,16 +1179,24 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
   Widget _buildBigBrandsShimmer() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: _sectionGapL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
-            child: Shimmer(child: Container(
-              width: 180, height: 24,
-              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6)),
-            )),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
+            child: Shimmer(
+              child: Container(
+                width: 180,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -760,14 +1205,22 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: 3,
-              padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: Shimmer(child: Container(
-                  width: 180,
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(16)),
-                )),
+              padding: const EdgeInsets.only(
+                left: Dimensions.paddingSizeDefault,
               ),
+              itemBuilder:
+                  (context, index) => Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Shimmer(
+                      child: Container(
+                        width: 180,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
             ),
           ),
         ],
@@ -792,9 +1245,19 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
             if (stores == null || stores.isEmpty) return const SizedBox();
 
             if (isRamadan) {
-              return _buildRamadanBuyAgain(context, stores, primaryColor, accentColor);
+              return _buildRamadanBuyAgain(
+                context,
+                stores,
+                primaryColor,
+                accentColor,
+              );
             }
-            return _buildNormalBuyAgain(context, stores, primaryColor, accentColor);
+            return _buildNormalBuyAgain(
+              context,
+              stores,
+              primaryColor,
+              accentColor,
+            );
           },
         );
       },
@@ -803,39 +1266,54 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
   // ── Normal (non-Ramadan) Buy Again ──
   Widget _buildNormalBuyAgain(
-    BuildContext context, List<Store> stores, Color primaryColor, Color accentColor,
+    BuildContext context,
+    List<Store> stores,
+    Color primaryColor,
+    Color accentColor,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: _sectionGapM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             child: Text(
               'buy_again'.tr,
-              style: robotoBold.copyWith(fontSize: 20, color: Colors.black87),
+              style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             child: Text(
               'a_quick_way_to_find_your_go_to_items'.tr,
-              style: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade600),
+              style: robotoRegular.copyWith(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 260,
+            height: 230,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
-              itemCount: stores.length > 6 ? 6 : stores.length,
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
+              itemCount: stores.length > 5 ? 5 : stores.length,
               itemBuilder: (context, index) {
                 return _buildBuyAgainCard(
-                  context, stores[index], primaryColor, accentColor,
+                  context,
+                  stores[index],
+                  primaryColor,
+                  accentColor,
                 );
               },
             ),
@@ -846,21 +1324,25 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   }
 
   Widget _buildBuyAgainCard(
-    BuildContext context, Store store, Color primaryColor, Color accentColor,
+    BuildContext context,
+    Store store,
+    Color primaryColor,
+    Color accentColor,
   ) {
     final items = store.items ?? [];
     final int totalItems = store.itemCount ?? items.length;
     final displayItems = items.take(4).toList();
     final int remaining = totalItems - displayItems.length;
 
-    return GestureDetector(
-      onTap: () => Get.toNamed(
-        RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-        arguments: StoreScreen(store: store, fromModule: false),
-      ),
+    return _PressableScale(
+      onTap:
+          () => Get.toNamed(
+            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+            arguments: StoreScreen(store: store, fromModule: false),
+          ),
       child: Container(
-        width: 180,
-        margin: const EdgeInsets.only(right: 14),
+        width: 168,
+        margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
           borderRadius: BorderRadius.circular(18),
@@ -868,11 +1350,12 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
               child: Row(
                 children: [
                   Container(
-                    width: 36, height: 36,
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.grey.shade200),
@@ -880,7 +1363,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: CustomImage(image: store.logoFullUrl ?? '', fit: BoxFit.cover),
+                      child: CustomImage(
+                        image: store.logoFullUrl ?? '',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -888,12 +1374,23 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(store.name ?? '',
-                          style: robotoBold.copyWith(fontSize: 13, color: Colors.black87),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          store.name ?? '',
+                          style: robotoBold.copyWith(
+                            fontSize: 12.5,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         if (store.deliveryTime != null)
-                          Text('${store.deliveryTime}',
-                            style: robotoRegular.copyWith(fontSize: 11, color: Colors.grey.shade600)),
+                          Text(
+                            '${store.deliveryTime}',
+                            style: robotoRegular.copyWith(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -902,45 +1399,70 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: displayItems.isNotEmpty
-                    ? GridView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2, mainAxisSpacing: 6, crossAxisSpacing: 6),
-                        itemCount: displayItems.length > 4 ? 4 : displayItems.length,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                            padding: const EdgeInsets.all(8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CustomImage(
-                                image: displayItems[index].imageFullUrl ?? '',
-                                fit: BoxFit.contain),
-                            ),
-                          );
-                        },
-                      )
-                    : Center(child: Icon(Icons.shopping_bag_outlined,
-                        size: 40, color: primaryColor.withValues(alpha: 0.2))),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child:
+                    displayItems.isNotEmpty
+                        ? GridView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 5,
+                                crossAxisSpacing: 5,
+                              ),
+                          itemCount:
+                              displayItems.length > 4 ? 4 : displayItems.length,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.all(7),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: CustomImage(
+                                  image: displayItems[index].imageFullUrl ?? '',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                        : Center(
+                          child: Icon(
+                            Icons.shopping_bag_outlined,
+                            size: 40,
+                            color: primaryColor.withValues(alpha: 0.2),
+                          ),
+                        ),
               ),
             ),
             if (remaining > 0)
               Padding(
-                padding: const EdgeInsets.only(bottom: 10, top: 4),
+                padding: const EdgeInsets.only(bottom: 8, top: 4),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: accentColor.withValues(alpha: 0.5)),
-                    borderRadius: BorderRadius.circular(12)),
-                  child: Text('+$remaining ${'more'.tr}',
-                    style: robotoMedium.copyWith(fontSize: 11, color: primaryColor)),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.5),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '+$remaining ${'more'.tr}',
+                    style: robotoMedium.copyWith(
+                      fontSize: 10.5,
+                      color: primaryColor,
+                    ),
+                  ),
                 ),
               )
             else
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
           ],
         ),
       ),
@@ -953,26 +1475,36 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   static const Color _ramadanGold = Color(0xFFD4AF37);
 
   Widget _buildRamadanBuyAgain(
-    BuildContext context, List<Store> stores, Color primaryColor, Color accentColor,
+    BuildContext context,
+    List<Store> stores,
+    Color primaryColor,
+    Color accentColor,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: _sectionGapM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Ramadan header with marker highlight ──
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             child: Row(
               children: [
-                const HugeIcon(icon: HugeIcons.strokeRoundedRamadhan01,
-                  color: _ramadanGold, size: 22),
+                const HugeIcon(
+                  icon: HugeIcons.strokeRoundedRamadhan01,
+                  color: _ramadanGold,
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 // Title with gold marker underline
                 Stack(
                   children: [
                     Positioned(
-                      bottom: 0, left: -3, right: -3,
+                      bottom: 0,
+                      left: -3,
+                      right: -3,
                       child: Container(
                         height: 10,
                         decoration: BoxDecoration(
@@ -981,8 +1513,13 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                         ),
                       ),
                     ),
-                    Text('ramadan_reorder'.tr,
-                      style: robotoBold.copyWith(fontSize: 20, color: Colors.black87)),
+                    Text(
+                      'ramadan_reorder'.tr,
+                      style: robotoBold.copyWith(
+                        fontSize: 18,
+                        color: Colors.black87,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -990,21 +1527,28 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
           ),
           const SizedBox(height: 4),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             child: Text(
               'ramadan_reorder_subtitle'.tr,
-              style: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade600),
+              style: robotoRegular.copyWith(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // ── Horizontal store cards — Ramadan style ──
           SizedBox(
-            height: 170,
+            height: 162,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
               itemCount: stores.length > 6 ? 6 : stores.length,
               itemBuilder: (context, index) {
                 return _buildRamadanChip(context, stores[index], primaryColor);
@@ -1016,15 +1560,20 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
     );
   }
 
-  Widget _buildRamadanChip(BuildContext context, Store store, Color primaryColor) {
+  Widget _buildRamadanChip(
+    BuildContext context,
+    Store store,
+    Color primaryColor,
+  ) {
     final items = store.items ?? [];
     final displayItems = items.take(3).toList();
 
-    return GestureDetector(
-      onTap: () => Get.toNamed(
-        RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-        arguments: StoreScreen(store: store, fromModule: false),
-      ),
+    return _PressableScale(
+      onTap:
+          () => Get.toNamed(
+            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+            arguments: StoreScreen(store: store, fromModule: false),
+          ),
       child: Container(
         width: 200,
         margin: const EdgeInsets.only(right: 14),
@@ -1034,10 +1583,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
           boxShadow: [
             BoxShadow(
               color: _ramadanGold.withValues(alpha: 0.08),
-              blurRadius: 12, offset: const Offset(0, 4)),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4, offset: const Offset(0, 2)),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: ClipRRect(
@@ -1051,10 +1604,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFFFFFDF5),
-                        Color(0xFFFFF8E7),
-                      ],
+                      colors: [Color(0xFFFFFDF5), Color(0xFFFFF8E7)],
                     ),
                   ),
                 ),
@@ -1062,15 +1612,23 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
               // Decorative top-right crescent
               Positioned(
-                top: -6, right: -4,
-                child: Icon(Icons.nightlight_round, size: 44,
-                  color: _ramadanGold.withValues(alpha: 0.06)),
+                top: -6,
+                right: -4,
+                child: Icon(
+                  Icons.nightlight_round,
+                  size: 44,
+                  color: _ramadanGold.withValues(alpha: 0.06),
+                ),
               ),
               // Decorative bottom-left star cluster
               Positioned(
-                bottom: 12, left: 6,
-                child: Icon(Icons.auto_awesome, size: 16,
-                  color: _ramadanGold.withValues(alpha: 0.08)),
+                bottom: 12,
+                left: 6,
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 16,
+                  color: _ramadanGold.withValues(alpha: 0.08),
+                ),
               ),
 
               // Card content
@@ -1083,20 +1641,28 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     Row(
                       children: [
                         Container(
-                          width: 36, height: 36,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             color: Colors.white,
-                            border: Border.all(color: _ramadanGold.withValues(alpha: 0.25)),
+                            border: Border.all(
+                              color: _ramadanGold.withValues(alpha: 0.25),
+                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: _ramadanGold.withValues(alpha: 0.1),
-                                blurRadius: 4, offset: const Offset(0, 2)),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
                             ],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: CustomImage(image: store.logoFullUrl ?? '', fit: BoxFit.cover),
+                            child: CustomImage(
+                              image: store.logoFullUrl ?? '',
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1104,13 +1670,23 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(store.name ?? '',
-                                style: robotoBold.copyWith(fontSize: 13, color: Colors.black87),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Text(
+                                store.name ?? '',
+                                style: robotoBold.copyWith(
+                                  fontSize: 13,
+                                  color: Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               if (store.deliveryTime != null)
-                                Text('${store.deliveryTime}',
+                                Text(
+                                  '${store.deliveryTime}',
                                   style: robotoRegular.copyWith(
-                                    fontSize: 10, color: Colors.grey.shade500)),
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -1122,44 +1698,60 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     // Item thumbnails — elevated white cards
                     Row(
                       children: [
-                        ...displayItems.map((item) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Container(
-                            width: 42, height: 42,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 6, offset: const Offset(0, 2)),
-                                BoxShadow(
-                                  color: _ramadanGold.withValues(alpha: 0.06),
-                                  blurRadius: 3, offset: const Offset(0, 1)),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(5),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(7),
-                              child: CustomImage(
-                                image: item.imageFullUrl ?? '', fit: BoxFit.contain),
+                        ...displayItems.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.06),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                  BoxShadow(
+                                    color: _ramadanGold.withValues(alpha: 0.06),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(5),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: CustomImage(
+                                  image: item.imageFullUrl ?? '',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
                             ),
                           ),
-                        )),
+                        ),
                         if (items.length > 3)
                           Container(
-                            width: 42, height: 42,
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [
-                                _ramadanGold.withValues(alpha: 0.15),
-                                _ramadanGold.withValues(alpha: 0.08),
-                              ]),
+                              gradient: LinearGradient(
+                                colors: [
+                                  _ramadanGold.withValues(alpha: 0.15),
+                                  _ramadanGold.withValues(alpha: 0.08),
+                                ],
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             alignment: Alignment.center,
-                            child: Text('+${items.length - 3}',
+                            child: Text(
+                              '+${items.length - 3}',
                               style: robotoBold.copyWith(
-                                fontSize: 11, color: const Color(0xFF8B6914))),
+                                fontSize: 11,
+                                color: const Color(0xFF8B6914),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -1171,22 +1763,33 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [
-                          _ramadanGold.withValues(alpha: 0.18),
-                          _ramadanGold.withValues(alpha: 0.08),
-                        ]),
+                        gradient: LinearGradient(
+                          colors: [
+                            _ramadanGold.withValues(alpha: 0.18),
+                            _ramadanGold.withValues(alpha: 0.08),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _ramadanGold.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: _ramadanGold.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.refresh_rounded, size: 13,
-                            color: Color(0xFF8B6914)),
+                          const Icon(
+                            Icons.refresh_rounded,
+                            size: 13,
+                            color: Color(0xFF8B6914),
+                          ),
                           const SizedBox(width: 4),
-                          Text('ramadan_reorder'.tr,
+                          Text(
+                            'ramadan_reorder'.tr,
                             style: robotoMedium.copyWith(
-                              fontSize: 11, color: const Color(0xFF8B6914))),
+                              fontSize: 11,
+                              color: const Color(0xFF8B6914),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1206,11 +1809,65 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   Widget _buildBrowseAllStoresHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        Dimensions.paddingSizeDefault, 8, Dimensions.paddingSizeDefault, 16,
+        Dimensions.paddingSizeDefault,
+        0,
+        Dimensions.paddingSizeDefault,
+        10,
       ),
-      child: Text(
-        'browse_all_stores'.tr,
-        style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'browse_all_stores'.tr,
+              style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+            ),
+          ),
+          if (_hasAnyBrowseFilters)
+            TextButton(
+              onPressed: () => setState(_clearAllBrowseFilters),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).primaryColor,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+              ),
+              child: Text('reset'.tr),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrowseSection(BuildContext context) {
+    final Color sectionTint = Theme.of(
+      context,
+    ).primaryColor.withValues(alpha: 0.025);
+    final Color borderTint = Theme.of(
+      context,
+    ).secondaryHeaderColor.withValues(alpha: 0.08);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: sectionTint,
+        border: Border(
+          top: BorderSide(color: borderTint),
+          bottom: BorderSide(color: borderTint),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildBrowseAllStoresHeader(context),
+          _buildCategoryCircles(context),
+          const SizedBox(height: _sectionGapXS),
+          _buildRefineButton(context),
+          const SizedBox(height: _sectionGapS),
+          _buildStoreList(context),
+        ],
       ),
     );
   }
@@ -1232,15 +1889,22 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
         }
 
         final allCategories = categoryController.categoryList!;
+        final visibleCategories =
+            allCategories.length > 3
+                ? allCategories.take(3).toList()
+                : allCategories;
 
         // Get store covers for "All Stores" slideshow
         final storeController = Get.find<StoreController>();
-        final stores = storeController.popularStoreList ?? storeController.latestStoreList ?? [];
+        final stores =
+            storeController.popularStoreList ??
+            storeController.latestStoreList ??
+            [];
 
         return FadeTransition(
           opacity: _categoryFadeAnim,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 2),
             child: SizedBox(
               height: 110,
               child: ListView(
@@ -1250,7 +1914,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                 padding: const EdgeInsets.symmetric(
                   horizontal: Dimensions.paddingSizeDefault,
                 ),
-                children: List.generate(allCategories.length + 1, (index) {
+                children: List.generate(visibleCategories.length + 1, (index) {
                   if (index == 0) {
                     return _buildAllStoresItem(
                       context: context,
@@ -1261,7 +1925,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                       onTap: () => _onCategoryTap(null),
                     );
                   }
-                  final category = allCategories[index - 1];
+                  final category = visibleCategories[index - 1];
                   return _buildCategoryItem(
                     context: context,
                     isSelected: _selectedCategoryId == category.id,
@@ -1292,7 +1956,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 10),
-      child: GestureDetector(
+      child: _PressableScale(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
@@ -1302,32 +1966,62 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                width: 66, height: 66,
+                width: 66,
+                height: 66,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   color: isSelected ? primaryColor : Colors.grey.shade100,
                   border: Border.all(
-                    color: isSelected ? accentColor.withValues(alpha: 0.5) : Colors.grey.shade200,
+                    color:
+                        isSelected
+                            ? accentColor.withValues(alpha: 0.5)
+                            : Colors.grey.shade200,
                     width: isSelected ? 1.5 : 1,
                   ),
-                  boxShadow: isSelected
-                      ? [BoxShadow(color: accentColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))]
-                      : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                  boxShadow:
+                      isSelected
+                          ? [
+                            BoxShadow(
+                              color: accentColor.withValues(alpha: 0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: stores.isNotEmpty
-                      ? AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 600),
-                          child: CustomImage(
-                            key: ValueKey<int>(_storeSlideIndex % stores.length),
-                            image: stores[_storeSlideIndex % stores.length].logoFullUrl ?? '',
-                            fit: BoxFit.cover,
-                            width: 66, height: 66,
+                  child:
+                      stores.isNotEmpty
+                          ? AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 600),
+                            child: CustomImage(
+                              key: ValueKey<int>(
+                                _storeSlideIndex % stores.length,
+                              ),
+                              image:
+                                  stores[_storeSlideIndex % stores.length]
+                                      .logoFullUrl ??
+                                  '',
+                              fit: BoxFit.cover,
+                              width: 66,
+                              height: 66,
+                            ),
+                          )
+                          : Icon(
+                            Icons.storefront_rounded,
+                            size: 26,
+                            color:
+                                isSelected
+                                    ? Colors.white
+                                    : Colors.grey.shade500,
                           ),
-                        )
-                      : Icon(Icons.storefront_rounded, size: 26,
-                          color: isSelected ? Colors.white : Colors.grey.shade500),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1338,12 +2032,18 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                   color: isSelected ? primaryColor : Colors.grey.shade700,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
-                child: Text('all_stores'.tr, maxLines: 1, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  'all_stores'.tr,
+                  maxLines: 1,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 margin: const EdgeInsets.only(top: 4),
-                width: isSelected ? 20 : 0, height: isSelected ? 3 : 0,
+                width: isSelected ? 20 : 0,
+                height: isSelected ? 3 : 0,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
                   color: accentColor,
@@ -1379,7 +2079,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
       },
       child: Padding(
         padding: const EdgeInsets.only(right: 10),
-        child: GestureDetector(
+        child: _PressableScale(
           onTap: onTap,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
@@ -1390,19 +2090,37 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                 // Rounded square image — full bleed
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
-                  width: 66, height: 66,
+                  width: 66,
+                  height: 66,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    color: isSelected
-                        ? accentColor.withValues(alpha: 0.1)
-                        : Colors.grey.shade50,
+                    color:
+                        isSelected
+                            ? accentColor.withValues(alpha: 0.1)
+                            : Colors.grey.shade50,
                     border: Border.all(
-                      color: isSelected ? accentColor.withValues(alpha: 0.5) : Colors.grey.shade200,
+                      color:
+                          isSelected
+                              ? accentColor.withValues(alpha: 0.5)
+                              : Colors.grey.shade200,
                       width: isSelected ? 1.5 : 1,
                     ),
-                    boxShadow: isSelected
-                        ? [BoxShadow(color: accentColor.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 2))]
-                        : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
+                    boxShadow:
+                        isSelected
+                            ? [
+                              BoxShadow(
+                                color: accentColor.withValues(alpha: 0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                            : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
@@ -1432,7 +2150,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   margin: const EdgeInsets.only(top: 4),
-                  width: isSelected ? 20 : 0, height: isSelected ? 3 : 0,
+                  width: isSelected ? 20 : 0,
+                  height: isSelected ? 3 : 0,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(2),
                     color: accentColor,
@@ -1456,128 +2175,131 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
           physics: const NeverScrollableScrollPhysics(),
           itemCount: 5,
           padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-          itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: Column(
-              children: [
-                Shimmer(child: Container(
-                  width: 62, height: 62,
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: Colors.grey.shade200),
-                )),
-                const SizedBox(height: 6),
-                Shimmer(child: Container(
-                  width: 50, height: 12,
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
-                )),
-              ],
-            ),
-          ),
+          itemBuilder:
+              (context, index) => Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Column(
+                  children: [
+                    Shimmer(
+                      child: Container(
+                        width: 62,
+                        height: 62,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.grey.shade200,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Shimmer(
+                      child: Container(
+                        width: 50,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
         ),
       ),
     );
   }
 
-  // ═══════════════════════════════════════════
-  // QUICK FILTER CHIPS — Functional toggles
-  // ═══════════════════════════════════════════
-  Widget _buildFilterChips(BuildContext context) {
+  Widget _buildRefineButton(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    final filters = [
-      {
-        'label': 'offers'.tr,
-        'icon': Icons.local_offer_outlined,
-        'active': _filterOffers,
-        'onTap': () => setState(() => _filterOffers = !_filterOffers),
-      },
-      {
-        'label': 'under_30_mins'.tr,
-        'icon': Icons.access_time_rounded,
-        'active': _filterUnder30,
-        'onTap': () => setState(() => _filterUnder30 = !_filterUnder30),
-      },
-      {
-        'label': 'free_delivery'.tr,
-        'icon': Icons.delivery_dining_outlined,
-        'active': _filterFreeDelivery,
-        'onTap': () => setState(() => _filterFreeDelivery = !_filterFreeDelivery),
-      },
-    ];
+    final int activeFilterCount =
+        (_selectedCategoryId != null ? 1 : 0) +
+        (_filterOffers ? 1 : 0) +
+        (_filterUnder30 ? 1 : 0) +
+        (_filterFreeDelivery ? 1 : 0);
 
     return Padding(
-      padding: const EdgeInsets.only(
-        left: Dimensions.paddingSizeDefault,
-        bottom: 16,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
       ),
-      child: SizedBox(
-        height: 40,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: filters.length,
-          itemBuilder: (context, index) {
-            final filter = filters[index];
-            final bool isActive = filter['active'] as bool;
-            final VoidCallback onTap = filter['onTap'] as VoidCallback;
-
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: onTap,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? primaryColor
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isActive
-                          ? primaryColor
-                          : Colors.grey.shade300,
-                      width: 1.2,
+      child: _PressableScale(
+        onTap: () => _showBrowseRefineSheet(context),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.tune_rounded, size: 18, color: primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'filter'.tr,
+                      style: robotoMedium.copyWith(
+                        fontSize: 13,
+                        color: Colors.black87,
+                      ),
                     ),
-                    boxShadow: isActive
-                        ? [
-                            BoxShadow(
-                              color: primaryColor.withValues(alpha: 0.25),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          isActive
-                              ? Icons.check_circle_rounded
-                              : filter['icon'] as IconData,
-                          key: ValueKey(isActive),
-                          size: 16,
-                          color: isActive ? accentColor : Colors.grey.shade600,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      activeFilterCount > 0
+                          ? 'apply_filters'.tr
+                          : 'try_different_filters'.tr,
+                      style: robotoRegular.copyWith(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        filter['label'] as String,
-                        style: robotoMedium.copyWith(
-                          fontSize: 12,
-                          color: isActive ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
+              if (activeFilterCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    activeFilterCount.toString(),
+                    style: robotoBold.copyWith(
+                      fontSize: 11,
+                      color: primaryColor,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Colors.grey.shade500,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1608,21 +2330,58 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.storefront_outlined, size: 52, color: Colors.grey.shade300),
+                  Icon(
+                    Icons.storefront_outlined,
+                    size: 52,
+                    color: Colors.grey.shade300,
+                  ),
                   const SizedBox(height: 14),
                   Text(
                     (_selectedCategoryId != null || _hasActiveChipFilter)
                         ? 'no_stores_in_category'.tr
                         : 'no_store_available'.tr,
-                    style: robotoMedium.copyWith(fontSize: 15, color: Colors.grey.shade600),
+                    style: robotoMedium.copyWith(
+                      fontSize: 15,
+                      color: Colors.grey.shade600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'try_different_category'.tr,
-                    style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade400),
+                    (_selectedCategoryId != null || _hasActiveChipFilter)
+                        ? 'try_different_filters'.tr
+                        : 'try_different_category'.tr,
+                    style: robotoRegular.copyWith(
+                      fontSize: 12,
+                      color: Colors.grey.shade400,
+                    ),
                     textAlign: TextAlign.center,
                   ),
+                  if (_hasAnyBrowseFilters) ...[
+                    const SizedBox(height: 14),
+                    _PressableScale(
+                      onTap: () => setState(_clearAllBrowseFilters),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'reset'.tr,
+                          style: robotoMedium.copyWith(
+                            fontSize: 12,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1630,11 +2389,19 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
           child: Column(
-            children: filteredStores.map((store) {
-              return _buildStoreCard(context, store, primaryColor, accentColor);
-            }).toList(),
+            children:
+                filteredStores.map((store) {
+                  return _buildStoreCard(
+                    context,
+                    store,
+                    primaryColor,
+                    accentColor,
+                  );
+                }).toList(),
           ),
         );
       },
@@ -1644,7 +2411,12 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
   // ═══════════════════════════════════════════
   // STORE CARD — Full-bleed cover + tilted items + sticker
   // ═══════════════════════════════════════════
-  Widget _buildStoreCard(BuildContext context, Store store, Color primaryColor, Color accentColor) {
+  Widget _buildStoreCard(
+    BuildContext context,
+    Store store,
+    Color primaryColor,
+    Color accentColor,
+  ) {
     final bool isOpen = store.open == 1;
     final stickers = _getStickersForStore(store);
 
@@ -1654,11 +2426,12 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
       storeController.fetchStoreRecommendedItems(store.id!);
     }
 
-    return GestureDetector(
-      onTap: () => Get.toNamed(
-        RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-        arguments: StoreScreen(store: store, fromModule: false),
-      ),
+    return _PressableScale(
+      onTap:
+          () => Get.toNamed(
+            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
+            arguments: StoreScreen(store: store, fromModule: false),
+          ),
       child: Opacity(
         opacity: isOpen ? 1.0 : 0.55,
         child: Container(
@@ -1715,7 +2488,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                         child: Transform.rotate(
                           angle: -0.12,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(4),
@@ -1726,11 +2502,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                                 ),
                               ],
                             ),
-                            child: Text('CLOSED',
+                            child: Text(
+                              'CLOSED',
                               style: robotoBold.copyWith(
-                                fontSize: 14, color: Colors.black87,
+                                fontSize: 14,
+                                color: Colors.black87,
                                 letterSpacing: 3,
-                              )),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1739,9 +2518,11 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
                 // ── Logo floating top-left ──
                 Positioned(
-                  top: 12, left: 12,
+                  top: 12,
+                  left: 12,
                   child: Container(
-                    width: 44, height: 44,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: Colors.white,
@@ -1755,7 +2536,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: CustomImage(image: store.logoFullUrl ?? '', fit: BoxFit.cover),
+                      child: CustomImage(
+                        image: store.logoFullUrl ?? '',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
@@ -1763,18 +2547,22 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                 // ── Single sticker ribbon — right edge ──
                 if (stickers.isNotEmpty && isOpen)
                   Positioned(
-                    top: 12, right: 0,
+                    top: 12,
+                    right: 0,
                     child: _buildRibbonSticker(stickers.first),
                   ),
 
                 // ── Tilted top items — bottom right ──
                 if (isOpen)
                   Positioned(
-                    bottom: 38, right: 14,
+                    bottom: 38,
+                    right: 14,
                     child: GetBuilder<StoreController>(
                       builder: (sc) {
                         final items = sc.storeRecommendedItems[store.id];
-                        if (items == null || items.isEmpty) return const SizedBox();
+                        if (items == null || items.isEmpty) {
+                          return const SizedBox();
+                        }
                         final topItems = items.take(3).toList();
                         return Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1786,15 +2574,21 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                               child: Transform.rotate(
                                 angle: angles[i % 3],
                                 child: Container(
-                                  width: 42, height: 42,
+                                  width: 42,
+                                  height: 42,
                                   margin: const EdgeInsets.only(left: 6),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(10),
                                     color: Colors.white,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.25),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.25,
+                                        ),
                                         blurRadius: 8,
                                         offset: const Offset(0, 3),
                                       ),
@@ -1818,7 +2612,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
                 // ── Bottom info overlay ──
                 Positioned(
-                  left: 0, right: 0, bottom: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                     child: Row(
@@ -1827,11 +2623,15 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(store.name ?? '',
+                              Text(
+                                store.name ?? '',
                                 style: robotoBold.copyWith(
-                                  fontSize: 15, color: Colors.white,
+                                  fontSize: 15,
+                                  color: Colors.white,
                                 ),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               const SizedBox(height: 3),
                               if (store.deliveryTime != null)
                                 _buildInfoPill(
@@ -1857,18 +2657,25 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen> with TickerProvid
 
   Widget _buildStoreListShimmer() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
       child: Column(
-        children: List.generate(4, (_) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Shimmer(child: Container(
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(14),
+        children: List.generate(
+          4,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Shimmer(
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
             ),
-          )),
-        )),
+          ),
+        ),
       ),
     );
   }
@@ -1891,4 +2698,42 @@ class _StickerData {
     required this.textColor,
     this.rotation = 0.0,
   });
+}
+
+class _PressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PressableScale({required this.child, required this.onTap});
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _setPressed(true),
+      onTapUp: (_) {
+        _setPressed(false);
+        widget.onTap();
+      },
+      onTapCancel: () => _setPressed(false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
 }

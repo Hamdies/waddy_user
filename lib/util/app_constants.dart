@@ -238,6 +238,7 @@ class AppConstants {
   static const String notificationIdList = 'notification_id_list';
   static const String searchHistory = '6ammart_search_history';
   static const String intro = '6ammart_intro';
+  static const String splashAnimationShown = 'waddi_splash_animation_shown';
   static const String notificationCount = '6ammart_notification_count';
   static const String dmTipIndex = '6ammart_dm_tip_index';
   static const String earnPoint = '6ammart_earn_point';
@@ -248,6 +249,7 @@ class AppConstants {
   static const String guestNumber = '6ammart_guest_number';
   static const String referBottomSheet = '6ammart_reffer_bottomsheet_show';
   static const String welcomeLetterShown = 'waddi_welcome_letter_shown';
+  static const String xpOnboardingShown = 'waddi_xp_onboarding_shown';
   static const String walletCardAppearance = 'waddi_wallet_card_appearance';
   static const String walletCardSymbol = 'waddi_wallet_card_symbol';
   static const String dmRegisterSuccess = '6ammart_dm_registration_success';

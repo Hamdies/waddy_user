@@ -145,6 +145,9 @@
   "all": "সব",
   "off": "ছাড়",
   "enjoy": "উপভোগ করুন",
+  "daily_deals": "দৈনিক\nঅফার",
+  "up_to": "পর্যন্ত",
+  "different_brands_different_cuisines_everyday": "বিভিন্ন ব্র্যান্ড, বিভিন্ন রান্না, প্রতিদিন",
   "off_on_all_categories": "সমস্ত ক্যাটেগরি বন্ধ",
   "set_location": "লোকেশন নির্বাচন",
   "search_address_here": "এড্রেস সার্চ করুন",
@@ -1565,5 +1568,10 @@
   "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "এই ডেলিভারি ফিতে সমস্ত প্রযোজ্য চার্জ অন্তর্ভুক্ত রয়েছে।",
   "no_favourites_yet": "এখনও কোনো প্রিয় নেই \n ভালোবাসা দেখানোর সময়! ❤️",
   "no_favourite_stores_yet": "এখনও কোনো প্রিয় দোকান নেই \n ভালোবাসা দেখানোর সময়! ❤️",
-  "browse_items": "আইটেম ব্রাউজ করুন"
+  "browse_items": "আইটেম ব্রাউজ করুন",
+  "track": "ট্র্যাক",
+  "being_prepared": "প্রস্তুত হচ্ছে",
+  "top_spots": "শীর্ষ স্থান",
+  "fastest_in_maadii": "মাদিতে দ্রুততম",
+  "top_restaurants_subtitle": "সেরা রেস্তোরাঁ · দৈনিক অফার"
 }

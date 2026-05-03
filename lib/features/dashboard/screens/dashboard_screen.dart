@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:waddy_app/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
@@ -26,7 +26,8 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/features/xp/screens/xp_levels_screen.dart';
 import 'package:waddy_app/features/menu/screens/menu_screen.dart';
 import 'package:waddy_app/features/order/screens/order_screen.dart';
-import 'package:waddy_app/features/cart/screens/cart_screen.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/places/screens/places_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -82,7 +83,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     _screens = [
       const HomeScreen(),
       const XpLevelsScreen(),
-      const CartScreen(fromNav: true),
+      const PlacesHomeScreen(),
       const OrderScreen(),
       const MenuScreen(),
     ];
@@ -238,7 +239,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 _screens = [
                                   const HomeScreen(),
                                   const XpLevelsScreen(),
-                                  const CartScreen(fromNav: true),
+                                  const PlacesHomeScreen(),
                                   const OrderScreen(),
                                   const MenuScreen(),
                                 ];
@@ -375,45 +376,39 @@ class _FlatBottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _CurvedNavItem(
-            iconData: HugeIcons.strokeRoundedHome01,
+          _SvgNavItem(
+            svgPath: 'assets/image/nav_home.svg',
             label: 'Home',
             isSelected: pageIndex == 0,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: () => onPageChanged(0),
           ),
-          _CurvedNavItem(
-            iconData: HugeIcons.strokeRoundedMoney03,
+          _SvgNavItem(
+            svgPath: 'assets/image/nav_rewards.svg',
             label: 'Rewards',
             isSelected: pageIndex == 1,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: () => onPageChanged(1),
           ),
-          // Cart tab with badge
-          GetBuilder<CartController>(
-            builder: (cartController) {
-              final itemCount = cartController.cartList.length;
-              return _CartNavItem(
-                isSelected: pageIndex == 2,
-                primaryColor: primaryColor,
-                secondaryColor: secondaryColor,
-                itemCount: itemCount,
-                onTap: onCenterTap,
-              );
-            },
+          // Places to Visit tab — cycles top 3 leaderboard images
+          _PlacesNavItem(
+            isSelected: pageIndex == 2,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            onTap: onCenterTap,
           ),
-          _CurvedNavItem(
-            iconData: HugeIcons.strokeRoundedFileValidation,
+          _SvgNavItem(
+            svgPath: 'assets/image/nav_orders.svg',
             label: 'Orders',
             isSelected: pageIndex == 3,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: () => onPageChanged(3),
           ),
-          _CurvedNavItem(
-            iconData: HugeIcons.strokeRoundedUser,
+          _SvgNavItem(
+            svgPath: 'assets/image/nav_profile.svg',
             label: 'Account',
             isSelected: pageIndex == 4,
             primaryColor: primaryColor,
@@ -426,17 +421,17 @@ class _FlatBottomNav extends StatelessWidget {
   }
 }
 
-/// Navigation item for curved notch design
-class _CurvedNavItem extends StatefulWidget {
-  final List<List<dynamic>> iconData;
+/// Navigation item using SVG icon
+class _SvgNavItem extends StatefulWidget {
+  final String svgPath;
   final String label;
   final bool isSelected;
   final Color primaryColor;
   final Color secondaryColor;
   final VoidCallback onTap;
 
-  const _CurvedNavItem({
-    required this.iconData,
+  const _SvgNavItem({
+    required this.svgPath,
     required this.label,
     required this.isSelected,
     required this.primaryColor,
@@ -445,42 +440,43 @@ class _CurvedNavItem extends StatefulWidget {
   });
 
   @override
-  State<_CurvedNavItem> createState() => _CurvedNavItemState();
+  State<_SvgNavItem> createState() => _SvgNavItemState();
 }
 
-class _CurvedNavItemState extends State<_CurvedNavItem>
+class _SvgNavItemState extends State<_SvgNavItem>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _scaleController = AnimationController(
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
     _scaleAnimation = Tween<double>(
       begin: 1.0,
       end: 0.9,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    ).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
   void _handleTap() {
     HapticFeedback.selectionClick();
-    _controller.forward().then((_) => _controller.reverse());
+    _scaleController.forward().then((_) => _scaleController.reverse());
     widget.onTap();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Selected: primary color (dark teal), Unselected: grey
     final color =
         widget.isSelected ? widget.primaryColor : const Color(0xFF9CA3AF);
 
@@ -491,31 +487,28 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
         scale: _scaleAnimation,
         child: SizedBox(
           width: 70,
-          height: 64,
+          height: 68,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Icon with selection animation
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color:
-                      widget.isSelected
-                          ? widget.secondaryColor.withValues(alpha: 0.15)
-                          : Colors.transparent,
+                  color: widget.isSelected
+                      ? widget.secondaryColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: HugeIcon(
-                  icon: widget.iconData,
-                  color: color,
-                  size: 22,
-                  strokeWidth: 2,
+                child: SvgPicture.asset(
+                  widget.svgPath,
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
                 ),
               ),
               const SizedBox(height: 3),
-              // Label
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
@@ -541,53 +534,110 @@ class _CurvedNavItemState extends State<_CurvedNavItem>
   }
 }
 
-/// Cart navigation item with badge — inline in the flat nav bar
-class _CartNavItem extends StatefulWidget {
+/// Places tab — cycles top 3 leaderboard place images with smooth fade
+class _PlacesNavItem extends StatefulWidget {
   final bool isSelected;
   final Color primaryColor;
   final Color secondaryColor;
-  final int itemCount;
   final VoidCallback onTap;
 
-  const _CartNavItem({
+  const _PlacesNavItem({
     required this.isSelected,
     required this.primaryColor,
     required this.secondaryColor,
-    required this.itemCount,
     required this.onTap,
   });
 
   @override
-  State<_CartNavItem> createState() => _CartNavItemState();
+  State<_PlacesNavItem> createState() => _PlacesNavItemState();
 }
 
-class _CartNavItemState extends State<_CartNavItem>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _PlacesNavItemState extends State<_PlacesNavItem>
+    with TickerProviderStateMixin {
+  late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  Timer? _cycleTimer;
+  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _scaleController = AnimationController(
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.9,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+      value: 1.0,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+
+    // Load places data the same way _FullWidthShimmerGemCard does
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPlaces());
+    _startCycling();
+  }
+
+  void _loadPlaces() {
+    try {
+      if (!Get.isRegistered<PlacesController>()) return;
+      final ctrl = Get.find<PlacesController>();
+      if (ctrl.places == null || ctrl.places!.isEmpty) {
+        ctrl.getPlaces(reload: false);
+      }
+    } catch (_) {}
+  }
+
+  void _startCycling() {
+    _cycleTimer = Timer.periodic(const Duration(seconds: 2), (_) => _advance());
+  }
+
+  Future<void> _advance() async {
+    final places = _getTopPlaceUrls();
+    if (places.length < 2) return;
+    await _fadeController.reverse();
+    if (mounted) {
+      setState(() {
+        _currentIndex = (_currentIndex + 1) % places.length;
+      });
+    }
+    if (mounted) await _fadeController.forward();
+  }
+
+  List<String> _getTopPlaceUrls() {
+    try {
+      final ctrl = Get.find<PlacesController>();
+      final list = ctrl.places;
+      if (list == null || list.isEmpty) return [];
+      return list
+          .take(3)
+          .map((p) => p.image ?? '')
+          .where((url) => url.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _cycleTimer?.cancel();
+    _scaleController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
   void _handleTap() {
     HapticFeedback.selectionClick();
-    _controller.forward().then((_) => _controller.reverse());
+    _scaleController.forward().then((_) => _scaleController.reverse());
     widget.onTap();
   }
 
@@ -595,7 +645,6 @@ class _CartNavItemState extends State<_CartNavItem>
   Widget build(BuildContext context) {
     final color =
         widget.isSelected ? widget.primaryColor : const Color(0xFF9CA3AF);
-    final hasItems = widget.itemCount > 0;
 
     return GestureDetector(
       onTap: _handleTap,
@@ -604,68 +653,94 @@ class _CartNavItemState extends State<_CartNavItem>
         scale: _scaleAnimation,
         child: SizedBox(
           width: 70,
-          height: 64,
+          height: 68,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Icon with badge
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.all(7),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color:
-                      widget.isSelected
-                          ? widget.secondaryColor.withValues(alpha: 0.15)
-                          : Colors.transparent,
+                  color: widget.isSelected
+                      ? widget.secondaryColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    HugeIcon(
-                      icon: HugeIcons.strokeRoundedShoppingBag02,
-                      color: color,
-                      size: 20,
-                    ),
-                    if (hasItems)
-                      Positioned(
-                        right: -8,
-                        top: -6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).secondaryHeaderColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          child: Center(
-                            child: Text(
-                              widget.itemCount > 99
-                                  ? '99+'
-                                  : '${widget.itemCount}',
-                              style: TextStyle(
-                                color: Theme.of(context).primaryColor,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                height: 1,
+                // GetBuilder rebuilds when PlacesController.update() is called
+                // after getPlaces() finishes — same pattern as _FullWidthShimmerGemCard
+                child: GetBuilder<PlacesController>(
+                  builder: (_) {
+                    final places = _getTopPlaceUrls();
+                    final imageUrl = places.isNotEmpty
+                        ? places[_currentIndex % places.length]
+                        : null;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: imageUrl != null
+                              ? Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: widget.isSelected
+                                          ? widget.primaryColor
+                                          : const Color(0xFFD1D5DB),
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: widget.primaryColor
+                                            .withValues(alpha: 0.18),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _buildPlaceholderIcon(color),
+                                    ),
+                                  ),
+                                )
+                              : _buildPlaceholderIcon(color),
+                        ),
+                        if (places.length > 1) ...[
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              places.length.clamp(0, 3),
+                              (i) => AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                                width: _currentIndex % places.length == i ? 8 : 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: _currentIndex % places.length == i
+                                      ? widget.primaryColor
+                                      : widget.primaryColor.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                  ],
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 3),
-              // Label
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
@@ -677,7 +752,7 @@ class _CartNavItemState extends State<_CartNavItem>
                   height: 1.1,
                 ),
                 child: const Text(
-                  'Cart',
+                  'Explore',
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -688,6 +763,10 @@ class _CartNavItemState extends State<_CartNavItem>
         ),
       ),
     );
+  }
+
+  Widget _buildPlaceholderIcon(Color color) {
+    return Icon(Icons.place_rounded, color: color, size: 26);
   }
 }
 
@@ -770,6 +849,7 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
                 module.moduleType.toString() == AppConstants.food);
 
         // For grocery/food modules, show floating LiveCartWidget instead of bottom nav
+        // But hide it when already on the cart page (index 2)
         if (isGroceryOrFood) {
           return GetBuilder<HomeController>(
             builder: (homeController) {

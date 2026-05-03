@@ -2,17 +2,11 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
-import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
-import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
-import 'package:url_launcher/url_launcher_string.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_status.dart';
-import 'package:waddy_app/features/order/domain/services/order_tracking_stream_service.dart';
 import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
@@ -20,7 +14,6 @@ import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/eta_calculator.dart';
 import 'package:waddy_app/helper/marker_animator.dart';
 import 'package:waddy_app/helper/marker_helper.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -39,7 +32,6 @@ import 'package:waddy_app/features/order/widgets/zomato/zomato_delivery_partner_
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart' hide Marker;
 
 class OrderDetailsScreen extends StatefulWidget {
   final OrderModel? orderModel;
@@ -70,24 +62,17 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   Set<Marker> _markers = HashSet<Marker>();
   Set<Polyline> _polylines = HashSet<Polyline>();
 
-  // SSE real-time tracking
-  OrderTrackingStreamService? _streamService;
-  StreamSubscription<TrackingStreamData>? _streamSubscription;
   final MarkerAnimator _markerAnimator = MarkerAnimator();
-  bool _useSSE = true;
   ETAResult? _currentETA;
 
-  // SSE retry logic
-  int _sseRetryCount = 0;
-  static const int _maxSseRetries = 3;
-  Timer? _sseRetryTimer;
+  // Tracking freshness
+  DateTime? _lastUpdateTime;
+  bool _isLive = false;
 
   // ── Entrance animation ──────────────────────────────────────────────────
   late final AnimationController _entranceController;
-  late final Animation<double> _heroFade;
-  late final Animation<Offset> _heroSlide;
-  late final Animation<double> _contentFade;
-  late final Animation<Offset> _contentSlide;
+  late final Animation<double> _screenFade;
+  late final Animation<Offset> _screenSlide;
 
   void _loadData(BuildContext context, bool reload) async {
     await Get.find<OrderController>()
@@ -118,117 +103,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
     Get.find<OrderController>().getOrderDetails(widget.orderId.toString());
 
-    _startTracking();
-  }
-
-  void _startTracking() {
-    final status = OrderStatus.fromString(
-      Get.find<OrderController>().trackModel?.orderStatus,
-    );
-    if (status != null && status.isTerminal) return;
-
-    if (_useSSE) {
-      _startSSETracking();
-    } else {
-      _startPolling();
-    }
-  }
-
-  void _startSSETracking() {
-    _streamService?.disconnect();
-    _streamService = OrderTrackingStreamService();
-
-    _streamSubscription = _streamService!
-        .connect(
-          orderId: widget.orderId.toString(),
-          token: Get.find<AuthController>().getUserToken(),
-          contactNumber: widget.contactNumber,
-          guestId: null,
-        )
-        .listen(
-          (data) {
-            // Reset retry count on successful data
-            _sseRetryCount = 0;
-            _handleSSEUpdate(data);
-          },
-          onError: (error) {
-            debugPrint(
-              'OrderDetails SSE Error: $error - Attempting retry $_sseRetryCount/$_maxSseRetries',
-            );
-            _handleSSEFailure();
-          },
-        );
-  }
-
-  /// Handle SSE failure with exponential backoff retry
-  void _handleSSEFailure() {
-    _streamService?.disconnect();
-    _streamSubscription?.cancel();
-
-    if (_sseRetryCount < _maxSseRetries) {
-      // Exponential backoff: 5s, 15s, 45s
-      final delay = Duration(seconds: 5 * (1 << _sseRetryCount));
-      _sseRetryCount++;
-
-      // Start polling immediately as fallback while waiting for retry
-      _startPolling();
-
-      _sseRetryTimer?.cancel();
-      _sseRetryTimer = Timer(delay, () {
-        if (mounted) {
-          debugPrint('SSE retry attempt $_sseRetryCount/$_maxSseRetries');
-          _timer?.cancel(); // Stop polling before SSE retry
-          _useSSE = true;
-          _startSSETracking();
-        }
-      });
-    } else {
-      debugPrint('SSE max retries reached, staying on polling');
-      _useSSE = false;
-      _startPolling();
-    }
-  }
-
-  void _handleSSEUpdate(TrackingStreamData data) {
-    final orderController = Get.find<OrderController>();
-
-    if (orderController.trackModel != null) {
-      orderController.trackModel!.orderStatus = data.status;
-      orderController.trackModel!.subStatus = data.subStatus;
-
-      if (data.estimatedDeliveryAt != null) {
-        orderController.trackModel!.estimatedDeliveryAt =
-            data.estimatedDeliveryAt;
-      }
-
-      if (data.deliveryMan != null &&
-          orderController.trackModel!.deliveryMan != null) {
-        orderController.trackModel!.deliveryMan!.lat =
-            data.deliveryMan!.lat.toString();
-        orderController.trackModel!.deliveryMan!.lng =
-            data.deliveryMan!.lng.toString();
-      }
-
-      orderController.update();
-    }
-
-    if (data.deliveryMan != null) {
-      final newPosition = LatLng(data.deliveryMan!.lat, data.deliveryMan!.lng);
-      _markerAnimator.animateTo(
-        target: newPosition,
-        onUpdate: (position, rotation) {
-          _updateDeliveryManMarkerAnimated(position, rotation);
-        },
-      );
-      _updateETA(data.deliveryMan!.lat, data.deliveryMan!.lng);
-    }
-
-    final status = OrderStatus.fromString(data.status);
-    if (status != null && status.isTerminal) {
-      _streamService?.disconnect();
-      _timer?.cancel();
-      _sseRetryTimer?.cancel();
-    }
+    _startPolling();
   }
 
   void _updateETA(double driverLat, double driverLng) {
@@ -258,11 +133,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
       imageUrl: dmImageUrl,
       logicalSize: 24,
-      borderColor: Colors.orange,
+      borderColor: WaddyColors.amber,
       borderWidth: 2,
       fallbackAsset: Images.deliveryManMarker,
       fallbackIcon: Icons.delivery_dining,
-      fallbackIconColor: Colors.orange,
+      fallbackIconColor: WaddyColors.amber,
     );
 
     if (mounted) {
@@ -356,10 +231,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
           }
         }
 
+        setState(() => _lastUpdateTime = DateTime.now());
+
         final orderStatus = OrderStatus.fromString(order.orderStatus);
         if (orderStatus != null && orderStatus.isTerminal) {
           _timer?.cancel();
-          _sseRetryTimer?.cancel();
         }
       }
     });
@@ -374,11 +250,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
         BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
           imageUrl: dmImageUrl,
           logicalSize: 32,
-          borderColor: Colors.orange,
+          borderColor: WaddyColors.amber,
           borderWidth: 2.5,
           fallbackAsset: Images.deliveryManMarker,
           fallbackIcon: Icons.delivery_dining,
-          fallbackIconColor: Colors.orange,
+          fallbackIconColor: WaddyColors.amber,
         );
         if (mounted) {
           setState(() {
@@ -404,47 +280,21 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadData(context, false);
 
-    // Entrance choreography: 700ms total, hero leads then content follows
+    // Entrance: single fade+slide, 550ms
     _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 550),
     );
-
-    // Hero: fade + slide up, 0→500ms
-    _heroFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
-      ),
+    _screenFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _entranceController, curve: Curves.easeOut),
     );
-    _heroSlide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+    _screenSlide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutQuart),
-      ),
+      CurvedAnimation(parent: _entranceController, curve: Curves.easeOutQuart),
     );
 
-    // Content cards: fade + slide up, 250ms→700ms (staggered after hero)
-    _contentFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.35, 1.0, curve: Curves.easeOut),
-      ),
-    );
-    _contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.35, 1.0, curve: Curves.easeOutQuart),
-      ),
-    );
-
-    // Start after first frame so layout is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _entranceController.forward();
     });
@@ -453,22 +303,16 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _startTracking();
+      _startPolling();
     } else if (state == AppLifecycleState.paused) {
       _timer?.cancel();
-      _sseRetryTimer?.cancel();
-      _streamService?.disconnect();
-      _streamSubscription?.cancel();
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _sseRetryTimer?.cancel();
     _mapController?.dispose();
-    _streamSubscription?.cancel();
-    _streamService?.disconnect();
     _markerAnimator.cancel();
     _entranceController.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -576,11 +420,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
         BitmapDescriptor destIcon = await MarkerHelper.createPinMarker(
           imageUrl: userImageUrl,
           logicalSize: 28,
-          borderColor: const Color(0xFF1BA672),
+          borderColor: WaddyColors.mintDark,
           borderWidth: 2,
           fallbackAsset: Images.userMarker,
           fallbackIcon: Icons.home,
-          fallbackIconColor: const Color(0xFF1BA672),
+          fallbackIconColor: WaddyColors.mintDark,
         );
         _markers.add(
           Marker(
@@ -605,11 +449,11 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
         BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
           imageUrl: dmImageUrl,
           logicalSize: 32,
-          borderColor: Colors.orange,
+          borderColor: WaddyColors.amber,
           borderWidth: 2.5,
           fallbackAsset: Images.deliveryManMarker,
           fallbackIcon: Icons.delivery_dining,
-          fallbackIconColor: Colors.orange,
+          fallbackIconColor: WaddyColors.amber,
         );
         _markers.add(
           Marker(
@@ -695,7 +539,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
       child: Scaffold(
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
-        backgroundColor: WaddyColors.canvas,
+        backgroundColor: const Color(0xFFF2F4F3),
         body: SafeArea(
           child: GetBuilder<OrderController>(
             builder: (orderController) {
@@ -798,7 +642,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
               if (orderController.orderDetails == null ||
                   order == null ||
                   orderController.trackModel == null) {
-                return const Center(child: CircularProgressIndicator());
+                return const _OrderDetailsSkeleton();
               }
 
               final int? liveEtaMinutes = _getLiveEtaMinutes(order);
@@ -837,51 +681,14 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                                   ),
                                 ),
                               )
-                              : Column(
-                                children: [
-                                  // 1. Teal hero — animated entrance
-                                  FadeTransition(
-                                    opacity: _heroFade,
-                                    child: SlideTransition(
-                                      position: _heroSlide,
-                                      child: _buildGreenHeroWithBanner(
-                                        order,
-                                        liveEtaMinutes,
-                                        prepMinutes,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // ── Zomato-style body ──────────────────
-                                  FadeTransition(
-                                    opacity: _contentFade,
-                                    child: SlideTransition(
-                                      position: _contentSlide,
-                                      child: Column(
-                                        children: [
-                                          // 2. Order info card: item fan + steps + OTP + order ID
-                                          ZomatoOrderInfoCard(
-                                            order: order,
-                                            orderController: orderController,
-                                            ongoing: ongoing,
-                                          ),
-
-                                          const SizedBox(height: 12),
-
-                                          // 4. Delivery partner card
-                                          ZomatoDeliveryPartnerCard(
-                                            order: order,
-                                            showChatPermission: showChatPermission,
-                                            onTimerCancel: () => _timer?.cancel(),
-                                            onStartTracking: _startTracking,
-                                          ),
-
-                                          const SizedBox(height: 32),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              : _buildMobileLayout(
+                                context,
+                                order,
+                                orderController,
+                                ongoing,
+                                showChatPermission,
+                                liveEtaMinutes,
+                                prepMinutes,
                               ),
                     ),
                   ),
@@ -894,467 +701,144 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
   }
 
-  // ─── Hero Section ─────────────────────────────────────────────────────
-  Widget _buildGreenHeroWithBanner(
+  // ─── Mobile Layout (two-mode) ──────────────────────────────────────────
+  //
+  // Mode 1  pending → processing  : teal hero band + clock-time window
+  // Mode 2  handover / pickedUp   : full-height map replaces the hero
+  // Mode 3  delivered / terminal  : celebration / cancelled state
+  // ──────────────────────────────────────────────────────────────────────
+  Widget _buildMobileLayout(
+    BuildContext context,
     OrderModel order,
+    OrderController orderController,
+    bool ongoing,
+    bool showChatPermission,
     int? liveEtaMinutes,
     int? prepMinutes,
   ) {
-    final int? displayEta = liveEtaMinutes ?? prepMinutes;
     final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
-    final bool isTerminal = status?.isTerminal ?? false;
+    final bool enRoute =
+        status == OrderStatus.handover || status == OrderStatus.pickedUp;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE8F7F2), Color(0xFFCCEEE4)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Subtle decorative circles
-          Positioned(
-            right: -30,
-            top: -20,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: WaddyColors.primary.withValues(alpha: 0.06),
+    // OTP: only show when rider is assigned and en-route (not during pending/processing)
+    final bool showOtp =
+        enRoute && ongoing && order.otp != null && order.otp!.isNotEmpty;
+
+    return FadeTransition(
+      opacity: _screenFade,
+      child: SlideTransition(
+        position: _screenSlide,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── App bar ─────────────────────────────────────────────────
+            _AppBar(
+              title: order.store?.name ?? 'order_details'.tr,
+              onBack: _handleBack,
+              orderId: widget.orderId,
+            ),
+
+            // ── Hero: map (en-route) OR gradient band (pre-pickup) ─────
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder:
+                  (child, anim) => FadeTransition(opacity: anim, child: child),
+              child:
+                  enRoute
+                      ? _MapHero(
+                        key: const ValueKey('map_hero'),
+                        markers: _markers,
+                        polylines: _polylines,
+                        eta: _currentETA,
+                        onMapCreated: (ctrl) {
+                          _mapController = ctrl;
+                          final t = Get.find<OrderController>().trackModel;
+                          if (t != null) _setMapMarkers(t);
+                        },
+                        initialFocus: _getMapFocus(order),
+                      )
+                      : _PrePickupHero(
+                        key: const ValueKey('pre_hero'),
+                        status: status,
+                        liveEtaMinutes: liveEtaMinutes,
+                        prepMinutes: prepMinutes,
+                        estimatedDeliveryAt: order.estimatedDeliveryAt,
+                        storeName: order.store?.name,
+                        lastUpdateTime: _lastUpdateTime,
+                        isLive: _isLive,
+                      ),
+            ),
+
+            // ── Card sheet — warm gray surface rolls over the dark hero ──
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF2F4F3),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(0, 24, 0, 48),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (enRoute) ...[
+                    ZomatoDeliveryPartnerCard(
+                      order: order,
+                      showChatPermission: showChatPermission,
+                      onTimerCancel: () => _timer?.cancel(),
+                      onStartTracking: _startPolling,
+                    ),
+                    const SizedBox(height: 12),
+                    ZomatoOrderInfoCard(
+                      order: order,
+                      orderController: orderController,
+                      ongoing: ongoing,
+                      showOtpOverride: showOtp,
+                    ),
+                  ] else ...[
+                    ZomatoOrderInfoCard(
+                      order: order,
+                      orderController: orderController,
+                      ongoing: ongoing,
+                      showOtpOverride: false,
+                    ),
+                    const SizedBox(height: 12),
+                    ZomatoDeliveryPartnerCard(
+                      order: order,
+                      showChatPermission: showChatPermission,
+                      onTimerCancel: () => _timer?.cancel(),
+                      onStartTracking: _startPolling,
+                    ),
+                  ],
+                ],
               ),
             ),
-          ),
-          Positioned(
-            right: 30,
-            top: 50,
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: WaddyColors.primary.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Top bar ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                child: Row(
-                  children: [
-                    _buildHeroIconButton(
-                      icon: Icons.arrow_back_rounded,
-                      onTap: _handleBack,
-                    ),
-                    Expanded(
-                      child: Text(
-                        order.store?.name ?? 'order_details'.tr,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: waddyBodyMedium.copyWith(
-                          color: WaddyColors.ink,
-                          letterSpacing: 0.3,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    _buildHeroSupportButton(),
-                  ],
-                ),
-              ),
-
-              // ── ETA + animation row ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 12, 0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Context label
-                          Text(
-                            _heroEtaLabel(status).toUpperCase(),
-                            style: waddyMicro.copyWith(
-                              fontSize: 11,
-                              color: WaddyColors.primary.withValues(alpha: 0.75),
-                              letterSpacing: 1.4,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Big ETA number
-                          if (!isTerminal) ...[
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 500),
-                                  transitionBuilder: (child, anim) => FadeTransition(
-                                    opacity: anim,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0, 0.2),
-                                        end: Offset.zero,
-                                      ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutQuart)),
-                                      child: child,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    displayEta != null ? '$displayEta' : '--',
-                                    key: ValueKey(displayEta),
-                                    style: waddyDisplay.copyWith(
-                                      fontSize: 80,
-                                      color: WaddyColors.primary,
-                                      height: 0.95,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -3,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Text(
-                                    'min',
-                                    style: waddyTitle.copyWith(
-                                      fontSize: 22,
-                                      color: WaddyColors.inkLight,
-                                      height: 1.0,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-                          // Status pill
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: WaddyColors.primary,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: WaddyColors.primary.withValues(alpha: 0.25),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              _heroStatusCaption(status),
-                              style: waddyLabel.copyWith(
-                                color: WaddyColors.mint,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Lottie animation
-                    _buildStatusAnimation(status),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroIconButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: WaddyColors.primary.withValues(alpha: 0.08),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Icon(icon, color: WaddyColors.primary, size: 22),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroSupportButton() {
-    return Material(
-      color: WaddyColors.primary.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.headset_mic_outlined, color: WaddyColors.primary, size: 18),
-              const SizedBox(width: 5),
-              Text(
-                'support'.tr,
-                style: waddyLabel.copyWith(
-                  color: WaddyColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
   LatLng? _getMapFocus(OrderModel order) {
-    if (order.store?.latitude != null && order.store?.longitude != null) {
-      final storeLat = double.tryParse(order.store!.latitude!);
-      final storeLng = double.tryParse(order.store!.longitude!);
-      if (storeLat != null && storeLng != null && storeLat != 0 && storeLng != 0) {
-        return LatLng(storeLat, storeLng);
+    if (order.deliveryMan?.lat != null && order.deliveryMan?.lng != null) {
+      final lat = double.tryParse(order.deliveryMan!.lat!);
+      final lng = double.tryParse(order.deliveryMan!.lng!);
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        return LatLng(lat, lng);
       }
     }
-    if (order.deliveryAddress?.latitude != null &&
-        order.deliveryAddress?.longitude != null) {
-      final destLat = double.tryParse(order.deliveryAddress!.latitude!);
-      final destLng = double.tryParse(order.deliveryAddress!.longitude!);
-      if (destLat != null && destLng != null && destLat != 0 && destLng != 0) {
-        return LatLng(destLat, destLng);
+    if (order.store?.latitude != null && order.store?.longitude != null) {
+      final lat = double.tryParse(order.store!.latitude!);
+      final lng = double.tryParse(order.store!.longitude!);
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        return LatLng(lat, lng);
       }
     }
     return null;
-  }
-
-  Widget _buildMapPreviewCard(OrderModel order) {
-    final focus = _getMapFocus(order);
-
-    final VoidCallback? mapTap = order.deliveryAddress != null
-        ? () => Get.toNamed(RouteHelper.getMapRoute(
-              order.deliveryAddress!,
-              'order',
-              true,
-              storeName: order.store?.name,
-            ))
-        : null;
-
-    return mapTap != null
-        ? _TapScaleButton(
-            onTap: mapTap,
-            child: _mapCardContent(focus),
-          )
-        : _mapCardContent(focus);
-  }
-
-  Widget _mapCardContent(dynamic focus) {
-    return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        height: 72,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: WaddyColors.shadowDeep,
-              blurRadius: 20,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Row(
-            children: [
-              // Map thumbnail
-              SizedBox(
-                width: 80,
-                height: 72,
-                child: focus != null
-                    ? IgnorePointer(
-                        child: GoogleMap(
-                          liteModeEnabled: true,
-                          initialCameraPosition: CameraPosition(
-                            target: focus,
-                            zoom: 14.0,
-                          ),
-                          zoomControlsEnabled: false,
-                          myLocationButtonEnabled: false,
-                          mapToolbarEnabled: false,
-                          scrollGesturesEnabled: false,
-                          zoomGesturesEnabled: false,
-                          rotateGesturesEnabled: false,
-                          tiltGesturesEnabled: false,
-                          markers: _markers,
-                          polylines: _polylines,
-                          onMapCreated: (controller) {
-                            _mapController = controller;
-                            final trackedOrder =
-                                Get.find<OrderController>().trackModel;
-                            if (trackedOrder != null) {
-                              _setMapMarkers(trackedOrder);
-                            }
-                          },
-                        ),
-                      )
-                    : Container(
-                        color: Colors.grey.shade200,
-                        child: Icon(
-                          Icons.map_outlined,
-                          size: 28,
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-              ),
-              // Right-side text
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'track_on_map'.tr,
-                        style: waddyBodyMedium.copyWith(
-                          color: WaddyColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'see_live_rider'.tr,
-                        style: waddyMicro.copyWith(
-                          fontSize: 12,
-                          color: WaddyColors.inkLight,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: WaddyColors.primarySurface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: WaddyColors.primary,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-  }
-
-  Widget _buildStatusAnimation(OrderStatus? status) {
-    final double size = MediaQuery.of(context).size.width < 360 ? 120 : 140;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Lottie.asset(
-        _statusAnimationAsset(status),
-        fit: BoxFit.contain,
-        repeat: status == null || !status.isTerminal,
-      ),
-    );
-  }
-
-  String _heroEtaLabel(OrderStatus? status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Hang tight, confirming your order...';
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return 'Order confirmed! Arriving in';
-      case OrderStatus.processing:
-        return 'Chef is cooking 🍳 Arriving in';
-      case OrderStatus.handover:
-      case OrderStatus.pickedUp:
-        return 'On the way! Arriving in';
-      case OrderStatus.delivered:
-        return 'Delivered!';
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return 'Order cancelled';
-      default:
-        return 'Arriving in';
-    }
-  }
-
-  String _heroStatusCaption(OrderStatus? status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return '⏳ Waiting for restaurant';
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return '✅ Confirmed';
-      case OrderStatus.processing:
-        return '👨‍🍳 Being prepared';
-      case OrderStatus.handover:
-      case OrderStatus.pickedUp:
-        return '🛵 Out for delivery';
-      case OrderStatus.delivered:
-        return '🎉 Enjoy your meal!';
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return '❌ Cancelled';
-      default:
-        return '📦 Processing';
-    }
-  }
-
-  String _statusAnimationAsset(OrderStatus? status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'assets/animation/order_placed.json';
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return 'assets/animation/order_confirmed.json';
-      case OrderStatus.processing:
-        return 'assets/animation/preparing_order.json';
-      case OrderStatus.handover:
-      case OrderStatus.pickedUp:
-        return 'assets/animation/delivery_order.json';
-      case OrderStatus.delivered:
-      case OrderStatus.refunded:
-        return 'assets/animation/completed_order.json';
-      case OrderStatus.failed:
-      case OrderStatus.canceled:
-      case OrderStatus.refundRequested:
-      case OrderStatus.refundRequestCanceled:
-        return 'assets/animation/off.json';
-      case null:
-        return 'assets/animation/order_placed.json';
-    }
   }
 
   // ─── Desktop Layout ───────────────────────────────────────────────────
@@ -1396,7 +880,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                 parcel: parcel,
                 prescriptionOrder: prescriptionOrder,
                 timerCancel: () => _timer?.cancel(),
-                startApiCall: () => _startTracking(),
+                startApiCall: _startPolling,
                 orderController: orderController,
                 showChatPermission: showChatPermission,
               ),
@@ -1429,12 +913,12 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                   isCashOnDeliveryActive: _isCashOnDeliveryActive ?? false,
                   maxCodOrderAmount: _maxCodOrderAmount,
                   onTimerCancel: () => _timer?.cancel(),
-                  onStartTracking: _startTracking,
+                  onStartTracking: _startPolling,
                 ),
                 extraPackagingAmount: extraPackagingCharge,
                 referrerBonusAmount: referrerBonusAmount,
                 timerCancel: () => _timer?.cancel(),
-                startApiCall: () => _startTracking(),
+                startApiCall: _startPolling,
               ),
             ),
           ],
@@ -1476,6 +960,1010 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   );
 }
 
+// ─── App Bar ──────────────────────────────────────────────────────────────────
+// Teal background flows seamlessly into the pre-pickup hero below.
+// Back button: white icon in a translucent rounded container.
+// Two-line title: store name + "Order #XXXX" for context.
+class _AppBar extends StatelessWidget {
+  final String title;
+  final VoidCallback onBack;
+  final int? orderId;
+
+  const _AppBar({required this.title, required this.onBack, this.orderId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: WaddyColors.primary,
+      padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
+      child: Row(
+        children: [
+          // ── Back button ─────────────────────────────────────────────
+          Material(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              splashColor: Colors.white.withValues(alpha: 0.14),
+              highlightColor: Colors.white.withValues(alpha: 0.08),
+              onTap: onBack,
+              child: const SizedBox(
+                width: 38,
+                height: 38,
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // ── Title group ──────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15.5,
+                    color: Colors.white,
+                    letterSpacing: -0.2,
+                    height: 1.2,
+                  ),
+                ),
+                if (orderId != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Order #$orderId',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Pre-Pickup Hero ──────────────────────────────────────────────────────────
+// Deep teal command slab. Status is communicated ONCE here — not repeated in
+// the order card below. ETA is the lead element. Liveness badge confirms the
+// data is live or shows when it was last refreshed.
+class _PrePickupHero extends StatelessWidget {
+  final OrderStatus? status;
+  final int? liveEtaMinutes;
+  final int? prepMinutes;
+  final String? estimatedDeliveryAt;
+  final String? storeName;
+  final DateTime? lastUpdateTime;
+  final bool isLive;
+
+  const _PrePickupHero({
+    super.key,
+    required this.status,
+    required this.liveEtaMinutes,
+    required this.prepMinutes,
+    required this.estimatedDeliveryAt,
+    this.storeName,
+    this.lastUpdateTime,
+    this.isLive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isTerminal = status?.isTerminal ?? false;
+    final bool isCancelled =
+        status == OrderStatus.canceled || status == OrderStatus.failed;
+    final bool isDelivered = status == OrderStatus.delivered;
+    final String? clockWindow = _clockWindow();
+    final bool reduceMotion = MediaQuery.of(context).disableAnimations;
+
+    // Hero background: teal for active, deep green for delivered, charcoal for cancelled
+    final Color heroBg =
+        isCancelled
+            ? const Color(0xFF2A1C1C)
+            : isDelivered
+            ? const Color(0xFF0A4A30)
+            : WaddyColors.primary;
+
+    return Container(
+      width: double.infinity,
+      color: heroBg,
+      child: Stack(
+        children: [
+          // ── Decorative ring — clips to hero bounds, top-right corner
+          Positioned(
+            right: -44,
+            top: -44,
+            child: Container(
+              width: 190,
+              height: 190,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  width: 32,
+                ),
+              ),
+            ),
+          ),
+          // ── Content ───────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Top row: context label + liveness ─────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(_statusIcon(), size: 13, color: _statusIconColor()),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        _contextLabel(),
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    if (!isTerminal) ...[
+                      const SizedBox(width: 12),
+                      _LivenessBadge(
+                        lastUpdateTime: lastUpdateTime,
+                        isLive: isLive,
+                      ),
+                    ],
+                  ],
+                ),
+                // ── ETA / clock window ─────────────────────────────
+                if (!isTerminal) ...[
+                  const SizedBox(height: 14),
+                  AnimatedSwitcher(
+                    duration: Duration(milliseconds: reduceMotion ? 0 : 400),
+                    transitionBuilder: (child, anim) {
+                      if (reduceMotion) return child;
+                      return FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.06),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: anim,
+                              curve: Curves.easeOutQuart,
+                            ),
+                          ),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child:
+                        clockWindow != null
+                            ? _ClockWindowDisplay(
+                              key: ValueKey(clockWindow),
+                              window: clockWindow,
+                              color: Colors.white,
+                            )
+                            : _EtaShimmerDark(key: const ValueKey('shimmer')),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Estimated arrival window',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.white.withValues(alpha: 0.48),
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ] else
+                  const SizedBox(height: 18),
+                // ── Status pill ────────────────────────────────────
+                _StatusPill(status: status),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _statusIcon() {
+    switch (status) {
+      case OrderStatus.pending:
+        return Icons.hourglass_top_rounded;
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return Icons.check_circle_rounded;
+      case OrderStatus.processing:
+        return Icons.restaurant_rounded;
+      case OrderStatus.delivered:
+        return Icons.celebration_rounded;
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return Icons.cancel_rounded;
+      default:
+        return Icons.schedule_rounded;
+    }
+  }
+
+  Color _statusIconColor() {
+    switch (status) {
+      case OrderStatus.pending:
+        return WaddyColors.amber;
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return WaddyColors.mint;
+      case OrderStatus.processing:
+        return WaddyColors.coral;
+      case OrderStatus.delivered:
+        return WaddyColors.mint;
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return const Color(0xFFFF8A8A);
+      default:
+        return Colors.white70;
+    }
+  }
+
+  String? _clockWindow() {
+    if (estimatedDeliveryAt != null && estimatedDeliveryAt!.isNotEmpty) {
+      try {
+        DateTime? eta = DateTime.tryParse(estimatedDeliveryAt!);
+        if (eta == null) {
+          final parts = estimatedDeliveryAt!.split(' ');
+          if (parts.length >= 2) {
+            eta = DateTime.tryParse('${parts[0]}T${parts[1]}');
+          }
+        }
+        if (eta != null) {
+          final lo = eta.subtract(const Duration(minutes: 5));
+          final hi = eta.add(const Duration(minutes: 5));
+          return '${ETAResult.fmtTime(lo)} \u2013 ${ETAResult.fmtTime(hi)}';
+        }
+      } catch (_) {}
+    }
+
+    final minutes = liveEtaMinutes ?? prepMinutes;
+    if (minutes == null || minutes <= 0) return null;
+
+    final result = ETAResult(
+      minMinutes: minutes,
+      maxMinutes: minutes + (minutes * 0.2).round().clamp(2, 10),
+      speedUsed: 0,
+    );
+    return result.clockWindow;
+  }
+
+  String _contextLabel() {
+    final name = storeName ?? 'the restaurant';
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Sent to $name \u2014 waiting for confirmation';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return '$name confirmed your order!';
+      case OrderStatus.processing:
+        return '$name is preparing your meal';
+      case OrderStatus.delivered:
+        return 'Delivered \u2014 enjoy every bite!';
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return 'Order cancelled';
+      default:
+        return 'Estimated arrival';
+    }
+  }
+}
+
+// ─── Clock Window Display ──────────────────────────────────────────────────────
+class _ClockWindowDisplay extends StatelessWidget {
+  final String window;
+  final Color? color;
+  const _ClockWindowDisplay({super.key, required this.window, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        window,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 44,
+          color: color ?? WaddyColors.primary,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -1.5,
+          height: 1.0,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Status Pill ──────────────────────────────────────────────────────────────
+// Minimal translucent badge on the dark hero. No shadow, no fill — keeps the
+// hero clean and lets the ETA be the dominant element.
+class _StatusPill extends StatelessWidget {
+  final OrderStatus? status;
+  const _StatusPill({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isError =
+        status == OrderStatus.canceled || status == OrderStatus.failed;
+    final bool isSuccess = status == OrderStatus.delivered;
+    final bool isActive = !isError && !isSuccess;
+
+    final Color borderColor =
+        isError
+            ? const Color(0xFFFF8A8A).withValues(alpha: 0.5)
+            : isSuccess
+            ? WaddyColors.mint.withValues(alpha: 0.5)
+            : Colors.white.withValues(alpha: 0.22);
+
+    final Color textColor =
+        isError
+            ? const Color(0xFFFF8A8A)
+            : isSuccess
+            ? WaddyColors.mint
+            : Colors.white.withValues(alpha: 0.9);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isActive)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: SizedBox(
+                width: 10,
+                height: 10,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  valueColor: AlwaysStoppedAnimation(
+                    Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ),
+          Text(
+            _caption(),
+            style: TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 12.5,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _caption() {
+    switch (status) {
+      case OrderStatus.pending:
+        return 'Waiting for restaurant';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return 'Confirmed';
+      case OrderStatus.processing:
+        return 'Being prepared';
+      case OrderStatus.handover:
+      case OrderStatus.pickedUp:
+        return 'Out for delivery';
+      case OrderStatus.delivered:
+        return 'Delivered!';
+      case OrderStatus.canceled:
+      case OrderStatus.failed:
+        return 'Cancelled';
+      default:
+        return 'Processing';
+    }
+  }
+}
+
+// ─── Map Hero ─────────────────────────────────────────────────────────────────
+// Full-height embedded map shown when rider is en-route (handover / pickedUp).
+// Floats the estimated arrival time as a chip over the map.
+class _MapHero extends StatelessWidget {
+  final Set<Marker> markers;
+  final Set<Polyline> polylines;
+  final ETAResult? eta;
+  final void Function(GoogleMapController) onMapCreated;
+  final LatLng? initialFocus;
+
+  const _MapHero({
+    super.key,
+    required this.markers,
+    required this.polylines,
+    required this.eta,
+    required this.onMapCreated,
+    required this.initialFocus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final LatLng focus = initialFocus ?? const LatLng(0, 0);
+    final String? arrivalText =
+        eta != null && !eta!.isArriving
+            ? 'Arrives ~${ETAResult.fmtTime(DateTime.now().add(Duration(minutes: eta!.minMinutes)))}'
+            : eta?.isArriving == true
+            ? 'Arriving now!'
+            : null;
+
+    // Responsive map height: taller on tall devices
+    final screenH = MediaQuery.of(context).size.height;
+    final mapHeight = (screenH * 0.32).clamp(220.0, 340.0);
+
+    return Stack(
+      children: [
+        // Map
+        SizedBox(
+          height: mapHeight,
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(target: focus, zoom: 15.0),
+            markers: markers,
+            polylines: polylines,
+            zoomControlsEnabled: false,
+            myLocationButtonEnabled: false,
+            mapToolbarEnabled: false,
+            onMapCreated: onMapCreated,
+          ),
+        ),
+
+        // Arrival time badge — energetic coral gradient
+        if (arrivalText != null)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [WaddyColors.primary, Color(0xFF1D706A)],
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: WaddyColors.primary.withValues(alpha: 0.40),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.two_wheeler_rounded,
+                    color: WaddyColors.mint,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    arrivalText,
+                    style: waddyLabel.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // Clock-window badge — floated bottom-right
+        if (eta != null && !eta!.isArriving)
+          Positioned(
+            bottom: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: WaddyColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: WaddyColors.divider),
+                boxShadow: [
+                  BoxShadow(
+                    color: WaddyColors.shadowTeal.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Text(
+                eta!.clockWindow,
+                style: waddyLabel.copyWith(
+                  color: WaddyColors.ink,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ─── Liveness Badge ───────────────────────────────────────────────────────────
+// Shows "● Live" when SSE is active, "Updated X ago" when on polling fallback.
+// Displayed in the hero footer so the user always knows data freshness.
+class _LivenessBadge extends StatefulWidget {
+  final DateTime? lastUpdateTime;
+  final bool isLive;
+
+  const _LivenessBadge({this.lastUpdateTime, this.isLive = false});
+
+  @override
+  State<_LivenessBadge> createState() => _LivenessBadgeState();
+}
+
+class _LivenessBadgeState extends State<_LivenessBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _dotCtrl;
+  late final Animation<double> _dotScale;
+  Timer? _refreshTimer;
+  String _label = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _dotScale = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _dotCtrl, curve: Curves.easeInOut));
+    _updateLabel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() => _updateLabel());
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (!reduceMotion && widget.isLive && !_dotCtrl.isAnimating) {
+      _dotCtrl.repeat(reverse: true);
+    } else if (reduceMotion || !widget.isLive) {
+      _dotCtrl.stop();
+      _dotCtrl.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_LivenessBadge old) {
+    super.didUpdateWidget(old);
+    _updateLabel();
+    if (widget.isLive && !_dotCtrl.isAnimating) {
+      _dotCtrl.repeat(reverse: true);
+    } else if (!widget.isLive) {
+      _dotCtrl.stop();
+      _dotCtrl.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _dotCtrl.dispose();
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _updateLabel() {
+    if (widget.isLive) {
+      _label = 'Live';
+      return;
+    }
+    final t = widget.lastUpdateTime;
+    if (t == null) {
+      _label = 'Updating…';
+      return;
+    }
+    final diff = DateTime.now().difference(t);
+    if (diff.inMinutes < 1) {
+      _label = 'Just updated';
+    } else if (diff.inMinutes < 60) {
+      _label = 'Updated ${diff.inMinutes}m ago';
+    } else {
+      _label = 'Updated ${diff.inHours}h ago';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Color dotColor = widget.isLive ? WaddyColors.mint : WaddyColors.amber;
+    final Color textColor =
+        widget.isLive
+            ? WaddyColors.mint.withValues(alpha: 0.9)
+            : Colors.white.withValues(alpha: 0.55);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ScaleTransition(
+          scale: _dotScale,
+          child: Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          _label,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: textColor,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── ETA Shimmer (dark variant) ───────────────────────────────────────────────
+// Light shimmer bars on the dark teal hero while ETA resolves.
+class _EtaShimmerDark extends StatefulWidget {
+  const _EtaShimmerDark({super.key});
+
+  @override
+  State<_EtaShimmerDark> createState() => _EtaShimmerDarkState();
+}
+
+class _EtaShimmerDarkState extends State<_EtaShimmerDark>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _opacity = Tween<double>(
+      begin: 0.15,
+      end: 0.35,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (reduceMotion) {
+      _ctrl.stop();
+      _ctrl.value = 0.5;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 36,
+            width: 220,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 36,
+            width: 140,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Order Details Skeleton ───────────────────────────────────────────────────
+// Shown instead of CircularProgressIndicator while data loads.
+// Mirrors the real screen structure (hero + two cards) for a stable layout.
+class _OrderDetailsSkeleton extends StatefulWidget {
+  const _OrderDetailsSkeleton();
+
+  @override
+  State<_OrderDetailsSkeleton> createState() => _OrderDetailsSkeletonState();
+}
+
+class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    _opacity = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (reduceMotion) {
+      _ctrl.stop();
+      _ctrl.value = 0.8;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Widget _block({double height = 16, double? width, double radius = 8}) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: WaddyColors.divider,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // App bar skeleton — matches the redesigned teal header
+          Container(
+            color: WaddyColors.primary,
+            padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      height: 15,
+                      width: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      height: 11,
+                      width: 78,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Hero skeleton — full teal to match real hero
+          Container(
+            height: 140,
+            color: WaddyColors.primary,
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 13,
+                  width: 180,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 44,
+                  width: 232,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  height: 28,
+                  width: 130,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Card sheet skeleton — gray container with top rounding
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF2F4F3),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+            child: Column(
+              children: [
+                // Order card skeleton
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: WaddyColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 54,
+                            height: 54,
+                            decoration: BoxDecoration(
+                              color: WaddyColors.divider,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _block(height: 15, width: 100),
+                              const SizedBox(height: 6),
+                              _block(height: 12, width: 160),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _block(height: 8, width: double.infinity),
+                      const SizedBox(height: 10),
+                      _block(height: 8, width: 200),
+                      const SizedBox(height: 10),
+                      _block(height: 8, width: 240),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Rider card skeleton
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: WaddyColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: const BoxDecoration(
+                          color: WaddyColors.divider,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _block(height: 15, width: 120),
+                          const SizedBox(height: 6),
+                          _block(height: 12, width: 180),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Tap scale feedback widget ─────────────────────────────────────────────
 // Applies a quick 0.92 scale-down on press, restores on release.
 // GPU-only (transform + opacity) — 60fps on low-end devices.
@@ -1502,9 +1990,10 @@ class _TapScaleButtonState extends State<_TapScaleButton>
       duration: const Duration(milliseconds: 100),
       reverseDuration: const Duration(milliseconds: 150),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.88).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.88,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -1518,6 +2007,7 @@ class _TapScaleButtonState extends State<_TapScaleButton>
     _ctrl.reverse();
     widget.onTap();
   }
+
   void _onTapCancel() => _ctrl.reverse();
 
   @override
@@ -1528,8 +2018,91 @@ class _TapScaleButtonState extends State<_TapScaleButton>
       onTapCancel: _onTapCancel,
       child: AnimatedBuilder(
         animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        builder:
+            (_, child) => Transform.scale(scale: _scale.value, child: child),
         child: widget.child,
+      ),
+    );
+  }
+}
+
+// ─── ETA Shimmer placeholder ───────────────────────────────────────────────
+// Shows animated loading bars while ETA resolves instead of bare "--"
+// Respects reduced-motion accessibility preference.
+class _EtaShimmer extends StatefulWidget {
+  const _EtaShimmer({super.key});
+
+  @override
+  State<_EtaShimmer> createState() => _EtaShimmerState();
+}
+
+class _EtaShimmerState extends State<_EtaShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _opacity = Tween<double>(
+      begin: 0.3,
+      end: 0.7,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (reduceMotion) {
+      _ctrl.stop();
+      _ctrl.value = 0.5;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: Container(
+        width: 80,
+        height: 68,
+        alignment: Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 16,
+              decoration: BoxDecoration(
+                color: WaddyColors.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: 48,
+              height: 12,
+              decoration: BoxDecoration(
+                color: WaddyColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1556,11 +2129,24 @@ class _PulsingBadgeState extends State<_PulsingBadge>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
-    _opacity = Tween<double>(begin: 0.55, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
+
+    _opacity = Tween<double>(
+      begin: 0.55,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (reduceMotion) {
+      _ctrl.stop();
+      _ctrl.value = 1.0;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
   }
 
   @override

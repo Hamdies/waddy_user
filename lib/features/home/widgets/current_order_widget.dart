@@ -8,8 +8,8 @@ import 'package:waddy_app/features/order/screens/order_details_screen.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/app_constants.dart';
-import 'package:waddy_app/util/app_design_tokens.dart';
 import 'package:waddy_app/util/styles.dart';
 
 class CurrentOrderWidget extends StatelessWidget {
@@ -49,37 +49,36 @@ class _OrderCard extends StatelessWidget {
 
   String _statusLabel(String status) {
     switch (status) {
-      case AppConstants.pending:        return 'ORDER PLACED';
+      case AppConstants.pending:
+        return 'order_placed'.tr;
       case AppConstants.accepted:
-      case AppConstants.confirmed:      return 'ORDER CONFIRMED';
-      case AppConstants.processing:     return 'BEING PREPARED';
-      case AppConstants.handover:       return 'READY FOR PICKUP';
-      case AppConstants.pickedUp:       return 'ORDER ARRIVING';
-      default:                          return 'IN PROGRESS';
+      case AppConstants.confirmed:
+        return 'order_confirmed'.tr;
+      case AppConstants.processing:
+        return 'being_prepared'.tr;
+      case AppConstants.handover:
+        return 'ready_for_pickup'.tr;
+      case AppConstants.pickedUp:
+        return 'order_arriving'.tr;
+      default:
+        return 'in_progress'.tr;
     }
   }
 
   String _lottieForStatus(String status) {
     switch (status) {
-      case AppConstants.pending:        return 'assets/animation/order_placed.json';
+      case AppConstants.pending:
+        return 'assets/animation/order_placed.json';
       case AppConstants.accepted:
-      case AppConstants.confirmed:      return 'assets/animation/order_confirmed.json';
-      case AppConstants.processing:     return 'assets/animation/preparing_order.json';
+      case AppConstants.confirmed:
+        return 'assets/animation/order_confirmed.json';
+      case AppConstants.processing:
+        return 'assets/animation/preparing_order.json';
       case AppConstants.handover:
-      case AppConstants.pickedUp:       return 'assets/animation/delivery_order.json';
-      default:                          return 'assets/animation/completed_order.json';
-    }
-  }
-
-  int _segmentForStatus(String s) {
-    switch (s) {
-      case AppConstants.pending:        return 0;
-      case AppConstants.accepted:
-      case AppConstants.confirmed:      return 1;
-      case AppConstants.processing:     return 2;
-      case AppConstants.handover:       return 3;
-      case AppConstants.pickedUp:       return 3;
-      default:                          return 0;
+      case AppConstants.pickedUp:
+        return 'assets/animation/delivery_order.json';
+      default:
+        return 'assets/animation/completed_order.json';
     }
   }
 
@@ -89,8 +88,8 @@ class _OrderCard extends StatelessWidget {
       final mins = DateConverter.estimatedDeliveryMinutes(
         estimatedDeliveryAt: order.estimatedDeliveryAt,
       );
-      if (mins <= 0) return 'Now';
-      return '$mins mins';
+      if (mins <= 0) return 'now'.tr;
+      return '$mins ${'mins'.tr}';
     }
     final dt = order.store?.deliveryTime ?? '';
     if (dt.isEmpty) return '';
@@ -98,129 +97,130 @@ class _OrderCard extends StatelessWidget {
     if (parts.length == 2) {
       final lo = int.tryParse(parts[0].trim());
       final hi = int.tryParse(parts[1].trim());
-      if (lo != null && hi != null) return '$lo\u2013$hi mins';
+      if (lo != null && hi != null) return '$lo\u2013$hi ${'mins'.tr}';
     }
     final single = int.tryParse(dt.trim());
-    if (single != null) return '$single mins';
+    if (single != null) return '$single ${'mins'.tr}';
     return dt;
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color accent  = Theme.of(context).secondaryHeaderColor;
-    final bool isRtl    = Directionality.of(context) == TextDirection.rtl;
+    final status = order.orderStatus ?? '';
+    final storeName = order.store?.name ?? 'your_order'.tr;
+    final eta = _eta(order);
+    final label = _statusLabel(status);
+    final lottie = _lottieForStatus(status);
 
-    final status      = order.orderStatus ?? '';
-    final storeName   = order.store?.name ?? 'Your Order';
-    final eta         = _eta(order);
-    final label       = _statusLabel(status);
-    final segment     = _segmentForStatus(status);
-    final lottie      = _lottieForStatus(status);
-
-    // "Waddy Food · ETA 12 mins" or "Waddy Food · Arriving now"
     final String subtitle;
-    if (eta == 'Now') {
-      subtitle = '$storeName \u00b7 Arriving now';
+    if (eta == 'now'.tr) {
+      subtitle = '$storeName \u00b7 ${'arriving_now'.tr}';
     } else if (eta.isNotEmpty) {
-      subtitle = '$storeName \u00b7 ETA $eta';
+      subtitle = '$storeName \u00b7 $eta';
     } else {
       subtitle = storeName;
     }
 
-    return GestureDetector(
-      onTap: _goToDetails,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    return Semantics(
+      button: true,
+      label: '$label. $subtitle',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _goToDetails,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.2), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // ── Lottie animation — rounded square ────────────
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: WaddyColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: WaddyColors.primary.withValues(alpha: 0.18),
+                width: 1.2,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Lottie.asset(
-                  lottie,
-                  fit: BoxFit.cover,
-                  repeat: true,
+              boxShadow: const [
+                BoxShadow(
+                  color: WaddyColors.shadowTeal,
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
                 ),
-              ),
+              ],
             ),
-
-            const SizedBox(width: 10),
-
-            // ── Status label + subtitle ──────────────────────
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Row(
                 children: [
-                  Text(
-                    label,
-                    style: robotoBold.copyWith(
-                      fontSize: 10,
-                      color: AppDesignTokens.primaryDark,
-                      letterSpacing: 0.4,
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: WaddyColors.primarySurface,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Lottie.asset(
+                        lottie,
+                        fit: BoxFit.cover,
+                        repeat: true,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: robotoMedium.copyWith(
-                      fontSize: 12,
-                      color: const Color(0xFF1A1A1A),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          style: robotoBold.copyWith(
+                            fontSize: 11,
+                            color: WaddyColors.primary,
+                            letterSpacing: 0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: robotoMedium.copyWith(
+                            fontSize: 12,
+                            color: WaddyColors.ink,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: WaddyColors.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'track'.tr,
+                        style: robotoMedium.copyWith(
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(width: 8),
-
-            // ── 3-segment progress bar ────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).secondaryHeaderColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Track',
-              style: robotoMedium.copyWith(
-                fontSize: 12,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
           ),
-            
-          
-           
-
-            const SizedBox(width: 8),
-
-            // ── Chevron ───────────────────────────────────────
-            
-          ],
         ),
       ),
     );

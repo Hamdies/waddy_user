@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lottie/lottie.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/cart/widgets/extra_packaging_widget.dart';
 import 'package:waddy_app/features/cart/widgets/not_available_bottom_sheet_widget.dart';
@@ -94,14 +93,14 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDesktop = ResponsiveHelper.isDesktop(context);
-    final Color primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF2F0EB),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        backgroundColor: const Color(0xFFF2F0EB),
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, size: 20, color: primaryColor),
+          icon: const Icon(Icons.arrow_back_rounded, size: 22, color: Color(0xFF1A1A1A)),
           onPressed: () {
             if (widget.fromNav) {
               Get.offAllNamed(RouteHelper.getInitialRoute());
@@ -110,10 +109,10 @@ class _CartScreenState extends State<CartScreen> {
             }
           },
         ),
-        centerTitle: true,
+        centerTitle: false,
         title: Text(
-          'cart'.tr,
-          style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+          'basket'.tr,
+          style: robotoBold.copyWith(fontSize: 18, color: const Color(0xFF1A1A1A)),
         ),
       ),
       body: GetBuilder<StoreController>(
@@ -152,111 +151,48 @@ class _CartScreenState extends State<CartScreen> {
   Widget _buildMobileLayout(CartController cartController, StoreController storeController) {
     final Color primaryColor = Theme.of(context).primaryColor;
 
-    // Calculate total savings
-    double totalSavings = cartController.itemDiscountPrice;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Savings banner — neo stylish
-        if(totalSavings > 0)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Theme.of(context).secondaryHeaderColor.withOpacity(0.25),
-                width: 1,
-              ),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Stack(
-                children: [
-                  // Decorative glow circle top-right
-                  Positioned(
-                    top: -18,
-                    right: -18,
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            Theme.of(context).secondaryHeaderColor.withOpacity(0.18),
-                            Theme.of(context).secondaryHeaderColor.withOpacity(0.0),
-                          ],
-                        ),
-                      ),
+        // "Your basket" header
+        Container(
+          color: const Color(0xFFF2F0EB),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'your_basket'.tr,
+                      style: robotoBold.copyWith(fontSize: 22, color: const Color(0xFF1A1A1A)),
                     ),
-                  ),
-                  // Content
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      children: [
-                        // Left accent bar
-                     
-                        // Icon with glow ring
-                        Center(
-                          child: Lottie.asset("assets/animation/off.json",width: 35),
-                        ),
-                        const SizedBox(width: 14),
-                        // Text content
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'you_are_saving'.tr,
-                                style: robotoRegular.copyWith(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  // Highlighted discount price with secondary color bg
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).secondaryHeaderColor.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      PriceConverter.convertPrice(totalSavings),
-                                      style: robotoBold.copyWith(
-                                        fontSize: 16,
-                                        color: primaryColor,
-                                        letterSpacing: 0.3,
-                                      ),
-                                      textDirection: TextDirection.ltr,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'discount_applied'.tr,
-                                    style: robotoMedium.copyWith(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 2),
+                    Text(
+                      '${cartController.cartList.length} ${'items'.tr} · ${PriceConverter.convertPrice(cartController.subTotal)}',
+                      style: robotoRegular.copyWith(fontSize: 13, color: const Color(0xFF888888)),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              GestureDetector(
+                onTap: () {
+                  if (widget.fromNav) {
+                    Get.offAllNamed(RouteHelper.getInitialRoute());
+                  } else {
+                    Get.back();
+                  }
+                },
+                child: Text(
+                  '+ ${'add_more_items'.tr}',
+                  style: robotoMedium.copyWith(fontSize: 13, color: primaryColor),
+                ),
+              ),
+            ],
           ),
+        ),
 
         // Minimum order progress bar
         MinimumOrderProgressWidget(
@@ -264,58 +200,39 @@ class _CartScreenState extends State<CartScreen> {
           store: storeController.store,
         ),
 
-        // Cart items card
+        // Cart items
         Container(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Cart items list
-              ListView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: cartController.cartList.length,
-                padding: EdgeInsets.zero,
-                itemBuilder: (context, index) {
-                  return CartItemWidget(
-                    cart: cartController.cartList[index],
-                    cartIndex: index,
-                    addOns: cartController.addOnsList[index],
-                    isAvailable: cartController.availableList[index],
-                    showDivider: index != cartController.cartList.length - 1,
-                  );
-                },
-              ),
-            ],
+          child: ListView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: cartController.cartList.length,
+            padding: EdgeInsets.zero,
+            itemBuilder: (context, index) {
+              return CartItemWidget(
+                cart: cartController.cartList[index],
+                cartIndex: index,
+                addOns: cartController.addOnsList[index],
+                isAvailable: cartController.availableList[index],
+                showDivider: index != cartController.cartList.length - 1,
+              );
+            },
           ),
         ),
 
-        // Delivery address preview
-        // _buildDeliveryAddressPreview(storeController),
+        // "Did you forget?" suggested items
+        _buildDidYouForgetSection(cartController.cartList),
 
-        // XP Shopping Counter (above summary for visibility)
+        // XP Shopping Counter
         const XpShoppingCounterWidget(),
-
-        // Order summary / cost breakdown
-        _buildOrderSummary(cartController, storeController),
 
         // Extra packaging
         ExtraPackagingWidget(cartController: cartController),
-
-        // "You might also like" section
-        suggestedItemView(cartController.cartList),
 
         const SizedBox(height: 20),
       ],
@@ -745,83 +662,151 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildBottomCheckoutButton(CartController cartController) {
     double subTotal = cartController.subTotal;
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF2F0EB),
       ),
       child: SafeArea(
-        child: GestureDetector(
-          onTap: () {
-            Get.find<CheckoutController>().updateFirstTime();
-            if (!cartController.cartList.first.item!.scheduleOrder! &&
-                cartController.availableList.contains(false)) {
-              showCustomSnackBar('one_or_more_product_unavailable'.tr);
-            } else {
-              if (Get.find<SplashController>().module == null) {
-                int i = 0;
-                for (i = 0; i < Get.find<SplashController>().moduleList!.length; i++) {
-                  if (cartController.cartList[0].item!.moduleId ==
-                      Get.find<SplashController>().moduleList![i].id) {
-                    break;
-                  }
-                }
-                Get.find<SplashController>().setModule(
-                  Get.find<SplashController>().moduleList![i],
-                );
-                HomeScreen.loadData(true);
-              }
-              Get.find<CouponController>().removeCouponData(false);
-              Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
-            }
-          },
-          child: Container(
-            width: double.infinity,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Delivery address row
+            if (address != null && address.address != null)
+              GetBuilder<StoreController>(
+                builder: (storeController) {
+                  return GestureDetector(
+                    onTap: () => Get.toNamed(RouteHelper.getAccessLocationRoute('cart')),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.location_on_rounded, size: 20, color: primaryColor),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${'deliver_to'.tr} ${address.addressType ?? 'home'.tr} · ${address.address!.split(',').first}',
+                                  style: robotoMedium.copyWith(fontSize: 13.5, color: const Color(0xFF1A1A1A)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (storeController.store?.deliveryTime != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      '${'arriving_in'.tr} ${storeController.store!.deliveryTime} ${'min'.tr}',
+                                      style: robotoRegular.copyWith(fontSize: 12, color: const Color(0xFF888888)),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, size: 22, color: Color(0xFF888888)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+            // Payment row
+            Row(
               children: [
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Text(
-                    'go_to_checkout'.tr,
-                    style: robotoBold.copyWith(
+                // Payment method chip (placeholder)
+                /*
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to payment selection
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      fontSize: 17,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.credit_card_rounded, size: 18, color: primaryColor),
+                        const SizedBox(width: 8),
+                        Text('pay'.tr, style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF1A1A1A))),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF888888)),
+                      ],
                     ),
                   ),
                 ),
-                // Price badge - darker shade on the right
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).secondaryHeaderColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    PriceConverter.convertPrice(subTotal),
-                    style: robotoBold.copyWith(
-                      color: Theme.of(context).primaryColor,
-                      fontSize: 15,
+                const SizedBox(width: 10),
+                */
+                // Pay button
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Get.find<CheckoutController>().updateFirstTime();
+                      if (!cartController.cartList.first.item!.scheduleOrder! &&
+                          cartController.availableList.contains(false)) {
+                        showCustomSnackBar('one_or_more_product_unavailable'.tr);
+                      } else {
+                        if (Get.find<SplashController>().module == null) {
+                          int i = 0;
+                          for (i = 0; i < Get.find<SplashController>().moduleList!.length; i++) {
+                            if (cartController.cartList[0].item!.moduleId ==
+                                Get.find<SplashController>().moduleList![i].id) {
+                              break;
+                            }
+                          }
+                          Get.find<SplashController>().setModule(
+                            Get.find<SplashController>().moduleList![i],
+                          );
+                          HomeScreen.loadData(true);
+                        }
+                        Get.find<CouponController>().removeCouponData(false);
+                        Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
+                      }
+                    },
+                    child: Container(
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${'pay'.tr} ${PriceConverter.convertPrice(subTotal)}',
+                          style: robotoBold.copyWith(
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 0.3,
+                          ),
+                          textDirection: TextDirection.ltr,
+                        ),
+                      ),
                     ),
-                    textDirection: TextDirection.ltr,
                   ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 4),
+          ],
         ),
       ),
     );
@@ -1140,6 +1125,214 @@ class _CartScreenState extends State<CartScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildDidYouForgetSection(List<CartModel> cartList) {
+    return GetBuilder<StoreController>(
+      builder: (storeController) {
+        List<Item>? suggestedItems;
+        if (storeController.cartSuggestItemModel != null) {
+          suggestedItems = [];
+          List<int> cartIds = [];
+          for (CartModel cartItem in cartList) {
+            cartIds.add(cartItem.item!.id!);
+          }
+          for (Item item in storeController.cartSuggestItemModel!.items!) {
+            if (!cartIds.contains(item.id)) {
+              suggestedItems.add(item);
+            }
+          }
+        }
+        if (storeController.cartSuggestItemModel == null || suggestedItems == null || suggestedItems.isEmpty) {
+          return const SizedBox();
+        }
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+          padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16), bottom: Radius.circular(16)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: "Did you forget?" + "See all"
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'did_you_forget'.tr,
+                      style: robotoBold.copyWith(fontSize: 17, color: const Color(0xFF1A1A1A)),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        // Navigate to store page to see all items
+                        if (cartList.isNotEmpty) {
+                          Get.find<StoreController>().getStoreDetails(
+                            Store(id: cartList[0].item!.storeId, name: null),
+                            false,
+                          );
+                          Get.toNamed(RouteHelper.getStoreRoute(
+                            id: cartList[0].item!.storeId!,
+                            page: 'item',
+                          ));
+                        }
+                      },
+                      child: Text(
+                        'see_all'.tr,
+                        style: robotoRegular.copyWith(fontSize: 13, color: const Color(0xFF888888)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Horizontal scroll of suggested item cards
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: suggestedItems.length,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemBuilder: (context, index) {
+                    final item = suggestedItems![index];
+                    double? discount = item.discount;
+                    String? discountType = item.discountType;
+                    bool hasVariations = (item.foodVariations != null && item.foodVariations!.isNotEmpty) ||
+                        (item.choiceOptions != null && item.choiceOptions!.isNotEmpty);
+
+                    return GestureDetector(
+                      onTap: () {
+                        ResponsiveHelper.isMobile(context)
+                            ? showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (con) => ItemBottomSheet(itemId: item.id!),
+                              )
+                            : showDialog(
+                                context: context,
+                                builder: (con) => Dialog(
+                                  child: ItemBottomSheet(itemId: item.id!),
+                                ),
+                              );
+                      },
+                      child: Container(
+                        width: 140,
+                        margin: const EdgeInsets.only(right: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image card with + overlay
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 140,
+                                  height: 130,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F2EC),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: CustomImage(
+                                      image: item.imageFullUrl ?? '',
+                                      height: 130,
+                                      width: 140,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                // + button overlay bottom-right
+                                Positioned(
+                                  bottom: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      if (hasVariations) {
+                                        ResponsiveHelper.isMobile(context)
+                                            ? showModalBottomSheet(
+                                                context: context,
+                                                isScrollControlled: true,
+                                                backgroundColor: Colors.transparent,
+                                                builder: (con) => ItemBottomSheet(itemId: item.id!),
+                                              )
+                                            : showDialog(
+                                                context: context,
+                                                builder: (con) => Dialog(
+                                                  child: ItemBottomSheet(itemId: item.id!),
+                                                ),
+                                              );
+                                      } else {
+                                        double price = PriceConverter.convertWithDiscount(item.price!, discount, discountType) ?? item.price!;
+                                        OnlineCart onlineCart = OnlineCart(
+                                          null, item.id, null,
+                                          price.toString(), '', null, null,
+                                          1, [], null, [], 'Item',
+                                        );
+                                        bool success = await Get.find<CartController>().addToCartOnline(onlineCart);
+                                        if (success) {
+                                          showCustomSnackBar('added_to_cart'.tr, isError: false);
+                                        }
+                                      }
+                                    },
+                                    child: Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.1),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Center(
+                                        child: Icon(Icons.add_rounded, size: 18, color: Color(0xFF1A1A1A)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Item name
+                            Text(
+                              item.name ?? '',
+                              style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF1A1A1A), height: 1.2),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            // Price
+                            Text(
+                              PriceConverter.convertPrice(
+                                item.price,
+                                discount: discount,
+                                discountType: discountType,
+                              ),
+                              style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF555555)),
+                              textDirection: TextDirection.ltr,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

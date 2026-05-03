@@ -1,17 +1,17 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/home/widgets/letter_dialog_widget.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/location/controllers/location_controller.dart';
-import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
 
@@ -88,7 +88,7 @@ class HomeAppBarWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Row 1: Avatar + Greeting + Notification ──
+                // ── Row 1: Avatar + Greeting + Coins + Cart ──
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -107,14 +107,14 @@ class HomeAppBarWidget extends StatelessWidget {
                                 Text(
                                   '${_getTimeGreeting()},',
                                   style: robotoRegular.copyWith(
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     color: gray,
                                   ),
                                 ),
                                 Text(
                                   '$firstName 👋',
                                   style: robotoBold.copyWith(
-                                    fontSize: 18,
+                                    fontSize: 17,
                                     color: textDark,
                                     height: 1.1,
                                   ),
@@ -130,29 +130,13 @@ class HomeAppBarWidget extends StatelessWidget {
                       _CoinsPill(teal: teal, textDark: textDark),
                       const SizedBox(width: 8),
                     ],
-                    if (kDebugMode) ...[
-                      GestureDetector(
-                        onTap: () => showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const LetterDialogWidget(),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.mail_outline, size: 20, color: Colors.orange),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    _NotificationButton(teal: teal),
+                    _CartButton(teal: teal),
                   ],
                 ),
 
-                const SizedBox(height: 12),
+             
+
+                const SizedBox(height: 10),
 
                 // ── Row 2: Location ──
                 GetBuilder<LocationController>(
@@ -238,158 +222,6 @@ class _SearchBar extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// XP progress bar — mintLight background, no border, matching the reference
-class _XpProgressBar extends StatelessWidget {
-  final Color teal;
-  final Color mint;
-  const _XpProgressBar({required this.teal, required this.mint});
-
-  @override
-  Widget build(BuildContext context) {
-    return GetBuilder<XpController>(
-      builder: (xpController) {
-        final level = xpController.currentLevel;
-        if (level == null) return const SizedBox.shrink();
-
-        final progress = (level.progressPercentage / 100).clamp(0.0, 1.0);
-        final nextReward = xpController.nextReward;
-        final primaryColor = Theme.of(context).primaryColor;
-        final accentColor = Theme.of(context).secondaryHeaderColor;
-
-        return GestureDetector(
-          onTap: () => Get.toNamed(RouteHelper.getMainRoute('levels')),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFF0F0F0), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Lightning Bolt / Coin Icon on left
-
-                // Column for text and progress bar
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Level Name & Next Reward
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            level.levelName,
-                            style: robotoBold.copyWith(
-                              fontSize: 14,
-                              color: primaryColor,
-                            ),
-                          ),
-                          if (nextReward != null)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${xpController.getRewardIcon(nextReward.type)} ',
-                                  style: const TextStyle(fontSize: 11),
-                                ),
-                                Text(
-                                  nextReward.title,
-                                  style: robotoMedium.copyWith(
-                                    fontSize: 11,
-                                    color: primaryColor.withOpacity(0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Compact Progress Bar with Chest
-                      SizedBox(
-                        height: 24,
-                        child: Stack(
-                          alignment: Alignment.centerLeft,
-                          clipBehavior: Clip.none,
-                          children: [
-                            // Progress Track
-                            Container(
-                              height: 16,
-                              margin: const EdgeInsets.only(right: 20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEAEAEA),
-                                borderRadius: const BorderRadius.horizontal(
-                                  left: Radius.circular(8),
-                                  right: Radius.circular(4),
-                                ),
-                              ),
-                              child: Stack(
-                                children: [
-                                  // Fill Indicator
-                                  FractionallySizedBox(
-                                    alignment: Alignment.centerLeft,
-                                    widthFactor: progress,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: accentColor,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                  // Text Inside
-                                  Center(
-                                    child: Text(
-                                      // xpForNextLevel historically represents total required for current level minus total required for previous level.
-                                      // Or if xpToNextLevel = remaining, total required for this level is currentXp + xpToNextLevel
-                                      '${level.currentXp} / ${level.currentXp + level.xpToNextLevel} XP',
-                                      style: robotoBold.copyWith(
-                                        fontSize: 10,
-                                        color: primaryColor,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Chest Icon on right edge
-                            Positioned(
-                              right: 0,
-                              child: Container(
-                                height: 26,
-                                width: 26,
-                                
-                                child:  Center(
-                                  child: Image.asset("assets/image/waddy_coin.png",)
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -573,17 +405,18 @@ class _UserAvatarWithLevel extends StatelessWidget {
   }
 }
 
-/// Notification bell — 42x42, borderRadius 13, mintLight background
-class _NotificationButton extends StatelessWidget {
+/// Cart button — 42x42, borderRadius 13, mintLight background
+class _CartButton extends StatelessWidget {
   final Color teal;
-  const _NotificationButton({required this.teal});
+  const _CartButton({required this.teal});
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<NotificationController>(
-      builder: (notificationController) {
+    return GetBuilder<CartController>(
+      builder: (cartController) {
+        final itemCount = cartController.cartList.length;
         return GestureDetector(
-          onTap: () => Get.toNamed(RouteHelper.getNotificationRoute()),
+          onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
           child: Container(
             width: 42,
             height: 42,
@@ -594,18 +427,36 @@ class _NotificationButton extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                 Center(child: HugeIcon(icon:HugeIcons.strokeRoundedNotification01, color: teal, size: 20)),
-                if (notificationController.hasNotification)
+                Center(
+                  child: SvgPicture.asset(
+                    'assets/image/nav_cart.svg',
+                    width: 20,
+                    height: 20,
+                    colorFilter: ColorFilter.mode(teal, BlendMode.srcIn),
+                  ),
+                ),
+                if (itemCount > 0)
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 7,
+                    right: 7,
                     child: Container(
-                      height: 10,
-                      width: 10,
+                      height: 12,
+                      width: 12,
                       decoration: BoxDecoration(
-                        color:  Theme.of(  context).secondaryHeaderColor,
+                        color: Theme.of(context).secondaryHeaderColor,
                         shape: BoxShape.circle,
-                        border: Border.all(width: 2, color: Colors.white),
+                        border: Border.all(width: 1.5, color: Colors.white),
+                      ),
+                      child: Center(
+                        child: Text(
+                          itemCount > 9 ? '9+' : '$itemCount',
+                          style: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                            fontSize: 7,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -614,6 +465,110 @@ class _NotificationButton extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// One-time gamification hint — shown once after first login, dismissed on tap.
+/// Explains the LV badge + coins pill to new users.
+class _XpOnboardingHint extends StatefulWidget {
+  const _XpOnboardingHint();
+
+  @override
+  State<_XpOnboardingHint> createState() => _XpOnboardingHintState();
+}
+
+class _XpOnboardingHintState extends State<_XpOnboardingHint>
+    with SingleTickerProviderStateMixin {
+  bool _visible = false;
+  late AnimationController _ctrl;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      duration: const Duration(milliseconds: 350),
+      vsync: this,
+    );
+    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+
+    _checkShouldShow();
+  }
+
+  Future<void> _checkShouldShow() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shown = prefs.getBool(AppConstants.xpOnboardingShown) ?? false;
+    if (!shown && mounted) {
+      setState(() => _visible = true);
+      _ctrl.forward();
+    }
+  }
+
+  Future<void> _dismiss() async {
+    await _ctrl.reverse();
+    if (mounted) setState(() => _visible = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.xpOnboardingShown, true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+    final teal = Theme.of(context).primaryColor;
+
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: GestureDetector(
+          onTap: _dismiss,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _mintLight,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: teal.withValues(alpha: 0.18),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  '🏆',
+                  style: const TextStyle(fontSize: 15),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'earn_xp_hint'.tr.isNotEmpty && 'earn_xp_hint'.tr != 'earn_xp_hint'
+                        ? 'earn_xp_hint'.tr
+                        : 'Order, explore & level up — your badge and coins grow with every action.',
+                    style: robotoRegular.copyWith(
+                      fontSize: 11.5,
+                      color: teal.withValues(alpha: 0.85),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.close_rounded,
+                  size: 14,
+                  color: teal.withValues(alpha: 0.4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

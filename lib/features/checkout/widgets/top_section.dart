@@ -404,15 +404,13 @@ class TopSection extends StatelessWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge, horizontal: Dimensions.paddingSizeLarge),
-          child: Column(children: [
-
-            PaymentSection(
-              storeId: storeId, isCashOnDeliveryActive: isCashOnDeliveryActive, isDigitalPaymentActive: isDigitalPaymentActive,
-              isWalletActive: isWalletActive, total: total, checkoutController: checkoutController, isOfflinePaymentActive: isOfflinePaymentActive,
-            ),
-
-          ]),
+          padding: isDesktop
+              ? const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeLarge, horizontal: Dimensions.paddingSizeLarge)
+              : const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: PaymentSection(
+            storeId: storeId, isCashOnDeliveryActive: isCashOnDeliveryActive, isDigitalPaymentActive: isDigitalPaymentActive,
+            isWalletActive: isWalletActive, total: total, checkoutController: checkoutController, isOfflinePaymentActive: isOfflinePaymentActive,
+          ),
         ),
         SizedBox(height: isDesktop ? Dimensions.paddingSizeLarge : 0),
 

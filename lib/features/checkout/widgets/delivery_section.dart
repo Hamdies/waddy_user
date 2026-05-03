@@ -7,6 +7,7 @@ import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_dropdown.dart';
@@ -63,8 +64,7 @@ class DeliverySection extends StatelessWidget {
             ),
           ]),
 
-
-          isDesktop ?  Stack(children: [
+          isDesktop ? Stack(children: [
             Container(
               constraints: const BoxConstraints(minHeight:  90),
               decoration: BoxDecoration(
@@ -147,46 +147,95 @@ class DeliverySection extends StatelessWidget {
                 ),
               ),
             ),
-          ]) : Container(
-            constraints: BoxConstraints(minHeight: ResponsiveHelper.isDesktop(context) ? 90 : 75),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-            ),
-            child: CustomDropdown<int>(
-
-              onChange: (int? value, int index) {
-                checkoutController.getDistanceInKM(
-                  LatLng(
-                    double.parse(address[index].latitude!),
-                    double.parse(address[index].longitude!),
-                  ),
-                  LatLng(double.parse(checkoutController.store!.latitude!), double.parse(checkoutController.store!.longitude!)),
-                );
-                checkoutController.setAddressIndex(index);
-
-                checkoutController.streetNumberController.text = address[checkoutController.addressIndex!].streetNumber ?? '';
-                checkoutController.houseController.text = address[checkoutController.addressIndex!].house ?? '';
-                checkoutController.floorController.text = address[checkoutController.addressIndex!].floor ?? '';
-
-              },
-              dropdownButtonStyle: DropdownButtonStyle(
-                height: 45,
-                padding: const EdgeInsets.symmetric(
-                  vertical: Dimensions.paddingSizeExtraSmall,
-                  horizontal: Dimensions.paddingSizeExtraSmall,
+          ]) :
+          // ── Mobile: Waddy-styled address row with popup selector ──
+          PopupMenuButton<int>(
+            position: PopupMenuPosition.under,
+            elevation: 4,
+            color: WaddyColors.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (index) {
+              checkoutController.getDistanceInKM(
+                LatLng(double.parse(address[index].latitude!), double.parse(address[index].longitude!)),
+                LatLng(double.parse(checkoutController.store!.latitude!), double.parse(checkoutController.store!.longitude!)),
+              );
+              checkoutController.setAddressIndex(index);
+              checkoutController.streetNumberController.text = address[index].streetNumber ?? '';
+              checkoutController.houseController.text = address[index].house ?? '';
+              checkoutController.floorController.text = address[index].floor ?? '';
+            },
+            itemBuilder: (context) => List.generate(
+              address.length,
+              (index) => PopupMenuItem<int>(
+                value: index,
+                child: Row(
+                  children: [
+                    Container(
+                      height: 20, width: 20,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: checkoutController.addressIndex == index
+                              ? WaddyColors.primary
+                              : WaddyColors.inkMuted,
+                        ),
+                      ),
+                      child: checkoutController.addressIndex == index
+                          ? Container(height: 15, width: 15, decoration: const BoxDecoration(shape: BoxShape.circle, color: WaddyColors.primary))
+                          : const SizedBox(),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(address[index].addressType!.tr, style: robotoMedium.copyWith(fontSize: 13, color: WaddyColors.ink)),
+                          Text(
+                            address[index].address ?? '',
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: robotoRegular.copyWith(fontSize: 12, color: WaddyColors.inkLight),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                primaryColor: Theme.of(context).textTheme.bodyLarge!.color,
               ),
-              dropdownStyle: DropdownStyle(
-                elevation: 10,
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-              ),
-              items: addressList,
-              child: AddressWidget(
-                address: address[checkoutController.addressIndex!],
-                fromAddress: false, fromCheckout: true,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: WaddyColors.primarySurface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delivery_dining_rounded, size: 24, color: WaddyColors.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'deliver_to'.tr,
+                          style: robotoRegular.copyWith(fontSize: 11, color: WaddyColors.inkMuted),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          address.isNotEmpty ? (address[checkoutController.addressIndex!].address ?? 'tap_to_set_address'.tr) : 'tap_to_set_address'.tr,
+                          style: robotoMedium.copyWith(fontSize: 13, color: WaddyColors.ink),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: WaddyColors.inkMuted),
+                ],
               ),
             ),
           ),

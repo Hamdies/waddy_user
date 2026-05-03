@@ -134,7 +134,7 @@ class XpHistoryWidget extends StatelessWidget {
   }
 }
 
-class _HistoryTile extends StatelessWidget {
+class _HistoryTile extends StatefulWidget {
   final XpHistoryItem item;
   final Color neoBlack;
   final Color accentColor;
@@ -148,76 +148,120 @@ class _HistoryTile extends StatelessWidget {
   });
 
   @override
+  State<_HistoryTile> createState() => _HistoryTileState();
+}
+
+class _HistoryTileState extends State<_HistoryTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _popController;
+  late Animation<double> _popScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _popController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _popScale = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _popController, curve: Curves.elasticOut),
+    );
+    // level_up tiles pop in; regular tiles just appear
+    if (widget.item.type == 'level_up') {
+      _popController.forward();
+    } else {
+      _popController.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _popController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isLevelUp = item.type == 'level_up';
+    final isLevelUp = widget.item.type == 'level_up';
+    final sw = MediaQuery.sizeOf(context).width;
+    final isCompact = sw < 360;
+    final iconSize = isCompact ? 32.0 : 36.0;
+    final hPad = isCompact ? 10.0 : 14.0;
+    final vPad = isCompact ? 10.0 : 12.0;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: isLevelUp
-                  ? accentColor.withValues(alpha: 0.15)
-                  : neoBlack.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: Text(item.icon, style: const TextStyle(fontSize: 18)),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Description + time
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.description,
-                  style: robotoMedium.copyWith(
-                    fontSize: 13,
-                    color: neoBlack,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.timeAgo,
-                  style: robotoRegular.copyWith(
-                    fontSize: 11,
-                    color: neoBlack.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // XP badge
-          if (item.xp > 0)
+    return ScaleTransition(
+      scale: _popScale,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+        child: Row(
+          children: [
+            // Icon
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              width: iconSize,
+              height: iconSize,
               decoration: BoxDecoration(
-                color: isLevelUp ? accentColor : tealText.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isLevelUp ? neoBlack : tealText.withValues(alpha: 0.3),
-                  width: isLevelUp ? 1.5 : 1,
-                ),
+                color: isLevelUp
+                    ? widget.accentColor.withValues(alpha: 0.15)
+                    : widget.neoBlack.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(isCompact ? 8 : 10),
               ),
-              child: Text(
-                '+${item.xp} XP',
-                style: robotoBold.copyWith(
-                  fontSize: 12,
-                  color: isLevelUp ? neoBlack : tealText,
-                ),
+              alignment: Alignment.center,
+              child: Text(widget.item.icon, style: TextStyle(fontSize: isCompact ? 16.0 : 18.0)),
+            ),
+
+            SizedBox(width: isCompact ? 8 : 12),
+
+            // Description + time
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.item.description,
+                    style: robotoMedium.copyWith(
+                      fontSize: isCompact ? 12.0 : 13.0,
+                      color: widget.neoBlack,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.item.timeAgo,
+                    style: robotoRegular.copyWith(
+                      fontSize: 11,
+                      color: widget.neoBlack.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+
+            // XP badge
+            if (widget.item.xp > 0)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 7 : 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: isLevelUp ? widget.accentColor : widget.tealText.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isLevelUp ? widget.neoBlack : widget.tealText.withValues(alpha: 0.3),
+                    width: isLevelUp ? 1.5 : 1,
+                  ),
+                ),
+                child: Text(
+                  '+${widget.item.xp} XP',
+                  style: robotoBold.copyWith(
+                    fontSize: isCompact ? 11.0 : 12.0,
+                    color: isLevelUp ? widget.neoBlack : widget.tealText,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

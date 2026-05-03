@@ -166,19 +166,28 @@ class _XpShoppingCounterWidgetState extends State<XpShoppingCounterWidget>
                     ),
                     child: Row(
                       children: [
-                        // Left: sparkle icon
-                        Icon(Icons.auto_awesome, size: 16, color: accentColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          'earn_xp'.tr,
-                          style: robotoRegular.copyWith(fontSize: 11, color: Colors.grey.shade500),
+                        // Left: XP badge — the benefit, front & center
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '+$_displayedXp XP',
+                            style: robotoBold.copyWith(
+                              fontSize: 14,
+                              color: primaryColor,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
                         ),
+                        const SizedBox(width: 10),
+                        Container(width: 1, height: 24, color: Colors.grey.shade200),
+                        const SizedBox(width: 10),
 
-                        // Center: next delivery prize
+                        // Center: what this XP unlocks
                         if (nextReward != null) ...[
-                          const SizedBox(width: 10),
-                          Container(width: 1, height: 24, color: Colors.grey.shade200),
-                          const SizedBox(width: 10),
                           Icon(prizeIcon, size: 16, color: primaryColor),
                           const SizedBox(width: 6),
                           Expanded(
@@ -204,23 +213,6 @@ class _XpShoppingCounterWidgetState extends State<XpShoppingCounterWidget>
                           const Spacer(),
 
                         const SizedBox(width: 8),
-
-                        // Right: XP badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: accentColor.withOpacity(0.18),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '+$_displayedXp XP',
-                            style: robotoBold.copyWith(
-                              fontSize: 14,
-                              color: primaryColor,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),

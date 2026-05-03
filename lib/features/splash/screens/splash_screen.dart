@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -33,17 +36,29 @@ class SplashScreenState extends State<SplashScreen>
   late AnimationController _breatheController;
   late Animation<double> _breatheScale;
 
-  // Phase 3: Logo scale-out reveal (500ms, once)
+  // Phase 3: Logo scale-out reveal (700ms, once)
   late AnimationController _revealController;
   late Animation<double> _logoScaleOut;
   late Animation<double> _logoFadeOut;
+  late Animation<double> _textFadeOut;
   late Animation<double> _bgFadeOut;
 
   // Bottom "product by" fade in
   late Animation<double> _bottomFadeIn;
 
+  // Staggered text entrance
+  late Animation<double> _nameFadeIn;
+  late Animation<Offset> _nameSlide;
+  late Animation<double> _taglineFadeIn;
+  late Animation<Offset> _taglineSlide;
+
+  // Ambient particles (first launch only)
+  late AnimationController _particleController;
+
   bool _readyToReveal = false;
   bool _revealing = false;
+  bool _reduceMotion = false;
+  bool _skipIntro = false;
 
   late final Widget _wImage;
   late final Widget _hsImage;
@@ -61,16 +76,32 @@ class SplashScreenState extends State<SplashScreen>
     );
     _hsImage = Image.asset(
       'assets/image/hs.png',
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       fit: BoxFit.contain,
       gaplessPlayback: true,
     );
 
+    _reduceMotion = WidgetsBinding.instance.accessibilityFeatures.disableAnimations;
+    final prefs = Get.find<SharedPreferences>();
+    _skipIntro = prefs.getBool(AppConstants.splashAnimationShown) ?? false;
+
     _setupAnimations();
     _setupConnectivity();
     _loadData();
-    _introController.forward();
+
+    if (!_skipIntro) {
+      prefs.setBool(AppConstants.splashAnimationShown, true);
+    }
+    if (_reduceMotion) {
+      _introController.value = 1.0;
+    } else if (_skipIntro) {
+      // Returning user: skip intro animation, go straight to breathe
+      _introController.value = 1.0;
+      _breatheController.repeat(reverse: true);
+    } else {
+      _introController.forward();
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       precacheImage(const AssetImage('assets/image/waddy.png'), context);
@@ -79,26 +110,49 @@ class SplashScreenState extends State<SplashScreen>
   }
 
   void _setupAnimations() {
-    // Phase 1: Intro scale in
+    // Phase 1: Intro — instant logo appearance, X-style
     _introController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 720),
+      duration: const Duration(milliseconds: 220),
     );
-    _scaleIn = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _introController, curve: Curves.easeOutBack),
+    _scaleIn = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _introController, curve: Curves.easeOutQuart),
     );
     _bottomFadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _introController,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+        curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
       ),
     );
+    // Name and tagline simply fade in with the logo, no slide
+    _nameFadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _introController,
+        curve: const Interval(0.0, 1.0, curve: Curves.easeOut),
+      ),
+    );
+    _nameSlide = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(_introController);
+    _taglineFadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _introController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
+      ),
+    );
+    _taglineSlide = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(_introController);
     _introController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
+        if (_reduceMotion) return;
         if (_readyToReveal) {
           _startReveal();
         } else {
           _breatheController.repeat(reverse: true);
+          if (!_skipIntro) _particleController.repeat();
         }
       }
     });
@@ -112,27 +166,38 @@ class SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _breatheController, curve: Curves.easeInOut),
     );
 
-    // Phase 3: Logo scale-out reveal
+    // Phase 3: Logo scale-out reveal — X/Twitter style: fast punch outward
     _revealController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 280),
     );
 
-    _logoScaleOut = Tween<double>(begin: 1.0, end: 25.0).animate(
-      CurvedAnimation(parent: _revealController, curve: Curves.easeIn),
+    // Aggressive accelerating zoom — shoots outward like X
+    _logoScaleOut = Tween<double>(begin: 1.0, end: 30.0).animate(
+      CurvedAnimation(parent: _revealController, curve: Curves.easeInQuint),
     );
 
+    // Logo fades in the second half of the zoom
     _logoFadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _revealController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        curve: const Interval(0.3, 0.9, curve: Curves.easeIn),
       ),
     );
 
+    // Text disappears immediately — gone before you notice
+    _textFadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _revealController,
+        curve: const Interval(0.0, 0.25, curve: Curves.easeOut),
+      ),
+    );
+
+    // Background cuts away immediately at reveal start
     _bgFadeOut = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(
         parent: _revealController,
-        curve: const Interval(0.15, 0.7, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
       ),
     );
 
@@ -141,6 +206,12 @@ class SplashScreenState extends State<SplashScreen>
         Get.find<SplashController>().markAnimationComplete();
       }
     });
+
+    // Ambient particles for first-launch delight
+    _particleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    );
   }
 
   void _checkConfigReady() {
@@ -148,7 +219,9 @@ class SplashScreenState extends State<SplashScreen>
     final splashController = Get.find<SplashController>();
     if (splashController.configLoaded && !_readyToReveal) {
       _readyToReveal = true;
-      if (_introController.isCompleted) {
+      if (_reduceMotion) {
+        splashController.markAnimationComplete();
+      } else if (_introController.isCompleted) {
         _startReveal();
       }
     }
@@ -158,6 +231,7 @@ class SplashScreenState extends State<SplashScreen>
     if (_revealing) return;
     _revealing = true;
     _breatheController.stop();
+    _particleController.stop();
     _revealController.forward();
   }
 
@@ -175,7 +249,7 @@ class SplashScreenState extends State<SplashScreen>
           ScaffoldMessenger.of(Get.context!).showSnackBar(
             SnackBar(
               backgroundColor: isConnected ? Colors.green : Colors.red,
-              duration: Duration(seconds: isConnected ? 3 : 6000),
+              duration: Duration(seconds: isConnected ? 3 : 86400),
               content: Text(
                 isConnected ? 'connected'.tr : 'no_connection'.tr,
                 textAlign: TextAlign.center,
@@ -210,6 +284,7 @@ class SplashScreenState extends State<SplashScreen>
     _introController.dispose();
     _breatheController.dispose();
     _revealController.dispose();
+    _particleController.dispose();
     super.dispose();
   }
 
@@ -261,6 +336,24 @@ class SplashScreenState extends State<SplashScreen>
                 ),
               ),
 
+              // Layer 2.5: Ambient particles (first launch only)
+              if (!_reduceMotion && !_skipIntro)
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: AnimatedBuilder(
+                      animation: _particleController,
+                      builder: (context, _) {
+                        if (!_breatheController.isAnimating || _revealing) {
+                          return const SizedBox.shrink();
+                        }
+                        return CustomPaint(
+                          painter: _ParticlePainter(t: _particleController.value),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
               // Layer 3: Center logo + app name
               Center(
                 child: RepaintBoundary(
@@ -303,52 +396,86 @@ class SplashScreenState extends State<SplashScreen>
         ? _breatheScale.value
         : 1.0;
 
-    double logoScale;
-    double masterOpacity;
+    // Base scale: intro scale × breathe (or × logo bloom during reveal)
+    final double logoScale = _revealing
+        ? introScale * _logoScaleOut.value
+        : introScale * breathe;
 
-    if (_revealing) {
-      logoScale = introScale * _logoScaleOut.value;
-      masterOpacity = _logoFadeOut.value.clamp(0.0, 1.0);
-    } else {
-      logoScale = introScale * breathe;
-      masterOpacity = 1.0;
+    // Logo fades as it blooms; text fades independently and earlier
+    final double logoOpacity = _revealing
+        ? _logoFadeOut.value.clamp(0.0, 1.0)
+        : 1.0;
+    final double textOpacity = _revealing
+        ? _textFadeOut.value.clamp(0.0, 1.0)
+        : 1.0;
+
+    // Once both are fully transparent, remove from tree
+    if (logoOpacity <= 0.0 && textOpacity <= 0.0) return const SizedBox.shrink();
+
+    Widget logo = Transform.scale(
+      scale: logoScale.clamp(0.0, 50.0),
+      child: SizedBox(
+        width: 100,
+        height: 100,
+        child: _wImage,
+      ),
+    );
+    if (logoOpacity < 1.0) {
+      logo = Opacity(opacity: logoOpacity, child: logo);
     }
 
-    if (masterOpacity <= 0.0) return const SizedBox.shrink();
-
-    Widget content = Transform.scale(
-      scale: logoScale.clamp(0.0, 50.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // W logo
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: _wImage,
+    Widget nameWidget = SlideTransition(
+      position: _nameSlide,
+      child: FadeTransition(
+        opacity: _nameFadeIn,
+        child: const Text(
+          'Waddi',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
           ),
-
-          const SizedBox(height: 16),
-
-          // App name
-          const Text(
-            'Waddi',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
 
-    if (masterOpacity < 1.0) {
-      content = Opacity(opacity: masterOpacity, child: content);
+    Widget taglineWidget = SlideTransition(
+      position: _taglineSlide,
+      child: FadeTransition(
+        opacity: _taglineFadeIn,
+        child: const Text(
+          'Fresh groceries, delivered',
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            fontWeight: FontWeight.w300,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
+
+    Widget textGroup = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 16),
+        nameWidget,
+        const SizedBox(height: 8),
+        taglineWidget,
+      ],
+    );
+    if (textOpacity < 1.0) {
+      textGroup = Opacity(opacity: textOpacity, child: textGroup);
     }
 
-    return content;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        logo,
+        textGroup,
+      ],
+    );
   }
 
   Widget _buildBottomBranding() {
@@ -369,7 +496,7 @@ class SplashScreenState extends State<SplashScreen>
         Text(
           'A product by',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
+            color: Colors.white.withOpacity(0.6),
             fontSize: 12,
             fontWeight: FontWeight.w400,
           ),
@@ -404,4 +531,66 @@ class SplashScreenState extends State<SplashScreen>
 
     return branding;
   }
+}
+
+class _ParticleData {
+  final double phase;
+  final double startAngle;
+  final double orbitRadius;
+  final double size;
+
+  const _ParticleData({
+    required this.phase,
+    required this.startAngle,
+    required this.orbitRadius,
+    required this.size,
+  });
+}
+
+class _ParticlePainter extends CustomPainter {
+  final double t;
+
+  _ParticlePainter({required this.t});
+
+  static const _particles = [
+    _ParticleData(phase: 0.00, startAngle: 0.52, orbitRadius: 55, size: 2.5),
+    _ParticleData(phase: 0.17, startAngle: 1.57, orbitRadius: 68, size: 2.0),
+    _ParticleData(phase: 0.33, startAngle: 2.79, orbitRadius: 48, size: 3.0),
+    _ParticleData(phase: 0.50, startAngle: 3.67, orbitRadius: 62, size: 2.0),
+    _ParticleData(phase: 0.66, startAngle: 4.71, orbitRadius: 52, size: 2.5),
+    _ParticleData(phase: 0.83, startAngle: 5.76, orbitRadius: 72, size: 2.0),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    // Position relative to where the logo lives (above the text)
+    final cy = size.height / 2 - 40;
+
+    for (final p in _particles) {
+      final animT = (t + p.phase) % 1.0;
+      // Fade in and out smoothly via a sine curve over one full cycle
+      final opacity = math.sin(animT * math.pi) * 0.45;
+      if (opacity <= 0.01) continue;
+
+      // Drift upward; sway gently side to side
+      final yDrift = -70.0 * animT;
+      final xDrift = math.sin(p.startAngle + animT * math.pi) * 12.0;
+
+      // Spawn from just outside the logo boundary
+      final startX = cx + math.cos(p.startAngle) * p.orbitRadius * 0.4;
+      final startY = cy + math.sin(p.startAngle) * p.orbitRadius * 0.4;
+
+      canvas.drawCircle(
+        Offset(startX + xDrift, startY + yDrift),
+        p.size,
+        Paint()
+          ..color = Colors.white.withOpacity(opacity.clamp(0.0, 0.45))
+          ..style = PaintingStyle.fill,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter old) => old.t != t;
 }

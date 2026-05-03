@@ -15,7 +15,8 @@ class WaddyColors {
   // Brand core
   static const Color primary        = Color(0xFF134E4A); // deep teal
   static const Color primaryLight   = Color(0xFF1D706A); // teal 400
-  static const Color primarySurface = Color(0xFFE6F4F3); // teal 50 — tinted bg
+  static const Color primarySurface  = Color(0xFFE6F4F3); // teal 50 — tinted bg
+  static const Color onPrimaryMuted  = Color(0xFF7ECAC3); // muted teal for text on primary bg
 
   // Accent mint (success, active states)
   static const Color mint           = Color(0xFF1EF2A0); // electric mint
@@ -48,6 +49,15 @@ class WaddyColors {
   static const Color errorSurface   = Color(0xFFFFEEEE);
   static const Color success        = Color(0xFF1EF2A0); // reuse mint
   static const Color warning        = Color(0xFFFFBE0B); // reuse amber
+
+  // Energetic hero gradients — playful & warm
+  static const Color heroMint       = Color(0xFFE2FFF3); // fresh mint bg
+  static const Color heroWarm       = Color(0xFFFFF3E6); // subtle peach warmth
+  static const Color heroLavender   = Color(0xFFF3EEFF); // soft lavender accent
+
+  // Progress / gamification
+  static const Color progressTrack  = Color(0xFFE4ECEA); // neutral track
+  static const Color progressFill   = Color(0xFF1EF2A0); // mint fill
 
   // Shadows — hue-shifted to teal, not black
   static const Color shadowTeal     = Color(0x1A134E4A); // 10% primary

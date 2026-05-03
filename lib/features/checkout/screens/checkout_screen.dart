@@ -36,6 +36,7 @@ import 'package:waddy_app/features/checkout/widgets/top_section.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:waddy_app/features/checkout/helpers/checkout_calculation_helper.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<CartModel?>? cartList;
@@ -216,10 +217,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
     final Color primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: WaddyColors.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: WaddyColors.surface,
         elevation: 0.5,
+        surfaceTintColor: WaddyColors.surface,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_rounded, size: 20, color: primaryColor),
           onPressed: () => Get.back(),
@@ -227,7 +229,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         centerTitle: true,
         title: Text(
           'checkout'.tr,
-          style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+          style: robotoBold.copyWith(fontSize: 18, color: WaddyColors.ink),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: WaddyColors.divider),
         ),
       ),
       endDrawer: const MenuDrawer(),
@@ -1014,8 +1020,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
+            color: WaddyColors.shadowDeep,
+            blurRadius: 12,
             offset: const Offset(0, -2),
           ),
         ],

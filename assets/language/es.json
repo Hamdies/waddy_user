@@ -144,6 +144,9 @@
   "campaigns": "Campañas",
   "all": "Todo",
   "off": "APAGADO",
+  "daily_deals": "Ofertas\nDiarias",
+  "up_to": "Hasta",
+  "different_brands_different_cuisines_everyday": "diferentes marcas, diferentes cocinas, todos los días",
   "enjoy": "Disfrutar",
   "off_on_all_categories": "desactivado en todas las categorías",
   "set_location": "Establecer ubicación",
@@ -1565,5 +1568,10 @@
   "this_delivery_fee_includes_all_the_applicable_charges_on_delivery": "Esta tarifa de entrega incluye todos los cargos aplicables.",
   "no_favourites_yet": "Sin favoritos aún \n¡es hora de mostrar amor! ❤️",
   "no_favourite_stores_yet": "Sin tiendas favoritas aún \n¡es hora de mostrar amor! ❤️",
-  "browse_items": "Explorar artículos"
+  "browse_items": "Explorar artículos",
+  "track": "Seguir",
+  "being_prepared": "En preparación",
+  "top_spots": "Mejores lugares",
+  "fastest_in_maadii": "Los más rápidos en Maadii",
+  "top_restaurants_subtitle": "Mejores restaurantes · Ofertas diarias"
 }

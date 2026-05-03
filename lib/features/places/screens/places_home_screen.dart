@@ -9,6 +9,8 @@ import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/helper/route_helper.dart';
 
 // Warm off-white page tint — makes white cards feel elevated
 const _kPageBg = Color(0xFFF5F4F1);
@@ -48,22 +50,37 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
               const SizedBox(height: 8),
 
               // ── Header ──
-              _buildHeaderBar(context, neon, primary),
-              const SizedBox(height: 14),
+              _buildHeaderBar(context, neon, primary, placesController),
+              const SizedBox(height: 8),
 
               // ── Area filter tabs ──
-            
-
-              // ── Divider ──
+              const AreaFilterTabs(),
 
               // ── The Podium ──
               const PodiumSection(),
 
               // ── Divider ──
               _divider(),
- Padding(
+              Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions. paddingSizeDefault, vertical: 8),
+                    horizontal: Dimensions.paddingSizeDefault),
+                child: Row(
+                  children: [
+                    Text(
+                      'TOP VOTERS',
+                      style: robotoBlack.copyWith(
+                        fontSize: 11,
+                        color: Colors.black45,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault, vertical: 0),
                 child: const ChillersSection(),
               ),
 
@@ -78,7 +95,7 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
               // ── Top 3 Chillers (social proof, secondary) ──
              
 
-              const SizedBox(height: 120),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
             ],
           );
         },
@@ -90,12 +107,36 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   Widget _divider() => Container(
         height: 1.5,
         color: Colors.black,
-        margin: const EdgeInsets.symmetric(
-            vertical: 10,
-            horizontal: Dimensions.paddingSizeDefault),
+        margin: const EdgeInsets.symmetric(vertical: 10),
       );
 
-  Widget _buildHeaderBar(BuildContext context, Color neon, Color primary) {
+  Widget _buildHeaderBar(BuildContext context, Color neon, Color primary,
+      PlacesController placesController) {
+    // Compute badge label from selected zone
+    String badgeLabel = 'Maadi';
+    final selId = placesController.selectedZoneId;
+    if (selId != null) {
+      final zones = placesController.zones;
+      if (zones != null) {
+        for (final z in zones) {
+          if (z.id == selId) {
+            badgeLabel = z.displayName ?? z.name ?? 'Area';
+            break;
+          }
+        }
+      }
+    }
+
+    // Read live loyalty points safely
+    String points = '—';
+    try {
+      points = Get.find<ProfileController>()
+              .userInfoModel
+              ?.loyaltyPoint
+              ?.toString() ??
+          '—';
+    } catch (_) {}
+
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: Dimensions.paddingSizeDefault, vertical: 4),
@@ -141,24 +182,65 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
                           fontSize: 26, height: 1, color: Colors.black),
                     ),
                     const SizedBox(width: 6),
-                    // "Maadi" badge — neubrutalism: no radius, black border
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color:  neon,
-                        border: Border.all(color: Colors.black, width: 2),
-                        boxShadow: const [
-                          BoxShadow(
-                              color:      Colors.black,
-                              offset:     Offset(2, 2),
-                              blurRadius: 0),
-                        ],
+                    // Area badge — tappable filter trigger
+                    GestureDetector(
+                      onTap: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero),
+                        builder: (_) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                    bottom: BorderSide(
+                                        color: Colors.black, width: 1.5)),
+                              ),
+                              child: Text(
+                                'SELECT AREA',
+                                style: robotoBlack.copyWith(
+                                    fontSize: 13, letterSpacing: 1.4),
+                              ),
+                            ),
+                            const AreaFilterTabs(),
+                            SizedBox(
+                                height: MediaQuery.of(context).padding.bottom +
+                                    16),
+                          ],
+                        ),
                       ),
-                      child: Text(
-                        'Maadi',
-                        style: robotoBlack.copyWith(
-                            fontSize: 13, color: Colors.black),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:  neon,
+                          border: Border.all(color: Colors.black, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                                color:      Colors.black,
+                                offset:     Offset(2, 2),
+                                blurRadius: 0),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              badgeLabel,
+                              style: robotoBlack.copyWith(
+                                  fontSize: 13, color: Colors.black),
+                            ),
+                            const SizedBox(width: 3),
+                            const Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 14, color: Colors.black),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -176,31 +258,34 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
             ),
           ),
 
-          // ── Coin display — neubrutalism: no radius, black border ──
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color:     Colors.white,
-              border:    Border.all(color: Colors.black, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                    color:      Colors.black,
-                    offset:     Offset(2, 2),
-                    blurRadius: 0),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset('assets/image/waddy_coin.png',
-                    width: 20, height: 20),
-                const SizedBox(width: 6),
-                Text(
-                  '761',
-                  style: robotoBlack.copyWith(
-                      fontSize: 16, color: primary),
-                ),
-              ],
+          // ── Coin display — live loyalty points, tappable ──
+          GestureDetector(
+            onTap: () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color:     Colors.white,
+                border:    Border.all(color: Colors.black, width: 2),
+                boxShadow: const [
+                  BoxShadow(
+                      color:      Colors.black,
+                      offset:     Offset(2, 2),
+                      blurRadius: 0),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/image/waddy_coin.png',
+                      width: 20, height: 20),
+                  const SizedBox(width: 6),
+                  Text(
+                    points,
+                    style: robotoBlack.copyWith(
+                        fontSize: 16, color: primary),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

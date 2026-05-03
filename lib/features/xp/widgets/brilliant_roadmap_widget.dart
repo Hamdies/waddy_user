@@ -100,13 +100,16 @@ class _LevelCard extends StatelessWidget {
     final hasPrizes = level.prizes.isNotEmpty;
     final hasUnclaimedPrizes =
         hasPrizes && level.prizes.any((p) => !p.isClaimed);
+    final sw = MediaQuery.sizeOf(context).width;
+    final isCompact = sw < 360;
+    final cardPad = isCompact ? 10.0 : 14.0;
 
     return Column(
       children: [
         GestureDetector(
           onTap: () => _onTap(context),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(cardPad),
             decoration: BoxDecoration(
               color: isCurrent
                   ? Colors.white
@@ -173,11 +176,7 @@ class _LevelCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      if (isCurrent) ...[
-                        _buildMiniProgressBar(),
-                        const SizedBox(height: 4),
-                      ],
-                      if (hasPrizes && !isLocked)
+                        if (hasPrizes && !isLocked)
                         _buildPrizePreview(hasUnclaimedPrizes)
                       else if (hasPrizes && isLocked)
                         Row(
@@ -219,19 +218,24 @@ class _LevelCard extends StatelessWidget {
         ),
         if (!isLast)
           Container(
-            width: 2,
-            height: 10,
+            width: 3,
+            height: 12,
             margin: const EdgeInsets.only(left: 32),
-            color: isCompleted || isCurrent
-                ? teal.withValues(alpha: 0.25)
-                : neoBlack.withValues(alpha: 0.06),
+            decoration: BoxDecoration(
+              color: isCompleted || isCurrent
+                  ? teal.withValues(alpha: 0.35)
+                  : neoBlack.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
       ],
     );
   }
 
   Widget _buildBadge(bool isCurrent, bool isCompleted, bool isLocked) {
-    final double size = isCurrent ? 48 : 40;
+    final sw = Get.context != null ? MediaQuery.sizeOf(Get.context!).width : 390.0;
+    final isCompact = sw < 360;
+    final double size = isCurrent ? (isCompact ? 40.0 : 48.0) : (isCompact ? 34.0 : 40.0);
 
     if (isCurrent && level.badgeImage != null && level.badgeImage!.isNotEmpty) {
       return Container(
@@ -318,59 +322,8 @@ class _LevelCard extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: robotoBold.copyWith(fontSize: 10, color: textColor),
+        style: robotoBold.copyWith(fontSize: 11, color: textColor),
       ),
-    );
-  }
-
-  Widget _buildMiniProgressBar() {
-    final xpRequired = level.xpRequired;
-    final progress = xpRequired > 0
-        ? (currentXp / xpRequired).clamp(0.0, 1.0)
-        : 0.0;
-
-    return Column(
-      children: [
-        Stack(
-          children: [
-            Container(
-              height: 6,
-              decoration: BoxDecoration(
-                color: neoBlack.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            FractionallySizedBox(
-              widthFactor: progress > 0.05 ? progress : 0.05,
-              child: Container(
-                height: 6,
-                decoration: BoxDecoration(
-                  color: neon,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '$currentXp / $xpRequired XP',
-              style: robotoMedium.copyWith(fontSize: 10, color: teal),
-            ),
-            if (currentXp < xpRequired)
-              Text(
-                '${xpRequired - currentXp} ${'to_go'.tr}',
-                style: robotoRegular.copyWith(
-                  fontSize: 10,
-                  color: neoBlack.withValues(alpha: 0.4),
-                ),
-              ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -406,7 +359,7 @@ class _LevelCard extends StatelessWidget {
             ),
             child: Text(
               'claim'.tr,
-              style: robotoBold.copyWith(fontSize: 9, color: teal),
+              style: robotoBold.copyWith(fontSize: 11, color: teal),
             ),
           )
         else

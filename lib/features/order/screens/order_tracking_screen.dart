@@ -15,8 +15,6 @@ import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
-import 'package:waddy_app/features/order/domain/services/order_tracking_stream_service.dart';
-import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
@@ -60,11 +58,8 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
   bool showChatPermission = true;
   bool isHovered = false;
 
-  // SSE and animation support
-  OrderTrackingStreamService? _streamService;
-  StreamSubscription<TrackingStreamData>? _streamSubscription;
+  // Polling and animation support
   final MarkerAnimator _markerAnimator = MarkerAnimator();
-  bool _useSSE = true; // Start with SSE, fallback to polling if fails
   ETAResult? _currentETA;
 
   void _loadData() async {
@@ -83,107 +78,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
       contactNumber: widget.contactNumber,
     );
 
-    // Try SSE first, fallback to polling if fails
-    if (_useSSE) {
-      _startSSETracking();
-    } else {
-      _timerTrackOrder();
-    }
-  }
-
-  /// Start SSE-based real-time tracking
-  void _startSSETracking() {
-    final status = Get.find<OrderController>().trackModel?.orderStatus;
-    if (status == 'delivered' || status == 'failed' || status == 'canceled') {
-      return;
-    }
-
-    _streamService?.disconnect();
-    _streamService = OrderTrackingStreamService();
-
-    _streamSubscription = _streamService!
-        .connect(
-          orderId: widget.orderID!,
-          token: Get.find<AuthController>().getUserToken(),
-          contactNumber: widget.contactNumber,
-          guestId: null,
-        )
-        .listen(
-          (data) => _handleSSEUpdate(data),
-          onError: (error) {
-            debugPrint('SSE Error: $error - Falling back to polling');
-            _fallbackToPolling();
-          },
-        );
-  }
-
-  /// Handle incoming SSE update
-  void _handleSSEUpdate(TrackingStreamData data) {
-    final orderController = Get.find<OrderController>();
-
-    // Update order status in controller
-    if (orderController.trackModel != null) {
-      orderController.trackModel!.orderStatus = data.status;
-      orderController.trackModel!.subStatus = data.subStatus;
-
-      // Update estimated delivery time if recalculated by backend
-      if (data.estimatedDeliveryAt != null) {
-        orderController.trackModel!.estimatedDeliveryAt = data.estimatedDeliveryAt;
-      }
-
-      if (data.deliveryMan != null &&
-          orderController.trackModel!.deliveryMan != null) {
-        orderController.trackModel!.deliveryMan!.lat =
-            data.deliveryMan!.lat.toString();
-        orderController.trackModel!.deliveryMan!.lng =
-            data.deliveryMan!.lng.toString();
-      }
-
-      orderController.update();
-    }
-
-    // Animate marker to new position
-    if (data.deliveryMan != null) {
-      final newPosition = LatLng(data.deliveryMan!.lat, data.deliveryMan!.lng);
-
-      _markerAnimator.animateTo(
-        target: newPosition,
-        onUpdate: (position, rotation) {
-          _updateDeliveryManMarker(position, rotation);
-        },
-      );
-
-      // Calculate ETA
-      _updateETA(data.deliveryMan!.lat, data.deliveryMan!.lng);
-    }
-
-    // Update Live Activity
-    final trackModel = orderController.trackModel;
-    if (trackModel != null) {
-      final orderId = trackModel.id ?? int.tryParse(widget.orderID ?? '') ?? 0;
-      if (LiveActivityHelper.isTerminalStatus(data.status)) {
-        LiveActivityService.endActivity(orderId);
-      } else {
-        LiveActivityService.updateActivity(
-          orderId: orderId,
-          status: data.status,
-          subStatus: data.subStatus,
-          eta: trackModel.estimatedDelivery,
-          deliveryManName: trackModel.deliveryMan != null
-              ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'.trim()
-              : null,
-          storeName: trackModel.store?.name,
-          orderType: trackModel.orderType ?? 'delivery',
-        );
-      }
-    }
-
-    // Check if order completed
-    if (data.status == 'delivered' ||
-        data.status == 'failed' ||
-        data.status == 'canceled') {
-      _streamService?.disconnect();
-    }
+    _timerTrackOrder();
   }
 
   /// Update ETA based on delivery man position
@@ -327,14 +222,6 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     );
   }
 
-  /// Fallback to polling-based tracking
-  void _fallbackToPolling() {
-    _useSSE = false;
-    _streamService?.disconnect();
-    _streamSubscription?.cancel();
-    _timerTrackOrder();
-  }
-
   _timerTrackOrder() {
     if (Get.find<OrderController>().trackModel?.orderStatus != 'delivered' &&
         Get.find<OrderController>().trackModel?.orderStatus != 'failed' &&
@@ -398,19 +285,16 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
       _timerTrackOrder();
     } else if (state == AppLifecycleState.paused) {
       _timer?.cancel();
-      _controller?.dispose();
     }
   }
 
   @override
   void dispose() {
-    super.dispose();
     _controller?.dispose();
     _timer?.cancel();
-    _streamSubscription?.cancel();
-    _streamService?.disconnect();
     _markerAnimator.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void onEntered(bool isHovered) {
@@ -549,12 +433,16 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
                                   orderStatus: track.orderStatus,
                                   subStatus: track.subStatus,
                                   takeAway: track.orderType == 'take_away',
-                                  eta: _currentETA?.displayText ?? track.estimatedDelivery,
+                                  eta:
+                                      _currentETA?.displayText ??
+                                      track.estimatedDelivery,
                                   deliveryManName: track.deliveryMan?.fName,
                                 ),
 
                                 if (_shouldShowDeliveryInstructions(track))
-                                  DeliveryInstructionTrackingWidget(order: track),
+                                  DeliveryInstructionTrackingWidget(
+                                    order: track,
+                                  ),
                               ],
                             ),
                           ),
@@ -688,11 +576,18 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   bool _shouldShowDeliveryInstructions(OrderModel track) {
     final status = track.orderStatus;
-    final hasInstructions = (track.deliveryInstruction != null && track.deliveryInstruction!.isNotEmpty) ||
-        (track.voiceInstructionFullUrl != null && track.voiceInstructionFullUrl!.isNotEmpty);
-    final isActiveOrder = status == 'pending' || status == 'accepted' ||
-        status == 'confirmed' || status == 'processing' ||
-        status == 'handover' || status == 'picked_up';
+    final hasInstructions =
+        (track.deliveryInstruction != null &&
+            track.deliveryInstruction!.isNotEmpty) ||
+        (track.voiceInstructionFullUrl != null &&
+            track.voiceInstructionFullUrl!.isNotEmpty);
+    final isActiveOrder =
+        status == 'pending' ||
+        status == 'accepted' ||
+        status == 'confirmed' ||
+        status == 'processing' ||
+        status == 'handover' ||
+        status == 'picked_up';
     return hasInstructions && isActiveOrder && track.orderType != 'take_away';
   }
 

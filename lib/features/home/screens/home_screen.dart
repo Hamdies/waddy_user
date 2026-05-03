@@ -133,12 +133,7 @@ class HomeScreen extends StatefulWidget {
       Get.find<BannerController>().getFeaturedBanner();
       await Get.find<StoreController>().getFeaturedStoreList();
       Get.find<StoreController>().getRecommendedStoreList();
-      Get.find<ItemController>().getPopularItemList(
-        offset: '1',
-        firstTimeCategoryLoad: true,
-      );
 
-      // Fetch recommended items for all featured stores
       _fetchFeaturedStoresRecommendedItems();
 
       if (AuthHelper.isLoggedIn()) {
@@ -195,16 +190,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     HomeScreen.loadData(false).then((value) {
+      if (!mounted) return;
       Get.find<SplashController>().getReferBottomSheetStatus();
 
-      if ((Get.find<ProfileController>().userInfoModel?.isValidForDiscount ??
+      final showReferral = (Get.find<ProfileController>()
+                  .userInfoModel
+                  ?.isValidForDiscount ??
               false) &&
-          Get.find<SplashController>().showReferBottomSheet) {
-        _showReferBottomSheet();
-      }
+          Get.find<SplashController>().showReferBottomSheet;
 
-      // Show welcome letter dialog only once
-      _checkAndShowWelcomeLetter();
+      if (showReferral) {
+        _showReferBottomSheet();
+      } else {
+        _checkAndShowWelcomeLetter();
+      }
     });
 
     if (!ResponsiveHelper.isWeb()) {
@@ -276,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
           isScrollControlled: true,
           useRootNavigator: true,
           context: Get.context!,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(Get.context!).colorScheme.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(Dimensions.radiusExtraLarge),
@@ -284,9 +283,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           builder: (context) {
+            final screenH = MediaQuery.of(context).size.height;
             return ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxHeight: (screenH * 0.8).clamp(420.0, screenH),
               ),
               child: const ReferBottomSheetWidget(),
             );
@@ -398,7 +398,9 @@ class _HomeScreenState extends State<HomeScreen> {
             key: _headerKey,
             pinned: true,
             delegate: SliverDelegate(
-              height: 100,
+              height:
+                  100 *
+                  MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3),
               callback: (val) => searchBgShow = val,
               child: const AllStoreFilterWidget(),
             ),
@@ -439,7 +441,10 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (storeController) {
           return Padding(
             padding: EdgeInsets.only(
-              bottom: ResponsiveHelper.isDesktop(Get.context!) ? 0 : 100,
+              bottom:
+                  ResponsiveHelper.isDesktop(Get.context!)
+                      ? 0
+                      : 80 + MediaQuery.of(Get.context!).padding.bottom,
             ),
             child: PaginatedListView(
               scrollController: _scrollController,
@@ -476,10 +481,13 @@ class _HomeScreenState extends State<HomeScreen> {
         homeController.cashBackOfferList != null &&
         homeController.cashBackOfferList!.isNotEmpty &&
         homeController.showFavButton) {
+      final ctx = Get.context!;
+      final isRtl = Directionality.of(ctx) == TextDirection.rtl;
+      final safeBottom = MediaQuery.of(ctx).viewPadding.bottom;
       return Padding(
-        padding: EdgeInsets.only(
-          bottom: 50.0,
-          right: ResponsiveHelper.isDesktop(Get.context!) ? 50 : 0,
+        padding: EdgeInsetsDirectional.only(
+          bottom: safeBottom + 16,
+          end: ResponsiveHelper.isDesktop(ctx) ? 50 : (isRtl ? 8 : 0),
         ),
         child: InkWell(
           onTap: () => Get.dialog(const CashBackDialogWidget()),

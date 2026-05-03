@@ -3,7 +3,10 @@
     "allow": [
       "Bash(head -5 grep -n \"lottie\\\\|rive\\\\|flip_card\\\\|scratch\" /Users/mac/Waddi/waddi_user/pubspec.yaml)",
       "Read(//Users/mac/.claude/skills/critique/reference/**)",
-      "Read(//Users/mac/.agents/skills/critique/reference/**)"
+      "Read(//Users/mac/.agents/skills/critique/reference/**)",
+      "Read(//Users/mac/.claude/plugins/cache/rtd/design-for-ai/2.0.0/skills/design-for-ai/references/**)",
+      "Read(//Users/mac/.claude/skills/frontend-design/**)",
+      "Read(//Users/mac/.agents/skills/frontend-design/**)"
     ]
   }
 }

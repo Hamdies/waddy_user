@@ -242,6 +242,24 @@ class _PodiumRunnerCardState extends State<PodiumRunnerCard>
 
                       // Vote button — full width
                       GestureDetector(
+                        onTap: () => Get.toNamed(RouteHelper.getPlaceDetailsRoute(place.id)),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'VIEW →',
+                            style: robotoMedium.copyWith(
+                              fontSize:      8,
+                              color:         Colors.black38,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // Vote button
+                      GestureDetector(
                         onTap: _onVote,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 180),

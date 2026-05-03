@@ -185,7 +185,9 @@ class _PodiumWinnerCardState extends State<PodiumWinnerCard>
                           Row(
                             children: [
                               Text(
-                                '🔥 Top voted this week',
+                                _localVotesCount > 0
+                                    ? '🔥 Top voted this week'
+                                    : '✨ Be first to vote',
                                 style: robotoBold.copyWith(
                                   fontSize: 12,
                                   color:    neon,
@@ -195,14 +197,33 @@ class _PodiumWinnerCardState extends State<PodiumWinnerCard>
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            '$heat% vibe · $_localVotesCount ${_localVotesCount == 1 ? 'vote' : 'votes'}',
+                            _localVotesCount > 0
+                                ? '$heat% positive · $_localVotesCount ${_localVotesCount == 1 ? 'vote' : 'votes'}'
+                                : '$heat% positive',
                             style: robotoMedium.copyWith(
                               fontSize: 12,
                               color:    Colors.white70,
                             ),
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 10),
+
+                          // ── View place link ──
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                'VIEW PLACE →',
+                                style: robotoMedium.copyWith(
+                                  fontSize:      10,
+                                  color:         Colors.white54,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
 
                           // ── Votes pill + CTA row ──
                           Row(

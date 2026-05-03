@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -33,6 +32,11 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _shakeController;
+  late AnimationController _checkmarkController;
+  late Animation<double> _checkmarkScale;
+  late AnimationController _slideController;
+  late Animation<Offset> _slideAnimation;
+  final List<AnimationController> _otpBounceControllers = [];
 
   int _currentStep =
       0; // 0: Phone Input, 1: OTP Verification, 2: Name Input, 3: Privacy (Hide Phone), 4: Location
@@ -62,6 +66,7 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
   int _seconds = 30;
 
   StreamController<ErrorAnimationType>? errorController;
+  String? _otpError;
 
   @override
   void initState() {
@@ -85,6 +90,38 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
+
+    // Checkmark spring pop when phone is valid
+    _checkmarkController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _checkmarkScale = CurvedAnimation(
+      parent: _checkmarkController,
+      curve: Curves.elasticOut,
+    );
+
+    // Slide for step transitions (directional feel)
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 320),
+      vsync: this,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.06, 0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    _slideController.forward();
+
+    // Per-OTP-box bounce controllers
+    for (int i = 0; i < 6; i++) {
+      _otpBounceControllers.add(AnimationController(
+        duration: const Duration(milliseconds: 300),
+        vsync: this,
+      ));
+    }
 
     _countryDialCode =
         CountryCode.fromCountryCode(
@@ -111,6 +148,11 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
   void dispose() {
     _fadeController.dispose();
     _shakeController.dispose();
+    _checkmarkController.dispose();
+    _slideController.dispose();
+    for (var c in _otpBounceControllers) {
+      c.dispose();
+    }
     _phoneController.dispose();
     _otpController.dispose();
     _nameController.dispose();
@@ -302,7 +344,9 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                 controller.clear();
               }
               _otpFocusNodes[0].requestFocus();
-              showCustomSnackBar(value.message);
+              setState(() {
+                _otpError = value.message;
+              });
             }
           });
     }
@@ -544,13 +588,11 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
       setState(() {
         _currentStep = newStep;
       });
+      _slideController.forward(from: 0);
       _fadeController.forward().then((_) {
-        // Auto-fetch location when entering step 4 (location), after animation completes
         if (newStep == 4 && mounted) {
           Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              _useCurrentLocation();
-            }
+            if (mounted) _useCurrentLocation();
           });
         }
       });
@@ -576,55 +618,22 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFFDFDFD),
-        body: Stack(
+        body: Column(
           children: [
-            // Top Left - Primary
+            // Teal brand header zone
+            _buildBrandHeader(),
 
-            // Top Right - Secondary
-
-            // Bottom Left - Secondary
-            Positioned(
-              bottom: -100,
-              left: -100,
-              child: _buildGradientBlob(
-                Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.2),
-              ),
-            ),
-            // Bottom Right - Primary
-            Positioned(
-              bottom: -100,
-              right: -100,
-              child: _buildGradientBlob(
-                Theme.of(context).primaryColor.withValues(alpha: 0.2),
-              ),
-            ),
-
-            // Blur effect to soften them further
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: Container(
-                  color: const Color(0xFFFDFDFD).withValues(alpha: 0.1),
-                ),
-              ),
-            ),
-
-            SafeArea(
-              child: Column(
-                children: [
-                  // Progress indicator removed
-
-                  // Content with fade transition
-                  Expanded(
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: _buildStepContent(),
-                      ),
-                    ),
+            // Content with fade + slide transition
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: _buildStepContent(),
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -633,109 +642,73 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
     );
   }
 
-  Widget _buildGradientBlob(Color color) {
+  Widget _buildBrandHeader() {
+    final steps = ['phone'.tr, 'verify'.tr, 'profile'.tr, 'privacy'.tr, 'location'.tr];
+
     return Container(
-      width: 300,
-      height: 300,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-          stops: const [0.0, 1.0],
-        ),
-      ),
-    );
-  }
+      color: const Color(0xFFFDFDFD),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Step dots row
+              Row(
+                children: List.generate(steps.length, (index) {
+                  final isCompleted = index < _currentStep;
+                  final isCurrent = index == _currentStep;
 
-  Widget _buildProgressIndicator() {
-    final steps = ['Phone', 'Verify', 'Profile', 'Privacy', 'Location'];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Step labels
-          // Row(
-          //   children: List.generate(steps.length, (index) {
-          //     final isCurrent = _currentStep == index;
-          //     final isCompleted = _currentStep > index;
-
-          //     return Expanded(
-          //       child: AnimatedDefaultTextStyle(
-          //         duration: const Duration(milliseconds: 300),
-          //         curve: Curves.easeOut,
-          //         style: TextStyle(
-          //           fontSize: isCurrent ? 13 : 11,
-          //           fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-          //           color:
-          //               isCurrent
-          //                   ? Theme.of(context).primaryColor
-          //                   : isCompleted
-          //                   ? Theme.of(context).secondaryHeaderColor
-          //                   : const Color(0xFFBDBDBD),
-          //         ),
-          //         child: Text(steps[index], textAlign: TextAlign.center),
-          //       ),
-          //     );
-          //   }),
-          // ),
-          const SizedBox(height: 12),
-          // Progress bar
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final progressWidth =
-                  constraints.maxWidth * ((_currentStep + 1) / steps.length);
-
-              return Container(
-                height: 20,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Stack(
-                  children: [
-                    // Animated progress fill
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 600),
-                      curve: Curves.easeOutCubic,
-                      width: progressWidth,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Theme.of(context).secondaryHeaderColor,
-                            Theme.of(
-                              context,
-                            ).secondaryHeaderColor.withValues(alpha: 0.7),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).secondaryHeaderColor.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: index < steps.length - 1 ? 6 : 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Step name
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
+                              color: isCurrent
+                                  ? Theme.of(context).primaryColor
+                                  : isCompleted
+                                      ? Theme.of(context).primaryColor.withValues(alpha: 0.4)
+                                      : const Color(0xFFCCCCCC),
+                              letterSpacing: 0.3,
+                            ),
+                            child: Text(
+                              steps[index].toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Segment bar
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeOutCubic,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color: isCurrent
+                                  ? Theme.of(context).primaryColor
+                                  : isCompleted
+                                      ? Theme.of(context).secondaryHeaderColor
+                                      : const Color(0xFFE8E8E8),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    // Step markers
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    //   children: List.generate(steps.length, (index) {
-                    //     return _buildStepMarker(index);
-                    //   }),
-                    // ),
-                  ],
-                ),
-              );
-            },
+                  );
+                }),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -785,16 +758,13 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
             ),
             SizedBox(height: 50),
             // Title
-            SizedBox(
-              width: double.infinity,
-              child: Text(
-                'auth_enter_your_phone'.tr,
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).primaryColor,
-                ),
+            Text(
+              'auth_enter_your_phone'.tr,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).primaryColor,
+                height: 1.2,
               ),
             ),
 
@@ -903,10 +873,14 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                             ),
                             inputFormatters: [EgyptianPhoneFormatter()],
                             onChanged: (value) {
-                              // Haptic feedback on 10th digit
                               String raw = value.replaceAll(' ', '');
-                              if (raw.length == 10) {
+                              final wasValid = raw.length > 10;
+                              final nowValid = raw.length == 10 && raw.startsWith('1');
+                              if (nowValid && !wasValid) {
                                 HapticFeedback.lightImpact();
+                                _checkmarkController.forward(from: 0);
+                              } else if (!nowValid) {
+                                _checkmarkController.reverse();
                               }
                               setState(() {});
                             },
@@ -914,16 +888,16 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                         ),
                       ),
 
-                      // Checkmark if valid
+                      // Checkmark — spring pop when valid
                       if (isValid)
                         Padding(
                           padding: const EdgeInsets.only(right: 16),
-                          child: FadeTransition(
-                            opacity: const AlwaysStoppedAnimation(1.0),
+                          child: ScaleTransition(
+                            scale: _checkmarkScale,
                             child: Icon(
                               Icons.check_circle,
                               color: Theme.of(context).secondaryHeaderColor,
-                              size: 20,
+                              size: 22,
                             ),
                           ),
                         ),
@@ -1052,89 +1026,100 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
                     padding: EdgeInsets.only(right: index < 5 ? 10 : 0),
                     child: GestureDetector(
                       onTap: () => _otpFocusNodes[index].requestFocus(),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: boxWidth,
-                        height: boxHeight,
-                        decoration: BoxDecoration(
-                          color:
-                              isFocused
-                                  ? Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.08)
-                                  : Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(10),
-                          border:
-                              isFocused
-                                  ? Border.all(
-                                    color: Theme.of(context).primaryColor,
+                      child: AnimatedBuilder(
+                        animation: _otpBounceControllers[index],
+                        builder: (context, child) {
+                          final t = _otpBounceControllers[index].value;
+                          final bounce = hasValue
+                              ? (1.0 + 0.15 * (t < 0.5 ? t * 2 : (1 - t) * 2))
+                              : 1.0;
+                          return Transform.scale(scale: bounce, child: child);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: boxWidth,
+                          height: boxHeight,
+                          decoration: BoxDecoration(
+                            color: hasValue
+                                ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
+                                : isFocused
+                                    ? Theme.of(context).primaryColor.withValues(alpha: 0.06)
+                                    : Theme.of(context).primaryColor.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(10),
+                            border: hasValue
+                                ? Border.all(
+                                    color: Theme.of(context).secondaryHeaderColor,
                                     width: 1.5,
                                   )
-                                  : null,
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Hidden TextField for input
-                            Opacity(
-                              opacity: 0,
-                              child: SizedBox(
-                                width: boxWidth,
-                                height: boxHeight,
-                                child: TextField(
-                                  controller: _otpControllers[index],
-                                  focusNode: _otpFocusNodes[index],
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 1,
-                                  decoration: const InputDecoration(
-                                    counterText: '',
-                                    border: InputBorder.none,
+                                : isFocused
+                                    ? Border.all(
+                                        color: Theme.of(context).primaryColor,
+                                        width: 1.5,
+                                      )
+                                    : null,
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Hidden TextField for input
+                              Opacity(
+                                opacity: 0,
+                                child: SizedBox(
+                                  width: boxWidth,
+                                  height: boxHeight,
+                                  child: TextField(
+                                    controller: _otpControllers[index],
+                                    focusNode: _otpFocusNodes[index],
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 1,
+                                    decoration: const InputDecoration(
+                                      counterText: '',
+                                      border: InputBorder.none,
+                                    ),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    onChanged: (value) {
+                                      if (value.isNotEmpty) {
+                                        _otpBounceControllers[index].forward(from: 0);
+                                        if (index < 5) {
+                                          _otpFocusNodes[index + 1].requestFocus();
+                                        }
+                                      } else if (index > 0) {
+                                        _otpFocusNodes[index - 1].requestFocus();
+                                      }
+                                      final otp = _otpControllers.map((c) => c.text).join();
+                                      if (otp.length == 6) {
+                                        _verifyOTP();
+                                      }
+                                      setState(() {
+                                        _otpError = null;
+                                      });
+                                    },
                                   ),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  onChanged: (value) {
-                                    if (value.isNotEmpty && index < 5) {
-                                      _otpFocusNodes[index + 1].requestFocus();
-                                    } else if (value.isEmpty && index > 0) {
-                                      _otpFocusNodes[index - 1].requestFocus();
-                                    }
-
-                                    String otp =
-                                        _otpControllers
-                                            .map((c) => c.text)
-                                            .join();
-                                    if (otp.length == 6) {
-                                      _verifyOTP();
-                                    }
-
-                                    setState(() {});
-                                  },
                                 ),
                               ),
-                            ),
-                            // Visible digit
-                            if (hasValue)
-                              Text(
-                                _otpControllers[index].text,
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).primaryColor,
+                              // Visible digit
+                              if (hasValue)
+                                Text(
+                                  _otpControllers[index].text,
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                )
+                              else if (isFocused)
+                                Container(
+                                  width: 2,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    borderRadius: BorderRadius.circular(1),
+                                  ),
                                 ),
-                              )
-                            else if (isFocused)
-                              Container(
-                                width: 2,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor,
-                                  borderRadius: BorderRadius.circular(1),
-                                ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1145,7 +1130,29 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+
+        // Inline OTP error
+        if (_otpError != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 15),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _otpError!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.red,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         // "Don't see it? Retry in X seconds" / Resend link
         _seconds > 0
@@ -1335,9 +1342,9 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Center(
-          child: Lottie.asset('assets/animation/waddy_anim.json', width: 300),
+          child: Lottie.asset('assets/animation/dnd_feature.json', width: 260),
         ),
-        const SizedBox(height: 50),
+        const SizedBox(height: 24),
 
         // Title
         Text(
@@ -1350,7 +1357,7 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         // Subtitle
         Text(
@@ -1359,15 +1366,6 @@ class _UnifiedAuthScreenState extends State<UnifiedAuthScreen>
             fontSize: 16,
             color: Theme.of(context).primaryColor.withValues(alpha: 0.6),
             height: 1.5,
-          ),
-        ),
-
-        const SizedBox(height: 40),
-
-        // Privacy illustration/icon
-        Center(
-          child: Container(
-            child: Lottie.asset("assets/animation/dnd_feature.json"),
           ),
         ),
 
