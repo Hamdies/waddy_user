@@ -1,19 +1,56 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/common/enums/data_source_enum.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:waddy_app/features/places/domain/services/places_analytics.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/cache_ttl_helper.dart';
 import 'package:waddy_app/features/places/domain/models/place_category_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_banner_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_vote_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_winner_model.dart';
+import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
 import 'package:waddy_app/features/places/domain/services/places_service_interface.dart';
+import 'package:waddy_app/features/places/domain/spots_stage.dart';
+import 'package:waddy_app/features/places/widgets/vote_switch_dialog.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 
 class PlacesController extends GetxController implements GetxService {
   final PlacesServiceInterface placesServiceInterface;
 
   PlacesController({required this.placesServiceInterface});
+
+  // ─── Rebuild scopes ───
+  // `update()` with no argument rebuilds every GetBuilder watching this
+  // controller — on the Spots home that is six sections, including the
+  // podium, on every one of the seven init responses. These ids let each
+  // fetch repaint only the section it actually changed.
+  static const String idLeaderboard = 'places_leaderboard';
+  static const String idTopVoters = 'places_top_voters';
+  static const String idPlaces = 'places_list';
+  static const String idWinners = 'places_winners';
+  static const String idMasthead = 'places_masthead';
+  static const String idFilters = 'places_filters';
+  static const String idDetails = 'places_details';
+
+  /// Every home section at once — for the init/refresh cycle, where the
+  /// loading flags of all of them flip together.
+  static const List<String> idAllHome = [
+    idLeaderboard,
+    idTopVoters,
+    idPlaces,
+    idWinners,
+    idMasthead,
+    idFilters,
+  ];
 
   // ─── Categories ───
   List<PlaceCategory>? _categories;
@@ -63,12 +100,36 @@ class PlacesController extends GetxController implements GetxService {
   bool _isDetailsLoading = false;
   bool get isDetailsLoading => _isDetailsLoading;
 
+  /// HTTP status of the last failed details fetch, so the screen can name the
+  /// actual cause instead of blaming the network for a deleted spot.
+  int? _detailsErrorStatus;
+  int? get detailsErrorStatus => _detailsErrorStatus;
+
   // ─── Reviews ───
   PlaceReviewList? _reviewList;
   List<PlaceReview>? get reviews => _reviewList?.reviews;
   int? get totalReviews => _reviewList?.totalSize;
+
+  /// The last review page the server actually served. Derived page numbers
+  /// (`length ~/ perPage + 1`) stall the moment de-duplication drops an item:
+  /// the count stops advancing, the same page is requested forever, and
+  /// "load more" becomes a no-op button.
+  int _reviewsPage = 1;
+  int get nextReviewsPage => _reviewsPage + 1;
+  bool get hasMoreReviews {
+    final total = _reviewList?.totalSize ?? 0;
+    return (_reviewList?.reviews.length ?? 0) < total;
+  }
+
   bool _isReviewsLoading = false;
   bool get isReviewsLoading => _isReviewsLoading;
+
+  /// Separate from [isReviewsLoading], which only ever covers the first page.
+  /// Without this the "load more" row had no way to show progress — its spinner
+  /// branch was unreachable — and nothing stopped a double tap from appending
+  /// the same page twice.
+  bool _isLoadingMoreReviews = false;
+  bool get isLoadingMoreReviews => _isLoadingMoreReviews;
 
   // ─── Voting ───
   VoteStatus? _voteStatus;
@@ -106,6 +167,25 @@ class PlacesController extends GetxController implements GetxService {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
+  bool _hasInitError = false;
+  bool get hasInitError => _hasInitError;
+
+  /// TTL stamp key for the cached home payload. Spots data moves on a weekly
+  /// voting cycle, but votes land continuously, so a short window keeps the
+  /// board honest while still making a relaunch instant.
+  static const String _homeCacheKey = 'places_home';
+  static const Duration homeCacheTtl = Duration(minutes: 3);
+
+  /// How many of the init calls threw on the last cycle. Drives the "nothing
+  /// arrived at all" error card without letting one bad endpoint hide six
+  /// good ones.
+  int _initFailures = 0;
+
+  /// Whether anything renderable arrived — used to choose between the full
+  /// error card (nothing to show) and stale data with an inline retry.
+  bool get hasAnyHomeData =>
+      _leaderboardList != null || _placeList != null || _topVotersList != null;
+
   // ─── Top Voters ───
   TopVoterList? _topVotersList;
   List<TopVoter>? get topVoters => _topVotersList?.voters;
@@ -137,54 +217,354 @@ class PlacesController extends GetxController implements GetxService {
     }
   }
 
+  // ─── Race push topics ───
+  int? _subscribedZoneTopic;
+
+  /// Everyone on the Spots screen hears about overall lead changes
+  Future<void> subscribeRaceTopics() async {
+    try {
+      await FirebaseMessaging.instance.subscribeToTopic('places_race_all');
+    } catch (e) {
+      debugPrint('race topic subscribe failed: $e');
+    }
+  }
+
+  /// Zone topic follows the selected zone filter
+  Future<void> _updateZoneRaceTopic(int? zoneId) async {
+    if (_subscribedZoneTopic == zoneId) return;
+    try {
+      if (_subscribedZoneTopic != null) {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(
+          'places_race_zone_$_subscribedZoneTopic',
+        );
+      }
+      if (zoneId != null) {
+        await FirebaseMessaging.instance.subscribeToTopic(
+          'places_race_zone_$zoneId',
+        );
+      }
+      _subscribedZoneTopic = zoneId;
+    } catch (e) {
+      debugPrint('zone race topic update failed: $e');
+    }
+  }
+
+  // ─── Weekly Champion (the news) ───
+  PlaceWinner? _latestWinner;
+  PlaceWinner? get latestWinner => _latestWinner;
+  bool _isWinnerLoading = false;
+  bool get isWinnerLoading => _isWinnerLoading;
+
+  List<PlaceWinner>? _winnersHistory;
+  List<PlaceWinner>? get winnersHistory => _winnersHistory;
+  bool _isWinnersHistoryLoading = false;
+  bool get isWinnersHistoryLoading => _isWinnersHistoryLoading;
+
+  /// Last closed week's champion (zone-scoped when a zone is selected)
+  Future<void> getLatestWinner({
+    bool reload = false,
+    bool notify = true,
+  }) async {
+    if (_latestWinner != null && !reload) return;
+    _isWinnerLoading = true;
+    if (notify) update();
+
+    _latestWinner = await placesServiceInterface.getLatestWinner(
+      zoneId: _selectedZoneId,
+    );
+    _isWinnerLoading = false;
+    if (notify) update([idWinners, idMasthead]);
+  }
+
+  /// Hall of fame — past weekly champions
+  Future<void> getWinnersHistory({bool reload = false}) async {
+    if (_winnersHistory != null && !reload) return;
+    _isWinnersHistoryLoading = true;
+    update();
+
+    _winnersHistory = await placesServiceInterface.getWinners(
+      zoneId: _selectedZoneId,
+    );
+    _isWinnersHistoryLoading = false;
+    update();
+  }
+
+  // ─── Recent Winners (people, not venues) ───
+  // Kept separate from both winnersHistory (venues) and topVoters (a ranking):
+  // one list mixing them would imply voting more improves your chances, which
+  // is exactly the impression the random draw exists to avoid.
+  List<RecentWinner>? _recentWinners;
+  List<RecentWinner>? get recentWinners => _recentWinners;
+  bool _isRecentWinnersLoading = false;
+  bool get isRecentWinnersLoading => _isRecentWinnersLoading;
+
+  Future<void> getRecentWinners({
+    bool reload = false,
+    bool notify = true,
+  }) async {
+    if (_recentWinners != null && !reload) return;
+    if (notify) {
+      _isRecentWinnersLoading = true;
+      update();
+    }
+
+    _recentWinners = await placesServiceInterface.getRecentWinners(limit: 10);
+    _isRecentWinnersLoading = false;
+    if (notify) update([idWinners]);
+  }
+
+  // ─── My Prizes (voter draw vouchers) ───
+  PlacePrizeList? _prizes;
+  List<PlacePrize> get activePrizes => _prizes?.active ?? const [];
+  List<PlacePrize> get prizeHistory => _prizes?.history ?? const [];
+  bool _isPrizesLoading = false;
+  bool get isPrizesLoading => _isPrizesLoading;
+  bool get hasPrizesLoaded => _prizes != null;
+
+  /// The live voucher the masthead badge and the win-card point at.
+  PlacePrize? get featuredPrize =>
+      activePrizes.isNotEmpty ? activePrizes.first : null;
+
+  Future<void> getMyPrizes({bool reload = false, bool notify = true}) async {
+    if (_prizes != null && !reload) return;
+    if (notify) {
+      _isPrizesLoading = true;
+      update();
+    }
+
+    _prizes = await placesServiceInterface.getMyPrizes();
+    _isPrizesLoading = false;
+    await _syncCelebratedPrizes();
+    update([idMasthead]);
+  }
+
+  // ─── Win-card celebration gate ───
+  // The shareable card is offered once per prize. Persisted so a relaunch
+  // doesn't re-congratulate someone for a voucher they already shared.
+  static const String _celebratedPrizesKey = 'spots_celebrated_prizes';
+  Set<int> _celebratedPrizeIds = {};
+
+  Future<void> _syncCelebratedPrizes() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _celebratedPrizeIds =
+          (prefs.getStringList(_celebratedPrizesKey) ?? const [])
+              .map(int.tryParse)
+              .whereType<int>()
+              .toSet();
+    } catch (e) {
+      debugPrint('⚠️ [PLACES] celebrated prizes read error: $e');
+    }
+  }
+
+  /// A live prize the user hasn't been congratulated for yet, if any.
+  PlacePrize? get uncelebratedPrize {
+    for (final prize in activePrizes) {
+      if (!_celebratedPrizeIds.contains(prize.id)) return prize;
+    }
+    return null;
+  }
+
+  Future<void> markPrizeCelebrated(int prizeId) async {
+    if (!_celebratedPrizeIds.add(prizeId)) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _celebratedPrizesKey,
+        _celebratedPrizeIds.map((id) => id.toString()).toList(),
+      );
+    } catch (e) {
+      debugPrint('⚠️ [PLACES] celebrated prizes write error: $e');
+    }
+    update();
+  }
+
+  // ─── Live Standings (race mode) ───
+  // When no spot has hit the official podium threshold yet, we still rank
+  // everything with votes this week and show movement like a stock ticker.
+  Map<int, int> _rankDeltas =
+      {}; // placeId -> (previousRank - currentRank); + means climbed
+  Set<int> _newEntries = {}; // placeIds that just appeared on the board
+  Map<int, int>? _lastComputedRanks; // in-session snapshot, per selected zone
+
+  /// Current ranking by this week's votes — official leaderboard when it
+  /// exists, otherwise derived from the places list (votes > 0), top 5.
+  List<Place> get liveStandings {
+    final source =
+        (leaderboard != null && leaderboard!.isNotEmpty)
+            ? leaderboard!
+            : (places ?? []).where((p) => p.votesCount > 0).toList();
+    final list = List<Place>.from(source);
+    list.sort((a, b) {
+      final byVotes = b.votesCount.compareTo(a.votesCount);
+      return byVotes != 0 ? byVotes : b.rating.compareTo(a.rating);
+    });
+    return list.take(5).toList();
+  }
+
+  /// Total votes cast across this week's board — the one number that says how
+  /// far the round has actually been played.
+  int get roundHeat =>
+      liveStandings.fold<int>(0, (sum, p) => sum + p.votesCount);
+
+  /// Which sections the home screen has earned the right to draw.
+  ///
+  /// Every section on Spots home reads this instead of deciding for itself,
+  /// so the hero and the ticker can no longer disagree about whether the race
+  /// has started.
+  SpotsStage get stage => SpotsStage.fromHeat(roundHeat);
+
+  /// Competition rank for a place, ties shared — 1, 2, 2, 4 rather than
+  /// 1, 2, 3, 4.
+  ///
+  /// Position in a sorted list is not rank. Two spots on one vote each are
+  /// tied, and printing them as `01` and `02` states an order the votes do not
+  /// support; on a cold board that is most of the screen's credibility.
+  /// Null when the place is not on the board.
+  int? rankOf(int placeId) {
+    final standings = liveStandings;
+    final index = standings.indexWhere((p) => p.id == placeId);
+    if (index < 0) return null;
+    final votes = standings[index].votesCount;
+    // Rank is one more than the number of places strictly ahead of it.
+    return standings.where((p) => p.votesCount > votes).length + 1;
+  }
+
+  /// True when at least one other place on the board shares this one's vote
+  /// count — the caller renders "T2" rather than "02".
+  bool isTiedAt(int placeId) {
+    final standings = liveStandings;
+    final index = standings.indexWhere((p) => p.id == placeId);
+    if (index < 0) return false;
+    final votes = standings[index].votesCount;
+    return standings.where((p) => p.votesCount == votes).length > 1;
+  }
+
+  /// How many places are in this week's race in total — the size of the field
+  /// the home card is showing the top two of.
+  ///
+  /// Null unless the backend reports a total, and deliberately so: neither
+  /// list length is a population. The leaderboard is requested with `limit: 3`
+  /// and [getPlaces] is paginated, so counting either under-reports — telling
+  /// a user "3 places" when twelve are competing is worse than showing no
+  /// number at all. Callers must handle null by saying nothing about size.
+  int? get contenderTotal =>
+      _leaderboardList?.totalSize ?? _placeList?.totalSize;
+
+  /// Rank movement since last look: >0 climbed, <0 dropped, 0 held, null unknown
+  int? rankDeltaFor(int placeId) => _rankDeltas[placeId];
+
+  /// True when the place wasn't on the board last time the user looked
+  bool isNewOnBoard(int placeId) => _newEntries.contains(placeId);
+
+  String get _standingsSnapshotKey {
+    // ISO week, matching the backend voting period (e.g. 2026-W28).
+    // UTC-normalized dates so DST can't skew the day arithmetic.
+    final local = DateTime.now();
+    final today = DateTime.utc(local.year, local.month, local.day);
+    final thursday = today.add(Duration(days: 4 - today.weekday));
+    final firstDay = DateTime.utc(thursday.year, 1, 1);
+    final week = (thursday.difference(firstDay).inDays ~/ 7) + 1;
+    final period = '${thursday.year}-W${week.toString().padLeft(2, '0')}';
+    return 'places_rank_snapshot_${period}_${_selectedZoneId ?? 'all'}';
+  }
+
+  /// Recompute ▲/▼ movement vs the last seen ranking and persist the new one
+  Future<void> refreshRankDeltas() async {
+    final standings = liveStandings;
+    if (standings.isEmpty) return;
+    final current = <int, int>{
+      for (int i = 0; i < standings.length; i++) standings[i].id: i + 1,
+    };
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      Map<int, int>? previous = _lastComputedRanks;
+      if (previous == null) {
+        final raw = prefs.getString(_standingsSnapshotKey);
+        if (raw != null) {
+          previous = (jsonDecode(raw) as Map<String, dynamic>).map(
+            (k, v) => MapEntry(int.parse(k), v as int),
+          );
+        }
+      }
+      _rankDeltas = {};
+      _newEntries = {};
+      current.forEach((id, rank) {
+        final prevRank = previous?[id];
+        if (prevRank == null) {
+          _newEntries.add(id);
+        } else {
+          _rankDeltas[id] = prevRank - rank;
+        }
+      });
+      _lastComputedRanks = current;
+      await prefs.setString(
+        _standingsSnapshotKey,
+        jsonEncode(current.map((k, v) => MapEntry(k.toString(), v))),
+      );
+    } catch (e) {
+      debugPrint('⚠️ [PLACES] refreshRankDeltas error: $e');
+    }
+    update([idLeaderboard, idTopVoters]);
+  }
+
   // ─── Zones ───
   List<PlaceZone>? _zones;
   List<PlaceZone>? get zones => _zones;
   bool _isZonesLoading = false;
   bool get isZonesLoading => _isZonesLoading;
 
+  /// Display name of the currently selected zone (null when "ALL")
+  String? get selectedZoneName {
+    if (_selectedZoneId == null || _zones == null) return null;
+    for (final z in _zones!) {
+      if (z.id == _selectedZoneId) return z.displayName ?? z.name;
+    }
+    return null;
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // FETCH METHODS
   // ═══════════════════════════════════════════════════════════════
 
   /// Fetch zones for filter chips
-  Future<void> getZones({bool reload = false, bool notify = true}) async {
+  Future<void> getZones({
+    bool reload = false,
+    bool notify = true,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
     if (_zones != null && !reload) return;
     if (notify) {
       _isZonesLoading = true;
-      update();
+      update([idFilters]);
     }
 
-    debugPrint('📡 [PLACES] getZones() - Calling API...');
-    _zones = await placesServiceInterface.getZones();
-    debugPrint('📥 [PLACES] getZones() - Response: ${_zones?.length ?? 0} zones');
-    if (_zones != null && _zones!.isNotEmpty) {
-      debugPrint('   Zones: ${_zones!.map((z) => z.displayName ?? z.name).join(', ')}');
-    } else {
-      debugPrint('   ⚠️ Zones response is null or empty!');
+    _zones = await placesServiceInterface.getZones(source: source);
+    if (_zones == null || _zones!.isEmpty) {
+      debugPrint('⚠️ [PLACES] zones response is null or empty');
     }
     _isZonesLoading = false;
-    update();
+    if (notify) update([idFilters]);
   }
 
   /// Fetch categories
-  Future<void> getCategories({bool reload = false, bool notify = true}) async {
+  Future<void> getCategories({
+    bool reload = false,
+    bool notify = true,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
     if (_categories != null && !reload) return;
     if (notify) {
       _isCategoriesLoading = true;
-      update();
+      update([idFilters]);
     }
 
-    debugPrint('📡 [PLACES] getCategories() - Calling API...');
-    _categories = await placesServiceInterface.getCategories();
-    debugPrint('📥 [PLACES] getCategories() - Response: ${_categories?.length ?? 0} categories');
-    if (_categories != null && _categories!.isNotEmpty) {
-      debugPrint('   Categories: ${_categories!.map((c) => c.name).join(', ')}');
-    } else {
-      debugPrint('   ⚠️ Categories response is null or empty!');
+    _categories = await placesServiceInterface.getCategories(source: source);
+    if (_categories == null || _categories!.isEmpty) {
+      debugPrint('⚠️ [PLACES] categories response is null or empty');
     }
     _isCategoriesLoading = false;
-    update();
+    if (notify) update([idFilters]);
   }
 
   /// Fetch places with filters
@@ -199,10 +579,19 @@ class PlacesController extends GetxController implements GetxService {
     int offset = 1,
     bool reload = false,
     bool notify = true,
+    DataSourceEnum source = DataSourceEnum.client,
   }) async {
     if (offset == 1 || reload) {
       _isPlacesLoading = true;
-      if (notify) update();
+      if (notify) update([idPlaces]);
+    }
+
+    // 'distance' sort needs the user's location — use the saved address
+    final effectiveSort = sort ?? _sortBy;
+    if (effectiveSort == 'distance' && lat == null && lng == null) {
+      final address = AddressHelper.getUserAddressFromSharedPref();
+      lat = double.tryParse(address?.latitude ?? '');
+      lng = double.tryParse(address?.longitude ?? '');
     }
 
     PlaceList? result = await placesServiceInterface.getPlaces(
@@ -210,10 +599,11 @@ class PlacesController extends GetxController implements GetxService {
       search: search ?? _searchQuery,
       lat: lat,
       lng: lng,
-      sort: sort ?? _sortBy,
+      sort: effectiveSort,
       tagIds: tagIds ?? (_selectedTagIds.isNotEmpty ? _selectedTagIds : null),
       zoneId: zoneId ?? _selectedZoneId,
       offset: offset,
+      source: source,
     );
 
     if (result != null) {
@@ -229,7 +619,7 @@ class PlacesController extends GetxController implements GetxService {
     }
 
     _isPlacesLoading = false;
-    update();
+    if (notify) update([idPlaces]);
   }
 
   /// Fetch leaderboard
@@ -239,54 +629,47 @@ class PlacesController extends GetxController implements GetxService {
     int? limit,
     bool reload = false,
     bool notify = true,
+    DataSourceEnum source = DataSourceEnum.client,
   }) async {
     if (_leaderboardList != null && !reload && period == null) return;
-    if (notify) {
-      _isLeaderboardLoading = true;
-      update();
-    } else {
-      _isLeaderboardLoading = true;
-    }
+    _isLeaderboardLoading = true;
+    if (notify) update([idLeaderboard]);
 
-    debugPrint('📡 [PLACES] getLeaderboard() - Calling API (zoneId: ${zoneId ?? _selectedZoneId}, limit: $limit)...');
     _leaderboardList = await placesServiceInterface.getLeaderboard(
       period: period,
       zoneId: zoneId ?? _selectedZoneId,
       limit: limit,
+      source: source,
     );
-    debugPrint('📥 [PLACES] getLeaderboard() - Response: ${_leaderboardList?.places.length ?? 0} places');
-    if (_leaderboardList != null && _leaderboardList!.places.isNotEmpty) {
-      debugPrint('   Places: ${_leaderboardList!.places.map((p) => '${p.title}(${p.votesCount} votes)').join(', ')}');
-    } else {
-      debugPrint('   ⚠️ Leaderboard response is null or empty!');
+    if (_leaderboardList == null || _leaderboardList!.places.isEmpty) {
+      debugPrint('⚠️ [PLACES] leaderboard response is null or empty');
     }
     _isLeaderboardLoading = false;
-    update();
+    if (notify) update([idLeaderboard]);
   }
 
   /// Fetch top voters
-  Future<void> getTopVoters({int? zoneId, int limit = 10, bool reload = false, bool notify = true}) async {
+  Future<void> getTopVoters({
+    int? zoneId,
+    int limit = 10,
+    bool reload = false,
+    bool notify = true,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
     if (_topVotersList != null && !reload) return;
-    if (notify) {
-      _isTopVotersLoading = true;
-      update();
-    } else {
-      _isTopVotersLoading = true;
-    }
+    _isTopVotersLoading = true;
+    if (notify) update([idTopVoters]);
 
-    debugPrint('📡 [PLACES] getTopVoters() - Calling API (zoneId: ${zoneId ?? _selectedZoneId}, limit: $limit)...');
     _topVotersList = await placesServiceInterface.getTopVoters(
       zoneId: zoneId ?? _selectedZoneId,
       limit: limit,
+      source: source,
     );
-    debugPrint('📥 [PLACES] getTopVoters() - Response: ${_topVotersList?.voters.length ?? 0} voters');
-    if (_topVotersList != null && _topVotersList!.voters.isNotEmpty) {
-      debugPrint('   Voters: ${_topVotersList!.voters.map((v) => '${v.name}(${v.votesCount} votes)').join(', ')}');
-    } else {
-      debugPrint('   ⚠️ TopVoters response is null or empty!');
+    if (_topVotersList == null || _topVotersList!.voters.isEmpty) {
+      debugPrint('⚠️ [PLACES] top-voters response is null or empty');
     }
     _isTopVotersLoading = false;
-    update();
+    if (notify) update([idTopVoters]);
   }
 
   /// Fetch trending places
@@ -320,7 +703,10 @@ class PlacesController extends GetxController implements GetxService {
   }
 
   /// Fetch featured banners
-  Future<void> getFeaturedBanners({bool reload = false, bool notify = true}) async {
+  Future<void> getFeaturedBanners({
+    bool reload = false,
+    bool notify = true,
+  }) async {
     if (_banners != null && !reload) return;
     if (notify) {
       _isBannersLoading = true;
@@ -335,22 +721,73 @@ class PlacesController extends GetxController implements GetxService {
   }
 
   /// Fetch place details
-  Future<void> getPlaceDetails(int placeId) async {
-    _isDetailsLoading = true;
-    _placeDetails = null;
-    update();
+  /// Adopt the list's copy of a spot as the details payload, so the screen has
+  /// something to draw on its first frame.
+  ///
+  /// Marked partial: the list payload has no gallery, opening hours or links,
+  /// so the screen still shows those sections as loading and the fetch in
+  /// flight replaces this wholesale when it lands.
+  void seedPlaceDetails(Place place) {
+    if (_placeDetails?.id == place.id) return;
+    _placeDetails = place;
+    _isDetailsPartial = true;
+    _detailsErrorStatus = null;
+  }
 
-    _placeDetails = await placesServiceInterface.getPlaceDetails(placeId);
+  /// Whether [placeDetails] is the abbreviated list copy rather than a full
+  /// fetch. Sections that only exist in the full payload use this to show a
+  /// placeholder instead of an empty state that would read as "no photos".
+  bool _isDetailsPartial = false;
+  bool get isDetailsPartial => _isDetailsPartial;
+
+  Future<void> getPlaceDetails(int placeId) async {
+    PlacesAnalytics.log(
+      'details_view',
+      placeId: placeId,
+      zoneId: _selectedZoneId,
+      oncePerSession: true,
+    );
+    _isDetailsLoading = true;
+    _detailsErrorStatus = null;
+    // Only clear when switching places — keeps the screen stable on refresh
+    if (_placeDetails != null && _placeDetails!.id != placeId) {
+      _placeDetails = null;
+      _isDetailsPartial = false;
+    }
+    update([idDetails]);
+
+    final result = await placesServiceInterface.getPlaceDetails(placeId);
+    if (result.place != null) {
+      _placeDetails = result.place;
+      _isDetailsPartial = false;
+    } else {
+      // A seeded spot stays on screen when the top-up fails — the user is
+      // still looking at real data, so an error card would be a regression.
+      if (!_isDetailsPartial) _detailsErrorStatus = result.statusCode;
+    }
     _isDetailsLoading = false;
-    update();
+    update([idDetails]);
   }
 
   /// Fetch paginated reviews for a place
-  Future<void> getPlaceReviews(int placeId, {int offset = 1, bool reload = false}) async {
-    if (offset == 1 || reload) {
+  Future<void> getPlaceReviews(
+    int placeId, {
+    int offset = 1,
+    bool reload = false,
+  }) async {
+    final bool isFirstPage = offset == 1 || reload;
+
+    // Drop a concurrent load-more: without this a double tap fires two requests
+    // for the same page and both get appended.
+    if (!isFirstPage && _isLoadingMoreReviews) return;
+
+    if (isFirstPage) {
       _isReviewsLoading = true;
-      update();
+      _reviewsPage = 1;
+    } else {
+      _isLoadingMoreReviews = true;
     }
+    update([idDetails]);
 
     PlaceReviewList? result = await placesServiceInterface.getPlaceReviews(
       placeId,
@@ -358,11 +795,21 @@ class PlacesController extends GetxController implements GetxService {
     );
 
     if (result != null) {
-      if (offset == 1 || reload) {
+      _reviewsPage = result.offset ?? offset;
+      if (isFirstPage) {
         _reviewList = result;
       } else {
+        // De-duplicate by id. The page cursor is derived from how many reviews
+        // are already loaded, so a partial page (a review deleted or flagged
+        // between fetches) makes the next request repeat a page — appending it
+        // blind would show the same review twice.
+        final merged = [...(_reviewList?.reviews ?? <PlaceReview>[])];
+        final seen = merged.map((r) => r.id).toSet();
+        for (final review in result.reviews) {
+          if (seen.add(review.id)) merged.add(review);
+        }
         _reviewList = PlaceReviewList(
-          reviews: [...(_reviewList?.reviews ?? []), ...result.reviews],
+          reviews: merged,
           totalSize: result.totalSize,
           offset: result.offset,
         );
@@ -370,7 +817,8 @@ class PlacesController extends GetxController implements GetxService {
     }
 
     _isReviewsLoading = false;
-    update();
+    _isLoadingMoreReviews = false;
+    update([idDetails]);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -380,11 +828,20 @@ class PlacesController extends GetxController implements GetxService {
   /// Check vote status
   Future<void> getVoteStatus(int placeId) async {
     _voteStatus = await placesServiceInterface.getVoteStatus(placeId);
-    update();
+    update([idDetails]);
   }
 
-  /// Submit vote (now supports photo)
-  Future<bool> submitVote(int placeId, int rating, {String? comment, String? imagePath}) async {
+  /// Submit vote (now supports photo).
+  /// One vote per user per week — a 409 means the vote is parked on another
+  /// spot; we confirm with the user and retry with switchVote.
+  Future<bool> submitVote(
+    int placeId,
+    int? rating, {
+    String? comment,
+    String? imagePath,
+    bool switchVote = false,
+    bool silent = false,
+  }) async {
     _isVoting = true;
     update();
 
@@ -393,13 +850,44 @@ class PlacesController extends GetxController implements GetxService {
       rating,
       comment,
       imagePath: imagePath,
+      switchVote: switchVote,
     );
     _isVoting = false;
 
+    if (response.statusCode == 409 &&
+        response.body?['code'] == 'already_voted_this_week') {
+      update();
+      final currentTitle =
+          response.body?['current_vote']?['place_title']?.toString() ?? '';
+      final confirmed = await showVoteSwitchDialog(currentTitle);
+      if (confirmed == true) {
+        return submitVote(
+          placeId,
+          rating,
+          comment: comment,
+          imagePath: imagePath,
+          switchVote: true,
+          silent: silent,
+        );
+      }
+      return false;
+    }
+
     if (response.statusCode == 200) {
-      showCustomSnackBar('vote_submitted_successfully'.tr, isError: false);
+      // A silent vote is announced by the undo snackbar the caller shows;
+      // stacking a second toast on top of it just covers the undo action.
+      if (!silent) {
+        showCustomSnackBar('vote_submitted_successfully'.tr, isError: false);
+      }
       await getPlaceDetails(placeId);
       await getVoteStatus(placeId);
+      // Refresh rankings so podium/top voters reflect the new vote,
+      // then recompute ▲/▼ movement once fresh data is in
+      Future.wait([
+        getLeaderboard(limit: 3, reload: true, notify: false),
+        getTopVoters(reload: true, notify: false),
+        getPlaces(reload: true, notify: false),
+      ]).then((_) => refreshRankDeltas());
       update();
       return true;
     } else {
@@ -412,8 +900,67 @@ class PlacesController extends GetxController implements GetxService {
     }
   }
 
+  /// Submit or update a review. Independent of voting: this never casts,
+  /// moves or removes a vote, and the review outlives the weekly round.
+  Future<bool> submitReview(
+    int placeId,
+    int? rating, {
+    String? review,
+    String? imagePath,
+  }) async {
+    _isVoting = true;
+    update();
+
+    final response = await placesServiceInterface.submitReview(
+      placeId,
+      rating,
+      review,
+      imagePath: imagePath,
+    );
+    _isVoting = false;
+
+    if (response.statusCode == 200) {
+      showCustomSnackBar('review_submitted'.tr, isError: false);
+      await getPlaceDetails(placeId);
+      await getPlaceReviews(placeId, reload: true);
+      await getVoteStatus(placeId);
+      update();
+      return true;
+    }
+    showCustomSnackBar(
+      response.body?['message'] ?? 'failed_to_submit_review'.tr,
+      isError: true,
+    );
+    update();
+    return false;
+  }
+
+  /// Remove the caller's review. Leaves their vote untouched.
+  Future<bool> removeReview(int placeId) async {
+    _isVoting = true;
+    update();
+
+    final response = await placesServiceInterface.removeReview(placeId);
+    _isVoting = false;
+
+    if (response.statusCode == 200) {
+      showCustomSnackBar('review_removed'.tr, isError: false);
+      await getPlaceDetails(placeId);
+      await getPlaceReviews(placeId, reload: true);
+      await getVoteStatus(placeId);
+      update();
+      return true;
+    }
+    showCustomSnackBar(
+      response.body?['message'] ?? 'failed_to_remove_review'.tr,
+      isError: true,
+    );
+    update();
+    return false;
+  }
+
   /// Remove vote
-  Future<bool> removeVote(int placeId) async {
+  Future<bool> removeVote(int placeId, {bool silent = false}) async {
     _isVoting = true;
     update();
 
@@ -421,9 +968,16 @@ class PlacesController extends GetxController implements GetxService {
     _isVoting = false;
 
     if (response.statusCode == 200) {
-      showCustomSnackBar('vote_removed_successfully'.tr, isError: false);
+      if (!silent) {
+        showCustomSnackBar('vote_removed_successfully'.tr, isError: false);
+      }
       _voteStatus = VoteStatus(hasVoted: false);
       await getPlaceDetails(placeId);
+      Future.wait([
+        getLeaderboard(limit: 3, reload: true, notify: false),
+        getTopVoters(reload: true, notify: false),
+        getPlaces(reload: true, notify: false),
+      ]).then((_) => refreshRankDeltas());
       update();
       return true;
     } else {
@@ -497,11 +1051,17 @@ class PlacesController extends GetxController implements GetxService {
   }
 
   /// Submit a new hidden gem
-  Future<bool> submitNewPlace(Map<String, String> fields, {String? imagePath}) async {
+  Future<bool> submitNewPlace(
+    Map<String, String> fields, {
+    String? imagePath,
+  }) async {
     _isSubmitting = true;
     update();
 
-    var response = await placesServiceInterface.submitPlace(fields, imagePath: imagePath);
+    var response = await placesServiceInterface.submitPlace(
+      fields,
+      imagePath: imagePath,
+    );
     _isSubmitting = false;
 
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -571,11 +1131,16 @@ class PlacesController extends GetxController implements GetxService {
   /// Set zone filter
   void setSelectedZone(int? zoneId) {
     _selectedZoneId = zoneId;
+    _lastComputedRanks = null; // rank snapshots are per-zone
+    _updateZoneRaceTopic(zoneId);
     update();
     // Refresh leaderboard, places, and top voters when zone changes
-    getLeaderboard(zoneId: zoneId, limit: 3, reload: true);
-    getTopVoters(zoneId: zoneId, reload: true);
-    getPlaces(zoneId: zoneId, reload: true);
+    Future.wait([
+      getLeaderboard(zoneId: zoneId, limit: 3, reload: true),
+      getTopVoters(zoneId: zoneId, reload: true),
+      getPlaces(zoneId: zoneId, reload: true),
+      getLatestWinner(reload: true, notify: false),
+    ]).then((_) => refreshRankDeltas());
   }
 
   /// Set banner index
@@ -589,87 +1154,159 @@ class PlacesController extends GetxController implements GetxService {
   // ═══════════════════════════════════════════════════════════════
 
   /// Initialize places module data (home screen only needs categories + leaderboard + top voters)
-  Future<void> initializePlacesData({bool reload = false}) async {
-    // Prevent double initialization
-    if (_isInitializing) {
-      debugPrint('⏭️ [PLACES] initializePlacesData() - Already initializing, skipping...');
-      return;
-    }
-    if (_isInitialized && !reload) {
-      debugPrint('⏭️ [PLACES] initializePlacesData() - Already initialized, skipping (call with reload: true to force)');
-      return;
-    }
-
-    _isInitializing = true;
-    debugPrint('══════════════════════════════════════════════════════════════');
-    debugPrint('🚀 [PLACES] initializePlacesData() STARTED (reload: $reload)');
-    debugPrint('══════════════════════════════════════════════════════════════');
-
-    // Set loading flags and show shimmer
-    _isZonesLoading = true;
-    _isCategoriesLoading = true;
-    _isLeaderboardLoading = true;
-    _isTopVotersLoading = true;
-    _isPlacesLoading = true;
-    update();
-
-    try {
-      // Call APIs
-      debugPrint('📡 [PLACES] Calling APIs in parallel...');
-      await Future.wait([
-        getZones(reload: reload, notify: false),
-        getCategories(reload: reload, notify: false),
-        getLeaderboard(limit: 3, reload: reload, notify: false),
-        getTopVoters(reload: reload, notify: false),
-        getPlaces(reload: reload, notify: false),
-      ]);
-      debugPrint('✅ [PLACES] All API calls completed');
-    } catch (e, stackTrace) {
-      debugPrint('❌ [PLACES] initializePlacesData error: $e');
-      debugPrint('❌ [PLACES] StackTrace: $stackTrace');
-    }
-
-    // Log current state before fallback check
-    debugPrint('────────────────────────────────────────────────────────────────');
-    debugPrint('📊 [PLACES] API Response Status:');
-    debugPrint('   Zones: ${_zones?.length ?? 0} zones');
-    debugPrint('   Categories: ${_categories?.length ?? 0} items');
-    debugPrint('   Leaderboard: ${_leaderboardList?.places.length ?? 0} places');
-    debugPrint('   Top Voters: ${_topVotersList?.voters.length ?? 0} voters');
-    debugPrint('────────────────────────────────────────────────────────────────');
-
-    // If leaderboard is empty, fetch real places as fallback for podium
-    if (_leaderboardList == null || _leaderboardList!.places.isEmpty) {
-      debugPrint('📡 [PLACES] Leaderboard empty - fetching real places as podium fallback...');
-      try {
-        final fallbackPlaces = await placesServiceInterface.getPlaces(offset: 1);
-        if (fallbackPlaces != null && fallbackPlaces.places.isNotEmpty) {
-          _leaderboardList = PlaceList(
-            places: fallbackPlaces.places.take(3).toList(),
-            totalSize: fallbackPlaces.places.take(3).length,
-          );
-          debugPrint('✅ [PLACES] Loaded ${_leaderboardList!.places.length} real places for podium: ${_leaderboardList!.places.map((p) => p.title).join(', ')}');
-        } else {
-          debugPrint('⚠️ [PLACES] No places available at all');
-        }
-      } catch (e) {
-        debugPrint('❌ [PLACES] Failed to fetch fallback places: $e');
-      }
-    }
-
-    // Clear loading flags
+  void _clearHomeLoadingFlags() {
     _isZonesLoading = false;
     _isCategoriesLoading = false;
     _isLeaderboardLoading = false;
     _isTopVotersLoading = false;
-    _isInitializing = false;
-    _isInitialized = true;
-    update();
-
-    debugPrint('══════════════════════════════════════════════════════════════');
-    debugPrint('🎉 [PLACES] initializePlacesData() COMPLETED');
-    debugPrint('══════════════════════════════════════════════════════════════');
+    _isPlacesLoading = false;
+    _isRecentWinnersLoading = false;
   }
+
+  Future<void> initializePlacesData({bool reload = false}) async {
+    // Prevent double initialization
+    if (_isInitializing) {
+      debugPrint(
+        '⏭️ [PLACES] initializePlacesData() - Already initializing, skipping...',
+      );
+      return;
+    }
+    if (_isInitialized && !reload) {
+      debugPrint(
+        '⏭️ [PLACES] initializePlacesData() - Already initialized, skipping (call with reload: true to force)',
+      );
+      return;
+    }
+
+    _isInitializing = true;
+
+    // ── Phase 1: paint from cache ──────────────────────────────────
+    // Serve last session's board before touching the network, so a relaunch
+    // shows the screen it showed before instead of a shimmer. Skipped on an
+    // explicit reload (pull-to-refresh means "go and ask"), and skipped once
+    // anything is already in memory.
+    bool servedFromCache = false;
+    if (!reload && !hasAnyHomeData) {
+      try {
+        await Future.wait([
+          getZones(notify: false, source: DataSourceEnum.local),
+          getCategories(notify: false, source: DataSourceEnum.local),
+          getLeaderboard(limit: 3, notify: false, source: DataSourceEnum.local),
+          getTopVoters(notify: false, source: DataSourceEnum.local),
+          getPlaces(notify: false, source: DataSourceEnum.local),
+        ]);
+      } catch (e) {
+        debugPrint('⚠️ [PLACES] cache prime failed: $e');
+      }
+      servedFromCache = hasAnyHomeData;
+      if (servedFromCache) {
+        // Real content is on screen; the network pass below is a silent
+        // refresh behind it, so no section may flip back to a skeleton.
+        update(idAllHome);
+      }
+    }
+
+    // Cached data that is still inside its TTL is good enough — skip the
+    // network entirely and let the next open (or a pull-to-refresh) fetch.
+    if (servedFromCache &&
+        !CacheTtlHelper.isStale(_homeCacheKey, ttl: homeCacheTtl)) {
+      // The cache fetchers set their own loading flags on the way in (they
+      // run the same code path as a network call), so they have to be cleared
+      // here too — otherwise this early return leaves the sections that read
+      // them pinned to a skeleton over data that is already loaded.
+      _clearHomeLoadingFlags();
+      _isInitializing = false;
+      _isInitialized = true;
+      _hasInitError = false;
+      update(idAllHome);
+      unawaited(refreshRankDeltas());
+      return;
+    }
+
+    // ── Phase 2: network ───────────────────────────────────────────
+    // Loading flags only when there is nothing to show behind them.
+    if (!servedFromCache) {
+      _isZonesLoading = true;
+      _isCategoriesLoading = true;
+      _isLeaderboardLoading = true;
+      _isTopVotersLoading = true;
+      _isPlacesLoading = true;
+      _isRecentWinnersLoading = true;
+      update(idAllHome);
+    }
+
+    subscribeRaceTopics();
+
+    // Each call repaints its own section the moment it lands, rather than the
+    // whole screen waiting on the slowest of seven. `notify: true` is what
+    // buys that — the ids added above keep it to one section per response,
+    // so progressive rendering costs no extra rebuild work.
+    //
+    // Errors are collected per call instead of aborting the batch: one dead
+    // endpoint used to blank the entire screen behind the error card even
+    // though the other six had returned perfectly good data.
+    Future<void> guard(Future<void> call, String label) async {
+      try {
+        await call;
+      } catch (e) {
+        debugPrint('❌ [PLACES] init call "$label" failed: $e');
+        _initFailures++;
+      }
+    }
+
+    _initFailures = 0;
+    // `reload` has to be forced once the cache pass filled these fields, or
+    // every fetcher's `if (_x != null && !reload) return;` guard would turn
+    // the network pass into a no-op and the cached board would never refresh.
+    final bool net = reload || servedFromCache;
+    await Future.wait([
+      guard(getZones(reload: net), 'zones'),
+      guard(getCategories(reload: net), 'categories'),
+      guard(getLeaderboard(limit: 3, reload: net), 'leaderboard'),
+      guard(getTopVoters(reload: net), 'topVoters'),
+      guard(getPlaces(reload: net), 'places'),
+      guard(getLatestWinner(reload: net), 'latestWinner'),
+      guard(getRecentWinners(reload: net), 'recentWinners'),
+    ]);
+    if (_initFailures == 0) CacheTtlHelper.markFresh(_homeCacheKey);
+    // Only a total wipeout is an error state — partial data still renders.
+    _hasInitError = !hasAnyHomeData && _initFailures > 0;
+
+    debugPrint(
+      '[PLACES] init done — zones:${_zones?.length ?? 0} '
+      'cats:${_categories?.length ?? 0} '
+      'board:${_leaderboardList?.places.length ?? 0} '
+      'voters:${_topVotersList?.voters.length ?? 0}',
+    );
+
+    // No fake podium fallback: below the official threshold PodiumSection
+    // renders live standings (real votes + movement), never fake ranks.
+    //
+    // Deliberately not awaited: this is a SharedPreferences read that used to
+    // sit between the last response and the first paint. Movement arrows are
+    // a decoration on standings that are already on screen, so they can land
+    // a frame later.
+    unawaited(refreshRankDeltas());
+
+    // Clear ALL loading flags — a failed getPlaces would otherwise leave
+    // _isPlacesLoading stuck on true (it only clears itself on success).
+    _clearHomeLoadingFlags();
+    _isInitializing = false;
+    // Only mark initialized on success so a plain retry isn't a no-op.
+    if (!_hasInitError) _isInitialized = true;
+    update(idAllHome);
+
+    debugPrint(
+      '══════════════════════════════════════════════════════════════',
+    );
+    debugPrint('🎉 [PLACES] initializePlacesData() COMPLETED');
+    debugPrint(
+      '══════════════════════════════════════════════════════════════',
+    );
+  }
+
+  /// Retry entry point for the home error card.
+  Future<void> retryInitialize() => initializePlacesData(reload: true);
 
   /// Clear all data
   void clearPlacesData() {
@@ -681,11 +1318,18 @@ class PlacesController extends GetxController implements GetxService {
     _selectedTagIds = [];
     _banners = null;
     _placeDetails = null;
+    _detailsErrorStatus = null;
     _reviewList = null;
+    _reviewsPage = 1;
     _voteStatus = null;
     _favoritesList = null;
     _submissionsList = null;
     _topVotersList = null;
+    _latestWinner = null;
+    _winnersHistory = null;
+    _rankDeltas = {};
+    _newEntries = {};
+    _lastComputedRanks = null;
     _selectedCategoryId = null;
     _selectedZoneId = null;
     _searchQuery = '';
