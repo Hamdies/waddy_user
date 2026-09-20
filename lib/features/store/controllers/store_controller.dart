@@ -864,6 +864,19 @@ class StoreController extends GetxController implements GetxService {
     }
   }
 
+  /// Fetches a store and applies the side effects its callers depend on.
+  ///
+  /// The side effects are named methods below rather than inline blocks. They
+  /// were five anonymous `if` branches, which is how `initializeTimeSlot`
+  /// came to run four times: nothing at the call site said the fetch already
+  /// did it, so `initCheckoutData` did it again — and the method it called ran
+  /// the same computation twice internally.
+  ///
+  /// The flags are suppressors, not options: `fromCart` means "I already know
+  /// the distance", `slug` means "I arrived by link and have no address yet".
+  /// Splitting this into separate public entry points is the right end state,
+  /// but it changes six call sites, so the behaviour is pinned first — see
+  /// `test/unit/store_details_contract_test.dart`.
   Future<Store?> getStoreDetails(
     Store store,
     bool fromModule, {
@@ -871,63 +884,108 @@ class StoreController extends GetxController implements GetxService {
     String slug = '',
   }) async {
     _categoryIndex = 0;
+
+    // The caller already has a populated store — use it and skip both the
+    // round trip and every side effect.
     if (store.name != null) {
       _store = store;
-    } else {
-      _isLoading = true;
-      _store = null;
-      Store? storeDetails = await storeServiceInterface.getStoreDetails(
-        store.id.toString(),
-        fromCart,
-        slug,
-        Get.find<LocalizationController>().locale.languageCode,
-        ModuleHelper.currentModuleId(),
-      );
-      if (storeDetails != null) {
-        _store = storeDetails;
-        Get.find<CheckoutController>().initializeTimeSlot(_store!);
-        if (!fromCart && slug.isEmpty) {
-          Get.find<CheckoutController>().getDistanceInKM(
-            LatLng(
-              double.parse(
-                AddressHelper.getUserAddressFromSharedPref()!.latitude!,
-              ),
-              double.parse(
-                AddressHelper.getUserAddressFromSharedPref()!.longitude!,
-              ),
-            ),
-            LatLng(
-              double.parse(_store!.latitude!),
-              double.parse(_store!.longitude!),
-            ),
-          );
-        }
-        if (slug.isNotEmpty) {
-          await Get.find<LocationController>().setStoreAddressToUserAddress(
-            LatLng(
-              double.parse(_store!.latitude!),
-              double.parse(_store!.longitude!),
-            ),
-          );
-        }
-        if (fromModule) {
-          HomeScreen.loadData(true);
-        } else {
-          Get.find<CheckoutController>().clearPrevData();
-        }
-      }
-      Get.find<CheckoutController>().setOrderType(
-        _store != null
-            ? _store!.delivery!
-                ? 'delivery'
-                : 'take_away'
-            : 'delivery',
-        notify: false,
-      );
-      _isLoading = false;
-      update();
+      _applyOrderType();
+      return _store;
     }
+
+    _isLoading = true;
+    // Cleared before the await so a failed fetch cannot leave the previous
+    // store's menu on screen.
+    _store = null;
+
+    final Store? storeDetails = await storeServiceInterface.getStoreDetails(
+      store.id.toString(),
+      fromCart,
+      slug,
+      Get.find<LocalizationController>().locale.languageCode,
+      ModuleHelper.currentModuleId(),
+    );
+
+    if (storeDetails != null) {
+      _store = storeDetails;
+      Get.find<CheckoutController>().initializeTimeSlot(_store!);
+
+      // The cart already knows its distance, and a slug link has no saved
+      // address to measure from yet.
+      if (!fromCart && slug.isEmpty) {
+        _computeDeliveryDistance();
+      }
+      if (slug.isNotEmpty) {
+        await _adoptStoreLocationAsUserAddress();
+      }
+      if (fromModule) {
+        HomeScreen.loadData(true);
+      } else {
+        Get.find<CheckoutController>().clearPrevData();
+      }
+    }
+
+    // Outside the null check on purpose: a failed fetch must still leave
+    // checkout with a defined order type rather than the previous store's.
+    _applyOrderType();
+
+    _isLoading = false;
+    update();
     return _store;
+  }
+
+  /// Tells checkout whether this store delivers.
+  void _applyOrderType() {
+    Get.find<CheckoutController>().setOrderType(
+      _store != null
+          ? (_store!.delivery ?? false)
+              ? 'delivery'
+              : 'take_away'
+          : 'delivery',
+      notify: false,
+    );
+  }
+
+  /// Kicks off the store-to-user distance lookup, when both ends are known.
+  ///
+  /// Four throwing reads used to sit on this call: a `!` on the nullable saved
+  /// address, and `double.parse` on three coordinate strings the server can
+  /// leave null. A distance we cannot compute is a missing distance, not a
+  /// crash on opening a store.
+  void _computeDeliveryDistance() {
+    final AddressModel? userAddress =
+        AddressHelper.getUserAddressFromSharedPref();
+    final double? userLat = Parse.coordinate(userAddress?.latitude);
+    final double? userLng = Parse.coordinate(userAddress?.longitude);
+    final double? storeLat = Parse.coordinate(_store?.latitude);
+    final double? storeLng = Parse.coordinate(_store?.longitude);
+
+    if (userLat == null ||
+        userLng == null ||
+        storeLat == null ||
+        storeLng == null) {
+      return;
+    }
+    Get.find<CheckoutController>().getDistanceInKM(
+      LatLng(userLat, userLng),
+      LatLng(storeLat, storeLng),
+    );
+  }
+
+  /// Moves the user's saved location to the store's.
+  ///
+  /// Only on a slug link — a shared store URL can arrive before the user has
+  /// ever set an address, and without one nothing downstream can price
+  /// delivery. Surprising enough to be worth its own name: "get store details"
+  /// does not imply "relocate the user".
+  Future<void> _adoptStoreLocationAsUserAddress() async {
+    final double? storeLat = Parse.coordinate(_store?.latitude);
+    final double? storeLng = Parse.coordinate(_store?.longitude);
+    if (storeLat == null || storeLng == null) return;
+
+    await Get.find<LocationController>().setStoreAddressToUserAddress(
+      LatLng(storeLat, storeLng),
+    );
   }
 
   Future<void> getRecommendedStoreList({

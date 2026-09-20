@@ -1,4 +1,7 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:waddy_app/util/frame_stats.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
@@ -282,6 +285,15 @@ class CartController extends GetxController implements GetxService {
   ) async {
     if (cartIndex < 0 || cartIndex >= _cartList.length) return;
 
+    // The interaction the performance work is really about. A quantity tap is
+    // the most-repeated action on the revenue path, and it currently fires a
+    // bare `update()` that repaints every GetBuilder bound to this controller.
+    //
+    // Whether that actually costs a frame is a measurement, not a deduction —
+    // so it is measured. Debug-only: `kDebugMode` keeps the callback out of
+    // release, where the tap should cost nothing at all.
+    if (kDebugMode) FrameStats.start('cart quantity tap');
+
     // Hold the row itself, not its position: the list identity survives the
     // awaits below even when the list is replaced under us.
     final CartModel cart = _cartList[cartIndex];
@@ -318,6 +330,15 @@ class CartController extends GetxController implements GetxService {
     // laggy — the animation was never the bottleneck.
     calculationCart();
     update();
+
+    if (kDebugMode) {
+      // Closed here, not after the sync: this is the frame the user waits on.
+      // The server round-trip below is measured by ApiStats and must not be
+      // charged against the tap's rendering cost.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => FrameStats.stopAndPrint(),
+      );
+    }
 
     if (ModuleHelper.getModuleConfig(cart.item!.moduleType).newVariation!) {
       await Get.find<ItemController>().setExistInCart(
@@ -427,9 +448,8 @@ class CartController extends GetxController implements GetxService {
           line.id!: line.quantity!,
     };
     _cartList = [
-      ...cartServiceInterface.formatOnlineCartToLocalCart(
-        onlineCartModel: onlineCartList,
-      ),
+      ...cartServiceInterface
+          .formatOnlineCartToLocalCart(onlineCartModel: onlineCartList),
     ];
     for (final CartModel line in _cartList) {
       final int? quantity = local[line.id];
@@ -438,52 +458,37 @@ class CartController extends GetxController implements GetxService {
     calculationCart();
   }
 
+  /// Removes a cart line locally and on the server.
+  ///
+  /// The row disappears on this frame and the delete goes out immediately —
+  /// there is no undo window. A held-back delete used to leave the line gone
+  /// locally but present on the server, so any refetch in that gap restored
+  /// it, which is what made deleted items reappear.
   Future<void> removeFromCart(int index, {Item? item}) async {
-    int cartId = _cartList[index].id!;
+    if (index < 0 || index >= _cartList.length) return;
+
+    final CartModel line = _cartList[index];
+    // Guest cart entries can carry no server id — `id!` threw on those.
+    final int? cartId = line.id;
+
     _cartList.removeAt(index);
+    // The total is derived from the list, so it has to be recomputed before
+    // the frame that shows the row gone; otherwise the cart bar keeps the
+    // removed item's price until the next unrelated update.
+    calculationCart();
     update();
     Get.find<ItemController>().cartIndexSet();
-    await removeCartItemOnline(cartId, item: item);
+
+    if (cartId == null) {
+      // Local-only line: persist the shortened list and stop.
+      await cartServiceInterface.addSharedPrefCartList(_cartList);
+    } else {
+      await removeCartItemOnline(cartId, item: item);
+    }
+
     if (Get.find<ItemController>().item != null) {
       Get.find<ItemController>().cartIndexSet();
     }
-  }
-
-  /// Removes the item from local state ONLY — call [confirmCartRemoval] after
-  /// the undo window expires, or [restoreCartItem] if the user undoes.
-  ({CartModel removed, int? cartId}) removeFromCartOptimistic(int index) {
-    final CartModel removed = _cartList[index];
-    // Guest carts are local-only and their entries may carry no server id.
-    final int? cartId = removed.id;
-    _cartList.removeAt(index);
-    calculationCart();
-    update();
-    Get.find<ItemController>().cartIndexSet();
-    return (removed: removed, cartId: cartId);
-  }
-
-  /// Re-inserts a previously removed item at its original position.
-  void restoreCartItem(CartModel cart, int originalIndex) {
-    final int insertAt = originalIndex.clamp(0, _cartList.length);
-    _cartList.insert(insertAt, cart);
-    cartServiceInterface.addSharedPrefCartList(_cartList);
-    calculationCart();
-    update();
-    Get.find<ItemController>().cartIndexSet();
-  }
-
-  /// Fires the server-side delete — call this after the undo window expires.
-  /// Guest carts live server-side too (keyed by guest_id), so a guest delete
-  /// must hit the API as well; skipping it let the next cart/list fetch pull
-  /// the "deleted" item straight back. Only entries with no server id at all
-  /// are purely local.
-  Future<void> confirmCartRemoval(int? cartId, {Item? item}) async {
-    if (cartId == null ||
-        !(AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn())) {
-      await cartServiceInterface.addSharedPrefCartList(_cartList);
-      return;
-    }
-    await removeCartItemOnline(cartId, item: item);
   }
 
   Future<void> clearCartList({bool canRemoveOnline = true}) async {

@@ -85,8 +85,10 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     final distance = ETACalculator.calculateDistanceKm(
       driverLat,
       driverLng,
-      double.parse(destination!.latitude!),
-      double.parse(destination.longitude!),
+      // Guarded above for null; Parse.coordinate also survives a malformed
+      // string, which the null check does not.
+      Parse.coordinate(destination!.latitude) ?? driverLat,
+      Parse.coordinate(destination.longitude) ?? driverLng,
     );
 
     setState(() {
@@ -136,8 +138,8 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     if (track.store?.latitude != null && track.store?.longitude != null) {
       routePoints.add(
         LatLng(
-          double.parse(track.store!.latitude!),
-          double.parse(track.store!.longitude!),
+          Parse.coordinate(track.store!.latitude) ?? 0,
+          Parse.coordinate(track.store!.longitude) ?? 0,
         ),
       );
     }
@@ -150,8 +152,8 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
         track.deliveryAddress?.longitude != null) {
       routePoints.add(
         LatLng(
-          double.parse(track.deliveryAddress!.latitude!),
-          double.parse(track.deliveryAddress!.longitude!),
+          Parse.coordinate(track.deliveryAddress!.latitude) ?? 0,
+          Parse.coordinate(track.deliveryAddress!.longitude) ?? 0,
         ),
       );
     }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -195,21 +196,44 @@ class CheckoutController extends GetxController implements GetxService {
   Future<void> initCheckoutData(int? storeId) async {
     Get.find<CouponController>().removeCouponData(false);
 
-    _store = await Get.find<StoreController>().getStoreDetails(
-      Store(id: storeId),
-      false,
-    );
+    // Reuse the store the previous screen already fetched.
+    //
+    // Checkout is reached from the cart, and the cart screen loads this exact
+    // store on entry (cart_screen.dart). Refetching it meant the whole
+    // checkout sat behind a round trip for something already in memory — and
+    // the shimmer is gated on `store != null`, so that round trip *was* the
+    // perceived load time.
+    //
+    // `getStoreDetails` short-circuits on a populated Store (`store.name !=
+    // null`), so handing it the cached one costs nothing and still applies the
+    // side effects checkout needs — time slots and the order type.
+    final Store? cached = Get.find<StoreController>().store;
+    final Store seed =
+        (cached != null && cached.id == storeId && cached.name != null)
+            ? cached
+            : Store(id: storeId);
 
-    if (_store != null) {
-      await getSurgePrice(
+    _store = await Get.find<StoreController>().getStoreDetails(seed, false);
+    if (_store == null) return;
+    // Paint now. Everything above is resolved; surge only adjusts a fee.
+    update();
+
+    // NOT awaited: surge pricing adjusts the delivery fee, and the fee is not
+    // final until the tax quote returns anyway. Blocking the entire screen on
+    // it delayed every row — the address, the items, the payment methods — for
+    // a number that affects one line.
+    //
+    // `initializeTimeSlot` is likewise absent: `getStoreDetails` already fires
+    // it as a side effect, so calling it again recomputed every schedule slot
+    // for nothing.
+    unawaited(
+      getSurgePrice(
         zoneId: _store!.zoneId.toString(),
         moduleId: _store!.moduleId.toString(),
         dateTime: DateConverter.dateToDateTime(DateTime.now()),
         guestId: '',
-      );
-
-      initializeTimeSlot(_store!);
-    }
+      ),
+    );
   }
 
   void showTipsField() {
@@ -321,14 +345,22 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   Future<void> initializeTimeSlot(Store store) async {
-    _timeSlots = await checkoutServiceInterface.initializeTimeSlot(
-      store,
-      Get.find<SplashController>().configModel.scheduleOrderSlotDuration!,
-    );
-    _allTimeSlots = await checkoutServiceInterface.initializeTimeSlot(
-      store,
-      Get.find<SplashController>().configModel.scheduleOrderSlotDuration!,
-    );
+    // Computed once. These two fields were assigned from the *same* call with
+    // the same arguments, so the whole schedule loop ran twice to produce two
+    // identical lists.
+    //
+    // They stay separate fields because they diverge later: `_timeSlots` is
+    // filtered by the selected date (see `updateTimeSlot`), while
+    // `_allTimeSlots` keeps the unfiltered set. Sharing one list instance
+    // would make a filter on one silently mutate the other, so the second is
+    // a copy rather than the same reference.
+    final List<TimeSlotModel>? slots = await checkoutServiceInterface
+        .initializeTimeSlot(
+          store,
+          Get.find<SplashController>().configModel.scheduleOrderSlotDuration!,
+        );
+    _timeSlots = slots;
+    _allTimeSlots = slots == null ? null : List<TimeSlotModel>.from(slots);
 
     _validateSlot(
       _allTimeSlots!,

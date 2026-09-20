@@ -25,18 +25,18 @@ class PaymentButton extends StatelessWidget {
         onTap: onTap as void Function()?,
         child: Stack(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 5,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
+            // Material rather than a coloured Container: ListTile paints its
+            // background and ink splash onto the nearest Material ancestor, so
+            // a Container in between hides both. On a payment-method selector
+            // that means a row the user taps with no feedback at all.
+            //
+            // Material carries the colour, the radius and the elevation
+            // shadow, so the visual is unchanged — the splash now lands on it.
+            Material(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+              elevation: 2,
+              shadowColor: Colors.black12,
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: Dimensions.paddingSizeExtraSmall,

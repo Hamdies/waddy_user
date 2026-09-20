@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/api/local_client.dart';
@@ -8,7 +9,6 @@ import 'package:waddy_app/features/parcel/domain/models/parcel_instruction_model
 import 'package:waddy_app/features/parcel/domain/models/video_content_model.dart';
 import 'package:waddy_app/features/parcel/domain/models/why_choose_model.dart';
 import 'package:waddy_app/features/parcel/domain/repositories/parcel_repository_interface.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
 class ParcelRepository implements ParcelRepositoryInterface {
@@ -50,7 +50,7 @@ class ParcelRepository implements ParcelRepositoryInterface {
   }) async {
     VideoContentModel? videoContentDetails;
     String cacheId =
-        '${AppConstants.videoContentUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.videoContentUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -88,7 +88,7 @@ class ParcelRepository implements ParcelRepositoryInterface {
   }) async {
     WhyChooseModel? whyChooseDetails;
     String cacheId =
-        '${AppConstants.whyChooseUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.whyChooseUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:

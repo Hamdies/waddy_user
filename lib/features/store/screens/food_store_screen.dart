@@ -150,22 +150,41 @@ class _FoodStoreScreenState extends State<FoodStoreScreen> {
       storeCtrl.changeSearchStatus(isUpdate: false);
     }
     storeCtrl.hideAnimation();
-    await storeCtrl
-        .getStoreDetails(
-          Store(id: widget.store!.id),
-          widget.fromModule,
-          slug: widget.slug,
-        )
-        .then((_) {
-          storeCtrl.showButtonAnimation();
-        });
+    // The item list, recommendations and reviews are all keyed on the store id
+    // we already have from the caller — none of them needs the store *detail*
+    // response. They used to wait for it anyway, so opening a store cost the
+    // detail round trip and only then started the other three.
+    //
+    // They are fired first and the detail fetch runs alongside them, so the
+    // menu can paint as soon as its own response lands.
+    final int? storeId = widget.store!.id;
+    if (storeId != null) {
+      storeCtrl.getRestaurantRecommendedItemList(storeId, false);
+      storeCtrl.getStoreItemList(storeId, 1, 'all', false);
+      Get.find<ReviewController>().getStoreReviewList(storeId.toString());
+    }
     if (Get.find<CategoryController>().categoryList == null) {
       Get.find<CategoryController>().getCategoryList(true);
     }
-    final storeId = widget.store!.id ?? storeCtrl.store!.id;
-    storeCtrl.getRestaurantRecommendedItemList(storeId, false);
-    storeCtrl.getStoreItemList(storeId, 1, 'all', false);
-    Get.find<ReviewController>().getStoreReviewList(storeId.toString());
+
+    await storeCtrl.getStoreDetails(
+      Store(id: widget.store!.id),
+      widget.fromModule,
+      slug: widget.slug,
+    );
+    storeCtrl.showButtonAnimation();
+
+    // Only reachable when the caller had no id — a slug-based deep link. The
+    // detail response is the only thing that can supply one, so these three
+    // genuinely do have to wait for it.
+    if (storeId == null) {
+      final int? resolvedId = storeCtrl.store?.id;
+      if (resolvedId != null) {
+        storeCtrl.getRestaurantRecommendedItemList(resolvedId, false);
+        storeCtrl.getStoreItemList(resolvedId, 1, 'all', false);
+        Get.find<ReviewController>().getStoreReviewList(resolvedId.toString());
+      }
+    }
 
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==

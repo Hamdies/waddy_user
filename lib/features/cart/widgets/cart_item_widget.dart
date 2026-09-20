@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
@@ -37,59 +35,22 @@ class CartItemWidget extends StatefulWidget {
 }
 
 class _CartItemWidgetState extends State<CartItemWidget> {
-  /// Holds the server-side delete open for the undo window. See [_remove].
+  /// Removes the item, immediately.
   ///
-  /// Deliberately NOT cancelled in dispose: removing the line disposes this
-  /// very row, so cancelling there would drop every delete before it was sent
-  /// and the item would return on the next cart fetch. The callback touches
-  /// only the controller, never this State, so it is safe after dispose.
-  Timer? _undoTimer;
-
-  /// Removes the item with a 4-second undo window.
+  /// There is no undo window. The previous version held the server-side delete
+  /// behind a 4-second timer and offered an Undo toast, which created a gap
+  /// where the line was gone locally but still on the server — so any cart
+  /// refetch in that window (the cart screen refetches on entry, and a module
+  /// change refetches too) brought the deleted item straight back.
   ///
-  /// The line disappears locally at once, but the server-side delete is held
-  /// behind [_undoTimer]. Undo cancels the timer and re-inserts at the original
-  /// index, so nothing was ever sent. The timer — NOT the snackbar's dismissal
-  /// — is what commits: an earlier version made the toast's `.closed` callback
-  /// load-bearing, which is why the toast could not simply be removed later.
+  /// Removing an item is cheap to reverse by hand: the item is still in the
+  /// store, one tap away. That is not worth a window in which the cart can
+  /// disagree with itself.
   void _remove() {
-    final cartController = Get.find<CartController>();
-    final int index = widget.cartIndex;
-    final result = cartController.removeFromCartOptimistic(index);
-
-    _undoTimer?.cancel();
-    bool undone = false;
-
-    _undoTimer = Timer(const Duration(seconds: 4), () {
-      if (undone) return;
-      cartController.confirmCartRemoval(
-        result.cartId,
-        item: result.removed.item,
-      );
-    });
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            'item_removed'.tr,
-            style: waddyMedium.copyWith(color: Colors.white),
-          ),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: WaddyColors.ink,
-          action: SnackBarAction(
-            label: 'undo'.tr,
-            textColor: WaddyColors.mint,
-            onPressed: () {
-              undone = true;
-              _undoTimer?.cancel();
-              cartController.restoreCartItem(result.removed, index);
-            },
-          ),
-        ),
-      );
+    Get.find<CartController>().removeFromCart(
+      widget.cartIndex,
+      item: widget.cart.item,
+    );
   }
 
   /// Opens the item sheet — where variations, add-ons and the per-item note

@@ -72,7 +72,23 @@ android {
     productFlavors {
         dev {
             dimension "environment"
-            applicationIdSuffix ".dev"
+            // NO applicationIdSuffix, deliberately — for now.
+            //
+            // A suffixed id needs its own Firebase Android app, and
+            // com.hamdiesolutions.waddi.dev has not been registered yet, so
+            // the google-services plugin refuses the build. Blocking every
+            // developer run on a console task nobody has done yet is worse
+            // than sharing an id.
+            //
+            // What still differs, and is what dev is actually for: the
+            // versionName suffix, the launcher label, and — the important one
+            // — the backend, which comes from
+            // `--dart-define-from-file=env/dev.json`, not from here.
+            //
+            // The cost of sharing the id is that a dev build replaces the
+            // prod app on the device. Restore the suffix (and add
+            // android/app/src/dev/google-services.json) the moment the
+            // Firebase app exists; see android/app/src/prod/README.md.
             versionNameSuffix "-dev"
             resValue "string", "app_name", "Waddy Dev"
         }
@@ -118,9 +134,9 @@ android {
 // Those flavors carry an applicationId suffix, so they need their own Firebase
 // app registered — see android/app/src/prod/README.md.
 tasks.configureEach { task ->
-    if (task.name ==~ /process(Dev|Staging)\w*GoogleServices/) {
+    if (task.name ==~ /process(Staging)\w*GoogleServices/) {
         task.doFirst {
-            def flavor = task.name.contains('Dev') ? 'dev' : 'staging'
+            def flavor = 'staging'
             def cfg = file("src/${flavor}/google-services.json")
             if (!cfg.exists()) {
                 throw new GradleException(

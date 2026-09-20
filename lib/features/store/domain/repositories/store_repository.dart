@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 import 'package:waddy_app/helper/auth_token_store.dart';
 
 import 'package:get/get.dart';
@@ -9,7 +10,6 @@ import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/cart_suggested_item_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/store/domain/models/recommended_product_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_banner_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_bundle_model.dart';
@@ -97,7 +97,7 @@ class StoreRepository implements StoreRepositoryInterface {
     // extraQuery is part of the cache key so a cached response from a
     // different filter combination can never be served.
     String cacheId =
-        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12$extraQuery-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12$extraQuery-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -134,7 +134,7 @@ class StoreRepository implements StoreRepositoryInterface {
   }) async {
     List<Store>? popularStoreList;
     String cacheId =
-        '${AppConstants.popularStoreUri}?type=$type}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.popularStoreUri}?type=$type}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -180,7 +180,7 @@ class StoreRepository implements StoreRepositoryInterface {
     // module id and `type`, so a popular-prefixed key made popular and latest
     // collide — whichever fetched first served its blob to the other.
     String cacheId =
-        '${AppConstants.latestStoreUri}?type=$type-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.latestStoreUri}?type=$type-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -225,7 +225,7 @@ class StoreRepository implements StoreRepositoryInterface {
   }) async {
     List<Store>? topOfferStoreList;
     String cacheId =
-        '${AppConstants.topOfferStoreUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.topOfferStoreUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -326,8 +326,19 @@ class StoreRepository implements StoreRepositoryInterface {
     List<Store>? visitAgainStoreList;
     // Module-scoped like every sibling key: without it, food and grocery share
     // one entry and each renders the other's visit-again stores.
-    String cacheId =
-        '${AppConstants.visitAgainStoreUri}-${Get.find<SplashController>().module!.id!}';
+    //
+    // `currentModuleId`, not `module!.id!`: home loads from the module-less
+    // dashboard, where `module` is null and this pair of bangs threw. The
+    // failure was swallowed per-section ("HomeScreen.loadData[home_order_again]:
+    // Null check operator used on a null value" in the profile trace), so the
+    // rail silently never appeared rather than crashing the screen — which is
+    // why it went unnoticed.
+    //
+    // The fallback is the last module in play, which is the one whose
+    // visit-again stores the user expects to see.
+    final int? moduleId = ModuleHelper.currentModuleId();
+    final String cacheId =
+        '${AppConstants.visitAgainStoreUri}-${moduleId ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:

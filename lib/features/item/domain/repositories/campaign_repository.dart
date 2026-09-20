@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 
 import 'package:get/get.dart';
 import 'package:waddy_app/api/api_client.dart';
@@ -7,7 +8,6 @@ import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/item/domain/models/basic_campaign_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/item/domain/repositories/campaign_repository_interface.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
 class CampaignRepository implements CampaignRepositoryInterface {
@@ -33,7 +33,7 @@ class CampaignRepository implements CampaignRepositoryInterface {
   ) async {
     List<BasicCampaignModel>? basicCampaignList;
     String cacheId =
-        '${AppConstants.basicCampaignUri}-banner-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.basicCampaignUri}-banner-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -76,7 +76,7 @@ class CampaignRepository implements CampaignRepositoryInterface {
   Future<List<Item>?> _getItemCampaignList(DataSourceEnum source) async {
     List<Item>? itemCampaignList;
     String cacheId =
-        '${AppConstants.basicCampaignUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.basicCampaignUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:

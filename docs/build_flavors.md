@@ -76,13 +76,27 @@ An unrecognised flavor name (`--dart-define WADDI_FLAVOR=typo`) resolves to
 
 | | dev | staging | prod |
 |---|---|---|---|
-| applicationId | `…waddi.dev` | `…waddi.staging` | `…waddi` |
+| applicationId | `…waddi` ⚠️ | `…waddi.staging` | `…waddi` |
 | Launcher name | Waddy Dev | Waddy Staging | Waddy |
 | versionName | `1.0-dev` | `1.0-staging` | `1.0` |
 | Backend | staging | staging | production |
 
 All three install side by side, so a tester can hold every build at once and
 tell them apart on the home screen.
+
+⚠️ **dev shares prod's applicationId, for now.** A suffixed id needs its own
+Firebase Android app, and `com.hamdiesolutions.waddi.dev` is not registered —
+the google-services plugin refuses to build without it. Blocking every
+developer run on an unfinished console task is worse than sharing an id.
+
+What still differs is what dev is actually for: the launcher label, the
+versionName suffix, and the backend, which comes from
+`--dart-define-from-file=env/dev.json` rather than from Gradle. The cost is
+that a dev build replaces the prod app on the device.
+
+Restore the suffix — and add `android/app/src/dev/google-services.json` — the
+moment the Firebase app exists. `staging` keeps its suffix and still fails
+fast with instructions, because nobody is blocked on it day to day.
 
 `prod` deliberately has **no** applicationId suffix — it is the id the Play
 listing and every existing install already use. Changing it would orphan every

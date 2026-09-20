@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 
 import 'package:get/get.dart';
 import 'package:waddy_app/api/api_client.dart';
@@ -7,7 +8,6 @@ import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
 import 'package:waddy_app/features/flash_sale/domain/models/product_flash_sale.dart';
 import 'package:waddy_app/features/flash_sale/domain/repositories/flash_sale_repository_interface.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
 class FlashSaleRepository implements FlashSaleRepositoryInterface {
@@ -18,7 +18,7 @@ class FlashSaleRepository implements FlashSaleRepositoryInterface {
   Future<FlashSaleModel?> getFlashSale({required DataSourceEnum source}) async {
     FlashSaleModel? flashSaleModel;
     String cacheId =
-        '${AppConstants.flashSaleUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.flashSaleUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:

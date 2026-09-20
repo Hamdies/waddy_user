@@ -28,8 +28,18 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(color: Theme.of(context).cardColor),
+    // Material, not a Container with a background colour.
+    //
+    // ExpansionTile paints its own background and ink splashes onto the
+    // nearest Material ancestor. A coloured Container between the two hides
+    // both — Flutter asserts on exactly this ("ListTile background color or
+    // ink splashes may be invisible"), and in release it degrades silently to
+    // a header that does not respond to touch.
+    //
+    // Material gives the same flat colour AND is the surface the splash
+    // lands on, so the tap feedback is visible again.
+    return Material(
+      color: Theme.of(context).cardColor,
       child: GetBuilder<CheckoutController>(
         builder: (checkoutController) {
           final bool hasVoice = checkoutController.voiceInstructionPath != null;

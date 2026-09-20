@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 
 import 'package:get/get.dart';
 import 'package:waddy_app/api/api_client.dart';
@@ -8,7 +9,6 @@ import 'package:waddy_app/features/banner/domain/models/banner_model.dart';
 import 'package:waddy_app/features/banner/domain/models/others_banner_model.dart';
 import 'package:waddy_app/features/banner/domain/models/promotional_banner_model.dart';
 import 'package:waddy_app/features/banner/domain/repositories/banner_repository_interface.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/header_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
@@ -39,7 +39,7 @@ class BannerRepository implements BannerRepositoryInterface {
   Future<BannerModel?> _getBannerList({required DataSourceEnum source}) async {
     BannerModel? bannerModel;
     String cacheId =
-        '${AppConstants.bannerUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.bannerUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:

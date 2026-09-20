@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:waddy_app/util/frame_stats.dart';
 
 import 'package:waddy_app/api/api_stats.dart';
 
@@ -138,6 +139,12 @@ class HomeScreen extends StatefulWidget {
     // lands"). Bracketing the batch turns that from an estimate read out of the
     // source into a number the app reports about itself.
     ApiStats.startWindow('home load${reload ? ' (refresh)' : ''}');
+    // Frames alongside requests: the two failure modes look identical to a
+    // user ("home is slow") and have opposite fixes. ApiStats blames the
+    // network, FrameStats blames the device — and its build/raster split says
+    // whether that is rebuild cost (what scoping update() addresses) or paint
+    // cost (which scoping will not touch). See docs/performance_baseline.md.
+    FrameStats.start('home load${reload ? ' (refresh)' : ''}');
     try {
       await _loadDataInner(reload, fromModule: fromModule);
     } finally {
@@ -146,6 +153,7 @@ class HomeScreen extends StatefulWidget {
       // the rest of the session.
       _loadInFlight = false;
       ApiStats.printReport();
+      FrameStats.stopAndPrint();
     }
 
     // Superseded by a newer load while we were running — that one owns the

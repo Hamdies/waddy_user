@@ -228,13 +228,24 @@ class DashboardScreenState extends State<DashboardScreen> {
                                         .module!
                                         .isParcel!;
 
-                                _screens = [
-                                  const HomeScreen(),
-                                  const XpLevelsScreen(),
-                                  const PlacesHomeScreen(),
-                                  const OrderScreen(),
-                                  const MenuScreen(),
-                                ];
+                                // `_screens` is NOT rebuilt here. It used to
+                                // be, inside this GetBuilder — so every one of
+                                // SplashController's 13 bare `update()` calls
+                                // handed the PageView a brand-new HomeScreen.
+                                // A new element means a new State, which means
+                                // `initState` runs again, which means
+                                // `HomeScreen.loadData` fires.
+                                //
+                                // That is the reload storm in the profile
+                                // trace: 11 requests (~84 KB, including
+                                // running-orders at 37 KB) repeated on every
+                                // navigation, six times in one short session.
+                                // It also inflated build frames, because each
+                                // reload parses that JSON on the main thread.
+                                //
+                                // The list is built once in initState. These
+                                // are const widgets with no per-build inputs,
+                                // so there was nothing to recompute.
                                 // Modern Floating Bottom Nav Bar with Center Cutout
                                 // and Live Cart Widget above it
                                 return _BottomNavWithLiveCart(

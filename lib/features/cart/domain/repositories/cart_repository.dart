@@ -114,24 +114,23 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
   Future<List<OnlineCartModel>?> _getCartDataOnline() async {
     List<OnlineCartModel>? onlineCartList;
 
-    Map<String, String>? header;
-
-    if (ModuleHelper.getModule()?.id != null) {
-      header = {
-        'Content-Type': 'application/json; charset=UTF-8',
-        AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
-        AppConstants.moduleId: '${ModuleHelper.getModule()?.id}',
-        'Authorization':
-            'Bearer ${AuthTokenStore.token}',
-      };
-    } else {
-      header = {
-        'Content-Type': 'application/json; charset=UTF-8',
-        AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
-        'Authorization':
-            'Bearer ${AuthTokenStore.token}',
-      };
-    }
+    // `currentModuleId`, not `getModule()`: the backend filters the cart with
+    // `where('module_id', $request->header('moduleId'))`, and a missing header
+    // makes that `where('module_id', null)`, which matches **nothing**.
+    //
+    // From the module-less dashboard `getModule()` is null, so the header was
+    // omitted and the cart came back empty — until the user entered a module,
+    // at which point it reappeared. That is the "cart not showing until I
+    // select the food module" report. `currentModuleId` falls back to
+    // `cacheModule`: the last module in play, which is the one the cart
+    // belongs to.
+    final int? moduleId = ModuleHelper.currentModuleId();
+    final Map<String, String> header = {
+      'Content-Type': 'application/json; charset=UTF-8',
+      AppConstants.localizationKey: AppConstants.languages[0].languageCode!,
+      if (moduleId != null) AppConstants.moduleId: '$moduleId',
+      'Authorization': 'Bearer ${AuthTokenStore.token}',
+    };
 
     String listUri = AppConstants.getCartListUri;
     if (_guestId.isNotEmpty) {

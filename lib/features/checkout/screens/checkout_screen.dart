@@ -385,7 +385,14 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                               pricing.referralDiscount;
                           final double orderAmount = pricing.orderAmount;
 
-                          Future.delayed(const Duration(milliseconds: 50), () {
+                          // Deferred out of the build phase, not delayed.
+                          // This was `Future.delayed(50ms)` — enough to get a
+                          // network call out of `build()`, but an arbitrary
+                          // wait on top of a screen that is already gated
+                          // behind the store fetch. A post-frame callback runs
+                          // as soon as this frame is painted, which is the
+                          // earliest it is safe to start.
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (checkoutController.isFirstTime ||
                                 (couponController.discount! > 0 &&
                                     !checkoutController.isFirstTime &&

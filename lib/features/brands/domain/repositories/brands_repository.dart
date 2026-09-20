@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/module_helper.dart';
 
 import 'package:get/get.dart';
 import 'package:waddy_app/api/api_client.dart';
@@ -7,7 +8,6 @@ import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/brands/domain/models/brands_model.dart';
 import 'package:waddy_app/features/brands/domain/repositories/brands_repository_interface.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
 class BrandsRepository implements BrandsRepositoryInterface {
@@ -20,7 +20,7 @@ class BrandsRepository implements BrandsRepositoryInterface {
   }) async {
     List<BrandModel>? brandList;
     String cacheId =
-        '${AppConstants.brandListUri}-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.brandListUri}-${ModuleHelper.currentModuleId() ?? 'none'}';
 
     switch (source) {
       case DataSourceEnum.client:
