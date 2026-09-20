@@ -105,20 +105,13 @@ class _StoreCardState extends State<StoreCard>
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                // One blur pass per card, not two — see
+                // store_card_with_distance.dart for the measurement.
                 boxShadow: [
-                  // Ambient shadow - soft, spread out
                   BoxShadow(
-                    color: Theme.of(context).shadowColor.withOpacity(0.08),
-                    blurRadius: 12,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 2),
-                  ),
-                  // Directional shadow - for depth
-                  BoxShadow(
-                    color: Theme.of(context).shadowColor.withOpacity(0.12),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 4),
+                    color: Theme.of(context).shadowColor.withOpacity(0.14),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -151,15 +144,14 @@ class _StoreCardState extends State<StoreCard>
                             children: [
                               Stack(
                                 children: [
-                                  ClipRRect(
+                                  CustomImage(
+                                    image: '${widget.store.logoFullUrl}',
+                                    height: 50,
+                                    width: 50,
+                                    fit: BoxFit.cover,
+                                    // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                     borderRadius: BorderRadius.circular(
                                       Dimensions.radiusDefault,
-                                    ),
-                                    child: CustomImage(
-                                      image: '${widget.store.logoFullUrl}',
-                                      height: 50,
-                                      width: 50,
-                                      fit: BoxFit.cover,
                                     ),
                                   ),
 

@@ -46,8 +46,8 @@ import 'package:flutter/widgets.dart';
 ///
 /// One callback per frame doing a comparison and, rarely, a list append. It is
 /// registered only when [start] is called, so it costs nothing until someone is
-/// measuring. Release builds can call it too — the reporting is debug-gated but
-/// the collection is not, so a profile build gives real numbers.
+/// measuring. The report prints in debug and profile and is silent in release;
+/// profile is where the numbers are worth reading.
 class FrameStats {
   FrameStats._();
 
@@ -127,10 +127,15 @@ class FrameStats {
     return out;
   }
 
-  /// Closes the window and prints the report in debug builds.
+  /// Closes the window and prints the report.
+  ///
+  /// Printed in debug **and profile**, silent in release. Profile is the only
+  /// build whose frame numbers mean anything — debug is 3-10x slower — so
+  /// gating this on `kDebugMode` alone hid the report in the exact mode it
+  /// exists to serve.
   static void stopAndPrint() {
     final String out = stop();
-    if (kDebugMode) debugPrint(out);
+    if (!kReleaseMode) debugPrint(out);
   }
 
   static void _onTimings(List<FrameTiming> timings) {
@@ -179,12 +184,34 @@ class FrameStats {
           'closed before the first frame rendered\n';
     }
 
-    final String verdict =
-        _worstRasterUs > _worstBuildUs
-            ? 'raster-bound — painting cost, not rebuild cost. '
-                'Look at images, shadows, blurs; scoping update() will not help'
-            : 'build-bound — rebuild cost. '
-                'This is what scoping update() addresses';
+    // Judged on the AVERAGE, not the worst frame.
+    //
+    // The first version compared worst-case build against worst-case raster,
+    // and got the answer backwards on a real device: one 84ms build outlier
+    // during a cold start outvoted a raster average running 2-3x the build
+    // average across every other frame. A single stutter is not what a scroll
+    // feels like; the steady-state cost is.
+    //
+    // Worst values are still reported — they are what a user perceives as a
+    // hitch — but they do not decide where the work goes.
+    final int avgBuildUs = _totalBuildUs ~/ _frames;
+    final int avgRasterUs = _totalRasterUs ~/ _frames;
+
+    final String verdict;
+    if (avgRasterUs > avgBuildUs * 1.3) {
+      verdict =
+          'RASTER-bound (avg ${_ms(avgRasterUs)} vs build ${_ms(avgBuildUs)}) '
+          '— painting cost. Look at image decode size, Opacity, '
+          'BackdropFilter, unclipped shadows. Scoping update() will not help';
+    } else if (avgBuildUs > avgRasterUs * 1.3) {
+      verdict =
+          'BUILD-bound (avg ${_ms(avgBuildUs)} vs raster ${_ms(avgRasterUs)}) '
+          '— rebuild cost. This is what scoping update() addresses';
+    } else {
+      verdict =
+          'MIXED (build ${_ms(avgBuildUs)}, raster ${_ms(avgRasterUs)}) '
+          '— neither dominates; start with raster, it is usually cheaper';
+    }
 
     final StringBuffer out =
         StringBuffer()

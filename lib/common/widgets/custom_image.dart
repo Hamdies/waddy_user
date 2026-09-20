@@ -63,6 +63,23 @@ class CustomImage extends StatelessWidget {
   /// tokens instead.
   final Widget? fallback;
 
+  /// Rounds the image without a `ClipRRect`.
+  ///
+  /// A `ClipRRect` forces a `saveLayer`: the subtree renders to an offscreen
+  /// buffer, gets masked, then composites back. That is one of the more
+  /// expensive things a mid-range GPU does, and these cards do it per image in
+  /// a scrolling rail — the Mi 9T baseline has raster at 9.8-14.5ms against a
+  /// 16.7ms budget (docs/performance_baseline.md §9).
+  ///
+  /// Given a radius, the loaded image is painted as a `DecorationImage` on a
+  /// rounded `BoxDecoration` instead. The renderer rounds the corners while
+  /// drawing rather than masking afterwards, so there is no offscreen pass and
+  /// the result is identical.
+  ///
+  /// Only the loaded image is drawn this way; the placeholder and error tile
+  /// keep their own shape, which is what they already did inside a clip.
+  final BorderRadius? borderRadius;
+
   const CustomImage({
     super.key,
     required this.image,
@@ -75,6 +92,7 @@ class CustomImage extends StatelessWidget {
     this.variants,
     this.decodeWidth,
     this.fallback,
+    this.borderRadius,
   });
 
   /// Hard ceiling on decode width in device pixels.
@@ -131,6 +149,25 @@ class CustomImage extends StatelessWidget {
       maxWidthDiskCache: memCacheWidth,
       placeholder: (context, url) => _fallback(),
       errorWidget: (context, url, error) => _fallback(),
+      // Rounded by the decoration rather than by a clip — see [borderRadius].
+      imageBuilder:
+          borderRadius == null
+              ? null
+              : (BuildContext context, ImageProvider provider) => Container(
+                height: height,
+                width: width,
+                decoration: BoxDecoration(
+                  borderRadius: borderRadius,
+                  image: DecorationImage(
+                    image: provider,
+                    fit: fit ?? BoxFit.cover,
+                    colorFilter:
+                        color == null
+                            ? null
+                            : ColorFilter.mode(color!, BlendMode.srcIn),
+                  ),
+                ),
+              ),
     );
   }
 

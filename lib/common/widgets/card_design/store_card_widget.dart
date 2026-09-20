@@ -149,13 +149,12 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
                                         ),
                                       ],
                                     ),
-                                    child: ClipRRect(
+                                    child: CustomImage(
+                                      image: '${storeItems[2].imageFullUrl}',
+                                      fit: BoxFit.cover,
+                                      // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                       borderRadius: BorderRadius.circular(
                                         Dimensions.radiusSmall,
-                                      ),
-                                      child: CustomImage(
-                                        image: '${storeItems[2].imageFullUrl}',
-                                        fit: BoxFit.cover,
                                       ),
                                     ),
                                   ),
@@ -191,13 +190,12 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
                                         ),
                                       ],
                                     ),
-                                    child: ClipRRect(
+                                    child: CustomImage(
+                                      image: '${storeItems[1].imageFullUrl}',
+                                      fit: BoxFit.cover,
+                                      // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                       borderRadius: BorderRadius.circular(
                                         Dimensions.radiusSmall,
-                                      ),
-                                      child: CustomImage(
-                                        image: '${storeItems[1].imageFullUrl}',
-                                        fit: BoxFit.cover,
                                       ),
                                     ),
                                   ),
@@ -225,13 +223,12 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
                                     ),
                                   ],
                                 ),
-                                child: ClipRRect(
+                                child: CustomImage(
+                                  image: '${storeItems[0].imageFullUrl}',
+                                  fit: BoxFit.cover,
+                                  // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                   borderRadius: BorderRadius.circular(
                                     Dimensions.radiusSmall,
-                                  ),
-                                  child: CustomImage(
-                                    image: '${storeItems[0].imageFullUrl}',
-                                    fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
@@ -369,13 +366,12 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(2),
-                              child: ClipRRect(
+                              child: CustomImage(
+                                image: '${store.logoFullUrl}',
+                                fit: BoxFit.cover,
+                                // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                 borderRadius: BorderRadius.circular(
                                   Dimensions.radiusSmall,
-                                ),
-                                child: CustomImage(
-                                  image: '${store.logoFullUrl}',
-                                  fit: BoxFit.cover,
                                 ),
                               ),
                             ),

@@ -1,6 +1,6 @@
 # Performance: measure before scoping
 
-**Status:** instrumentation landed, **baseline not yet taken**
+**Status:** baseline taken on a Mi 9T (2026-09-20). **Raster-bound.**
 **Blocks:** M4 (527 unscoped `update()`), M10 (cold start)
 
 ---
@@ -275,3 +275,300 @@ whoever does it.
 - **`_categoryIndex = 0` on every call**, including the short-circuit. Harmless
   today, but it means asking for store details silently resets the user's
   category selection.
+
+---
+
+## 9. The baseline, and what it overturned
+
+Xiaomi Mi 9T (Snapdragon 730, 6 GB, 60 Hz), profile build, `--flavor prod`.
+
+| window | frames | janky | build avg | build worst | raster avg | raster worst |
+|---|---|---|---|---|---|---|
+| home load (cold) | 81 | 28.4% | 4.8ms | 84.8ms | **9.8ms** | 41.3ms |
+| home refresh | 51 | **76.5%** | 5.1ms | 45.5ms | **14.5ms** | 37.4ms |
+| home refresh | 44 | 70.5% | 6.1ms | 40.8ms | **11.1ms** | 30.1ms |
+
+Budget 16.7 ms, correctly read from the 60 Hz display.
+
+### 9.1 It is RASTER-bound, not build-bound
+
+**Raster averages 2–3× build across every window.** On the middle run raster
+averages 14.5 ms against a 16.7 ms budget — the GPU alone nearly misses the
+frame before any Dart runs.
+
+The tool said "build-bound" on all three, and the tool was wrong. Its verdict
+compared **worst** build against **worst** raster, and a single 84 ms build
+outlier during a cold start outvoted a raster average running triple the build
+average across every other frame. A lone stutter is not what a scroll feels
+like; the steady state is.
+
+Fixed: the verdict now judges on averages, reports both, and says MIXED rather
+than picking a side when neither dominates by 30%.
+
+### 9.2 So M4 is not the first fix
+
+This is the fourth time in this plan a proxy pointed the wrong way (§21.5), and
+the first time the *instrumentation built to stop that* did it. Worth stating
+plainly: a measurement is only as good as the question it asks.
+
+Scoping 526 `update()` calls would have been weeks aimed at the smaller half of
+the cost. Build average is 4.8–6.1 ms against a 16.7 ms budget — **already
+inside budget**. Halving it saves ~3 ms on a frame losing 14.5 ms to raster.
+
+### 9.3 What to look at instead
+
+Home carries **88 `BoxShadow`s and 84 `ClipRRect`s**. Every clip forces a
+`saveLayer`, every shadow is a blur pass, and both are per-widget in a scrolling
+list.
+
+Ordered by likely return:
+
+1. **Shadows.** 88 of them. A `BoxShadow` with a blur is one of the most
+   expensive things a mobile GPU does. Most cards want one shadow on the card,
+   not one per element inside it.
+2. **Clips.** 84 `ClipRRect`s. A rounded `DecoratedBox` clips without a
+   `saveLayer`; `Card` and `Material` take a `borderRadius` directly.
+3. **`Opacity`** — 54 uses. `Opacity` allocates an offscreen layer;
+   `AnimatedOpacity` on a static value, or a colour with an alpha channel,
+   usually does not.
+
+Image decode is **not** the problem: `CustomImage` already sets `memCacheWidth`
+and `maxWidthDiskCache`.
+
+### 9.4 The refresh windows are the worst
+
+76.5% and 70.5% janky, against 28.4% on the cold load. A refresh repaints a
+fully-populated home — every card, shadow and clip already on screen — where the
+cold load paints into an empty tree.
+
+That is also the shape a user hits most: pull-to-refresh, or returning to home.
+
+### 9.5 Android's own instrumentation agrees
+
+```
+I/Choreographer: Skipped 64 frames!  The application may be doing too much work
+                 on its main thread.
+W/Looper: PerfMonitor doFrame : time=1050ms latency=789ms
+```
+
+A 1,050 ms frame during startup. That one *is* main-thread work and belongs to
+cold start (M10), separately from the raster story above.
+
+### 9.6 Revised order
+
+1. **Shadow and clip audit on home** — the measured cost.
+2. **Re-measure.** Target: raster average under 8 ms.
+3. **M4 on cart + checkout only**, if their own windows justify it. Build is
+   inside budget on home, so home's 22 builders are not the priority the count
+   implied.
+4. **Cold start (M10)** — the 1,050 ms frame is a separate problem.
+
+The M4 numbers stay in the scoreboard as a maintainability metric. They are not
+the performance metric.
+
+---
+
+## 10. First raster pass
+
+Aimed at §9.3, on the cards the measured rails actually render.
+
+### 10.1 Double shadows collapsed — 3 cards
+
+`store_card_with_distance`, `store_card` and `popular_store_card` each drew an
+**ambient** shadow (12px blur) stacked on a **directional** one (8px blur):
+two full blur passes per card, on rails that render several at once.
+
+Replaced with one shadow whose blur (10px) and offset (0,3) sit between the
+pair, at slightly higher alpha to keep the depth. Halves the blur work per
+card, and a card is the unit that multiplies by how many are on screen.
+
+### 10.2 `CustomImage.borderRadius` — 7 saveLayers removed
+
+A `ClipRRect` forces a `saveLayer`: render the subtree to an offscreen buffer,
+mask it, composite back. These cards did that per image, in scrolling rails.
+
+`CustomImage` now takes an optional `borderRadius` and paints the loaded image
+as a `DecorationImage` on a rounded `BoxDecoration` via `imageBuilder`. The
+renderer rounds while drawing — no offscreen pass, identical result.
+
+Seven single-image clips converted across the four card files. Clips that wrap
+a **`Stack`** were deliberately left alone: there the clip masks badges and
+overlays too, so it is doing real work rather than just rounding a photo.
+
+### 10.3 What was checked and left
+
+**Image decode is not the problem.** `CustomImage` already sets `memCacheWidth`
+and `maxWidthDiskCache` from the laid-out width and device pixel ratio, capped
+at 1080px. The bytes-in-memory half was done before this.
+
+**The 54 `Opacity` widgets** are next if another pass is needed. Each allocates
+an offscreen layer; many could be a colour with an alpha channel instead. Not
+touched yet — one change at a time, measured.
+
+### 10.4 Re-measure before doing more
+
+```sh
+flutter run --profile --flavor prod --dart-define-from-file=env/prod.json
+```
+
+**Target: raster average under 8ms** (was 9.8–14.5). The refresh windows are
+the ones to watch — 76.5% and 70.5% janky, worse than the cold load, because a
+refresh repaints a fully-populated home.
+
+If raster drops and jank follows, continue with the `Opacity` pass. If raster
+drops and jank does **not**, the remaining cost is elsewhere and the next
+measurement should say where — not a guess.
+
+---
+
+## 11. Second measurement, and the bug it exposed
+
+### 11.1 The raster pass held
+
+| | baseline | after §10 |
+|---|---|---|
+| home cold — janky | 28.4% | **16.1% / 23.6%** |
+| home cold — raster avg | 9.8ms | **6.7ms / 7.1ms** |
+| home cold — raster worst | 41.3ms | **16.6ms / 40.8ms** |
+
+Two cold runs, because a second measurement is how you learn the variance: 16.1%
+and 23.6% jank for the same interaction. Any single number here is ±7 points, so
+a change under that is noise.
+
+Raster average went 9.8ms → 6.7–7.1ms and stayed under the 16.7ms budget. The
+verdict line now reads correctly: `RASTER-bound (avg 6.7ms vs build 3.1ms)`.
+
+### 11.2 Refresh is still the worst case
+
+75.0%, 60.0%, 30.0%, 14.7% janky across four refreshes, raster 9.5–14.1ms. The
+spread tracks how much was already on screen — a refresh over a full home
+repaints every card, where the cold load paints into an empty tree.
+
+Still the next target, and still raster.
+
+### 11.3 The fan-out cap worked
+
+Home cold went 29 requests → **17**. The `items/recommended` fan-out that fired
+8× now fires within its cap and skips stores already fetched.
+
+### 11.4 Checkout: 0 requests, 25ms — and that was the clue
+
+```
+── API checkout open ──
+requests: 0   failures: 0   bytes: 0B   wall: 25ms
+```
+
+Checkout's own load is instant; the store-cache reuse works. So the reported
+"takes forever and doesn't load" was happening *after* that window closed.
+
+The shimmer was gated on `distance != null && store != null`, and **the cache
+short-circuit skipped the distance computation entirely**:
+
+```dart
+if (store.name != null) {
+  _store = store;
+  _applyOrderType();
+  return _store;        // <- _computeDeliveryDistance never ran
+}
+```
+
+So the optimisation from §8 — reuse the store the cart already fetched — made
+checkout faster at fetching and permanently stuck at rendering. A fix that
+caused the symptom it was meant to relieve.
+
+Two changes:
+
+1. **The short-circuit now computes the distance.** A cached store does not
+   imply a cached distance; they are separate fetches.
+2. **The shimmer no longer gates on distance at all.** It waited on a second
+   serial chain (distance → extra charge) to show the address, the items and
+   the payment methods — none of which need it. `_computeDeliveryDistance`
+   also bails silently when coordinates are missing, so `distance` could stay
+   null forever and the screen would never load on that path either.
+
+   The fee shows as pending while it resolves, `-1` already means "not
+   computable" downstream, and the place-order button keeps its own
+   `distance == -1` guard, so submission is still blocked when it must be.
+
+### 11.5 What this cost, and the lesson
+
+The §8 optimisation shipped without a measurement of the screen it optimised —
+checkout was the one window with no instrumentation, which is exactly why the
+regression was invisible. It was found by instrumenting it and reading a
+**zero**: 0 requests in 25ms is not a fast screen, it is a screen whose work
+happens somewhere the window does not cover.
+
+An unexpectedly good number deserves the same suspicion as a bad one.
+
+---
+
+## 12. Third measurement
+
+### 12.1 Raster is holding, and the trend is real
+
+| run | cold raster avg | cold janky |
+|---|---|---|
+| baseline | 9.8ms | 28.4% |
+| after §10 | 6.7 / 7.1ms | 16.1% / 23.6% |
+| this run | **6.7ms** | 20.3% |
+
+Three cold loads now: 16.1%, 23.6%, 20.3%. Mean ~20%, spread ±4 — so the drop
+from 28.4% is real, and anything under ~5 points is noise. Raster average has
+been 6.7-7.1ms across every run since the shadow and clip work, against a
+16.7ms budget.
+
+One refresh landed at **4.3% janky, MIXED (build 2.7ms, raster 3.2ms)** — the
+first window in this whole exercise to come in genuinely fast. That is what the
+screen looks like when little has changed and nothing needs repainting.
+
+### 12.2 Checkout is instant, and the zero was honest this time
+
+```
+── API checkout open ──
+requests: 0   bytes: 0B   wall: 55ms / 90ms / 81ms
+```
+
+Three opens, no requests, under 100ms each. The §11 fixes hold: the cached
+store is reused *and* the distance still computes, and the shimmer no longer
+waits on it.
+
+The "no frames captured" line was the window closing synchronously at the end
+of `initCall`, before anything painted — technically accurate, practically
+useless. It now closes on a post-frame callback.
+
+### 12.3 Duplicate requests: the guard that loses a race
+
+Cold load went 17 → 22, and the trace named them:
+
+```
+3×  /api/v1/stores/get-stores/all   91.7KB
+2×  /api/v1/module                  20.8KB
+2×  /api/v1/customer/cart/list
+```
+
+Home calls `getModules()` twice: once unconditionally, once from the
+quick-delivery rail behind `if (moduleList == null)`. Both run inside the same
+`Future.wait`, so **the guard loses the race** — the second caller reads null
+before the first has assigned anything.
+
+`if (x == null) fetch()` is not a guard against concurrency. It only works
+against sequential repeats.
+
+`getModules` and `getFeaturedStoreList` now coalesce: a caller arriving while a
+fetch is in flight joins it. Same shape as `CartController.getCartDataOnline`,
+which had already solved this — the pattern existed, it just had not spread.
+
+Clearing is by `identical()` so a stale completion cannot clear a newer fetch.
+`test/unit/request_coalescing_test.dart` pins all three.
+
+### 12.4 Where this leaves the numbers
+
+| | baseline | now |
+|---|---|---|
+| cold janky | 28.4% | ~20% |
+| cold raster avg | 9.8ms | 6.7ms |
+| cold requests | 16-29 | 17 expected after coalescing |
+| checkout open | shimmer forever on failure | <100ms, 0 requests |
+
+**Refresh remains the worst case** — 55.3% on the populated one this run. Still
+raster, still the `Opacity` pass in §10.3 as the next lever.

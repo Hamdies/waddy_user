@@ -576,7 +576,37 @@ class SplashController extends GetxController implements GetxService {
   /// a customer who changes address reads a different key, finds it stale, and
   /// goes to the network — the one case where the old unconditional re-fetch
   /// was doing something necessary.
+  /// Coalesces concurrent module fetches.
+  ///
+  /// Home fires `getModules()` twice on a cold load: once unconditionally, and
+  /// once from the quick-delivery rail behind a `moduleList == null` guard.
+  /// Both run inside the same `Future.wait`, so the guard loses the race — the
+  /// second call starts before the first has assigned anything, and
+  /// `/api/v1/module` goes out twice for 20.8 KB.
+  ///
+  /// Same shape as `CartController.getCartDataOnline`: a second caller arriving
+  /// while a fetch is in flight joins it rather than starting another.
+  Future<void>? _modulesFetchInFlight;
+
   Future<void> getModules({
+    Map<String, String>? headers,
+    DataSourceEnum dataSource = DataSourceEnum.local,
+  }) {
+    final Future<void>? inFlight = _modulesFetchInFlight;
+    if (inFlight != null) return inFlight;
+
+    late final Future<void> fetch;
+    fetch = _getModules(headers: headers, dataSource: dataSource)
+        .whenComplete(() {
+      if (identical(_modulesFetchInFlight, fetch)) {
+        _modulesFetchInFlight = null;
+      }
+    });
+    _modulesFetchInFlight = fetch;
+    return fetch;
+  }
+
+  Future<void> _getModules({
     Map<String, String>? headers,
     DataSourceEnum dataSource = DataSourceEnum.local,
   }) async {

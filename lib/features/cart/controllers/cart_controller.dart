@@ -290,9 +290,9 @@ class CartController extends GetxController implements GetxService {
     // bare `update()` that repaints every GetBuilder bound to this controller.
     //
     // Whether that actually costs a frame is a measurement, not a deduction —
-    // so it is measured. Debug-only: `kDebugMode` keeps the callback out of
-    // release, where the tap should cost nothing at all.
-    if (kDebugMode) FrameStats.start('cart quantity tap');
+    // so it is measured. Not in release, where the tap should cost nothing at
+    // all; profile is the mode whose numbers are worth reading.
+    if (!kReleaseMode) FrameStats.start('cart quantity tap');
 
     // Hold the row itself, not its position: the list identity survives the
     // awaits below even when the list is replaced under us.
@@ -331,7 +331,7 @@ class CartController extends GetxController implements GetxService {
     calculationCart();
     update();
 
-    if (kDebugMode) {
+    if (!kReleaseMode) {
       // Closed here, not after the sync: this is the frame the user waits on.
       // The server round-trip below is measured by ApiStats and must not be
       // charged against the tap's rendering cost.

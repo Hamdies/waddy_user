@@ -1,4 +1,7 @@
 import 'package:just_the_tooltip/just_the_tooltip.dart';
+import 'package:waddy_app/common/widgets/section_error_view.dart';
+import 'package:waddy_app/util/frame_stats.dart';
+import 'package:waddy_app/api/api_stats.dart';
 import 'package:waddy_app/common/widgets/address_widget.dart';
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
@@ -113,6 +116,12 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> initCall() async {
+    // Checkout is the screen users report as slow, and it was the one window
+    // with no numbers. The shimmer is gated on `store != null`, so whatever
+    // this window reports IS the perceived load.
+    ApiStats.startWindow('checkout open');
+    FrameStats.start('checkout open');
+
     bool isLoggedIn = AuthHelper.isLoggedIn();
     Get.find<CheckoutController>().resetOrderTax();
     Get.find<CheckoutController>().initAdditionData();
@@ -159,15 +168,27 @@ class CheckoutScreenState extends State<CheckoutScreen> {
           ? _cartList!.addAll(Get.find<CartController>().cartList)
           : _cartList!.addAll(widget.cartList!);
       if (_cartList != null && _cartList!.isNotEmpty) {
-        Get.find<CheckoutController>().initCheckoutData(
+        await Get.find<CheckoutController>().initCheckoutData(
           _cartList![0]!.item!.storeId,
         );
       }
     }
     if (widget.storeId != null) {
-      Get.find<CheckoutController>().initCheckoutData(widget.storeId);
+      await Get.find<CheckoutController>().initCheckoutData(widget.storeId);
       Get.find<CouponController>().removeCouponData(false);
     }
+
+    // Reported after the first frame that can show content, not at the end of
+    // initCall.
+    //
+    // Closing it here synchronously reported "no frames captured in 25ms" —
+    // true, and useless: the store resolves from cache before anything has
+    // painted, so the window closed before the frame it was meant to measure.
+    // A post-frame callback closes it once that frame is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ApiStats.printReport();
+      FrameStats.stopAndPrint();
+    });
     Get.find<CheckoutController>().pickPrescriptionImage(
       isRemove: true,
       isCamera: false,
@@ -567,8 +588,25 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
                           _setSinglePaymentActive();
 
-                          return (checkoutController.distance != null &&
-                                  checkoutController.store != null)
+                          // Gated on the store alone.
+                          //
+                          // This also required `distance != null`, which made
+                          // the screen shimmer until a *second* chain
+                          // (distance -> extra charge, two serial round trips)
+                          // finished. Worse, `_computeDeliveryDistance` bails
+                          // without setting anything when the user's address
+                          // or the store has no usable coordinates — so
+                          // distance stayed null and checkout never loaded at
+                          // all.
+                          //
+                          // The distance is not needed to render: a pending
+                          // fee shows as a dash, `-1` already means "not
+                          // computable" downstream, and the place-order button
+                          // has its own guard (`distance == -1`) that blocks
+                          // submission. Showing the address, the items and the
+                          // payment methods while a fee resolves is strictly
+                          // better than showing nothing.
+                          return (checkoutController.store != null)
                               ? Column(
                                 children: [
                                   const SizedBox(),
@@ -714,6 +752,23 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                     isPrescriptionRequired,
                                   ),
                                 ],
+                              )
+                              // Three states, not two. A failed store fetch
+                              // used to fall through to the shimmer and stay
+                              // there forever, because the shimmer is gated on
+                              // `store != null` and nothing else set it — the
+                              // "checkout never loads" report.
+                              : checkoutController.storeLoadFailed
+                              ? SectionErrorView(
+                                headline: 'failed_to_load'.tr,
+                                onRetry:
+                                    () => Get.find<CheckoutController>()
+                                        .initCheckoutData(
+                                          widget.storeId ??
+                                              _cartList?.firstOrNull
+                                                  ?.item
+                                                  ?.storeId,
+                                        ),
                               )
                               : const CheckoutScreenShimmerView();
                         },

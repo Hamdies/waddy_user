@@ -81,6 +81,14 @@ class CheckoutController extends GetxController implements GetxService {
   Store? _store;
   Store? get store => _store;
 
+  /// True when the store fetch for this checkout failed.
+  ///
+  /// The screen renders a shimmer while `store == null`, so without this a
+  /// failed fetch shimmers forever — the "checkout never loads" report. It is
+  /// a distinct state from "still loading", and the screen offers a retry.
+  bool _storeLoadFailed = false;
+  bool get storeLoadFailed => _storeLoadFailed;
+
   int? _addressIndex = 0;
   int? get addressIndex => _addressIndex;
 
@@ -195,6 +203,7 @@ class CheckoutController extends GetxController implements GetxService {
 
   Future<void> initCheckoutData(int? storeId) async {
     Get.find<CouponController>().removeCouponData(false);
+    _storeLoadFailed = false;
 
     // Reuse the store the previous screen already fetched.
     //
@@ -214,7 +223,14 @@ class CheckoutController extends GetxController implements GetxService {
             : Store(id: storeId);
 
     _store = await Get.find<StoreController>().getStoreDetails(seed, false);
-    if (_store == null) return;
+    if (_store == null) {
+      // A bare `return` here left the screen shimmering indefinitely: the
+      // shimmer is gated on `store != null`, and nothing else ever set it.
+      // Fail visibly instead, with something the user can act on.
+      _storeLoadFailed = true;
+      update();
+      return;
+    }
     // Paint now. Everything above is resolved; surge only adjusts a fee.
     update();
 

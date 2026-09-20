@@ -73,20 +73,14 @@ class _PopularStoreCardState extends State<PopularStoreCard>
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            // One blur pass per card, not two — see
+            // store_card_with_distance.dart for the measurement this came
+            // from (raster 9.8-14.5ms against a 16.7ms budget on a Mi 9T).
             boxShadow: [
-              // Ambient shadow
               BoxShadow(
-                color: Theme.of(context).shadowColor.withOpacity(0.06),
-                blurRadius: 12,
-                spreadRadius: 0,
-                offset: const Offset(0, 2),
-              ),
-              // Directional shadow
-              BoxShadow(
-                color: Theme.of(context).shadowColor.withOpacity(0.10),
-                blurRadius: 8,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
+                color: Theme.of(context).shadowColor.withOpacity(0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -166,14 +160,13 @@ class _PopularStoreCardState extends State<PopularStoreCard>
                                   ),
                                 ],
                               ),
-                              child: ClipRRect(
+                              child: CustomImage(
+                                image: '${widget.store.logoFullUrl}',
+                                height: 40,
+                                width: 40,
+                                variants: widget.store.logoVariants,
+                                // Rounded by the decoration, not a ClipRRect — no saveLayer.
                                 borderRadius: BorderRadius.circular(100),
-                                child: CustomImage(
-                                  image: '${widget.store.logoFullUrl}',
-                                  height: 40,
-                                  width: 40,
-                                  variants: widget.store.logoVariants,
-                                ),
                               ),
                             ),
                             const SizedBox(

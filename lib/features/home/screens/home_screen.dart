@@ -537,16 +537,34 @@ class HomeScreen extends StatefulWidget {
     }
   }
 
+  /// How many featured stores get their recommended items prefetched.
+  ///
+  /// This is a per-store fan-out: one request each. Unbounded, it turned a
+  /// 16-request home load into 29 on a feed of eight featured stores, and it
+  /// grows with the feed — a merchant sign-up makes home slower for everyone.
+  ///
+  /// Only the first few rows are on screen when home paints, and the rest can
+  /// fetch when they scroll into view. Four covers the visible rail on a
+  /// phone.
+  static const int _kRecommendedPrefetchLimit = 4;
+
   static void _fetchFeaturedStoresRecommendedItems() {
     final storeController = Get.find<StoreController>();
     final featuredStores = storeController.featuredStoreList;
+    if (featuredStores == null || featuredStores.isEmpty) return;
 
-    if (featuredStores != null && featuredStores.isNotEmpty) {
-      for (var store in featuredStores) {
-        if (store.id != null) {
-          storeController.fetchStoreRecommendedItems(store.id!);
-        }
-      }
+    int requested = 0;
+    for (final store in featuredStores) {
+      if (requested >= _kRecommendedPrefetchLimit) break;
+      final int? id = store.id;
+      if (id == null) continue;
+
+      // Already fetched — the grocery home has always guarded this way; home
+      // did not, so a refresh re-requested every store it had just loaded.
+      if (storeController.storeRecommendedItems.containsKey(id)) continue;
+
+      storeController.fetchStoreRecommendedItems(id);
+      requested++;
     }
   }
 

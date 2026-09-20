@@ -112,8 +112,13 @@ class ApiStats {
     return out.toString();
   }
 
+  /// Prints in debug **and profile**, silent in release.
+  ///
+  /// Profile is where request timings are realistic — a debug build's timings
+  /// are dominated by the unoptimised Dart VM. Gating on `kDebugMode` alone
+  /// meant a profile run collected everything and printed nothing.
   static void printReport() {
-    if (kDebugMode) {
+    if (!kReleaseMode) {
       debugPrint(report());
     }
   }

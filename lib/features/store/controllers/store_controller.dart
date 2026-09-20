@@ -583,7 +583,33 @@ class StoreController extends GetxController implements GetxService {
     getTopOfferStoreList(true, false);
   }
 
+  /// Coalesces concurrent featured-store fetches.
+  ///
+  /// The cold-load trace showed `/api/v1/stores/get-stores/all` going out three
+  /// times for 91.7 KB. Several rails want this list and each asked for it; a
+  /// caller arriving while a fetch is in flight now joins it.
+  ///
+  /// Same pattern as `CartController.getCartDataOnline` and
+  /// `SplashController.getModules`.
+  Future<void>? _featuredFetchInFlight;
+
   Future<void> getFeaturedStoreList({
+    DataSourceEnum dataSource = DataSourceEnum.local,
+  }) {
+    final Future<void>? inFlight = _featuredFetchInFlight;
+    if (inFlight != null) return inFlight;
+
+    late final Future<void> fetch;
+    fetch = _getFeaturedStoreList(dataSource: dataSource).whenComplete(() {
+      if (identical(_featuredFetchInFlight, fetch)) {
+        _featuredFetchInFlight = null;
+      }
+    });
+    _featuredFetchInFlight = fetch;
+    return fetch;
+  }
+
+  Future<void> _getFeaturedStoreList({
     DataSourceEnum dataSource = DataSourceEnum.local,
   }) async {
     List<Store>? stores;
@@ -885,11 +911,23 @@ class StoreController extends GetxController implements GetxService {
   }) async {
     _categoryIndex = 0;
 
-    // The caller already has a populated store — use it and skip both the
-    // round trip and every side effect.
+    // The caller already has a populated store — skip the round trip, but NOT
+    // the side effects that downstream screens gate on.
+    //
+    // Checkout renders a shimmer until `distance != null && store != null`.
+    // Returning here without computing the distance left `distance` null
+    // forever, so reusing a cached store — which is meant to make checkout
+    // faster — made it never load at all.
+    //
+    // The distance is a separate fetch from the store, so a cached store does
+    // not imply a cached distance.
     if (store.name != null) {
       _store = store;
       _applyOrderType();
+      if (!fromCart && slug.isEmpty) {
+        _computeDeliveryDistance();
+      }
+      update();
       return _store;
     }
 

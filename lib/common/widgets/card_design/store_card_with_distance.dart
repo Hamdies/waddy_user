@@ -104,20 +104,24 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance>
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                // One shadow, not two.
+                //
+                // This was an ambient pass (12px blur) stacked on a
+                // directional one (8px blur) — two full blur passes per card,
+                // on a rail that renders several at once. The Mi 9T baseline
+                // puts raster at 9.8-14.5ms against a 16.7ms budget, and
+                // blurred shadows are among the most expensive things a
+                // mid-range GPU does.
+                //
+                // The single shadow below splits the difference: the 10px blur
+                // and 3px offset sit between the two it replaces, and the
+                // slightly higher alpha keeps the depth the pair conveyed.
+                // Halves the blur work per card.
                 boxShadow: [
-                  // Ambient shadow
                   BoxShadow(
-                    color: Theme.of(context).shadowColor.withOpacity(0.06),
-                    blurRadius: 12,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 2),
-                  ),
-                  // Directional shadow
-                  BoxShadow(
-                    color: Theme.of(context).shadowColor.withOpacity(0.10),
-                    blurRadius: 8,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 4),
+                    color: Theme.of(context).shadowColor.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -650,14 +654,14 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance>
                     ),
                   ],
                 ),
-                child: ClipRRect(
+                // Rounded by the decoration, not by a ClipRRect — no
+                // saveLayer. See CustomImage.borderRadius.
+                child: CustomImage(
+                  image: '${widget.store.logoFullUrl}',
+                  fit: BoxFit.cover,
+                  height: double.infinity,
+                  width: double.infinity,
                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  child: CustomImage(
-                    image: '${widget.store.logoFullUrl}',
-                    fit: BoxFit.cover,
-                    height: double.infinity,
-                    width: double.infinity,
-                  ),
                 ),
               ),
 
