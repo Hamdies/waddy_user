@@ -6,7 +6,6 @@ import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
 import 'package:waddy_app/features/chat/domain/models/chat_model.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
@@ -35,7 +34,7 @@ class MessageBubbleWidget extends StatelessWidget {
             vertical: Dimensions.paddingSizeDefault,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Dimensions.paddingSizeSmall),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           ),
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
           child: Column(
@@ -46,7 +45,9 @@ class MessageBubbleWidget extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(20.0),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                     child: CustomImage(
                       fit: BoxFit.cover,
                       width: 40,
@@ -88,7 +89,7 @@ class MessageBubbleWidget extends StatelessWidget {
                               ),
                               child: Text(
                                 message.message ?? '',
-                                style: robotoRegular.copyWith(
+                                style: waddyRegular.copyWith(
                                   color:
                                       Theme.of(
                                         context,
@@ -119,7 +120,7 @@ class MessageBubbleWidget extends StatelessWidget {
 
               Text(
                 DateConverter.convertTodayYesterdayFormat(message.createdAt!),
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   color: Theme.of(context).hintColor,
                   fontSize: Dimensions.fontSizeSmall,
                 ),
@@ -135,7 +136,7 @@ class MessageBubbleWidget extends StatelessWidget {
             vertical: Dimensions.paddingSizeDefault,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Dimensions.paddingSizeSmall),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           ),
           child: GetBuilder<ProfileController>(
             builder: (profileController) {
@@ -184,7 +185,7 @@ class MessageBubbleWidget extends StatelessWidget {
                                   message.replyTo!.message!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: robotoRegular.copyWith(
+                                  style: waddyRegular.copyWith(
                                     fontSize: Dimensions.fontSizeExtraSmall,
                                     color: Theme.of(context).hintColor,
                                   ),
@@ -213,7 +214,7 @@ class MessageBubbleWidget extends StatelessWidget {
                                       ),
                                       child: Text(
                                         message.message ?? '',
-                                        style: robotoRegular.copyWith(
+                                        style: waddyRegular.copyWith(
                                           color:
                                               Theme.of(
                                                 context,
@@ -253,7 +254,9 @@ class MessageBubbleWidget extends StatelessWidget {
                       const SizedBox(width: Dimensions.paddingSizeSmall),
 
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(20.0),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusExtraLarge,
+                        ),
                         child: CustomImage(
                           fit: BoxFit.cover,
                           width: 40,
@@ -275,7 +278,7 @@ class MessageBubbleWidget extends StatelessWidget {
                     DateConverter.convertTodayYesterdayFormat(
                       message.createdAt!,
                     ),
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       color: Theme.of(context).hintColor,
                       fontSize: Dimensions.fontSizeSmall,
                     ),
@@ -290,7 +293,7 @@ class MessageBubbleWidget extends StatelessWidget {
 
   Widget adminOrderMessage(BuildContext context, Order order) {
     return Container(
-      width: ResponsiveHelper.isDesktop(context) ? 400 : 350,
+      width: 350,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         border: Border.all(color: Theme.of(context).disabledColor, width: 0.5),
@@ -319,14 +322,14 @@ class MessageBubbleWidget extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text('${'order_id'.tr} ', style: robotoMedium),
-                          Text('#${order.id}', style: robotoBold),
+                          Text('${'order_id'.tr} ', style: waddyMedium),
+                          Text('#${order.id}', style: waddyBold),
                         ],
                       ),
 
                       Text(
                         '${'total'.tr}: ${PriceConverter.convertPrice(order.orderAmount ?? 0)}',
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           color: Theme.of(context).primaryColor,
                         ),
                       ),
@@ -346,13 +349,17 @@ class MessageBubbleWidget extends StatelessWidget {
                             Dimensions.radiusSmall,
                           ),
                         ),
-                        padding: const EdgeInsets.all(4),
-                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeExtraSmall,
+                        ),
+                        margin: const EdgeInsets.only(
+                          bottom: Dimensions.paddingSizeExtraSmall,
+                        ),
                         child: Text(
                           '${order.orderStatus}'.tr,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: Dimensions.fontSizeExtraSmall,
                             color: Colors.deepPurple,
                           ),
@@ -361,7 +368,7 @@ class MessageBubbleWidget extends StatelessWidget {
 
                       Text(
                         DateConverter.stringToLocalDateOnly(order.createdAt!),
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeExtraSmall,
                         ),
                       ),
@@ -382,7 +389,7 @@ class MessageBubbleWidget extends StatelessWidget {
                     children: [
                       Text(
                         'delivery_address'.tr,
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           color: Theme.of(context).disabledColor,
                           fontSize: Dimensions.fontSizeSmall,
                         ),
@@ -391,7 +398,7 @@ class MessageBubbleWidget extends StatelessWidget {
 
                       Text(
                         order.deliveryAddress?.contactPersonNumber ?? '',
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeSmall,
                         ),
                       ),
@@ -401,7 +408,7 @@ class MessageBubbleWidget extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         text: TextSpan(
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             color:
                                 Theme.of(context).textTheme.bodyMedium!.color,
                             fontSize: Dimensions.fontSizeSmall,
@@ -448,10 +455,10 @@ class MessageBubbleWidget extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          Text('items'.tr, style: robotoRegular),
+                          Text('items'.tr, style: waddyRegular),
                           Text(
                             order.detailsCount.toString(),
-                            style: robotoMedium.copyWith(
+                            style: waddyMedium.copyWith(
                               fontSize: Dimensions.fontSizeOverLarge,
                             ),
                           ),

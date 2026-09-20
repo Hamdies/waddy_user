@@ -17,17 +17,21 @@ class AdvertisementController extends GetxController implements GetxService {
 
   bool autoPlay = true;
 
-  Future<void> getAdvertisementList({DataSourceEnum dataSource = DataSourceEnum.local}) async {
+  Future<void> getAdvertisementList({
+    DataSourceEnum dataSource = DataSourceEnum.local,
+  }) async {
     List<AdvertisementModel>? responseAdvertisement;
-    if(dataSource == DataSourceEnum.local) {
-      responseAdvertisement = await advertisementServiceInterface.getAdvertisementList(dataSource);
+    if (dataSource == DataSourceEnum.local) {
+      responseAdvertisement = await advertisementServiceInterface
+          .getAdvertisementList(dataSource);
       if (responseAdvertisement != null) {
         _advertisementList = responseAdvertisement;
       }
       update();
       getAdvertisementList(dataSource: DataSourceEnum.client);
     } else {
-      responseAdvertisement = await advertisementServiceInterface.getAdvertisementList(dataSource);
+      responseAdvertisement = await advertisementServiceInterface
+          .getAdvertisementList(dataSource);
       if (responseAdvertisement != null) {
         _advertisementList = responseAdvertisement;
       }
@@ -37,16 +41,15 @@ class AdvertisementController extends GetxController implements GetxService {
 
   void setCurrentIndex(int index, bool notify) {
     _currentIndex = index;
-    if(notify) {
+    if (notify) {
       update();
     }
   }
 
-  void updateAutoPlayStatus({bool shouldUpdate = false, bool status = false}){
+  void updateAutoPlayStatus({bool shouldUpdate = false, bool status = false}) {
     autoPlay = status;
-    if(shouldUpdate){
+    if (shouldUpdate) {
       update();
     }
   }
-
 }

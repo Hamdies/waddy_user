@@ -24,7 +24,7 @@ class CustomTimePickerWidget extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
       ),
-      insetPadding: const EdgeInsets.all(30),
+      insetPadding: const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge),
       clipBehavior: Clip.antiAliasWithSaveLayer,
       child: Container(
         width: 500,
@@ -36,7 +36,7 @@ class CustomTimePickerWidget extends StatelessWidget {
               children: [
                 Text(
                   'estimated_delivery_time'.tr,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: Dimensions.fontSizeLarge,
                   ),
                 ),
@@ -48,7 +48,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                   ),
                   child: Text(
                     'this_item_will_be_shown_in_the_user_app_website'.tr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeLarge,
                       color: Theme.of(context).disabledColor,
                     ),
@@ -64,7 +64,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                       width: 70,
                       child: Text(
                         'minimum'.tr,
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeLarge,
                           color: Theme.of(context).disabledColor,
                         ),
@@ -77,7 +77,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                       width: 70,
                       child: Text(
                         'maximum'.tr,
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeLarge,
                           color: Theme.of(context).disabledColor,
                         ),
@@ -88,7 +88,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                       width: 70,
                       child: Text(
                         'unit'.tr,
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeLarge,
                           color: Theme.of(context).disabledColor,
                         ),
@@ -110,7 +110,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                       initialPosition: 10,
                     ),
 
-                    Text(':', style: robotoBold),
+                    Text(':', style: waddyBold),
 
                     MinMaxTimePickerWidget(
                       times: time,
@@ -136,7 +136,7 @@ class CustomTimePickerWidget extends StatelessWidget {
                   ),
                   child: Text(
                     '${storeRegController.storeMinTime} - ${storeRegController.storeMaxTime} ${storeRegController.storeTimeUnit}',
-                    style: robotoBold.copyWith(
+                    style: waddyBold.copyWith(
                       fontSize: Dimensions.fontSizeExtraLarge,
                     ),
                   ),

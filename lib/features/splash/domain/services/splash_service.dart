@@ -13,26 +13,30 @@ class SplashService implements SplashServiceInterface {
 
   @override
   Future<Response> getConfigData({required DataSourceEnum source}) async {
-    Response response = await splashRepositoryInterface.getConfigData(source: source);
+    Response response = await splashRepositoryInterface.getConfigData(
+      source: source,
+    );
     return response;
   }
 
   @override
-  ConfigModel? prepareConfigData(Response response){
+  ConfigModel? prepareConfigData(Response response) {
     ConfigModel? configModel;
-    if(response.statusCode == 200) {
+    if (response.statusCode == 200) {
       configModel = ConfigModel.fromJson(response.body);
     }
     return configModel;
   }
 
   @override
-  Future<LandingModel?> getLandingPageData({required DataSourceEnum source}) async {
+  Future<LandingModel?> getLandingPageData({
+    required DataSourceEnum source,
+  }) async {
     return await splashRepositoryInterface.getLandingPageData(source: source);
   }
 
   @override
-  Future<ModuleModel?> initSharedData() async {
+  Future<void> initSharedData() async {
     return await splashRepositoryInterface.initSharedData();
   }
 
@@ -52,13 +56,19 @@ class SplashService implements SplashServiceInterface {
   }
 
   @override
-  Future<List<ModuleModel>?> getModules({Map<String, String>? headers, required DataSourceEnum source}) async {
-    return await splashRepositoryInterface.getModules(headers: headers, source: source);
+  Future<List<ModuleModel>?> getModules({
+    Map<String, String>? headers,
+    required DataSourceEnum source,
+  }) async {
+    return await splashRepositoryInterface.getModules(
+      headers: headers,
+      source: source,
+    );
   }
 
   @override
-  Future<void> setModule(ModuleModel? module) async {
-    return await splashRepositoryInterface.setModule(module);
+  void updateModuleHeader(ModuleModel? module) {
+    splashRepositoryInterface.updateModuleHeader(module);
   }
 
   @override
@@ -72,33 +82,9 @@ class SplashService implements SplashServiceInterface {
   }
 
   @override
-  ModuleModel? getModule() {
-    return splashRepositoryInterface.getModule();
-  }
-
   @override
   Future<ResponseModel> subscribeEmail(String email) async {
     return await splashRepositoryInterface.subscribeEmail(email);
-  }
-
-  @override
-  bool getSavedCookiesData() {
-    return splashRepositoryInterface.getSavedCookiesData();
-  }
-
-  @override
-  Future<void> saveCookiesData(bool data) async {
-    return await splashRepositoryInterface.saveCookiesData(data);
-  }
-
-  @override
-  void cookiesStatusChange(String? data) {
-    splashRepositoryInterface.cookiesStatusChange(data);
-  }
-
-  @override
-  bool getAcceptCookiesStatus(String data) {
-    return splashRepositoryInterface.getAcceptCookiesStatus(data);
   }
 
   @override
@@ -130,5 +116,4 @@ class SplashService implements SplashServiceInterface {
   Future<void> saveWelcomeLetterShownStatus(bool data) async {
     return await splashRepositoryInterface.saveWelcomeLetterShownStatus(data);
   }
-
 }

@@ -3,7 +3,11 @@ class UpdateProfileResponseModel {
   String? verificationMedium;
   String? message;
 
-  UpdateProfileResponseModel({this.verificationOn, this.verificationMedium, this.message});
+  UpdateProfileResponseModel({
+    this.verificationOn,
+    this.verificationMedium,
+    this.message,
+  });
 
   UpdateProfileResponseModel.fromJson(Map<String, dynamic> json) {
     verificationOn = json['verification_on'];

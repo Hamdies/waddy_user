@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/helper/auth_token_store.dart';
 
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,6 +41,7 @@ class StoreRepository implements StoreRepositoryInterface {
     bool isRecommendedStoreList = false,
     bool isTopOfferStoreList = false,
     DataSourceEnum? source,
+    String extraQuery = '',
   }) async {
     if (isStoreList) {
       return await _getStoreList(
@@ -47,6 +49,7 @@ class StoreRepository implements StoreRepositoryInterface {
         filterBy!,
         type!,
         source: source ?? DataSourceEnum.client,
+        extraQuery: extraQuery,
       );
     } else if (isPopularStoreList) {
       return await _getPopularStoreList(
@@ -88,15 +91,18 @@ class StoreRepository implements StoreRepositoryInterface {
     String filterBy,
     String storeType, {
     required DataSourceEnum source,
+    String extraQuery = '',
   }) async {
     StoreModel? storeModel;
+    // extraQuery is part of the cache key so a cached response from a
+    // different filter combination can never be served.
     String cacheId =
-        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12$extraQuery-${Get.find<SplashController>().module!.id!}';
 
     switch (source) {
       case DataSourceEnum.client:
         Response response = await apiClient.getData(
-          '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12',
+          '${AppConstants.storeUri}/$filterBy?store_type=$storeType&offset=$offset&limit=12$extraQuery',
         );
         if (response.statusCode == 200) {
           storeModel = StoreModel.fromJson(response.body);
@@ -170,8 +176,11 @@ class StoreRepository implements StoreRepositoryInterface {
     required DataSourceEnum source,
   }) async {
     List<Store>? latestStoreList;
+    // Must key off latestStoreUri, not popularStoreUri: the two lists share a
+    // module id and `type`, so a popular-prefixed key made popular and latest
+    // collide — whichever fetched first served its blob to the other.
     String cacheId =
-        '${AppConstants.popularStoreUri}?type=$type-${Get.find<SplashController>().module!.id!}';
+        '${AppConstants.latestStoreUri}?type=$type-${Get.find<SplashController>().module!.id!}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -267,7 +276,7 @@ class StoreRepository implements StoreRepositoryInterface {
         '${AppConstants.storeUri}/all?featured=1&offset=1&limit=50-${Get.find<SplashController>().module?.id ?? ''}';
     Map<String, String> header =
         (Get.find<SplashController>().module == null &&
-                Get.find<SplashController>().configModel!.module == null)
+                Get.find<SplashController>().configModel.module == null)
             ? HeaderHelper.featuredHeader()
             : apiClient.getHeader();
 
@@ -277,7 +286,7 @@ class StoreRepository implements StoreRepositoryInterface {
           '${AppConstants.storeUri}/all?featured=1&offset=1&limit=50',
           headers:
               Get.find<SplashController>().module == null &&
-                      Get.find<SplashController>().configModel!.module == null
+                      Get.find<SplashController>().configModel.module == null
                   ? HeaderHelper.featuredHeader()
                   : null,
         );
@@ -315,7 +324,10 @@ class StoreRepository implements StoreRepositoryInterface {
     required DataSourceEnum source,
   }) async {
     List<Store>? visitAgainStoreList;
-    String cacheId = AppConstants.visitAgainStoreUri;
+    // Module-scoped like every sibling key: without it, food and grocery share
+    // one entry and each renders the other's visit-again stores.
+    String cacheId =
+        '${AppConstants.visitAgainStoreUri}-${Get.find<SplashController>().module!.id!}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -353,13 +365,19 @@ class StoreRepository implements StoreRepositoryInterface {
   }
 
   @override
+  /// [moduleId] is the module this store belongs to, resolved by the caller.
+  ///
+  /// It used to be three parameters — the active `ModuleModel`, the cached
+  /// module's id and the active module's id — so that the line below could
+  /// pick between them with `module == null ? cacheModuleId : moduleId`. Every
+  /// caller passed the same three expressions, and the ternary always came out
+  /// as `activeModule?.id ?? cacheModule?.id`. Three identities travelled four
+  /// layers to express one number.
   Future<Store?> getStoreDetails(
     String storeID,
     bool fromCart,
     String slug,
     String languageCode,
-    ModuleModel? module,
-    int? cacheModuleId,
     int? moduleId,
   ) async {
     Store? store;
@@ -367,11 +385,11 @@ class StoreRepository implements StoreRepositoryInterface {
     if (fromCart) {
       AddressModel? addressModel = AddressHelper.getUserAddressFromSharedPref();
       header = apiClient.updateHeader(
-        sharedPreferences.getString(AppConstants.token),
+        AuthTokenStore.token,
         addressModel?.zoneIds,
         addressModel?.areaIds,
         languageCode,
-        module == null ? cacheModuleId : moduleId,
+        moduleId,
         addressModel?.latitude,
         addressModel?.longitude,
         setHeader: false,
@@ -379,7 +397,7 @@ class StoreRepository implements StoreRepositoryInterface {
     }
     if (slug.isNotEmpty) {
       header = apiClient.updateHeader(
-        sharedPreferences.getString(AppConstants.token),
+        AuthTokenStore.token,
         [],
         [],
         languageCode,
@@ -456,18 +474,16 @@ class StoreRepository implements StoreRepositoryInterface {
   Future<CartSuggestItemModel?> getCartStoreSuggestedItemList(
     int? storeId,
     String languageCode,
-    ModuleModel? module,
-    int? cacheModuleId,
     int? moduleId,
   ) async {
     CartSuggestItemModel? cartSuggestItemModel;
     AddressModel? addressModel = AddressHelper.getUserAddressFromSharedPref();
     Map<String, String> header = apiClient.updateHeader(
-      sharedPreferences.getString(AppConstants.token),
+      AuthTokenStore.token,
       addressModel?.zoneIds,
       addressModel?.areaIds,
       languageCode,
-      module == null ? cacheModuleId : moduleId,
+      moduleId,
       addressModel?.latitude,
       addressModel?.longitude,
       setHeader: false,
@@ -500,8 +516,12 @@ class StoreRepository implements StoreRepositoryInterface {
     required DataSourceEnum source,
   }) async {
     List<Store>? recommendedStoreList;
+    // Must NOT share the featured list's cache key — with a shared key each
+    // endpoint overwrites the other's cache, so the featured list could boot
+    // from an empty "recommended" blob (hiding Steal of the Day) and the
+    // recommended section could flash stale featured stores.
     String cacheId =
-        '${AppConstants.storeUri}/all?featured=1&offset=1&limit=50-${Get.find<SplashController>().module?.id ?? ''}';
+        '${AppConstants.recommendedStoreUri}-${Get.find<SplashController>().module?.id ?? ''}';
 
     switch (source) {
       case DataSourceEnum.client:
@@ -540,7 +560,11 @@ class StoreRepository implements StoreRepositoryInterface {
   }
 
   @override
-  Future<List<Store>?> getSimilarStoreList(int? storeId, {int offset = 1, int limit = 10}) async {
+  Future<List<Store>?> getSimilarStoreList(
+    int? storeId, {
+    int offset = 1,
+    int limit = 10,
+  }) async {
     List<Store>? similarStoreList;
     Response response = await apiClient.getData(
       '${AppConstants.similarStoresUri}?store_id=$storeId&limit=$limit&offset=$offset',
@@ -555,7 +579,93 @@ class StoreRepository implements StoreRepositoryInterface {
   }
 
   @override
-  Future<List<StoreBundleModel>?> getStoreBundleList(int? storeId, {int offset = 1, int limit = 10}) async {
+  Future<List<Store>?> getDashboardRailStoreList({
+    required int moduleId,
+    required bool mostOrdered,
+    int limit = 6,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
+    List<Store>? stores;
+
+    // Cached per module AND per ranking: the two rails ask the same endpoint
+    // different questions, and one key for both would have the chart reading
+    // back the shelf's answer.
+    final String cacheId =
+        'dashboard_rail_${mostOrdered ? 'most_ordered' : 'quick'}_$moduleId';
+
+    // Two different questions, deliberately asked of the same endpoint.
+    //
+    // `mostOrdered` is the restaurant chart: `store_type=popular` orders by
+    // the store's order count, and — this is the part that matters — it is
+    // the only ordering here that does NOT reach for distance. The obvious
+    // candidate, /stores/popular, sorts `open, distance, orders_count` under
+    // the default priority settings, so it is a nearest-first list wearing a
+    // popularity label; ranking numerals over that promise "most ordered" and
+    // deliver "closest to you". Sending `filter=["popular"]` instead is the
+    // same trap from the other side: get-stores prepends an `orderBy(distance)`
+    // whenever `store_type=all` is sent with any filter, which demotes the
+    // order count to a tiebreaker.
+    //
+    // Everything else is the grocery shelf, where speed IS the promise
+    // ("Groceries in minutes"). `fast_delivery` orders by delivery time.
+    // A `max_delivery_time` cap used to be sent instead, which is a promise
+    // about the catalogue rather than a question about it: a zone whose
+    // fastest grocer is 35 minutes out answered with nothing and the shelf
+    // hid itself rather than showing the fastest stores that do exist.
+    final String query =
+        mostOrdered
+            ? 'store_type=popular'
+            : 'store_type=all&filter=["fast_delivery"]';
+
+    switch (source) {
+      case DataSourceEnum.client:
+        // Explicit per-module header so this works on the aggregated dashboard
+        // where SplashController.module == null (same trick as featured
+        // stores).
+        final Map<String, String> headers = HeaderHelper.featuredHeader(
+          moduleId: moduleId,
+        );
+        Response response = await apiClient.getData(
+          '${AppConstants.storeUri}/all?$query&offset=1&limit=$limit',
+          headers: headers,
+          handleError: false,
+        );
+        if (response.statusCode == 200) {
+          stores = [];
+          response.body['stores'].forEach(
+            (store) => stores!.add(Store.fromJson(store)),
+          );
+          LocalClient.organize(
+            DataSourceEnum.client,
+            cacheId,
+            jsonEncode(response.body['stores']),
+            headers,
+          );
+        }
+
+      case DataSourceEnum.local:
+        String? cacheResponseData = await LocalClient.organize(
+          DataSourceEnum.local,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
+          stores = [];
+          jsonDecode(
+            cacheResponseData,
+          ).forEach((store) => stores!.add(Store.fromJson(store)));
+        }
+    }
+    return stores;
+  }
+
+  @override
+  Future<List<StoreBundleModel>?> getStoreBundleList(
+    int? storeId, {
+    int offset = 1,
+    int limit = 10,
+  }) async {
     List<StoreBundleModel>? bundleList;
     Response response = await apiClient.getData(
       '${AppConstants.storeBundlesUri}$storeId/bundles?limit=$limit&offset=$offset',

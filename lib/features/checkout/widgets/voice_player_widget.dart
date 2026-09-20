@@ -87,15 +87,16 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final double progress = _duration.inMilliseconds > 0
-        ? _position.inMilliseconds / _duration.inMilliseconds
-        : 0.0;
+    final double progress =
+        _duration.inMilliseconds > 0
+            ? _position.inMilliseconds / _duration.inMilliseconds
+            : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(
           color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
         ),
@@ -111,21 +112,22 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
                 color: Theme.of(context).primaryColor,
                 shape: BoxShape.circle,
               ),
-              child: _isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
+              child:
+                  _isLoading
+                      ? const Padding(
+                        padding: EdgeInsets.all(Dimensions.paddingSizeSmall),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : Icon(
+                        _isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         color: Colors.white,
+                        size: 20,
                       ),
-                    )
-                  : Icon(
-                      _isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
             ),
           ),
           const SizedBox(width: Dimensions.paddingSizeSmall),
@@ -137,8 +139,9 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
                     value: progress.clamp(0.0, 1.0),
-                    backgroundColor:
-                        Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.15),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).primaryColor,
                     ),
@@ -156,7 +159,7 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
                     const SizedBox(width: 4),
                     Text(
                       'voice_note'.tr,
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
                         color: Theme.of(context).hintColor,
                       ),
@@ -166,7 +169,7 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
                       _isPlaying
                           ? _formatDuration(_position)
                           : _formatDuration(_duration),
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
                         color: Theme.of(context).primaryColor,
                       ),

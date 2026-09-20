@@ -10,16 +10,34 @@ class VerificationService implements VerificationServiceInterface {
   final VerificationRepositoryInterface verificationRepoInterface;
   final AuthRepositoryInterface authRepoInterface;
 
-  VerificationService({required this.verificationRepoInterface, required this.authRepoInterface});
+  VerificationService({
+    required this.verificationRepoInterface,
+    required this.authRepoInterface,
+  });
 
   @override
   Future<ResponseModel> forgetPassword({String? phone, String? email}) async {
-    return await verificationRepoInterface.forgetPassword(phone: phone, email: email);
+    return await verificationRepoInterface.forgetPassword(
+      phone: phone,
+      email: email,
+    );
   }
 
   @override
-  Future<ResponseModel> resetPassword({String? resetToken, String? phone, String? email, required String password, required String confirmPassword}) async {
-    return await verificationRepoInterface.resetPassword(resetToken: resetToken, phone: phone, email: email, password: password, confirmPassword: confirmPassword);
+  Future<ResponseModel> resetPassword({
+    String? resetToken,
+    String? phone,
+    String? email,
+    required String password,
+    required String confirmPassword,
+  }) async {
+    return await verificationRepoInterface.resetPassword(
+      resetToken: resetToken,
+      phone: phone,
+      email: email,
+      password: password,
+      confirmPassword: confirmPassword,
+    );
   }
 
   @override
@@ -27,13 +45,20 @@ class VerificationService implements VerificationServiceInterface {
     Response response = await verificationRepoInterface.verifyPhone(data);
     ResponseModel responseModel;
     if (response.statusCode == 200) {
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
-      if(authResponse.isExistUser == null && authResponse.isPersonalInfo!) {
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
+      if (authResponse.isExistUser == null && authResponse.isPersonalInfo!) {
         authRepoInterface.saveUserToken(authResponse.token ?? '');
         await authRepoInterface.updateToken();
         authRepoInterface.clearSharedPrefGuestId();
+        await authRepoInterface.setProfileIncomplete(false);
       }
-      responseModel = ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      responseModel = ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       responseModel = ResponseModel(false, response.statusText);
     }
@@ -41,24 +66,60 @@ class VerificationService implements VerificationServiceInterface {
   }
 
   @override
-  Future<ResponseModel> verifyToken({String? phone, String? email, required String token}) async {
-    return await verificationRepoInterface.verifyToken(phone: phone, email: email, token: token);
+  Future<ResponseModel> verifyToken({
+    String? phone,
+    String? email,
+    required String token,
+  }) async {
+    return await verificationRepoInterface.verifyToken(
+      phone: phone,
+      email: email,
+      token: token,
+    );
   }
 
   @override
-  Future<ResponseModel> verifyFirebaseOtp({required String phoneNumber, required String session, required String otp, required String loginType, required String? token, required bool isSignUpPage, required bool isForgetPassPage}) async {
+  Future<ResponseModel> verifyFirebaseOtp({
+    required String phoneNumber,
+    required String session,
+    required String otp,
+    required String loginType,
+    required String? token,
+    required bool isSignUpPage,
+    required bool isForgetPassPage,
+  }) async {
     ResponseModel responseModel = ResponseModel(false, '');
-    if(isForgetPassPage) {
-      responseModel = await verificationRepoInterface.verifyForgetPassFirebaseOtp(phoneNumber: phoneNumber, session: session, otp: otp);
+    if (isForgetPassPage) {
+      responseModel = await verificationRepoInterface
+          .verifyForgetPassFirebaseOtp(
+            phoneNumber: phoneNumber,
+            session: session,
+            otp: otp,
+          );
     } else {
-      responseModel = await verificationRepoInterface.verifyFirebaseOtp(phoneNumber: phoneNumber, session: session, otp: otp, loginType: loginType);
-      if(responseModel.isSuccess && responseModel.authResponseModel != null && responseModel.authResponseModel!.token != null) {
-        authRepoInterface.saveUserToken(responseModel.authResponseModel!.token!);
+      responseModel = await verificationRepoInterface.verifyFirebaseOtp(
+        phoneNumber: phoneNumber,
+        session: session,
+        otp: otp,
+        loginType: loginType,
+      );
+      if (responseModel.isSuccess &&
+          responseModel.authResponseModel != null &&
+          responseModel.authResponseModel!.token != null) {
+        authRepoInterface.saveUserToken(
+          responseModel.authResponseModel!.token!,
+        );
         await authRepoInterface.updateToken();
         authRepoInterface.clearSharedPrefGuestId();
+        // A brand-new account gets only a temporary token here: the name step
+        // hasn't run yet. Flag it so a restart mid-flow resumes the profile
+        // screen instead of dropping the user on a half-authed home.
+        await authRepoInterface.setProfileIncomplete(
+          responseModel.authResponseModel!.isPersonalInfo != true,
+          phone: phoneNumber,
+        );
       }
     }
     return responseModel;
   }
-
 }

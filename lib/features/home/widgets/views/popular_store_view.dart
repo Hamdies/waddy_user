@@ -6,8 +6,7 @@ import 'package:waddy_app/features/home/widgets/components/popular_store_card_wi
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/common/widgets/title_widget.dart';
-import '../web/web_populer_store_view_widget.dart';
-
+import 'package:waddy_app/features/home/widgets/components/home_rail_shimmers.dart';
 
 class PopularStoreView extends StatelessWidget {
   const PopularStoreView({super.key});
@@ -15,41 +14,56 @@ class PopularStoreView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeDefault),
-      child: GetBuilder<StoreController>(builder: (storeController) {
-        List<Store>? storeList = storeController.popularStoreList;
+      padding: const EdgeInsets.symmetric(
+        vertical: Dimensions.paddingSizeDefault,
+      ),
+      child: GetBuilder<StoreController>(
+        builder: (storeController) {
+          List<Store>? storeList = storeController.popularStoreList;
 
-          return Column(children: [
-            Padding(
-              padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault, right: Dimensions.paddingSizeDefault, bottom: Dimensions.paddingSizeDefault),
-              child: TitleWidget(
-                title: 'popular_stores'.tr,
-                onTap: () => Get.toNamed(RouteHelper.getAllStoreRoute('popular')),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: Dimensions.paddingSizeDefault,
+                  right: Dimensions.paddingSizeDefault,
+                  bottom: Dimensions.paddingSizeDefault,
+                ),
+                child: TitleWidget(
+                  title: 'popular_stores'.tr,
+                  onTap:
+                      () =>
+                          Get.toNamed(RouteHelper.getAllStoreRoute('popular')),
+                ),
               ),
-            ),
 
-            SizedBox(
-              height: 170,
-              child: storeList != null ? ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: storeList.length,
-                padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: Dimensions.paddingSizeDefault, bottom: Dimensions.paddingSizeExtraSmall),
-                    child: PopularStoreCard(
-                      store: storeList[index],
-                    ),
-                  );
-                },
-              ) : const PopularStoreShimmer(),
-            ),
-
-          ]);
-        }
+              SizedBox(
+                height: 170,
+                child:
+                    storeList != null
+                        ? ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: storeList.length,
+                          padding: const EdgeInsets.only(
+                            left: Dimensions.paddingSizeDefault,
+                          ),
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                right: Dimensions.paddingSizeDefault,
+                                bottom: Dimensions.paddingSizeExtraSmall,
+                              ),
+                              child: PopularStoreCard(store: storeList[index]),
+                            );
+                          },
+                        )
+                        : const PopularStoreShimmer(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
-

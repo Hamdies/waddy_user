@@ -4,16 +4,21 @@ import 'package:get/get.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class ItemImageViewWidget extends StatefulWidget {
   final Item? item;
   final bool isCampaign;
   final bool inStock;
-  const ItemImageViewWidget({super.key, required this.item, this.isCampaign = false, this.inStock = false});
+  const ItemImageViewWidget({
+    super.key,
+    required this.item,
+    this.isCampaign = false,
+    this.inStock = false,
+  });
 
   @override
   State<ItemImageViewWidget> createState() => _ItemImageViewWidgetState();
@@ -40,11 +45,10 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
       imageList.addAll(widget.item!.imagesFullUrl!);
     }
 
-    final List<String?> images = widget.isCampaign ? imageListForCampaign : imageList;
+    final List<String?> images =
+        widget.isCampaign ? imageListForCampaign : imageList;
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double imageHeight = ResponsiveHelper.isDesktop(context)
-        ? 400
-        : screenWidth * 0.65;
+    final double imageHeight = screenWidth * 0.65;
 
     return GetBuilder<ItemController>(
       builder: (itemController) {
@@ -86,14 +90,17 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                 children: [
                   // Hero image area
                   GestureDetector(
-                    onTap: widget.isCampaign
-                        ? null
-                        : () {
-                            Navigator.of(context).pushNamed(
-                              RouteHelper.getItemImagesRoute(widget.item!),
-                              arguments: ItemImageViewWidget(item: widget.item),
-                            );
-                          },
+                    onTap:
+                        widget.isCampaign
+                            ? null
+                            : () {
+                              Navigator.of(context).pushNamed(
+                                RouteHelper.getItemImagesRoute(widget.item!),
+                                arguments: ItemImageViewWidget(
+                                  item: widget.item,
+                                ),
+                              );
+                            },
                     child: SizedBox(
                       width: double.infinity,
                       height: imageHeight,
@@ -105,9 +112,13 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                             animation: _controller,
                             builder: (context, child) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: Dimensions.paddingSizeExtraLarge,
+                                  vertical: Dimensions.paddingSizeMedium,
+                                ),
                                 child: Hero(
-                                  tag: 'item_image_${widget.item?.id ?? 0}_$index',
+                                  tag:
+                                      'item_image_${widget.item?.id ?? 0}_$index',
                                   child: CustomImage(
                                     image: '${images[index]}',
                                     height: imageHeight,
@@ -134,10 +145,15 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Dimensions.paddingSizeMedium,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusExtraLarge,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.06),
@@ -149,12 +165,15 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: List.generate(images.length, (index) {
-                                final bool isActive = index == itemController.imageSliderIndex;
+                                final bool isActive =
+                                    index == itemController.imageSliderIndex;
                                 return GestureDetector(
                                   onTap: () {
                                     _controller.animateToPage(
                                       index,
-                                      duration: const Duration(milliseconds: 350),
+                                      duration: const Duration(
+                                        milliseconds: 350,
+                                      ),
                                       curve: Curves.easeInOutCubic,
                                     );
                                   },
@@ -167,10 +186,14 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                                       right: index < images.length - 1 ? 5 : 0,
                                     ),
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(4),
-                                      color: isActive
-                                          ? Theme.of(context).primaryColor
-                                          : Theme.of(context).primaryColor.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusExtraSmall,
+                                      ),
+                                      color:
+                                          isActive
+                                              ? Theme.of(context).primaryColor
+                                              : Theme.of(context).primaryColor
+                                                  .withValues(alpha: 0.18),
                                     ),
                                   ),
                                 );
@@ -192,17 +215,26 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                 child: Transform.rotate(
                   angle: 0.12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeSmall,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).secondaryHeaderColor,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.3),
                           offset: const Offset(0, 3),
                         ),
                         BoxShadow(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.15),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),
@@ -212,7 +244,7 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                       widget.item!.discountType == 'percent'
                           ? '${widget.item!.discount!.toStringAsFixed(0)}% ${'off'.tr.toUpperCase()}'
                           : '${PriceConverter.convertPrice(widget.item!.discount)} ${'off'.tr.toUpperCase()}',
-                      style: robotoBlack.copyWith(
+                      style: waddyBlack.copyWith(
                         fontSize: 11,
                         color: Theme.of(context).primaryColor,
                       ),
@@ -228,13 +260,24 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
               child: Transform.rotate(
                 angle: -0.12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: widget.inStock ? Theme.of(context).colorScheme.error : const Color(0xFF2E7D32),
-                    borderRadius: BorderRadius.circular(10),
+                    color:
+                        widget.inStock
+                            ? Theme.of(context).colorScheme.error
+                            : const Color(0xFF2E7D32),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: (widget.inStock ? Theme.of(context).colorScheme.error : const Color(0xFF2E7D32)).withValues(alpha: 0.35),
+                        color: (widget.inStock
+                                ? Theme.of(context).colorScheme.error
+                                : const Color(0xFF2E7D32))
+                            .withValues(alpha: 0.35),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -254,7 +297,7 @@ class _ItemImageViewWidgetState extends State<ItemImageViewWidget> {
                       const SizedBox(width: 5),
                       Text(
                         widget.inStock ? 'out_of_stock'.tr : 'in_stock'.tr,
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 11,
                           color: Colors.white,
                         ),

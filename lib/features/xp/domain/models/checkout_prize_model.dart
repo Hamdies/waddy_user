@@ -27,9 +27,10 @@ class CheckoutPrize {
       type: json['type'] ?? json['prize_type'] ?? 'free_delivery',
       value: json['value']?.toDouble(),
       minOrderAmount: json['min_order_amount']?.toDouble(),
-      expiresAt: json['expires_at'] != null
-          ? DateTime.tryParse(json['expires_at'].toString())
-          : null,
+      expiresAt:
+          json['expires_at'] != null
+              ? DateTime.tryParse(json['expires_at'].toString())
+              : null,
       description: json['description'],
       levelName: json['level_name'],
     );

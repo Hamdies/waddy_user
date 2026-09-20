@@ -22,7 +22,10 @@ class AuthResponseModel {
     isPhoneVerified = json['is_phone_verified'] == 1;
     isEmailVerified = json['is_email_verified'] == 1;
     isPersonalInfo = json['is_personal_info'] == 1;
-    isExistUser = json['is_exist_user'] != null ? IsExistUser.fromJson(json['is_exist_user']) : null;
+    isExistUser =
+        json['is_exist_user'] != null
+            ? IsExistUser.fromJson(json['is_exist_user'])
+            : null;
     loginType = json['login_type'];
     email = json['email'];
   }

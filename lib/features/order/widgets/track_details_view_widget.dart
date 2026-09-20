@@ -64,7 +64,10 @@ class TrackDetailsViewWidget extends StatelessWidget {
                 children: [
                   EtaChipWidget(order: track),
                   const SizedBox(height: Dimensions.paddingSizeLarge),
-                  Text('trip_route'.tr, style: waddyBodyMedium.copyWith(color: WaddyColors.ink)),
+                  Text(
+                    'trip_route'.tr,
+                    style: waddyBodyMedium.copyWith(color: WaddyColors.ink),
+                  ),
                   const SizedBox(height: Dimensions.paddingSizeLarge),
 
                   Row(
@@ -175,7 +178,7 @@ class TrackDetailsViewWidget extends StatelessWidget {
                           ),
                           Text(
                             '${distance.toStringAsFixed(2)} ${'km'.tr}',
-                            style: robotoRegular.copyWith(
+                            style: waddyRegular.copyWith(
                               fontSize: Dimensions.fontSizeExtraSmall,
                               color: Theme.of(context).disabledColor,
                             ),
@@ -189,10 +192,11 @@ class TrackDetailsViewWidget extends StatelessWidget {
                     child: Text(
                       takeAway
                           ? Get.find<SplashController>()
-                                  .configModel!
+                                  .configModel
                                   .moduleConfig!
                                   .module!
-                                  .showRestaurantText!
+                                  .showRestaurantText ??
+                                      false
                               ? 'store'.tr
                               : 'store'.tr
                           : 'delivery_man'.tr,

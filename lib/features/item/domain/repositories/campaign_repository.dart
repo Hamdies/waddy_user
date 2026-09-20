@@ -15,32 +15,58 @@ class CampaignRepository implements CampaignRepositoryInterface {
   CampaignRepository({required this.apiClient});
 
   @override
-  Future getList({int? offset, bool isBasicCampaign = false, bool isItemCampaign = false, DataSourceEnum source = DataSourceEnum.client}) async {
-    if(isBasicCampaign) {
+  Future getList({
+    int? offset,
+    bool isBasicCampaign = false,
+    bool isItemCampaign = false,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
+    if (isBasicCampaign) {
       return await _getBasicCampaignList(source);
-    } else if(isItemCampaign) {
+    } else if (isItemCampaign) {
       return await _getItemCampaignList(source);
     }
   }
 
-  Future<List<BasicCampaignModel>?> _getBasicCampaignList(DataSourceEnum source) async {
+  Future<List<BasicCampaignModel>?> _getBasicCampaignList(
+    DataSourceEnum source,
+  ) async {
     List<BasicCampaignModel>? basicCampaignList;
-    String cacheId = '${AppConstants.basicCampaignUri}-banner-${Get.find<SplashController>().module!.id!}';
+    String cacheId =
+        '${AppConstants.basicCampaignUri}-banner-${Get.find<SplashController>().module!.id!}';
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
-        Response response = await apiClient.getData(AppConstants.basicCampaignUri);
+        Response response = await apiClient.getData(
+          AppConstants.basicCampaignUri,
+        );
         if (response.statusCode == 200) {
           basicCampaignList = [];
-          response.body.forEach((campaign) => basicCampaignList!.add(BasicCampaignModel.fromJson(campaign)));
-          LocalClient.organize(source, cacheId, jsonEncode(response.body), apiClient.getHeader());
+          response.body.forEach(
+            (campaign) =>
+                basicCampaignList!.add(BasicCampaignModel.fromJson(campaign)),
+          );
+          LocalClient.organize(
+            source,
+            cacheId,
+            jsonEncode(response.body),
+            apiClient.getHeader(),
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(source, cacheId, null, null);
-        if(cacheResponseData != null) {
+        String? cacheResponseData = await LocalClient.organize(
+          source,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
           basicCampaignList = [];
-          jsonDecode(cacheResponseData).forEach((campaign) => basicCampaignList!.add(BasicCampaignModel.fromJson(campaign)));
+          jsonDecode(cacheResponseData).forEach(
+            (campaign) =>
+                basicCampaignList!.add(BasicCampaignModel.fromJson(campaign)),
+          );
         }
     }
 
@@ -49,22 +75,39 @@ class CampaignRepository implements CampaignRepositoryInterface {
 
   Future<List<Item>?> _getItemCampaignList(DataSourceEnum source) async {
     List<Item>? itemCampaignList;
-    String cacheId = '${AppConstants.basicCampaignUri}-${Get.find<SplashController>().module!.id!}';
+    String cacheId =
+        '${AppConstants.basicCampaignUri}-${Get.find<SplashController>().module!.id!}';
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
-        Response response = await apiClient.getData(AppConstants.itemCampaignUri);
+        Response response = await apiClient.getData(
+          AppConstants.itemCampaignUri,
+        );
         if (response.statusCode == 200) {
           itemCampaignList = [];
-          response.body.forEach((camp) => itemCampaignList!.add(Item.fromJson(camp)));
-          LocalClient.organize(source, cacheId, jsonEncode(response.body), apiClient.getHeader());
+          response.body.forEach(
+            (camp) => itemCampaignList!.add(Item.fromJson(camp)),
+          );
+          LocalClient.organize(
+            source,
+            cacheId,
+            jsonEncode(response.body),
+            apiClient.getHeader(),
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(source, cacheId, null, null);
-        if(cacheResponseData != null) {
+        String? cacheResponseData = await LocalClient.organize(
+          source,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
           itemCampaignList = [];
-          jsonDecode(cacheResponseData).forEach((camp) => itemCampaignList!.add(Item.fromJson(camp)));
+          jsonDecode(
+            cacheResponseData,
+          ).forEach((camp) => itemCampaignList!.add(Item.fromJson(camp)));
         }
     }
 
@@ -74,7 +117,9 @@ class CampaignRepository implements CampaignRepositoryInterface {
   @override
   Future<BasicCampaignModel?> get(String? id) async {
     BasicCampaignModel? basicCampaign;
-    Response response = await apiClient.getData('${AppConstants.basicCampaignDetailsUri}$id');
+    Response response = await apiClient.getData(
+      '${AppConstants.basicCampaignDetailsUri}$id',
+    );
     if (response.statusCode == 200) {
       basicCampaign = BasicCampaignModel.fromJson(response.body);
     }
@@ -95,5 +140,4 @@ class CampaignRepository implements CampaignRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

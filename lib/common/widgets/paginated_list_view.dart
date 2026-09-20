@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/styles.dart';
 
 class PaginatedListView extends StatefulWidget {
   final ScrollController scrollController;
@@ -12,8 +9,17 @@ class PaginatedListView extends StatefulWidget {
   final Widget itemView;
   final bool enabledPagination;
   final bool reverse;
-  const PaginatedListView({super.key, required this.scrollController, required this.onPaginate, required this.totalSize,
-    required this.offset, required this.itemView, this.enabledPagination = true, this.reverse = false,
+  final int itemsPerPage;
+  const PaginatedListView({
+    super.key,
+    required this.scrollController,
+    required this.onPaginate,
+    required this.totalSize,
+    required this.offset,
+    required this.itemView,
+    this.enabledPagination = true,
+    this.reverse = false,
+    this.itemsPerPage = 10,
   });
 
   @override
@@ -25,6 +31,16 @@ class _PaginatedListViewState extends State<PaginatedListView> {
   late List<int?> _offsetList;
   bool _isLoading = false;
 
+  /// Held so it can be removed in dispose.
+  ///
+  /// The listener used to be an anonymous closure, which made it impossible
+  /// to detach — and the controller here is almost always owned by an
+  /// ancestor (the home screen's `_scrollController`) that outlives this
+  /// widget. Every module switch or remount added another live closure to a
+  /// controller that never went away, and each one ran on every scroll frame
+  /// holding a dead State alive.
+  late final VoidCallback _scrollListener;
+
   @override
   void initState() {
     super.initState();
@@ -32,20 +48,28 @@ class _PaginatedListViewState extends State<PaginatedListView> {
     _offset = 1;
     _offsetList = [1];
 
-    widget.scrollController.addListener(() {
-      if (widget.scrollController.position.pixels == widget.scrollController.position.maxScrollExtent
-          && widget.totalSize != null && !_isLoading && widget.enabledPagination) {
-        if(mounted && !ResponsiveHelper.isDesktop(context)) {
-          _paginate();
-        }
+    _scrollListener = () {
+      if (!mounted || !widget.scrollController.hasClients) return;
+      if (widget.scrollController.position.pixels ==
+              widget.scrollController.position.maxScrollExtent &&
+          widget.totalSize != null &&
+          !_isLoading &&
+          widget.enabledPagination) {
+        _paginate();
       }
-    });
+    };
+    widget.scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    widget.scrollController.removeListener(_scrollListener);
+    super.dispose();
   }
 
   void _paginate() async {
-    int pageSize = (widget.totalSize! / 10).ceil();
-    if (_offset! < pageSize && !_offsetList.contains(_offset!+1)) {
-
+    int pageSize = (widget.totalSize! / widget.itemsPerPage).ceil();
+    if (_offset! < pageSize && !_offsetList.contains(_offset! + 1)) {
       setState(() {
         _offset = _offset! + 1;
         _offsetList.add(_offset);
@@ -55,9 +79,8 @@ class _PaginatedListViewState extends State<PaginatedListView> {
       setState(() {
         _isLoading = false;
       });
-
-    }else {
-      if(_isLoading) {
+    } else {
+      if (_isLoading) {
         setState(() {
           _isLoading = false;
         });
@@ -67,35 +90,33 @@ class _PaginatedListViewState extends State<PaginatedListView> {
 
   @override
   Widget build(BuildContext context) {
-    if(widget.offset != null) {
+    if (widget.offset != null) {
       _offset = widget.offset;
       _offsetList = [];
-      for(int index=1; index<=widget.offset!; index++) {
+      for (int index = 1; index <= widget.offset!; index++) {
         _offsetList.add(index);
       }
     }
 
-    return Column(children: [
+    return Column(
+      children: [
+        widget.reverse ? const SizedBox() : widget.itemView,
 
-      widget.reverse ? const SizedBox() : widget.itemView,
-
-      (ResponsiveHelper.isDesktop(context) && (widget.totalSize == null || _offset! >= (widget.totalSize! / 10).ceil() || _offsetList.contains(_offset!+1))) ? const SizedBox() : Center(child: Padding(
-        padding: (_isLoading || ResponsiveHelper.isDesktop(context)) ? const EdgeInsets.all(Dimensions.paddingSizeSmall) : EdgeInsets.zero,
-        child: _isLoading ? const CircularProgressIndicator() : (ResponsiveHelper.isDesktop(context) && widget.totalSize != null) ? InkWell(
-          onTap: _paginate,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeSmall, horizontal: Dimensions.paddingSizeLarge),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              color: Theme.of(context).primaryColor,
-            ),
-            child: Text('view_more'.tr, style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge, color: Colors.white)),
+        Center(
+          child: Padding(
+            padding:
+                (_isLoading)
+                    ? const EdgeInsets.all(Dimensions.paddingSizeSmall)
+                    : EdgeInsets.zero,
+            child:
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : const SizedBox(),
           ),
-        ) : const SizedBox(),
-      )),
+        ),
 
-      widget.reverse ? widget.itemView : const SizedBox(),
-
-    ]);
+        widget.reverse ? widget.itemView : const SizedBox(),
+      ],
+    );
   }
 }

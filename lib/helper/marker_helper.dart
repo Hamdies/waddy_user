@@ -1,30 +1,34 @@
 import 'dart:async';
+import 'package:waddy_app/util/swallow.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'dart:ui' as ui;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class MarkerHelper{
-
+class MarkerHelper {
   static Future<BitmapDescriptor> convertAssetToBitmapDescriptor({
     required final String imagePath,
     final int? width,
     final int? height,
   }) async {
     try {
-      if(GetPlatform.isWeb) {
-        //return BitmapDescriptor.fromAssetImage(const ImageConfiguration(devicePixelRatio: 2.5, size: Size(50, 50), ), imagePath);
-        return BitmapDescriptor.asset(const ImageConfiguration(devicePixelRatio: 2.5, size: Size(50, 50), ), imagePath);
-      }
-      final ByteData byteDataFromImage = await rootBundle.load(imagePath).timeout(const Duration(seconds: 8));
-      final ui.Codec codec = await ui
-          .instantiateImageCodec(byteDataFromImage.buffer.asUint8List(), targetHeight: height, targetWidth: width)
+      final ByteData byteDataFromImage = await rootBundle
+          .load(imagePath)
           .timeout(const Duration(seconds: 8));
-      final ui.FrameInfo frameInfo = await codec.getNextFrame().timeout(const Duration(seconds: 8));
-      final ByteData? byteDataFromFrame =
-      await frameInfo.image.toByteData(format: ui.ImageByteFormat.png).timeout(const Duration(seconds: 8));
+      final ui.Codec codec = await ui
+          .instantiateImageCodec(
+            byteDataFromImage.buffer.asUint8List(),
+            targetHeight: height,
+            targetWidth: width,
+          )
+          .timeout(const Duration(seconds: 8));
+      final ui.FrameInfo frameInfo = await codec.getNextFrame().timeout(
+        const Duration(seconds: 8),
+      );
+      final ByteData? byteDataFromFrame = await frameInfo.image
+          .toByteData(format: ui.ImageByteFormat.png)
+          .timeout(const Duration(seconds: 8));
       if (byteDataFromFrame != null) {
         final Uint8List uint8List = byteDataFromFrame.buffer.asUint8List();
         //return BitmapDescriptor.fromBytes(uint8List);
@@ -32,7 +36,7 @@ class MarkerHelper{
       } else {
         return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
       }
-    } catch(_) {
+    } catch (_) {
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue);
     }
   }
@@ -56,10 +60,6 @@ class MarkerHelper{
     Color? fallbackIconColor,
   }) async {
     try {
-      if (GetPlatform.isWeb) {
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-      }
-
       // Render at 3x for crisp display on all devices
       const double dpr = 3.0;
       final double size = logicalSize * dpr;
@@ -78,7 +78,9 @@ class MarkerHelper{
             CachedNetworkImageProvider(imageUrl),
             size.toInt(),
           ).timeout(const Duration(seconds: 5));
-        } catch (_) {}
+        } catch (e, s) {
+          swallow('map marker bitmap', e, s);
+        }
       }
 
       // If network image failed, try fallback asset
@@ -92,7 +94,9 @@ class MarkerHelper{
           );
           final frame = await codec.getNextFrame();
           netImg = frame.image;
-        } catch (_) {}
+        } catch (e, s) {
+          swallow('map marker bitmap', e, s);
+        }
       }
 
       // Paint the marker
@@ -109,32 +113,61 @@ class MarkerHelper{
       );
 
       // Pointer triangle (shadow + fill)
-      final pointerPath = Path()
-        ..moveTo(center - pointerHalfW, size - bw)
-        ..lineTo(center, size + pointerH - dpr)
-        ..lineTo(center + pointerHalfW, size - bw)
-        ..close();
-      canvas.drawPath(pointerPath, Paint()
-        ..color = Colors.black.withValues(alpha: 0.1)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.5));
+      final pointerPath =
+          Path()
+            ..moveTo(center - pointerHalfW, size - bw)
+            ..lineTo(center, size + pointerH - dpr)
+            ..lineTo(center + pointerHalfW, size - bw)
+            ..close();
+      canvas.drawPath(
+        pointerPath,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.1)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.5),
+      );
       canvas.drawPath(pointerPath, Paint()..color = borderColor);
 
       // White/colored border circle
-      canvas.drawCircle(Offset(center, center), radius + bw, Paint()..color = borderColor);
+      canvas.drawCircle(
+        Offset(center, center),
+        radius + bw,
+        Paint()..color = borderColor,
+      );
 
       // Clip to inner circle and draw image
       canvas.save();
-      canvas.clipPath(Path()..addOval(Rect.fromCircle(center: Offset(center, center), radius: radius)));
+      canvas.clipPath(
+        Path()..addOval(
+          Rect.fromCircle(center: Offset(center, center), radius: radius),
+        ),
+      );
 
       if (netImg != null) {
-        final src = Rect.fromLTWH(0, 0, netImg.width.toDouble(), netImg.height.toDouble());
-        final dst = Rect.fromCircle(center: Offset(center, center), radius: radius);
-        canvas.drawImageRect(netImg, src, dst, Paint()..filterQuality = FilterQuality.high);
+        final src = Rect.fromLTWH(
+          0,
+          0,
+          netImg.width.toDouble(),
+          netImg.height.toDouble(),
+        );
+        final dst = Rect.fromCircle(
+          center: Offset(center, center),
+          radius: radius,
+        );
+        canvas.drawImageRect(
+          netImg,
+          src,
+          dst,
+          Paint()..filterQuality = FilterQuality.high,
+        );
       } else {
         // Fallback: colored circle with icon
         canvas.drawCircle(
-          Offset(center, center), radius,
-          Paint()..color = fallbackIconColor?.withValues(alpha: 0.15) ?? Colors.grey.shade200,
+          Offset(center, center),
+          radius,
+          Paint()
+            ..color =
+                fallbackIconColor?.withValues(alpha: 0.15) ??
+                Colors.grey.shade200,
         );
         if (fallbackIcon != null) {
           final iconPainter = TextPainter(
@@ -151,17 +184,26 @@ class MarkerHelper{
           )..layout();
           iconPainter.paint(
             canvas,
-            Offset(center - iconPainter.width / 2, center - iconPainter.height / 2),
+            Offset(
+              center - iconPainter.width / 2,
+              center - iconPainter.height / 2,
+            ),
           );
         }
       }
       canvas.restore();
 
       // Encode to PNG
-      final img = await recorder.endRecording().toImage(size.toInt(), totalH.toInt());
+      final img = await recorder.endRecording().toImage(
+        size.toInt(),
+        totalH.toInt(),
+      );
       final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
-        return BitmapDescriptor.bytes(byteData.buffer.asUint8List(), imagePixelRatio: dpr);
+        return BitmapDescriptor.bytes(
+          byteData.buffer.asUint8List(),
+          imagePixelRatio: dpr,
+        );
       }
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
     } catch (_) {
@@ -170,14 +212,20 @@ class MarkerHelper{
   }
 
   /// Resolves an ImageProvider to a ui.Image at the given target pixel size.
-  static Future<ui.Image> _resolveImageProvider(ImageProvider provider, int targetSize) {
+  static Future<ui.Image> _resolveImageProvider(
+    ImageProvider provider,
+    int targetSize,
+  ) {
     final completer = Completer<ui.Image>();
     final stream = provider.resolve(const ImageConfiguration());
     late ImageStreamListener listener;
     listener = ImageStreamListener(
       (ImageInfo info, bool _) {
         stream.removeListener(listener);
-        _decodeToSize(info.image, targetSize).then(completer.complete).catchError(completer.completeError);
+        _decodeToSize(
+          info.image,
+          targetSize,
+        ).then(completer.complete).catchError(completer.completeError);
       },
       onError: (exception, stackTrace) {
         stream.removeListener(listener);

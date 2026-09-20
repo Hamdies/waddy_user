@@ -2,21 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/wallet/controllers/wallet_controller.dart';
 import 'package:waddy_app/features/wallet/domain/models/card_appearance_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/features/wallet/screens/add_fund_screen.dart';
 
 const int _totalSymbols = 33;
 
-String _symbolPath(int index) =>
-    'assets/image/wallet_ch/${index + 1}c.svg';
+String _symbolPath(int index) => 'assets/image/wallet_ch/${index + 1}c.svg';
 
 class WalletCardWidget extends StatefulWidget {
   const WalletCardWidget({super.key});
@@ -55,8 +51,6 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
 
   @override
   Widget build(BuildContext context) {
-    bool isDesktop = ResponsiveHelper.isDesktop(context);
-
     return GetBuilder<WalletController>(
       builder: (walletController) {
         return GetBuilder<ProfileController>(
@@ -71,8 +65,7 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!isDesktop)
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
+                const SizedBox(height: Dimensions.paddingSizeSmall),
 
                 // Main Card
                 _buildMainCard(
@@ -87,21 +80,7 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                 // Animated mini card preview (appearance button)
                 _buildAnimatedPreviewButton(walletController),
 
-                if (!isDesktop)
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
-                if (isDesktop)
-                  const SizedBox(height: Dimensions.paddingSizeDefault),
-
-                if (isDesktop)
-                  Text(
-                    'how_to_use'.tr,
-                    style: robotoBold.copyWith(
-                      fontSize: Dimensions.fontSizeLarge,
-                    ),
-                  ),
-                if (isDesktop)
-                  const SizedBox(height: Dimensions.paddingSizeDefault),
-                if (isDesktop) const WalletStepper(),
+                const SizedBox(height: Dimensions.paddingSizeSmall),
               ],
             );
           },
@@ -122,7 +101,7 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           color: appearance.cardColor,
           boxShadow: [
             BoxShadow(
@@ -133,7 +112,7 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -144,7 +123,7 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                   Expanded(
                     child: Text(
                       userName.isNotEmpty ? userName : 'card_holder'.tr,
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         color: appearance.textColor,
                         fontSize: 18,
                       ),
@@ -172,10 +151,10 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                       _isBalanceHidden
                           ? '\u2022\u2022\u2022\u2022\u2022\u2022'
                           : PriceConverter.convertPrice(
-                              profileController.userInfoModel!.walletBalance,
-                            ),
+                            profileController.userInfoModel!.walletBalance,
+                          ),
                       textDirection: TextDirection.ltr,
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         color: appearance.textColor,
                         fontSize: 30,
                         fontStyle: FontStyle.italic,
@@ -222,8 +201,6 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
     );
   }
 
-  
-
   Widget _buildAnimatedPreviewButton(WalletController walletController) {
     final previewAppearance = CardAppearances.options[_previewColorIndex];
     final currentAppearance =
@@ -232,10 +209,13 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
     return GestureDetector(
       onTap: () => _showAppearanceBottomSheet(walletController),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeMedium,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           border: Border.all(
             color: Theme.of(context).dividerColor.withValues(alpha: 0.15),
           ),
@@ -256,11 +236,11 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
               width: 52,
               height: 34,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 color: previewAppearance.cardColor,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(5),
+                padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -292,16 +272,15 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                 children: [
                   Text(
                     'appearance'.tr,
-                    style: robotoBold.copyWith(
+                    style: waddyBold.copyWith(
                       fontSize: 14,
                       color: Theme.of(context).textTheme.bodyLarge?.color,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    
                     'change_card_color_icon'.tr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: 12,
                       color: Theme.of(context).hintColor,
                     ),
@@ -326,7 +305,9 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
       backgroundColor: Theme.of(context).cardColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusExtraLarge),
+        ),
       ),
       builder: (ctx) {
         return StatefulBuilder(
@@ -347,9 +328,9 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .hintColor
-                              .withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).hintColor.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -361,12 +342,10 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                         children: [
                           Text(
                             'appearance'.tr,
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 20,
-                              color: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.color,
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge?.color,
                             ),
                           ),
                           GestureDetector(
@@ -375,9 +354,9 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .hintColor
-                                    .withValues(alpha: 0.1),
+                                color: Theme.of(
+                                  context,
+                                ).hintColor.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -400,12 +379,12 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                             // Color section
                             Text(
                               'color'.tr,
-                              style: robotoBold.copyWith(
+                              style: waddyBold.copyWith(
                                 fontSize: 16,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.color,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -416,16 +395,17 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: 1.586,
-                              ),
+                                    crossAxisCount: 3,
+                                    crossAxisSpacing: 10,
+                                    mainAxisSpacing: 10,
+                                    childAspectRatio: 1.586,
+                                  ),
                               itemCount: CardAppearances.options.length,
                               itemBuilder: (context, index) {
                                 final cardOption =
                                     CardAppearances.options[index];
-                                final isSelected = index ==
+                                final isSelected =
+                                    index ==
                                     walletController.selectedCardAppearance;
 
                                 return GestureDetector(
@@ -436,19 +416,25 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault,
+                                      ),
                                       color: cardOption.cardColor,
-                                      border: isSelected
-                                          ? Border.all(
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                              width: 2.5,
-                                            )
-                                          : null,
+                                      border:
+                                          isSelected
+                                              ? Border.all(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                width: 2.5,
+                                              )
+                                              : null,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.08),
+                                          color: Colors.black.withValues(
+                                            alpha: 0.08,
+                                          ),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
                                         ),
@@ -457,7 +443,9 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                                     child: Stack(
                                       children: [
                                         Padding(
-                                          padding: const EdgeInsets.all(8),
+                                          padding: const EdgeInsets.all(
+                                            Dimensions.paddingSizeSmall,
+                                          ),
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
@@ -474,8 +462,10 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                                                 alignment:
                                                     Alignment.bottomRight,
                                                 child: SvgPicture.asset(
-                                                  _symbolPath(walletController
-                                                      .selectedCardSymbol),
+                                                  _symbolPath(
+                                                    walletController
+                                                        .selectedCardSymbol,
+                                                  ),
                                                   color: cardOption.brandColor,
                                                   width: 16,
                                                 ),
@@ -491,8 +481,10 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                                               width: 18,
                                               height: 18,
                                               decoration: BoxDecoration(
-                                                color: Theme.of(context)
-                                                    .primaryColor,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).primaryColor,
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Icon(
@@ -514,12 +506,12 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                             // Symbol section
                             Text(
                               'symbol'.tr,
-                              style: robotoBold.copyWith(
+                              style: waddyBold.copyWith(
                                 fontSize: 16,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.color,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge?.color,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -530,19 +522,19 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 6,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: 1,
-                              ),
+                                    crossAxisCount: 6,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                    childAspectRatio: 1,
+                                  ),
                               itemCount: _totalSymbols,
                               itemBuilder: (context, index) {
-                                final isSelected = index ==
+                                final isSelected =
+                                    index ==
                                     walletController.selectedCardSymbol;
                                 final currentAppearance =
-                                    CardAppearances.options[
-                                        walletController
-                                            .selectedCardAppearance];
+                                    CardAppearances.options[walletController
+                                        .selectedCardAppearance];
 
                                 return GestureDetector(
                                   onTap: () {
@@ -552,30 +544,37 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 200),
                                     decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(10),
-                                      color: isSelected
-                                          ? currentAppearance.cardColor
-                                          : Theme.of(context)
-                                              .hintColor
-                                              .withValues(alpha: 0.06),
-                                      border: isSelected
-                                          ? Border.all(
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                              width: 2,
-                                            )
-                                          : null,
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault,
+                                      ),
+                                      color:
+                                          isSelected
+                                              ? currentAppearance.cardColor
+                                              : Theme.of(context).hintColor
+                                                  .withValues(alpha: 0.06),
+                                      border:
+                                          isSelected
+                                              ? Border.all(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                width: 2,
+                                              )
+                                              : null,
                                     ),
                                     child: Padding(
-                                      padding: const EdgeInsets.all(8),
+                                      padding: const EdgeInsets.all(
+                                        Dimensions.paddingSizeSmall,
+                                      ),
                                       child: SvgPicture.asset(
                                         _symbolPath(index),
-                                        color: isSelected
-                                            ? currentAppearance.brandColor
-                                            : Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.color,
+                                        color:
+                                            isSelected
+                                                ? currentAppearance.brandColor
+                                                : Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium?.color,
                                       ),
                                     ),
                                   ),
@@ -629,8 +628,7 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color:
-                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(
@@ -647,8 +645,7 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color:
-                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(
@@ -665,8 +662,7 @@ class WalletStepper extends StatelessWidget {
               Expanded(
                 child: VerticalDivider(
                   thickness: 3,
-                  color:
-                      Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                  color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
                 ),
               ),
               Container(
@@ -691,19 +687,19 @@ class WalletStepper extends StatelessWidget {
                 Text(
                   'earn_money_to_your_wallet_by_completing_the_offer_challenged'
                       .tr,
-                  style: robotoRegular,
+                  style: waddyRegular,
                 ),
                 Text(
                   'convert_your_loyalty_points_into_wallet_money'.tr,
-                  style: robotoRegular,
+                  style: waddyRegular,
                 ),
                 Text(
                   'amin_also_reward_their_top_customers_with_wallet_money'.tr,
-                  style: robotoRegular,
+                  style: waddyRegular,
                 ),
                 Text(
                   'send_your_wallet_money_while_order'.tr,
-                  style: robotoRegular,
+                  style: waddyRegular,
                 ),
               ],
             ),

@@ -10,14 +10,22 @@ class NewTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: top, left: left, right: right,
+      top: top,
+      left: left,
+      right: right,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           color: Theme.of(context).primaryColor,
         ),
-        child: Text('new'.tr, style: robotoMedium.copyWith(color: Theme.of(context).cardColor, fontSize: Dimensions.fontSizeSmall)),
+        child: Text(
+          'new'.tr,
+          style: waddyMedium.copyWith(
+            color: Theme.of(context).cardColor,
+            fontSize: Dimensions.fontSizeSmall,
+          ),
+        ),
       ),
     );
   }

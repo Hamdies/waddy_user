@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:waddy_app/common/models/response_model.dart';
-import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/order/domain/models/order_cancellation_body.dart';
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
@@ -65,86 +65,136 @@ class OrderController extends GetxController implements GetxService {
 
   Future<void> fetchOrderDetailsForList(int orderId) async {
     if (_orderDetailsCache.containsKey(orderId)) return;
-    List<OrderDetailsModel>? details = await orderServiceInterface.getOrderDetails(
-      orderId.toString(), null,
-    );
+    List<OrderDetailsModel>? details = await orderServiceInterface
+        .getOrderDetails(orderId.toString(), null);
     if (details != null) {
       _orderDetailsCache[orderId] = details;
       update();
     }
   }
 
-  void expandedUpdate(bool status){
+  void expandedUpdate(bool status) {
     _isExpanded = status;
     update();
   }
 
-  void setOrderCancelReason(String? reason){
+  void setOrderCancelReason(String? reason) {
     _cancelReason = reason;
     update();
   }
 
-  void selectReason(int index,{bool isUpdate = true}){
+  void selectReason(int index, {bool isUpdate = true}) {
     _selectedReasonIndex = index;
-    if(isUpdate) {
+    if (isUpdate) {
       update();
     }
   }
 
-  void showOrders(){
+  void showOrders() {
     _showOneOrder = !_showOneOrder;
     update();
   }
 
-  void showRunningOrders({bool canUpdate = true}){
+  void showRunningOrders({bool canUpdate = true}) {
     _showBottomSheet = !_showBottomSheet;
-    if(canUpdate) {
+    if (canUpdate) {
       update();
     }
   }
 
   void pickRefundImage(bool isRemove) async {
-    if(isRemove) {
+    if (isRemove) {
       _refundImage = null;
-    }else {
+    } else {
       _refundImage = await ImagePicker().pickImage(source: ImageSource.gallery);
       update();
     }
   }
 
-  Future<void> getOrderCancelReasons()async {
+  Future<void> getOrderCancelReasons() async {
     _orderCancelReasons = null;
     _orderCancelReasons = await orderServiceInterface.getCancelReasons();
     update();
   }
 
-  Future<void> getRefundReasons()async {
+  Future<void> getRefundReasons() async {
     _selectedReasonIndex = 0;
     _refundReasons = null;
     _refundReasons = await orderServiceInterface.getRefundReasons();
     update();
   }
 
-  Future<void> submitRefundRequest(String note, String? orderId)async {
+  Future<void> submitRefundRequest(String note, String? orderId) async {
     _isLoading = true;
     update();
-    await orderServiceInterface.submitRefundRequest(_selectedReasonIndex, _refundReasons, note, orderId, _refundImage);
+    await orderServiceInterface.submitRefundRequest(
+      _selectedReasonIndex,
+      _refundReasons,
+      note,
+      orderId,
+      _refundImage,
+    );
     _isLoading = false;
     update();
   }
 
-  Future<void> getRunningOrders(int offset, {bool isUpdate = false, bool fromDashboard = false}) async {
-    if(offset == 1) {
+  // Dashboard and home both request page 1 during boot — share one request
+  // instead of hitting running-orders twice and overwriting the model. The
+  // join window is bounded so a post-checkout or notification-driven refresh
+  // never reuses a response that predates the event it reacts to.
+  Future<void>? _runningFirstPageInFlight;
+  DateTime? _runningFetchStartedAt;
+
+  Future<void> getRunningOrders(
+    int offset, {
+    bool isUpdate = false,
+    bool fromDashboard = false,
+  }) {
+    if (offset == 1) {
+      if (_runningFirstPageInFlight != null &&
+          _runningFetchStartedAt != null &&
+          DateTime.now().difference(_runningFetchStartedAt!) <
+              const Duration(seconds: 2)) {
+        return _runningFirstPageInFlight!;
+      }
+      _runningFetchStartedAt = DateTime.now();
+      late final Future<void> fetch;
+      fetch = _fetchRunningOrders(
+        offset,
+        isUpdate: isUpdate,
+        fromDashboard: fromDashboard,
+      ).whenComplete(() {
+        if (identical(_runningFirstPageInFlight, fetch)) {
+          _runningFirstPageInFlight = null;
+        }
+      });
+      _runningFirstPageInFlight = fetch;
+      return fetch;
+    }
+    return _fetchRunningOrders(
+      offset,
+      isUpdate: isUpdate,
+      fromDashboard: fromDashboard,
+    );
+  }
+
+  Future<void> _fetchRunningOrders(
+    int offset, {
+    bool isUpdate = false,
+    bool fromDashboard = false,
+  }) async {
+    if (offset == 1) {
       _runningOrderModel = null;
-      if(isUpdate) {
+      if (isUpdate) {
         update();
       }
     }
-    PaginatedOrderModel? orderModel = await orderServiceInterface.getRunningOrderList(offset, fromDashboard);
+    PaginatedOrderModel? orderModel = await orderServiceInterface
+        .getRunningOrderList(offset, fromDashboard);
     if (orderModel != null) {
       if (offset == 1) {
         _runningOrderModel = orderModel;
-      }else {
+      } else {
         _runningOrderModel!.orders!.addAll(orderModel.orders!);
         _runningOrderModel!.offset = orderModel.offset;
         _runningOrderModel!.totalSize = orderModel.totalSize;
@@ -154,17 +204,18 @@ class OrderController extends GetxController implements GetxService {
   }
 
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
-    if(offset == 1) {
+    if (offset == 1) {
       _historyOrderModel = null;
-      if(isUpdate) {
+      if (isUpdate) {
         update();
       }
     }
-    PaginatedOrderModel? orderModel = await orderServiceInterface.getHistoryOrderList(offset);
+    PaginatedOrderModel? orderModel = await orderServiceInterface
+        .getHistoryOrderList(offset);
     if (orderModel != null) {
       if (offset == 1) {
         _historyOrderModel = orderModel;
-      }else {
+      } else {
         _historyOrderModel!.orders!.addAll(orderModel.orders!);
         _historyOrderModel!.offset = orderModel.offset;
         _historyOrderModel!.totalSize = orderModel.totalSize;
@@ -183,14 +234,17 @@ class OrderController extends GetxController implements GetxService {
     _isLoading = true;
     _showCancelled = false;
 
-    if(_trackModel == null || (_trackModel!.orderType != 'parcel' && !_trackModel!.prescriptionOrder!)) {
-      List<OrderDetailsModel>? detailsList = await orderServiceInterface.getOrderDetails(orderID, null);
+    if (_trackModel == null ||
+        (_trackModel!.orderType != 'parcel' &&
+            !_trackModel!.prescriptionOrder!)) {
+      List<OrderDetailsModel>? detailsList = await orderServiceInterface
+          .getOrderDetails(orderID, null);
       _isLoading = false;
       if (detailsList != null) {
         _orderDetails = [];
         _orderDetails!.addAll(detailsList);
       }
-    }else {
+    } else {
       _isLoading = false;
       _orderDetails = [];
     }
@@ -198,18 +252,24 @@ class OrderController extends GetxController implements GetxService {
     return _orderDetails;
   }
 
-  Future<ResponseModel?> trackOrder(String? orderID, OrderModel? orderModel, bool fromTracking,
-      {String? contactNumber, bool? fromGuestInput = false}) async {
+  Future<ResponseModel?> trackOrder(
+    String? orderID,
+    OrderModel? orderModel,
+    bool fromTracking, {
+    String? contactNumber,
+    bool? fromGuestInput = false,
+  }) async {
     _trackModel = null;
     _responseModel = null;
-    if(!fromTracking) {
+    if (!fromTracking) {
       _orderDetails = null;
     }
     _showCancelled = false;
-    if(orderModel == null) {
+    if (orderModel == null) {
       _isLoading = true;
       Response response = await orderServiceInterface.trackOrder(
-        orderID, null,
+        orderID,
+        null,
         contactNumber: contactNumber,
       );
       if (response.statusCode == 200) {
@@ -227,11 +287,15 @@ class OrderController extends GetxController implements GetxService {
     return _responseModel;
   }
 
-  Future<ResponseModel?> timerTrackOrder(String orderID, {String? contactNumber}) async {
+  Future<ResponseModel?> timerTrackOrder(
+    String orderID, {
+    String? contactNumber,
+  }) async {
     _showCancelled = false;
 
     Response response = await orderServiceInterface.trackOrder(
-      orderID, null,
+      orderID,
+      null,
       contactNumber: contactNumber,
     );
     if (response.statusCode == 200) {
@@ -245,18 +309,33 @@ class OrderController extends GetxController implements GetxService {
     return _responseModel;
   }
 
-  Future<bool> cancelOrder(int? orderID, String? cancelReason, {String? guestId}) async {
+  Future<bool> cancelOrder(
+    int? orderID,
+    String? cancelReason, {
+    String? guestId,
+  }) async {
     _isLoading = true;
     update();
-    bool success = await orderServiceInterface.cancelOrder(orderID.toString(), cancelReason, guestId: guestId);
+    bool success = await orderServiceInterface.cancelOrder(
+      orderID.toString(),
+      cancelReason,
+      guestId: guestId,
+    );
     _isLoading = false;
     Get.back();
     if (success) {
-      OrderModel? orderModel = orderServiceInterface.prepareOrderModel(_runningOrderModel, orderID);
-      if(_runningOrderModel != null) {
+      OrderModel? orderModel = orderServiceInterface.prepareOrderModel(
+        _runningOrderModel,
+        orderID,
+      );
+      if (_runningOrderModel != null) {
         _runningOrderModel!.orders!.remove(orderModel);
       }
       _showCancelled = true;
+      // Announced here, not in the repository: cancelling is consequential and
+      // the order row simply vanishes from the list, which on its own reads as
+      // a glitch rather than a confirmation.
+      showCustomSnackBar('order_cancelled_successfully'.tr, isError: false);
     }
     update();
     return success;
@@ -265,7 +344,10 @@ class OrderController extends GetxController implements GetxService {
   Future<bool> switchToCOD(String? orderID, {String? guestId}) async {
     _isLoading = true;
     update();
-    bool isSuccess = await orderServiceInterface.switchToCOD(orderID, guestId: guestId);
+    bool isSuccess = await orderServiceInterface.switchToCOD(
+      orderID,
+      guestId: guestId,
+    );
     _isLoading = false;
     update();
     return isSuccess;
@@ -286,14 +368,29 @@ class OrderController extends GetxController implements GetxService {
     return null;
   }
 
-  void paymentRedirect({required String url, required bool canRedirect, required String? contactNumber,
-    required Function onClose, required final String? addFundUrl, required final String? subscriptionUrl,
-    required final String orderID, int? storeId, required bool createAccount, required String guestId}) {
-
+  void paymentRedirect({
+    required String url,
+    required bool canRedirect,
+    required String? contactNumber,
+    required Function onClose,
+    required final String? addFundUrl,
+    required final String? subscriptionUrl,
+    required final String orderID,
+    int? storeId,
+    required bool createAccount,
+    required String guestId,
+  }) {
     orderServiceInterface.paymentRedirect(
-      url: url, canRedirect: canRedirect, contactNumber: contactNumber, onClose: onClose,
-      addFundUrl: addFundUrl, subscriptionUrl: subscriptionUrl, orderID: orderID, storeId: storeId,
-      createAccount: createAccount, guestId: guestId,
+      url: url,
+      canRedirect: canRedirect,
+      contactNumber: contactNumber,
+      onClose: onClose,
+      addFundUrl: addFundUrl,
+      subscriptionUrl: subscriptionUrl,
+      orderID: orderID,
+      storeId: storeId,
+      createAccount: createAccount,
+      guestId: guestId,
     );
   }
 }

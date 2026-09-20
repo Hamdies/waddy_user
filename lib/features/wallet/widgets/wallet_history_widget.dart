@@ -16,19 +16,18 @@ class WalletHistoryWidget extends StatelessWidget {
     return GetBuilder<WalletController>(
       builder: (walletController) {
         return Container(
-         margin: const EdgeInsets.symmetric(vertical: 10),
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-          
+          margin: const EdgeInsets.symmetric(
+            vertical: Dimensions.paddingSizeSmall,
           ),
+          padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+          decoration: BoxDecoration(color: Theme.of(context).cardColor),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title — uppercase, letter-spaced, gray
               Text(
                 'transaction_history'.tr.toUpperCase(),
-                style: robotoBold.copyWith(
+                style: waddyBold.copyWith(
                   fontSize: 13,
                   color: Theme.of(context).primaryColor,
                   letterSpacing: 1.2,
@@ -49,35 +48,59 @@ class WalletHistoryWidget extends StatelessWidget {
 
                       return Padding(
                         padding: EdgeInsets.only(
-                          right: index < walletController.walletFilterList.length - 1 ? 8 : 0,
+                          right:
+                              index <
+                                      walletController.walletFilterList.length -
+                                          1
+                                  ? 8
+                                  : 0,
                         ),
                         child: GestureDetector(
                           onTap: () {
                             walletController.setWalletFilerType(filter.value!);
-                            walletController.getWalletTransactionList('1', false, walletController.type);
+                            walletController.getWalletTransactionList(
+                              '1',
+                              false,
+                              walletController.type,
+                            );
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Dimensions.paddingSizeDefault,
+                              vertical: Dimensions.paddingSizeSmall,
+                            ),
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
+                              color:
+                                  isSelected
+                                      ? Theme.of(context).colorScheme.secondary
+                                          .withValues(alpha: 0.12)
+                                      : Colors.transparent,
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusExtraLarge,
+                              ),
                               border: Border.all(
-                                color: isSelected
-                                    ? Theme.of(context).colorScheme.secondary
-                                    : Theme.of(context).hintColor.withValues(alpha: 0.2),
+                                color:
+                                    isSelected
+                                        ? Theme.of(
+                                          context,
+                                        ).colorScheme.secondary
+                                        : Theme.of(
+                                          context,
+                                        ).hintColor.withValues(alpha: 0.2),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               filter.title!.tr,
-                              style: robotoMedium.copyWith(
+                              style: waddyMedium.copyWith(
                                 fontSize: 13,
-                                color: isSelected
-                                    ? Theme.of(context).primaryColor
-                                    : Theme.of(context).hintColor.withValues(alpha: 0.7),
+                                color:
+                                    isSelected
+                                        ? Theme.of(context).primaryColor
+                                        : Theme.of(
+                                          context,
+                                        ).hintColor.withValues(alpha: 0.7),
                               ),
                             ),
                           ),
@@ -94,23 +117,26 @@ class WalletHistoryWidget extends StatelessWidget {
               walletController.transactionList != null
                   ? walletController.transactionList!.isNotEmpty
                       ? ListView.separated(
-                          key: UniqueKey(),
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: walletController.transactionList!.length,
-                          padding: EdgeInsets.zero,
-                          separatorBuilder: (context, index) => Divider(
-                            height: 24,
-                            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
-                          ),
-                          itemBuilder: (context, index) {
-                            return HistoryItemWidget(
-                              index: index,
-                              fromWallet: true,
-                              data: walletController.transactionList?.cast(),
-                            );
-                          },
-                        )
+                        key: UniqueKey(),
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: walletController.transactionList!.length,
+                        padding: EdgeInsets.zero,
+                        separatorBuilder:
+                            (context, index) => Divider(
+                              height: 24,
+                              color: Theme.of(
+                                context,
+                              ).dividerColor.withValues(alpha: 0.08),
+                            ),
+                        itemBuilder: (context, index) {
+                          return HistoryItemWidget(
+                            index: index,
+                            fromWallet: true,
+                            data: walletController.transactionList?.cast(),
+                          );
+                        },
+                      )
                       : _buildEmptyState(context)
                   : WalletShimmer(walletController: walletController),
 
@@ -130,7 +156,9 @@ class WalletHistoryWidget extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 30),
+      padding: const EdgeInsets.symmetric(
+        vertical: Dimensions.paddingSizeExtremeLarge,
+      ),
       child: Center(
         child: Column(
           children: [
@@ -161,7 +189,7 @@ class WalletHistoryWidget extends StatelessWidget {
 
             Text(
               'transactions_will_appear_here'.tr,
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: 14,
                 color: Theme.of(context).textTheme.bodyLarge?.color,
               ),
@@ -178,10 +206,13 @@ class WalletHistoryWidget extends StatelessWidget {
       child: Container(
         width: 160,
         height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
             color: Theme.of(context).hintColor.withValues(alpha: 0.12),
           ),
@@ -200,7 +231,9 @@ class WalletHistoryWidget extends StatelessWidget {
               height: 20,
               decoration: BoxDecoration(
                 color: Theme.of(context).hintColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.radiusExtraSmall,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -213,7 +246,9 @@ class WalletHistoryWidget extends StatelessWidget {
                     height: 6,
                     width: 60,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).hintColor.withValues(alpha: 0.12),
+                      color: Theme.of(
+                        context,
+                      ).hintColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -222,7 +257,9 @@ class WalletHistoryWidget extends StatelessWidget {
                     height: 5,
                     width: 40,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).hintColor.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).hintColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -247,10 +284,11 @@ class WalletShimmer extends StatelessWidget {
       shrinkWrap: true,
       itemCount: 4,
       padding: EdgeInsets.zero,
-      separatorBuilder: (context, index) => Divider(
-        height: 24,
-        color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
-      ),
+      separatorBuilder:
+          (context, index) => Divider(
+            height: 24,
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.08),
+          ),
       itemBuilder: (context, index) {
         return Shimmer(
           duration: const Duration(seconds: 2),
@@ -262,7 +300,7 @@ class WalletShimmer extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: Theme.of(context).shadowColor,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
               ),
               const SizedBox(width: 12),
@@ -270,13 +308,34 @@ class WalletShimmer extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(height: 11, width: 100, decoration: BoxDecoration(color: Theme.of(context).shadowColor, borderRadius: BorderRadius.circular(3))),
+                    Container(
+                      height: 11,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).shadowColor,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
                     const SizedBox(height: 6),
-                    Container(height: 9, width: 70, decoration: BoxDecoration(color: Theme.of(context).shadowColor, borderRadius: BorderRadius.circular(3))),
+                    Container(
+                      height: 9,
+                      width: 70,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).shadowColor,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Container(height: 11, width: 45, decoration: BoxDecoration(color: Theme.of(context).shadowColor, borderRadius: BorderRadius.circular(3))),
+              Container(
+                height: 11,
+                width: 45,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).shadowColor,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
             ],
           ),
         );

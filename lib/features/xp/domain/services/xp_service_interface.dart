@@ -1,5 +1,4 @@
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
@@ -8,9 +7,8 @@ import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 
 abstract class XpServiceInterface {
-  Future<XpLevelModel?> getCurrentLevel();
-  Future<LevelsListModel?> getAllLevels();
   Future<Map<String, dynamic>?> getLevelDetails();
+  Future<Response> acknowledgeLevelUps({List<int>? transactionIds});
   Future<ChallengeModel?> getChallenges();
   Future<Response> claimChallenge(int challengeId);
   Future<PrizeModel?> getPrizes();
@@ -18,5 +16,8 @@ abstract class XpServiceInterface {
   Future<List<CheckoutPrize>> getCheckoutPrizes(double orderAmount);
   Future<XpConfigModel?> getXpConfig();
   Future<XpHistoryModel?> getHistory({int limit = 20, int offset = 0});
-  Future<XpLeaderboardModel?> getLeaderboard({String type = 'global'});
+  Future<XpLeaderboardModel?> getLeaderboard({
+    String type = 'global',
+    String period = 'alltime',
+  });
 }

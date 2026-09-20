@@ -7,7 +7,13 @@ abstract class SearchRepositoryInterface extends RepositoryInterface {
   List<String> getSearchAddress();
   Future<bool> clearSearchHistory();
   @override
-  Future getList({int? offset, String? query, bool? isStore, bool isSuggestedItems = false, String? sortBy});
+  Future getList({
+    int? offset,
+    String? query,
+    bool? isStore,
+    bool isSuggestedItems = false,
+    String? sortBy,
+  });
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText);
   Future<List<PopularCategoryModel?>?> getPopularCategories();
 }

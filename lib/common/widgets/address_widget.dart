@@ -1,6 +1,5 @@
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -78,11 +77,7 @@ class AddressWidget extends StatelessWidget {
                   ? 0
                   : Dimensions.radiusSmall,
           child: Padding(
-            padding: EdgeInsets.all(
-              ResponsiveHelper.isDesktop(context)
-                  ? Dimensions.paddingSizeDefault
-                  : Dimensions.paddingSizeSmall,
-            ),
+            padding: EdgeInsets.all(Dimensions.paddingSizeSmall),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -100,16 +95,14 @@ class AddressWidget extends StatelessWidget {
                                 ? Images.workIcon
                                 : Images.otherIcon,
                             color: Theme.of(context).primaryColor,
-                            height:
-                                ResponsiveHelper.isDesktop(context) ? 25 : 20,
-                            width:
-                                ResponsiveHelper.isDesktop(context) ? 25 : 20,
+                            height: 20,
+                            width: 20,
                           ),
                           const SizedBox(width: Dimensions.paddingSizeSmall),
 
                           Text(
                             address!.addressType!.tr,
-                            style: robotoMedium.copyWith(
+                            style: waddyMedium.copyWith(
                               fontSize: Dimensions.fontSizeDefault,
                             ),
                           ),
@@ -119,7 +112,7 @@ class AddressWidget extends StatelessWidget {
 
                       Text(
                         address!.address!,
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: Dimensions.fontSizeSmall,
                           color: Theme.of(context).disabledColor,
                         ),

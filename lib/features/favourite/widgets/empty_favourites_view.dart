@@ -4,6 +4,7 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class EmptyFavouritesView extends StatefulWidget {
   final bool isStore;
@@ -31,13 +32,17 @@ class _EmptyFavouritesViewState extends State<EmptyFavouritesView>
     _floatAnimation = Tween<Offset>(
       begin: const Offset(0, 0),
       end: const Offset(0, -0.02),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
 
     // Smooth slide animation (coming from right to center)
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0.5, 0),
       end: const Offset(0, 0),
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
   }
 
   @override
@@ -73,9 +78,9 @@ class _EmptyFavouritesViewState extends State<EmptyFavouritesView>
             // Warm, encouraging message
             Text(
               widget.isStore
-                ? 'no_favourite_stores_yet'.tr
-                : 'no_favourites_yet'.tr,
-              style: robotoMedium.copyWith(
+                  ? 'no_favourite_stores_yet'.tr
+                  : 'no_favourites_yet'.tr,
+              style: waddyMedium.copyWith(
                 fontSize: 18,
                 color: Theme.of(context).primaryColor.withValues(alpha: 0.7),
               ),
@@ -84,7 +89,9 @@ class _EmptyFavouritesViewState extends State<EmptyFavouritesView>
             SizedBox(height: MediaQuery.of(context).size.height * 0.06),
             // Strong CTA button
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeLarge,
+              ),
               child: CustomButton(
                 buttonText: 'browse_items'.tr,
                 onPressed: () {

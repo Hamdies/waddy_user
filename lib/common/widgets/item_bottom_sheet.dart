@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/animated_quantity_text.dart';
 import 'package:waddy_app/common/widgets/weight_picker_widget.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_tool_tip_widget.dart';
@@ -9,11 +10,9 @@ import 'package:waddy_app/features/favourite/controllers/favourite_controller.da
 import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
@@ -81,17 +80,12 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
   Widget build(BuildContext context) {
     return Container(
       width: 550,
-      margin: EdgeInsets.only(top: GetPlatform.isWeb ? 0 : 30),
+      margin: EdgeInsets.only(top: 30),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius:
-            GetPlatform.isWeb
-                ? const BorderRadius.all(
-                  Radius.circular(Dimensions.radiusDefault),
-                )
-                : const BorderRadius.vertical(
-                  top: Radius.circular(Dimensions.radiusExtraLarge),
-                ),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusExtraLarge),
+        ),
       ),
       child: GetBuilder<ItemController>(
         builder: (itemController) {
@@ -234,10 +228,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                             Padding(
                               padding: EdgeInsets.only(
                                 right: Dimensions.paddingSizeDefault,
-                                top:
-                                    ResponsiveHelper.isDesktop(context)
-                                        ? 0
-                                        : Dimensions.paddingSizeDefault,
+                                top: Dimensions.paddingSizeDefault,
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -269,18 +260,8 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                   ),
                                               child: CustomImage(
                                                 image: item.imageFullUrl ?? '',
-                                                width:
-                                                    ResponsiveHelper.isMobile(
-                                                          context,
-                                                        )
-                                                        ? 100
-                                                        : 140,
-                                                height:
-                                                    ResponsiveHelper.isMobile(
-                                                          context,
-                                                        )
-                                                        ? 100
-                                                        : 140,
+                                                width: 100,
+                                                height: 100,
                                                 fit: BoxFit.cover,
                                               ),
                                             ),
@@ -301,7 +282,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           children: [
                                             Text(
                                               item.name!,
-                                              style: robotoMedium.copyWith(
+                                              style: waddyMedium.copyWith(
                                                 fontSize:
                                                     Dimensions.fontSizeLarge,
                                               ),
@@ -342,7 +323,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                     ),
                                                 child: Text(
                                                   item.storeName ?? '',
-                                                  style: robotoRegular.copyWith(
+                                                  style: waddyRegular.copyWith(
                                                     fontSize:
                                                         Dimensions
                                                             .fontSizeSmall,
@@ -364,7 +345,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                             Text(
                                               '${PriceConverter.convertPrice(startingPrice, discount: initialDiscount, discountType: discountType)}'
                                               '${endingPrice != null ? ' - ${PriceConverter.convertPrice(endingPrice, discount: initialDiscount, discountType: discountType)}' : ''}',
-                                              style: robotoMedium.copyWith(
+                                              style: waddyMedium.copyWith(
                                                 fontSize:
                                                     Dimensions.fontSizeLarge,
                                               ),
@@ -376,7 +357,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                   '${endingPrice != null ? ' - ${PriceConverter.convertPrice(endingPrice)}' : ''}',
                                                   textDirection:
                                                       TextDirection.ltr,
-                                                  style: robotoMedium.copyWith(
+                                                  style: waddyMedium.copyWith(
                                                     color:
                                                         Theme.of(
                                                           context,
@@ -529,14 +510,14 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                             children: [
                                               Text(
                                                 'description'.tr,
-                                                style: robotoBold.copyWith(
+                                                style: waddyBold.copyWith(
                                                   fontSize:
                                                       Dimensions.fontSizeLarge,
                                                 ),
                                               ),
 
                                               ((Get.find<SplashController>()
-                                                              .configModel!
+                                                              .configModel
                                                               .moduleConfig!
                                                               .module!
                                                               .unit! &&
@@ -545,14 +526,14 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                       (Get.find<
                                                                 SplashController
                                                               >()
-                                                              .configModel!
+                                                              .configModel
                                                               .moduleConfig!
                                                               .module!
                                                               .vegNonVeg! &&
                                                           Get.find<
                                                                 SplashController
                                                               >()
-                                                              .configModel!
+                                                              .configModel
                                                               .toggleVegNonVeg!))
                                                   ? Container(
                                                     padding: const EdgeInsets.symmetric(
@@ -589,14 +570,14 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                         Get.find<
                                                                   SplashController
                                                                 >()
-                                                                .configModel!
+                                                                .configModel
                                                                 .moduleConfig!
                                                                 .module!
                                                                 .unit!
                                                             ? Text(
                                                               item.unitType ??
                                                                   '',
-                                                              style: robotoMedium.copyWith(
+                                                              style: waddyMedium.copyWith(
                                                                 fontSize:
                                                                     Dimensions
                                                                         .fontSizeExtraSmall,
@@ -628,7 +609,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                       ? 'veg'.tr
                                                                       : 'non_veg'
                                                                           .tr,
-                                                                  style: robotoMedium
+                                                                  style: waddyMedium
                                                                       .copyWith(
                                                                         fontSize:
                                                                             Dimensions.fontSizeDefault,
@@ -648,7 +629,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                                           Text(
                                             item.description!,
-                                            style: robotoRegular.copyWith(
+                                            style: waddyRegular.copyWith(
                                               color: Theme.of(context)
                                                   .textTheme
                                                   .bodyLarge!
@@ -671,7 +652,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                         children: [
                                           Text(
                                             'nutrition_details'.tr,
-                                            style: robotoBold.copyWith(
+                                            style: waddyBold.copyWith(
                                               fontSize:
                                                   Dimensions.fontSizeLarge,
                                             ),
@@ -688,7 +669,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                               (index) {
                                                 return Text(
                                                   '${item.nutritionsName![index]}${item.nutritionsName!.length - 1 == index ? '.' : ', '}',
-                                                  style: robotoRegular.copyWith(
+                                                  style: waddyRegular.copyWith(
                                                     color: Theme.of(context)
                                                         .textTheme
                                                         .bodyLarge!
@@ -716,7 +697,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                         children: [
                                           Text(
                                             'allergic_ingredients'.tr,
-                                            style: robotoBold.copyWith(
+                                            style: waddyBold.copyWith(
                                               fontSize:
                                                   Dimensions.fontSizeLarge,
                                             ),
@@ -733,7 +714,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                               (index) {
                                                 return Text(
                                                   '${item.allergiesName![index]}${item.allergiesName!.length - 1 == index ? '.' : ', '}',
-                                                  style: robotoRegular.copyWith(
+                                                  style: waddyRegular.copyWith(
                                                     color: Theme.of(context)
                                                         .textTheme
                                                         .bodyLarge!
@@ -761,7 +742,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                         children: [
                                           Text(
                                             'generic_name'.tr,
-                                            style: robotoBold.copyWith(
+                                            style: waddyBold.copyWith(
                                               fontSize:
                                                   Dimensions.fontSizeLarge,
                                             ),
@@ -778,7 +759,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                               (index) {
                                                 return Text(
                                                   '${item.genericName![index]}${item.genericName!.length - 1 == index ? '.' : ', '}',
-                                                  style: robotoRegular.copyWith(
+                                                  style: waddyRegular.copyWith(
                                                     color: Theme.of(context)
                                                         .textTheme
                                                         .bodyLarge!
@@ -816,7 +797,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                   SizedBox(
                                     height:
                                         (Get.find<SplashController>()
-                                                    .configModel!
+                                                    .configModel
                                                     .moduleConfig!
                                                     .module!
                                                     .addOn! &&
@@ -827,7 +808,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                                   // Addons
                                   (Get.find<SplashController>()
-                                              .configModel!
+                                              .configModel
                                               .moduleConfig!
                                               .module!
                                               .addOn! &&
@@ -860,7 +841,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           children: [
                                             Text(
                                               'not_available_now'.tr,
-                                              style: robotoMedium.copyWith(
+                                              style: waddyMedium.copyWith(
                                                 color:
                                                     Theme.of(
                                                       context,
@@ -872,7 +853,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                             Text(
                                               '${'available_will_be'.tr} ${DateConverter.convertTimeToTime(item.availableTimeStarts!)} '
                                               '- ${DateConverter.convertTimeToTime(item.availableTimeEnds!)}',
-                                              style: robotoRegular,
+                                              style: waddyRegular,
                                             ),
                                           ],
                                         ),
@@ -891,25 +872,16 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                         : Container(
                           decoration: BoxDecoration(
                             color: Theme.of(context).cardColor,
-                            borderRadius:
-                                GetPlatform.isWeb
-                                    ? const BorderRadius.only(
-                                      bottomLeft: Radius.circular(20),
-                                      bottomRight: Radius.circular(40),
-                                    )
-                                    : const BorderRadius.all(
-                                      Radius.circular(0),
-                                    ),
-                            boxShadow:
-                                ResponsiveHelper.isDesktop(context)
-                                    ? null
-                                    : const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(0),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 5,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: Dimensions.paddingSizeDefault,
@@ -932,7 +904,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                     children: [
                                       Text(
                                         '${'total_amount'.tr}:',
-                                        style: robotoMedium.copyWith(
+                                        style: waddyMedium.copyWith(
                                           fontSize: Dimensions.fontSizeDefault,
                                           color: Theme.of(context).primaryColor,
                                         ),
@@ -958,19 +930,17 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                         itemController
                                                             .quantity!) +
                                                     addonsCost,
-                                                textStyle: robotoMedium
-                                                    .copyWith(
-                                                      color:
-                                                          Theme.of(
-                                                            context,
-                                                          ).disabledColor,
-                                                      fontSize:
-                                                          Dimensions
-                                                              .fontSizeSmall,
-                                                      decoration:
-                                                          TextDecoration
-                                                              .lineThrough,
-                                                    ),
+                                                textStyle: waddyMedium.copyWith(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).disabledColor,
+                                                  fontSize:
+                                                      Dimensions.fontSizeSmall,
+                                                  decoration:
+                                                      TextDecoration
+                                                          .lineThrough,
+                                                ),
                                               )
                                               : const SizedBox(),
                                           const SizedBox(
@@ -981,7 +951,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                                           PriceConverter.convertAnimationPrice(
                                             withAddonCost,
-                                            textStyle: robotoBold.copyWith(
+                                            textStyle: waddyBold.copyWith(
                                               color:
                                                   Theme.of(
                                                     context,
@@ -1018,9 +988,10 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                           isIncrement: false,
                                           fromSheet: true,
                                         ),
-                                        Text(
-                                          itemController.quantity.toString(),
-                                          style: robotoMedium.copyWith(
+                                        AnimatedQuantityText(
+                                          quantity:
+                                              itemController.quantity ?? 0,
+                                          style: waddyMedium.copyWith(
                                             fontSize: Dimensions.fontSizeLarge,
                                           ),
                                         ),
@@ -1045,19 +1016,11 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                       child: GetBuilder<CartController>(
                                         builder: (cartController) {
                                           return CustomButton(
-                                            width:
-                                                ResponsiveHelper.isDesktop(
-                                                      context,
-                                                    )
-                                                    ? MediaQuery.of(
-                                                          context,
-                                                        ).size.width /
-                                                        2.0
-                                                    : null,
+                                            width: null,
                                             isLoading: cartController.isLoading,
                                             buttonText:
                                                 (Get.find<SplashController>()
-                                                            .configModel!
+                                                            .configModel
                                                             .moduleConfig!
                                                             .module!
                                                             .stock! &&
@@ -1073,7 +1036,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                     : 'add_to_cart'.tr,
                                             onPressed:
                                                 (Get.find<SplashController>()
-                                                            .configModel!
+                                                            .configModel
                                                             .moduleConfig!
                                                             .module!
                                                             .stock! &&
@@ -1133,28 +1096,12 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                         }
                                                       }
 
-                                                      if (Get.find<
-                                                                SplashController
-                                                              >()
-                                                              .moduleList !=
-                                                          null) {
-                                                        for (ModuleModel module
-                                                            in Get.find<
-                                                                  SplashController
-                                                                >()
-                                                                .moduleList!) {
-                                                          if (module.id ==
-                                                              item.moduleId) {
-                                                            Get.find<
-                                                                  SplashController
-                                                                >()
-                                                                .setModule(
-                                                                  module,
-                                                                );
-                                                            break;
-                                                          }
-                                                        }
-                                                      }
+                                                      Get.find<
+                                                            SplashController
+                                                          >()
+                                                          .activateModuleFor(
+                                                            item.moduleId,
+                                                          );
 
                                                       if (invalid != null) {
                                                         showCustomSnackBar(
@@ -1294,30 +1241,66 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                         ?.id,
                                                               )) {
                                                             // Get module names for the dialog
-                                                            final cartController = Get.find<CartController>();
-                                                            final splashController = Get.find<SplashController>();
-                                                            
+                                                            final cartController =
+                                                                Get.find<
+                                                                  CartController
+                                                                >();
+                                                            final splashController =
+                                                                Get.find<
+                                                                  SplashController
+                                                                >();
+
                                                             // Get current cart module name
-                                                            String currentModuleName = 'another category'.tr;
-                                                            if (cartController.cartList.isNotEmpty) {
-                                                              final cartModuleId = cartController.cartList.first.item?.moduleId;
-                                                              if (cartModuleId != null && splashController.moduleList != null) {
-                                                                final cartModule = splashController.moduleList!.firstWhereOrNull(
-                                                                  (m) => m.id == cartModuleId,
-                                                                );
-                                                                currentModuleName = cartModule?.moduleName ?? 'another category'.tr;
+                                                            String
+                                                            currentModuleName =
+                                                                'another category'
+                                                                    .tr;
+                                                            if (cartController
+                                                                .cartList
+                                                                .isNotEmpty) {
+                                                              final cartModuleId =
+                                                                  cartController
+                                                                      .cartList
+                                                                      .first
+                                                                      .item
+                                                                      ?.moduleId;
+                                                              if (cartModuleId !=
+                                                                      null &&
+                                                                  splashController
+                                                                          .moduleList !=
+                                                                      null) {
+                                                                final cartModule = splashController
+                                                                    .moduleList!
+                                                                    .firstWhereOrNull(
+                                                                      (m) =>
+                                                                          m.id ==
+                                                                          cartModuleId,
+                                                                    );
+                                                                currentModuleName =
+                                                                    cartModule
+                                                                        ?.moduleName ??
+                                                                    'another category'
+                                                                        .tr;
                                                               }
                                                             }
-                                                            
+
                                                             // Get new module name
-                                                            final newModuleName = splashController.module?.moduleName ?? 
-                                                                splashController.cacheModule?.moduleName ?? 
-                                                                'this category'.tr;
-                                                            
+                                                            final newModuleName =
+                                                                splashController
+                                                                    .module
+                                                                    ?.moduleName ??
+                                                                splashController
+                                                                    .cacheModule
+                                                                    ?.moduleName ??
+                                                                'this category'
+                                                                    .tr;
+
                                                             Get.dialog(
                                                               CartModuleConflictDialog(
-                                                                currentModuleName: currentModuleName,
-                                                                newModuleName: newModuleName,
+                                                                currentModuleName:
+                                                                    currentModuleName,
+                                                                newModuleName:
+                                                                    newModuleName,
                                                                 onClearCart: () {
                                                                   Get.back();
                                                                   Get.find<
@@ -1333,12 +1316,16 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                               >()
                                                                               .addToCartOnline(
                                                                                 onlineCart,
+                                                                                localFallback:
+                                                                                    cartModel,
                                                                               );
                                                                           Get.back();
                                                                         }
                                                                       });
                                                                 },
-                                                                onCancel: () => Get.back(),
+                                                                onCancel:
+                                                                    () =>
+                                                                        Get.back(),
                                                               ),
                                                               barrierDismissible:
                                                                   false,
@@ -1378,10 +1365,11 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                     Get.find<
                                                                               SplashController
                                                                             >()
-                                                                            .configModel!
+                                                                            .configModel
                                                                             .moduleConfig!
                                                                             .module!
-                                                                            .showRestaurantText!
+                                                                            .showRestaurantText ??
+                                                                                false
                                                                         ? 'if_you_continue'
                                                                             .tr
                                                                         : 'if_you_continue_without_another_store'
@@ -1401,6 +1389,8 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                               >()
                                                                               .addToCartOnline(
                                                                                 onlineCart,
+                                                                                localFallback:
+                                                                                    cartModel,
                                                                               );
                                                                           Get.back();
                                                                           //showCartSnackBar();
@@ -1422,6 +1412,11 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                   >()
                                                                   .updateCartOnline(
                                                                     onlineCart,
+                                                                    localFallback:
+                                                                        cartModel,
+                                                                    localIndex:
+                                                                        itemController
+                                                                            .cartIndex,
                                                                   )
                                                                   .then((
                                                                     success,
@@ -1436,6 +1431,8 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                   >()
                                                                   .addToCartOnline(
                                                                     onlineCart,
+                                                                    localFallback:
+                                                                        cartModel,
                                                                   )
                                                                   .then((
                                                                     success,
@@ -1559,7 +1556,7 @@ class AddonView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('addons'.tr, style: robotoMedium),
+            Text('addons'.tr, style: waddyMedium),
 
             Container(
               decoration: BoxDecoration(
@@ -1569,7 +1566,7 @@ class AddonView extends StatelessWidget {
               padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
               child: Text(
                 'optional'.tr,
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   color: Theme.of(context).hintColor,
                   fontSize: Dimensions.fontSizeSmall,
                 ),
@@ -1634,8 +1631,8 @@ class AddonView extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style:
                               itemController.addOnActiveList[index]
-                                  ? robotoMedium
-                                  : robotoRegular.copyWith(
+                                  ? waddyMedium
+                                  : waddyRegular.copyWith(
                                     color: Theme.of(context).hintColor,
                                   ),
                         ),
@@ -1655,10 +1652,10 @@ class AddonView extends StatelessWidget {
                       textDirection: TextDirection.ltr,
                       style:
                           itemController.addOnActiveList[index]
-                              ? robotoMedium.copyWith(
+                              ? waddyMedium.copyWith(
                                 fontSize: Dimensions.fontSizeSmall,
                               )
-                              : robotoRegular.copyWith(
+                              : waddyRegular.copyWith(
                                 fontSize: Dimensions.fontSizeSmall,
                                 color: Theme.of(context).disabledColor,
                               ),
@@ -1709,7 +1706,7 @@ class AddonView extends StatelessWidget {
                               ),
                               Text(
                                 itemController.addOnQtyList[index].toString(),
-                                style: robotoMedium.copyWith(
+                                style: waddyMedium.copyWith(
                                   fontSize: Dimensions.fontSizeDefault,
                                 ),
                               ),
@@ -1778,7 +1775,7 @@ class VariationView extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item!.choiceOptions![index].title!, style: robotoMedium),
+            Text(item!.choiceOptions![index].title!, style: waddyMedium),
             const SizedBox(height: Dimensions.paddingSizeSmall),
             Container(
               decoration: BoxDecoration(
@@ -1807,7 +1804,7 @@ class VariationView extends StatelessWidget {
                               item!.choiceOptions![index].options![i].trim(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: robotoRegular,
+                              style: waddyRegular,
                             ),
                           ),
                           const SizedBox(width: Dimensions.paddingSizeSmall),
@@ -1912,7 +1909,7 @@ class NewVariationView extends StatelessWidget {
                     children: [
                       Text(
                         item!.foodVariations![index].name!,
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: Dimensions.fontSizeLarge,
                         ),
                       ),
@@ -1950,7 +1947,7 @@ class NewVariationView extends StatelessWidget {
                                   ? 'completed'.tr
                                   : 'required'.tr
                               : 'optional'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             color:
                                 item!.foodVariations![index].required!
                                     ? (item!.foodVariations![index].multiSelect!
@@ -1974,14 +1971,14 @@ class NewVariationView extends StatelessWidget {
                       ? Text(
                         '${'select_minimum'.tr} ${'${item!.foodVariations![index].min}'
                             ' ${'and_up_to'.tr} ${item!.foodVariations![index].max} ${'options'.tr}'}',
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: Dimensions.fontSizeExtraSmall,
                           color: Theme.of(context).disabledColor,
                         ),
                       )
                       : Text(
                         'select_one'.tr,
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: Dimensions.fontSizeExtraSmall,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -2037,7 +2034,7 @@ class NewVariationView extends StatelessWidget {
 
                                 Text(
                                   '${'view'.tr} ${item!.foodVariations![index].variationValues!.length - 4} ${'more_option'.tr}',
-                                  style: robotoMedium.copyWith(
+                                  style: waddyMedium.copyWith(
                                     color: Theme.of(context).primaryColor,
                                   ),
                                 ),
@@ -2047,12 +2044,7 @@ class NewVariationView extends StatelessWidget {
                         );
                       } else {
                         return Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical:
-                                ResponsiveHelper.isDesktop(context)
-                                    ? Dimensions.paddingSizeExtraSmall
-                                    : 0,
-                          ),
+                          padding: EdgeInsets.symmetric(vertical: 0),
                           child: InkWell(
                             onTap: () {
                               itemController.setNewCartVariationIndex(
@@ -2128,8 +2120,8 @@ class NewVariationView extends StatelessWidget {
                                       style:
                                           itemController
                                                   .selectedVariations[index][i]!
-                                              ? robotoMedium
-                                              : robotoRegular.copyWith(
+                                              ? waddyMedium
+                                              : waddyRegular.copyWith(
                                                 color:
                                                     Theme.of(context).hintColor,
                                               ),
@@ -2145,7 +2137,7 @@ class NewVariationView extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       textDirection: TextDirection.ltr,
-                                      style: robotoRegular.copyWith(
+                                      style: waddyRegular.copyWith(
                                         fontSize: Dimensions.fontSizeExtraSmall,
                                         color: Theme.of(context).disabledColor,
                                         decoration: TextDecoration.lineThrough,
@@ -2167,11 +2159,11 @@ class NewVariationView extends StatelessWidget {
                                   style:
                                       itemController
                                               .selectedVariations[index][i]!
-                                          ? robotoMedium.copyWith(
+                                          ? waddyMedium.copyWith(
                                             fontSize:
                                                 Dimensions.fontSizeExtraSmall,
                                           )
-                                          : robotoRegular.copyWith(
+                                          : waddyRegular.copyWith(
                                             fontSize:
                                                 Dimensions.fontSizeExtraSmall,
                                             color:

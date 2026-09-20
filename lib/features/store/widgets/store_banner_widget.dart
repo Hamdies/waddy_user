@@ -6,43 +6,53 @@ import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+
 class StoreBannerWidget extends StatelessWidget {
   final StoreController storeController;
   const StoreBannerWidget({super.key, required this.storeController});
 
   @override
   Widget build(BuildContext context) {
-    return (storeController.storeBanners != null && storeController.storeBanners!.isNotEmpty) ? Container(
-      height: context.width * 0.3, width: double.infinity,
-      margin: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
-      child: CarouselSlider.builder(
-        options: CarouselOptions(
-          autoPlay: true,
-          enlargeCenterPage: true,
-          disableCenter: true,
-          viewportFraction: 1,
-          autoPlayInterval: const Duration(seconds: 4),
-        ),
-        itemCount: storeController.storeBanners!.length,
-        itemBuilder: (context, index, _) {
-          return InkWell(
-            onTap: () async {
-              String url = storeController.storeBanners![index].defaultLink!;
-              if (await canLaunchUrlString(url)) {
-              await launchUrlString(url, mode: LaunchMode.externalApplication);
-              }else {
-              showCustomSnackBar('unable_to_found_url'.tr);
-              }
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              child: CustomImage(
-                image: '${storeController.storeBanners![index].imageFullUrl}',
-              ),
+    return (storeController.storeBanners != null &&
+            storeController.storeBanners!.isNotEmpty)
+        ? Container(
+          height: context.width * 0.3,
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: Dimensions.paddingSizeSmall),
+          child: CarouselSlider.builder(
+            options: CarouselOptions(
+              autoPlay: true,
+              enlargeCenterPage: true,
+              disableCenter: true,
+              viewportFraction: 1,
+              autoPlayInterval: const Duration(seconds: 4),
             ),
-          );
-        },
-      ),
-    ) : const SizedBox();
+            itemCount: storeController.storeBanners!.length,
+            itemBuilder: (context, index, _) {
+              return InkWell(
+                onTap: () async {
+                  String url =
+                      storeController.storeBanners![index].defaultLink!;
+                  if (await canLaunchUrlString(url)) {
+                    await launchUrlString(
+                      url,
+                      mode: LaunchMode.externalApplication,
+                    );
+                  } else {
+                    showCustomSnackBar('unable_to_found_url'.tr);
+                  }
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                  child: CustomImage(
+                    image:
+                        '${storeController.storeBanners![index].imageFullUrl}',
+                  ),
+                ),
+              );
+            },
+          ),
+        )
+        : const SizedBox();
   }
 }

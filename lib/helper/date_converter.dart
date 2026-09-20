@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/util/swallow.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -156,7 +157,7 @@ class DateConverter {
   }
 
   static String _timeFormatter() {
-    return Get.find<SplashController>().configModel!.timeformat == '24'
+    return Get.find<SplashController>().configModel.timeformat == '24'
         ? 'HH:mm'
         : 'hh:mm a';
   }
@@ -221,7 +222,9 @@ class DateConverter {
         try {
           final eta = dateTimeStringToDate(estimatedDeliveryAt);
           return eta.difference(DateTime.now()).inMinutes;
-        } catch (_) {}
+        } catch (e, s) {
+          swallow('unparseable date from server', e, s);
+        }
       }
     }
     return differenceInMinute(
@@ -258,7 +261,9 @@ class DateConverter {
       try {
         List<String> timeList = deliveryTime.split('-'); // ['15', '20']
         minTime = int.parse(timeList[0]);
-      } catch (_) {}
+      } catch (e, s) {
+        swallow('unparseable date from server', e, s);
+      }
     }
     DateTime deliveryTime0 = dateTimeStringToDate(
       scheduleAt ?? orderTime!,

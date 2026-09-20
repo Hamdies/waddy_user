@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/banner/domain/models/banner_model.dart';
 import 'package:waddy_app/features/banner/domain/models/others_banner_model.dart';
@@ -11,6 +12,14 @@ class BannerController extends GetxController implements GetxService {
 
   List<String?>? _bannerImageList;
   List<String?>? get bannerImageList => _bannerImageList;
+
+  /// Variant sets aligned index-for-index with [bannerImageList].
+  ///
+  /// The image list is flattened to bare URL strings, so the model — and with
+  /// it the variant map — is lost by the time the carousel renders. This keeps
+  /// it reachable without changing the shape the widgets already consume.
+  List<ImageVariants?>? _bannerVariantsList;
+  List<ImageVariants?>? get bannerVariantsList => _bannerVariantsList;
 
   List<String?>? _featuredBannerList;
   List<String?>? get featuredBannerList => _featuredBannerList;
@@ -111,6 +120,7 @@ class BannerController extends GetxController implements GetxService {
     if (bannerModel != null) {
       _bannerImageList = [];
       _bannerDataList = [];
+      _bannerVariantsList = [];
       for (var campaign in bannerModel.campaigns!) {
         if (_bannerImageList!.contains(campaign.imageFullUrl)) {
           _bannerImageList!.add(
@@ -119,6 +129,7 @@ class BannerController extends GetxController implements GetxService {
         } else {
           _bannerImageList!.add(campaign.imageFullUrl);
         }
+        _bannerVariantsList!.add(campaign.imageVariants);
         _bannerDataList!.add(campaign);
       }
       for (var banner in bannerModel.banners!) {
@@ -129,6 +140,7 @@ class BannerController extends GetxController implements GetxService {
         } else {
           _bannerImageList!.add(banner.imageFullUrl);
         }
+        _bannerVariantsList!.add(banner.imageVariants);
 
         if (banner.item != null) {
           _bannerDataList!.add(banner.item);

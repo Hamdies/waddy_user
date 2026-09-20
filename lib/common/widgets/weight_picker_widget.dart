@@ -55,7 +55,7 @@ class WeightPickerWidget extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               choiceOption.title ?? 'select_weight',
-              style: robotoMedium.copyWith(fontSize: 14),
+              style: waddyMedium.copyWith(fontSize: 14),
             ),
           ],
         ),
@@ -69,35 +69,42 @@ class WeightPickerWidget extends StatelessWidget {
             final double? price = optionPrices[i];
 
             return GestureDetector(
-              onTap: () => itemController.setCartVariationIndex(choiceIndex, i, item),
+              onTap:
+                  () => itemController.setCartVariationIndex(
+                    choiceIndex,
+                    i,
+                    item,
+                  ),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeMedium,
+                  vertical: Dimensions.paddingSizeSmall,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? primaryColor : Colors.white,
                   borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                   border: Border.all(
-                    color: isSelected
-                        ? primaryColor
-                        : Colors.grey.shade300,
+                    color: isSelected ? primaryColor : Colors.grey.shade300,
                     width: isSelected ? 1.5 : 1,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: primaryColor.withValues(alpha: 0.2),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [],
+                  boxShadow:
+                      isSelected
+                          ? [
+                            BoxShadow(
+                              color: primaryColor.withValues(alpha: 0.2),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                          : [],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       label,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 13,
                         color: isSelected ? Colors.white : Colors.black87,
                       ),
@@ -106,11 +113,12 @@ class WeightPickerWidget extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         PriceConverter.convertPrice(price),
-                        style: robotoRegular.copyWith(
+                        style: waddyRegular.copyWith(
                           fontSize: 11,
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.85)
-                              : Colors.grey.shade600,
+                          color:
+                              isSelected
+                                  ? Colors.white.withValues(alpha: 0.85)
+                                  : Colors.grey.shade600,
                         ),
                       ),
                     ],

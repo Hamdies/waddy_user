@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 /// Wraps content with bottom light string and Celebrate Ramadan button
 class RamadanCelebrateButtonWrapper extends StatelessWidget {
@@ -393,23 +394,26 @@ class _CelebrateRamadanButtonState extends State<_CelebrateRamadanButton>
           return Transform.scale(scale: _scaleAnimation.value, child: child);
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeMedium,
+            vertical: 9,
+          ),
           decoration: BoxDecoration(
-            color: widget.isLit
-                ? Colors.white
-                : primaryColor,
-            borderRadius: BorderRadius.circular(24),
+            color: widget.isLit ? Colors.white : primaryColor,
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             border: Border.all(
-              color: widget.isLit
-                  ? primaryColor.withValues(alpha: 0.15)
-                  : accentColor.withValues(alpha: 0.4),
+              color:
+                  widget.isLit
+                      ? primaryColor.withValues(alpha: 0.15)
+                      : accentColor.withValues(alpha: 0.4),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.isLit
-                    ? Colors.black.withValues(alpha: 0.06)
-                    : primaryColor.withValues(alpha: 0.3),
+                color:
+                    widget.isLit
+                        ? Colors.black.withValues(alpha: 0.06)
+                        : primaryColor.withValues(alpha: 0.3),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -422,20 +426,16 @@ class _CelebrateRamadanButtonState extends State<_CelebrateRamadanButton>
                 widget.isLit
                     ? Icons.lightbulb_outline_rounded
                     : Icons.celebration_outlined,
-                color: widget.isLit
-                    ? primaryColor
-                    : accentColor,
+                color: widget.isLit ? primaryColor : accentColor,
                 size: 15,
               ),
               const SizedBox(width: 6),
 
               Text(
                 widget.isLit ? 'turn_off'.tr : 'ramadan_kareem'.tr,
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: 12,
-                  color: widget.isLit
-                      ? primaryColor
-                      : Colors.white,
+                  color: widget.isLit ? primaryColor : Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),

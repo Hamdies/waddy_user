@@ -14,16 +14,25 @@ class XpHistoryModel {
   });
 
   factory XpHistoryModel.fromJson(Map<String, dynamic> json) {
-    final historyList = json['history'] != null
-        ? (json['history'] as List).asMap().entries.map(
-            (entry) => XpHistoryItem.fromJson(entry.value, fallbackId: entry.key),
-          ).toList()
-        : <XpHistoryItem>[];
+    final historyList =
+        json['history'] != null
+            ? (json['history'] as List)
+                .asMap()
+                .entries
+                .map(
+                  (entry) => XpHistoryItem.fromJson(
+                    entry.value,
+                    fallbackId: entry.key,
+                  ),
+                )
+                .toList()
+            : <XpHistoryItem>[];
 
     return XpHistoryModel(
       history: historyList,
       totalEarned: json['total_earned'] ?? 0,
-      totalItems: json['total_size'] ?? json['total'] ?? json['total_items'] ?? 0,
+      totalItems:
+          json['total_size'] ?? json['total'] ?? json['total_items'] ?? 0,
       limit: json['limit'] ?? 20,
       offset: json['offset'] ?? 1,
     );
@@ -49,18 +58,25 @@ class XpHistoryItem {
     this.metadata,
   });
 
-  factory XpHistoryItem.fromJson(Map<String, dynamic> json, {int fallbackId = 0}) {
+  factory XpHistoryItem.fromJson(
+    Map<String, dynamic> json, {
+    int fallbackId = 0,
+  }) {
     return XpHistoryItem(
       id: json['id'] ?? fallbackId,
       type: json['type'] ?? 'order',
       xp: json['xp'] ?? json['xp_earned'] ?? 0,
       description: json['description'] ?? '',
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString())
-          : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.tryParse(json['created_at'].toString())
+              : null,
       metadata: json['metadata'],
     );
   }
+
+  /// True for XP deductions (e.g. an order refund reversed its XP).
+  bool get isNegative => xp < 0;
 
   String get icon {
     switch (type) {
@@ -74,6 +90,12 @@ class XpHistoryItem {
         return '⭐';
       case 'referral':
         return '👥';
+      case 'streak':
+        return '🔥';
+      case 'signup':
+        return '🎉';
+      case 'refund':
+        return '↩️';
       default:
         return '✨';
     }

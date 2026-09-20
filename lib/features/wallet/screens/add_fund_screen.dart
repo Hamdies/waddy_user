@@ -8,6 +8,7 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 const Color _orange = Color(0xFFF96D2B);
 
@@ -33,7 +34,7 @@ class _AddFundScreenState extends State<AddFundScreen> {
     wc.isTextFieldEmpty('', isUpdate: false);
     wc.changeDigitalPaymentName('', isUpdate: false);
 
-    final config = Get.find<SplashController>().configModel!;
+    final config = Get.find<SplashController>().configModel;
     if (config.activePaymentMethodList!.length == 1) {
       wc.changeDigitalPaymentName(
         config.activePaymentMethodList!.first.getWay!,
@@ -67,14 +68,17 @@ class _AddFundScreenState extends State<AddFundScreen> {
     setState(() {
       final p = double.tryParse(value);
       _selectedQuickIndex =
-          p != null && _quickAmounts.contains(p) ? _quickAmounts.indexOf(p) : null;
+          p != null && _quickAmounts.contains(p)
+              ? _quickAmounts.indexOf(p)
+              : null;
     });
 
     String c = value.replaceAll(RegExp(r'[-, ]'), '');
     if (c != value) {
       _amountController.text = c;
-      _amountController.selection =
-          TextSelection.fromPosition(TextPosition(offset: c.length));
+      _amountController.selection = TextSelection.fromPosition(
+        TextPosition(offset: c.length),
+      );
     }
 
     try {
@@ -94,7 +98,7 @@ class _AddFundScreenState extends State<AddFundScreen> {
     } else if (wc.digitalPaymentName == '') {
       showCustomSnackBar('please_select_payment_method'.tr);
     } else {
-      final sym = Get.find<SplashController>().configModel!.currencySymbol!;
+      final sym = Get.find<SplashController>().configModel.currencySymbol!;
       double amount = double.parse(_amountController.text.replaceAll(sym, ''));
       wc.addFundToWallet(amount, wc.digitalPaymentName!);
     }
@@ -115,281 +119,366 @@ class _AddFundScreenState extends State<AddFundScreen> {
         elevation: 0.5,
         leading: IconButton(
           onPressed: () => Get.back(),
-          icon: Icon(Icons.arrow_back, size: 22,
-              color: Theme.of(context).textTheme.bodyLarge?.color),
+          icon: Icon(
+            Icons.arrow_back,
+            size: 22,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
         titleSpacing: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('add_balance'.tr,
-                style: robotoBold.copyWith(
-                    fontSize: 17,
-                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+            Text(
+              'add_balance'.tr,
+              style: waddyBold.copyWith(
+                fontSize: 17,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+            ),
             Text(
               '${'available_balance'.tr}: ${PriceConverter.convertPrice(balance)}',
-              style: robotoRegular.copyWith(fontSize: 12, color: hintC),
+              style: waddyRegular.copyWith(fontSize: 12, color: hintC),
             ),
           ],
         ),
       ),
-      body: GetBuilder<WalletController>(builder: (wc) {
-        final methods =
-            Get.find<SplashController>().configModel!.activePaymentMethodList!;
+      body: GetBuilder<WalletController>(
+        builder: (wc) {
+          final methods =
+              Get.find<SplashController>()
+                  .configModel
+                  .activePaymentMethodList!;
 
-        return Column(children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              child: Column(children: [
-                // ═══ AMOUNT CARD ═══
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cardC,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Text field
-                      TextField(
-                        controller: _amountController,
-                        focusNode: _focusNode,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.done,
-                        style: robotoMedium.copyWith(fontSize: 16),
-                        onChanged: _onAmountChanged,
-                        decoration: InputDecoration(
-                          labelText: 'enter_amount'.tr,
-                          labelStyle: robotoRegular.copyWith(
-                              color: Theme.of(context).primaryColor, fontSize: 14),
-                          floatingLabelStyle: robotoRegular.copyWith(
-                              color: hintC.withValues(alpha: 0.6), fontSize: 12),
-                          prefixText: '$_cur ',
-                          prefixStyle: robotoMedium.copyWith(fontSize: 16),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(
-                                color: hintC.withValues(alpha: 0.2)),
+                      // ═══ AMOUNT CARD ═══
+                      Container(
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeDefault,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cardC,
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusLarge,
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(
-                                color: hintC.withValues(alpha: 0.35)),
-                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Text field
+                            TextField(
+                              controller: _amountController,
+                              focusNode: _focusNode,
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              style: waddyMedium.copyWith(fontSize: 16),
+                              onChanged: _onAmountChanged,
+                              decoration: InputDecoration(
+                                labelText: 'enter_amount'.tr,
+                                labelStyle: waddyRegular.copyWith(
+                                  color: Theme.of(context).primaryColor,
+                                  fontSize: 14,
+                                ),
+                                floatingLabelStyle: waddyRegular.copyWith(
+                                  color: hintC.withValues(alpha: 0.6),
+                                  fontSize: 12,
+                                ),
+                                prefixText: '$_cur ',
+                                prefixStyle: waddyMedium.copyWith(fontSize: 16),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: Dimensions.paddingSizeMedium,
+                                  vertical: Dimensions.paddingSizeMedium,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault,
+                                  ),
+                                  borderSide: BorderSide(
+                                    color: hintC.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault,
+                                  ),
+                                  borderSide: BorderSide(
+                                    color: hintC.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // ── Chips row ──
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: List.generate(_quickAmounts.length, (
+                                i,
+                              ) {
+                                final isSelected = _selectedQuickIndex == i;
+                                final label =
+                                    '$_cur ${_quickAmounts[i].toStringAsFixed(0)}';
+
+                                return Expanded(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                      right: i < 3 ? 8 : 0,
+                                    ),
+                                    child: GestureDetector(
+                                      onTap: () => _selectQuick(i),
+                                      child:
+                                          isSelected
+                                              ? _selectedChip(label)
+                                              : _normalChip(label),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            Divider(
+                              height: 1,
+                              color: hintC.withValues(alpha: 0.1),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Bonus or secure text
+                            if (wc.fundBonusList != null &&
+                                wc.fundBonusList!.isNotEmpty)
+                              _buildBonusRow(wc)
+                            else
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock_outline,
+                                    size: 14,
+                                    color: hintC,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'add_fund_form_secured_digital_payment_gateways'
+                                          .tr,
+                                      style: waddyRegular.copyWith(
+                                        fontSize: 12,
+                                        color: hintC,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
 
-                      const SizedBox(height: 16),
-
-                      // ── Chips row ──
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: List.generate(_quickAmounts.length, (i) {
-                          final isSelected = _selectedQuickIndex == i;
-                          final label =
-                              '$_cur ${_quickAmounts[i].toStringAsFixed(0)}';
-
-                          return Expanded(
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                  right: i < 3 ? 8 : 0),
-                              child: GestureDetector(
-                                onTap: () => _selectQuick(i),
-                                child: isSelected
-                                    ? _selectedChip(label)
-                                    : _normalChip(label),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      Divider(
-                          height: 1,
-                          color: hintC.withValues(alpha: 0.1)),
-
-                      const SizedBox(height: 14),
-
-                      // Bonus or secure text
-                      if (wc.fundBonusList != null &&
-                          wc.fundBonusList!.isNotEmpty)
-                        _buildBonusRow(wc)
-                      else
-                        Row(children: [
-                          Icon(Icons.lock_outline, size: 14, color: hintC),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'add_fund_form_secured_digital_payment_gateways'.tr,
-                              style: robotoRegular.copyWith(
-                                  fontSize: 12, color: hintC),
-                            ),
-                          ),
-                        ]),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // ═══ PAYMENT METHOD CARD ═══
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cardC,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('choose_payment_method'.tr,
-                          style: robotoBold.copyWith(fontSize: 15)),
-                    
                       const SizedBox(height: 12),
-                      ...List.generate(methods.length, (index) {
-                        final m = methods[index];
-                        final sel = m.getWay == wc.digitalPaymentName;
-                        return Padding(
-                          padding: EdgeInsets.only(
-                              bottom: index < methods.length - 1 ? 8 : 0),
-                          child: GestureDetector(
-                            onTap: () =>
-                                wc.changeDigitalPaymentName(m.getWay!),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? Theme.of(context)
-                                        .secondaryHeaderColor
-                                        .withValues(alpha: 0.04)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: sel
-                                      ? Theme.of(context).primaryColor
-                                      : hintC.withValues(alpha: 0.15),
+
+                      // ═══ PAYMENT METHOD CARD ═══
+                      Container(
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeDefault,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cardC,
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusLarge,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'choose_payment_method'.tr,
+                              style: waddyBold.copyWith(fontSize: 15),
+                            ),
+
+                            const SizedBox(height: 12),
+                            ...List.generate(methods.length, (index) {
+                              final m = methods[index];
+                              final sel = m.getWay == wc.digitalPaymentName;
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: index < methods.length - 1 ? 8 : 0,
                                 ),
-                              ),
-                              child: Row(children: [
-                                Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: sel
-                                        ? Theme.of(context).primaryColor
-                                        : Colors.transparent,
-                                    border: Border.all(
-                                      color: sel
-                                          ? Theme.of(context).primaryColor
-                                          : Theme.of(context).disabledColor,
-                                      width: 1.5,
+                                child: GestureDetector(
+                                  onTap:
+                                      () => wc.changeDigitalPaymentName(
+                                        m.getWay!,
+                                      ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeMedium,
+                                      vertical: Dimensions.paddingSizeMedium,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          sel
+                                              ? Theme.of(context)
+                                                  .secondaryHeaderColor
+                                                  .withValues(alpha: 0.04)
+                                              : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault,
+                                      ),
+                                      border: Border.all(
+                                        color:
+                                            sel
+                                                ? Theme.of(context).primaryColor
+                                                : hintC.withValues(alpha: 0.15),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color:
+                                                sel
+                                                    ? Theme.of(
+                                                      context,
+                                                    ).primaryColor
+                                                    : Colors.transparent,
+                                            border: Border.all(
+                                              color:
+                                                  sel
+                                                      ? Theme.of(
+                                                        context,
+                                                      ).primaryColor
+                                                      : Theme.of(
+                                                        context,
+                                                      ).disabledColor,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child:
+                                              sel
+                                                  ? const Icon(
+                                                    Icons.check,
+                                                    color: Colors.white,
+                                                    size: 13,
+                                                  )
+                                                  : null,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        CustomImage(
+                                          height: 20,
+                                          fit: BoxFit.contain,
+                                          image: '${m.getWayImageFullUrl}',
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            m.getWayTitle!,
+                                            style: waddyMedium.copyWith(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  child: sel
-                                      ? const Icon(Icons.check,
-                                          color: Colors.white, size: 13)
-                                      : null,
                                 ),
-                                const SizedBox(width: 10),
-                                CustomImage(
-                                  height: 20,
-                                  fit: BoxFit.contain,
-                                  image: '${m.getWayImageFullUrl}',
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(m.getWayTitle!,
-                                      style:
-                                          robotoMedium.copyWith(fontSize: 13)),
-                                ),
-                              ]),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
 
-                const SizedBox(height: 12),
-
-                // ═══ NOTE CARD ═══
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${'note'.tr}:',
-                          style: robotoMedium.copyWith(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.primary)),
                       const SizedBox(height: 12),
-                      _bullet('wallet_note_1'.tr),
-                      const SizedBox(height: 10),
-                      _bullet('wallet_note_2'.tr),
-                      const SizedBox(height: 10),
-                      _bullet('wallet_note_3'.tr),
+
+                      // ═══ NOTE CARD ═══
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeDefault,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).secondaryHeaderColor.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusLarge,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${'note'.tr}:',
+                              style: waddyMedium.copyWith(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _bullet('wallet_note_1'.tr),
+                            const SizedBox(height: 10),
+                            _bullet('wallet_note_2'.tr),
+                            const SizedBox(height: 10),
+                            _bullet('wallet_note_3'.tr),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 80),
-              ]),
-            ),
-          ),
-
-          // ═══ BOTTOM BUTTON ═══
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-            decoration: BoxDecoration(
-              color: cardC,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 6,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              top: false,
-              child: CustomButton(
-                buttonText: 'proceed_to_add_balance'.tr,
-                isLoading: wc.isLoading,
-                onPressed: () => _onProceed(wc),
               ),
-            ),
-          ),
-        ]);
-      }),
+
+              // ═══ BOTTOM BUTTON ═══
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+                decoration: BoxDecoration(
+                  color: cardC,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: CustomButton(
+                    buttonText: 'proceed_to_add_balance'.tr,
+                    isLoading: wc.isLoading,
+                    onPressed: () => _onProceed(wc),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -397,7 +486,7 @@ class _AddFundScreenState extends State<AddFundScreen> {
   Widget _selectedChip(String label) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: Theme.of(context).primaryColor, width: 1.5),
       ),
       child: ClipRRect(
@@ -407,15 +496,22 @@ class _AddFundScreenState extends State<AddFundScreen> {
           children: [
             Container(
               width: double.infinity,
-              color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.12),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              color: Theme.of(
+                context,
+              ).secondaryHeaderColor.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               child: Center(
-                child: Text(label,
-                    style: robotoBold.copyWith(
-                        fontSize: 13, color: Theme.of(context).primaryColor)),
+                child: Text(
+                  label,
+                  style: waddyBold.copyWith(
+                    fontSize: 13,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
             ),
-           
           ],
         ),
       ),
@@ -427,50 +523,65 @@ class _AddFundScreenState extends State<AddFundScreen> {
     return Container(
       height: 40,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(
           color: Theme.of(context).hintColor.withValues(alpha: 0.18),
         ),
       ),
       child: Center(
-        child: Text(label,
-            style: robotoMedium.copyWith(
-                fontSize: 13,
-                color: Theme.of(context).textTheme.bodyLarge?.color)),
+        child: Text(
+          label,
+          style: waddyMedium.copyWith(
+            fontSize: 13,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildBonusRow(WalletController wc) {
     final b = wc.fundBonusList!.first;
-    return Row(children: [
-      Icon(Icons.card_giftcard_rounded,
-          size: 16, color: Theme.of(context).primaryColor),
-      const SizedBox(width: 6),
-      Expanded(
-        child: RichText(
-          text: TextSpan(
-            style: robotoRegular.copyWith(
+    return Row(
+      children: [
+        Icon(
+          Icons.card_giftcard_rounded,
+          size: 16,
+          color: Theme.of(context).primaryColor,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: waddyRegular.copyWith(
                 fontSize: 12,
-                color: Theme.of(context).textTheme.bodyLarge?.color),
-            children: [
-              TextSpan(text: '${'add_minimum'.tr} '),
-              TextSpan(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+              ),
+              children: [
+                TextSpan(text: '${'add_minimum'.tr} '),
+                TextSpan(
                   text: PriceConverter.convertPrice(b.minimumAddAmount),
-                  style: robotoBold.copyWith(
-                      fontSize: 12, color: Theme.of(context).primaryColor)),
-              TextSpan(text: ' ${'and_get'.tr} '),
-              TextSpan(
+                  style: waddyBold.copyWith(
+                    fontSize: 12,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                TextSpan(text: ' ${'and_get'.tr} '),
+                TextSpan(
                   text:
                       '${b.bonusAmount}${b.bonusType == 'percent' ? '%' : ''}',
-                  style: robotoBold.copyWith(
-                      fontSize: 12, color: Theme.of(context).primaryColor)),
-              TextSpan(text: ' ${'bonus'.tr}'),
-            ],
+                  style: waddyBold.copyWith(
+                    fontSize: 12,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                TextSpan(text: ' ${'bonus'.tr}'),
+              ],
+            ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 
   Widget _bullet(String text) {
@@ -480,16 +591,24 @@ class _AddFundScreenState extends State<AddFundScreen> {
         Container(
           width: 6,
           height: 6,
-          margin: const EdgeInsets.only(top: 6, right: 10),
-          decoration:  BoxDecoration(
-              color: Theme.of(context).primaryColor, shape: BoxShape.circle),
+          margin: const EdgeInsets.only(
+            top: 6,
+            right: Dimensions.paddingSizeSmall,
+          ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).primaryColor,
+            shape: BoxShape.circle,
+          ),
         ),
         Expanded(
-          child: Text(text,
-              style: robotoRegular.copyWith(
-                  fontSize: 13,
-                  color: Theme.of(context).primaryColor,
-                  height: 1.45)),
+          child: Text(
+            text,
+            style: waddyRegular.copyWith(
+              fontSize: 13,
+              color: Theme.of(context).primaryColor,
+              height: 1.45,
+            ),
+          ),
         ),
       ],
     );

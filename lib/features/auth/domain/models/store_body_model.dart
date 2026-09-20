@@ -79,7 +79,7 @@ class StoreBodyModel {
     data['zone_id'] = zoneId!;
     data['module_id'] = moduleId!;
     data['delivery_time_type'] = deliveryTimeType!;
-    data['business_plan'] = businessPlan??'';
+    data['business_plan'] = businessPlan ?? '';
     data['package_id'] = packageId!;
     if (pickUpZoneIds != null) {
       data['pickup_zone_id'] = json.encode(pickUpZoneIds);

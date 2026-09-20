@@ -17,37 +17,43 @@ import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wra
 class SpecialOfferView extends StatefulWidget {
   final bool isFood;
   final bool isShop;
-  const SpecialOfferView({super.key, required this.isFood, required this.isShop});
+  const SpecialOfferView({
+    super.key,
+    required this.isFood,
+    required this.isShop,
+  });
 
   @override
   State<SpecialOfferView> createState() => _SpecialOfferViewState();
 }
 
-class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerProviderStateMixin {
+class _SpecialOfferViewState extends State<SpecialOfferView>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  final CarouselSliderController _carouselController = CarouselSliderController();
+  final CarouselSliderController _carouselController =
+      CarouselSliderController();
   int _currentPage = 0;
-  
+
   // ═══════════════════════════════════════════════════════════════════════════
   // DESIGN CONSTANTS - Centralized for easy maintenance & tablet/foldable adaptation
   // ═══════════════════════════════════════════════════════════════════════════
-  
+
   // Colors (from light_theme.dart)
   static const Color primaryTeal = Color(0xFF134E4A);
   static const Color accentGreen = Color(0xFF1EF2A0);
   static const Color ovalBackground = Color(0xFFE0F2F1);
   static const Color starColor = Color(0xFF1EF2A0);
-  
+
   // Card dimensions (adjusted to prevent overflow)
   static const double kCardWidth = 160.0;
   static const double kCardPadding = 8.0;
   static const double kCardBorderRadius = 12.0;
-  
+
   // Image dimensions
   static const double kImageWidth = 140.0;
   static const double kImageHeight = 90.0;
   static const double kImageBorderRadius = 10.0;
-  
+
   // Typography sizes (WCAG-compliant, supports dynamic type scaling)
   static const double kProductNameSize = 14.0;
   static const double kOriginalPriceSize = 11.0;
@@ -56,12 +62,14 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
   static const double kAddButtonTextSize = 11.0;
   static const double kBannerTextSize = 13.0;
   static const double kDecorativeTextSize = 15.0;
-  
+
   // Carousel settings
   static const double kCarouselHeight = 240.0;
   static const double kCarouselViewportFraction = 0.46;
   static const Duration kAutoPlayInterval = Duration(seconds: 4);
-  static const Duration kAutoPlayAnimationDuration = Duration(milliseconds: 800);
+  static const Duration kAutoPlayAnimationDuration = Duration(
+    milliseconds: 800,
+  );
 
   @override
   void initState() {
@@ -80,165 +88,183 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<HomeController>(builder: (homeController) {
-      return GetBuilder<ItemController>(builder: (itemController) {
-        List<Item>? discountedItemList = itemController.discountedItemList;
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        return GetBuilder<ItemController>(
+          builder: (itemController) {
+            List<Item>? discountedItemList = itemController.discountedItemList;
 
-        if (discountedItemList == null) {
-          return const MagazineShimmerView();
-        }
+            if (discountedItemList == null) {
+              return const MagazineShimmerView();
+            }
 
-        if (discountedItemList.isEmpty) {
-          return const SizedBox();
-        }
+            if (discountedItemList.isEmpty) {
+              return const SizedBox();
+            }
 
-        // Limit to 12 items max for carousel
-        final displayItems = discountedItemList.length > 12 
-            ? discountedItemList.sublist(0, 12) 
-            : discountedItemList;
+            // Limit to 12 items max for carousel
+            final displayItems =
+                discountedItemList.length > 12
+                    ? discountedItemList.sublist(0, 12)
+                    : discountedItemList;
 
-        final isRamadanMode = homeController.showRamadanDecorations;
+            final isRamadanMode = homeController.showRamadanDecorations;
 
-        final container = Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: Dimensions.paddingSizeDefault,
-          ),
-          decoration: BoxDecoration(
-            color: primaryTeal,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: accentGreen, width: 4),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Magazine Header with Ramadan lights wrapper
-              isRamadanMode
-                  ? RamadanStringLightWrapper(
-                      child: _buildMagazineHeader(context),
-                      showTopString: false,
-                      showBottomString: true,
-                      alwaysOn: true,
-                    )
-                  : _buildMagazineHeader(context),
-              
-              // Decorative text row (CRAZY BIG style)
-              
-              _buildDecorativeTextRow(),
-              SizedBox(height: 10,),
-              // Carousel Product List with proper infinite scroll
-              CarouselSlider.builder(
-                  carouselController: _carouselController,
-                  itemCount: displayItems.length,
-                  itemBuilder: (context, index, realIndex) {
-                    return _buildMagazineProductCard(context, displayItems[index], index + 1);
-                  },
-                  options: CarouselOptions(
-                    height: kCarouselHeight,
-                    viewportFraction: kCarouselViewportFraction,
-                    enlargeCenterPage: true,
-                    enlargeFactor: 0.15,
-                    enableInfiniteScroll: true,
-                    autoPlay: true,
-                    autoPlayInterval: kAutoPlayInterval,
-                    autoPlayAnimationDuration: kAutoPlayAnimationDuration,
-                    autoPlayCurve: Curves.easeInOutCubic,
-                    pauseAutoPlayOnTouch: true,
-                    pauseAutoPlayOnManualNavigate: true,
-                    onPageChanged: (index, reason) {
-                      if (mounted) {
-                        setState(() => _currentPage = index);
-                      }
+            final container = Container(
+              margin: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeSmall,
+                vertical: Dimensions.paddingSizeDefault,
+              ),
+              decoration: BoxDecoration(
+                color: primaryTeal,
+                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+                border: Border.all(color: accentGreen, width: 4),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Magazine Header with Ramadan lights wrapper
+                  isRamadanMode
+                      ? RamadanStringLightWrapper(
+                        child: _buildMagazineHeader(context),
+                        showTopString: false,
+                        showBottomString: true,
+                        alwaysOn: true,
+                      )
+                      : _buildMagazineHeader(context),
+
+                  // Decorative text row (CRAZY BIG style)
+                  _buildDecorativeTextRow(),
+                  SizedBox(height: 10),
+                  // Carousel Product List with proper infinite scroll
+                  CarouselSlider.builder(
+                    carouselController: _carouselController,
+                    itemCount: displayItems.length,
+                    itemBuilder: (context, index, realIndex) {
+                      return _buildMagazineProductCard(
+                        context,
+                        displayItems[index],
+                        index + 1,
+                      );
                     },
+                    options: CarouselOptions(
+                      height: kCarouselHeight,
+                      viewportFraction: kCarouselViewportFraction,
+                      enlargeCenterPage: true,
+                      enlargeFactor: 0.15,
+                      enableInfiniteScroll: true,
+                      autoPlay: true,
+                      autoPlayInterval: kAutoPlayInterval,
+                      autoPlayAnimationDuration: kAutoPlayAnimationDuration,
+                      autoPlayCurve: Curves.easeInOutCubic,
+                      pauseAutoPlayOnTouch: true,
+                      pauseAutoPlayOnManualNavigate: true,
+                      onPageChanged: (index, reason) {
+                        if (mounted) {
+                          setState(() => _currentPage = index);
+                        }
+                      },
+                    ),
                   ),
-                ),
-              
-              // Page Indicators
-              _buildPageIndicators(displayItems.length),
-              
-              // Bottom scrolling banner
-              _buildScrollingBanner(),
-            ],
-          ),
-        );
 
-        return container;
-      });
-    });
+                  // Page Indicators
+                  _buildPageIndicators(displayItems.length),
+
+                  // Bottom scrolling banner
+                  _buildScrollingBanner(),
+                ],
+              ),
+            );
+
+            return container;
+          },
+        );
+      },
+    );
   }
 
   Widget _buildMagazineHeader(BuildContext context) {
     return GestureDetector(
-        onTap: () => Get.toNamed(RouteHelper.getItemViewAllScreen(false, true)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Stack(
-            children: [
-              // Main title with retro style
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: accentGreen,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF0D3D38), width: 3),
-                    boxShadow: [
-                      BoxShadow(
+      onTap: () => Get.toNamed(RouteHelper.getItemViewAllScreen(false, true)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        child: Stack(
+          children: [
+            // Main title with retro style
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeLarge,
+                  vertical: Dimensions.paddingSizeSmall,
+                ),
+                decoration: BoxDecoration(
+                  color: accentGreen,
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+                  border: Border.all(color: const Color(0xFF0D3D38), width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      offset: const Offset(3, 3),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'Ramadan Waddy Offers'.tr.toUpperCase(),
+                  style: waddyBold.copyWith(
+                    fontSize: 18,
+                    color: primaryTeal,
+                    letterSpacing: 2,
+                    shadows: [
+                      Shadow(
                         color: Colors.black.withOpacity(0.3),
-                        offset: const Offset(3, 3),
+                        offset: const Offset(1, 1),
                         blurRadius: 0,
                       ),
                     ],
                   ),
-                  child: Text(
-                    'Ramadan Waddy Offers'.tr.toUpperCase(),
-                    style: robotoBold.copyWith(
-                      fontSize: 18,
-                      color: primaryTeal,
-                      letterSpacing: 2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: const Offset(1, 1),
-                          blurRadius: 0,
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
-              // Small "BY WADDI" text
-              
-            ],
-          ),
+            ),
+
+            // Small "BY WADDI" text
+          ],
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildDecorativeTextRow() {
-    return GetBuilder<HomeController>(builder: (homeController) {
-      final isRamadanMode = homeController.showRamadanDecorations;
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: isRamadanMode
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-               
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildDecorativeText('CRAZY', accentGreen),
-                  _buildStar(),
-                  _buildDecorativeText('BIG', accentGreen),
-                  _buildStar(),
-                  _buildDecorativeText('SALE', accentGreen),
-                ],
-              ),
-      );
-    });
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        final isRamadanMode = homeController.showRamadanDecorations;
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+            vertical: Dimensions.paddingSizeExtraSmall,
+          ),
+          child:
+              isRamadanMode
+                  ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [],
+                  )
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildDecorativeText('CRAZY', accentGreen),
+                      _buildStar(),
+                      _buildDecorativeText('BIG', accentGreen),
+                      _buildStar(),
+                      _buildDecorativeText('SALE', accentGreen),
+                    ],
+                  ),
+        );
+      },
+    );
   }
 
   Widget _buildDecorativeText(String text, Color color) {
@@ -247,7 +273,7 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
         // Shadow/outline
         Text(
           text,
-          style: robotoBold.copyWith(
+          style: waddyBold.copyWith(
             fontSize: kDecorativeTextSize,
             color: const Color(0xFF0D3D38),
             letterSpacing: 1,
@@ -259,7 +285,7 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
           top: -1,
           child: Text(
             text,
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: kDecorativeTextSize,
               color: color,
               letterSpacing: 1,
@@ -271,11 +297,7 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
   }
 
   Widget _buildStar() {
-    return const Icon(
-      Icons.star,
-      color: starColor,
-      size: 16,
-    );
+    return const Icon(Icons.star, color: starColor, size: 16);
   }
 
   Widget _buildPageIndicators(int itemCount) {
@@ -290,7 +312,10 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
             width: _currentPage == index ? 20 : 6,
             height: 6,
             decoration: BoxDecoration(
-              color: _currentPage == index ? accentGreen : Colors.white.withOpacity(0.4),
+              color:
+                  _currentPage == index
+                      ? accentGreen
+                      : Colors.white.withOpacity(0.4),
               borderRadius: BorderRadius.circular(3),
             ),
           );
@@ -299,20 +324,26 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
     );
   }
 
-  Widget _buildMagazineProductCard(BuildContext context, Item item, int number) {
+  Widget _buildMagazineProductCard(
+    BuildContext context,
+    Item item,
+    int number,
+  ) {
     double price = item.price ?? 0;
     double discount = item.discount ?? 0;
-    double discountPrice = PriceConverter.convertWithDiscount(price, discount, item.discountType)!;
+    double discountPrice =
+        PriceConverter.convertWithDiscount(price, discount, item.discountType)!;
     bool hasDiscount = discount > 0;
-    
+
     // Use PriceConverter for proper localized currency display
     String originalPriceDisplay = PriceConverter.convertPrice(price);
     String discountPriceDisplay = PriceConverter.convertPrice(discountPrice);
-    
+
     // Build semantic label for accessibility
     String semanticLabel = item.name ?? 'Product';
     if (hasDiscount) {
-      semanticLabel += ', discounted from $originalPriceDisplay to $discountPriceDisplay';
+      semanticLabel +=
+          ', discounted from $originalPriceDisplay to $discountPriceDisplay';
       if (item.discountType == 'percent') {
         semanticLabel += ', ${item.discount?.toInt()}% off';
       }
@@ -325,13 +356,12 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
       label: semanticLabel,
       button: true,
       child: GestureDetector(
-        onTap: () => Get.toNamed(RouteHelper.getItemDetailsRoute(item.id, false)),
+        onTap:
+            () => Get.toNamed(RouteHelper.getItemDetailsRoute(item.id, false)),
         child: Container(
           width: kCardWidth,
           padding: EdgeInsets.all(kCardPadding),
-          constraints: const BoxConstraints(
-            maxHeight: 230.0,
-          ),
+          constraints: const BoxConstraints(maxHeight: 230.0),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(kCardBorderRadius),
@@ -374,20 +404,29 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
                       top: 4,
                       left: 4,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusExtraSmall,
+                          ),
                         ),
                         child: Text(
                           item.discountType == 'percent'
                               ? '-${item.discount?.toInt()}%'
                               : '-${PriceConverter.convertPrice(item.discount ?? 0)}',
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: kDiscountBadgeSize,
                             color: Colors.white,
                           ),
-                          textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.2)),
+                          textScaler: TextScaler.linear(
+                            MediaQuery.textScalerOf(
+                              context,
+                            ).scale(1.0).clamp(1.0, 1.2),
+                          ),
                         ),
                       ),
                     ),
@@ -398,14 +437,16 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
               Flexible(
                 child: Text(
                   item.name ?? '',
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: kProductNameSize,
                     color: primaryTeal,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3)),
+                  textScaler: TextScaler.linear(
+                    MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3),
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -418,29 +459,42 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
                   if (hasDiscount)
                     Text(
                       originalPriceDisplay,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: kOriginalPriceSize,
                         color: Colors.grey[600],
                         decoration: TextDecoration.lineThrough,
                         decorationColor: Colors.grey[600],
                       ),
-                      textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3)),
+                      textScaler: TextScaler.linear(
+                        MediaQuery.textScalerOf(
+                          context,
+                        ).scale(1.0).clamp(1.0, 1.3),
+                      ),
                     ),
                   if (hasDiscount) const SizedBox(width: 6),
                   // Discounted/Current price in primary rounded box with secondary text
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeSmall,
+                      vertical: Dimensions.paddingSizeExtraSmall,
+                    ),
                     decoration: BoxDecoration(
                       color: primaryTeal,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusSmall,
+                      ),
                     ),
                     child: Text(
                       hasDiscount ? discountPriceDisplay : originalPriceDisplay,
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: kDiscountPriceSize,
                         color: accentGreen,
                       ),
-                      textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.3)),
+                      textScaler: TextScaler.linear(
+                        MediaQuery.textScalerOf(
+                          context,
+                        ).scale(1.0).clamp(1.0, 1.3),
+                      ),
                     ),
                   ),
                 ],
@@ -452,14 +506,22 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
                 label: 'Add ${item.name ?? "item"} to cart',
                 child: GestureDetector(
                   onTap: () {
-                    Get.find<ItemController>().itemDirectlyAddToCart(item, context);
+                    Get.find<ItemController>().itemDirectlyAddToCart(
+                      item,
+                      context,
+                    );
                   },
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: Dimensions.paddingSizeSmall,
+                      horizontal: Dimensions.paddingSizeDefault,
+                    ),
                     decoration: BoxDecoration(
                       color: accentGreen,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: accentGreen.withOpacity(0.3),
@@ -471,12 +533,16 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
                     child: Center(
                       child: Text(
                         'ADD',
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 14,
                           color: primaryTeal,
                           letterSpacing: 1,
                         ),
-                        textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.2)),
+                        textScaler: TextScaler.linear(
+                          MediaQuery.textScalerOf(
+                            context,
+                          ).scale(1.0).clamp(1.0, 1.2),
+                        ),
                       ),
                     ),
                   ),
@@ -495,14 +561,14 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
       decoration: const BoxDecoration(
         color: Color(0xFF0D3D38),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
+          bottomLeft: Radius.circular(Dimensions.radiusDefault),
+          bottomRight: Radius.circular(Dimensions.radiusDefault),
         ),
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
+          bottomLeft: Radius.circular(Dimensions.radiusDefault),
+          bottomRight: Radius.circular(Dimensions.radiusDefault),
         ),
         child: AnimatedBuilder(
           animation: _animController,
@@ -512,7 +578,10 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
                 Positioned(
                   left: -(_animController.value * 400),
                   child: Row(
-                    children: List.generate(3, (index) => _buildBannerContent()),
+                    children: List.generate(
+                      3,
+                      (index) => _buildBannerContent(),
+                    ),
                   ),
                 ),
               ],
@@ -524,42 +593,47 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
   }
 
   Widget _buildBannerContent() {
-    return GetBuilder<HomeController>(builder: (homeController) {
-      final isRamadanMode = homeController.showRamadanDecorations;
-      return Row(
-        children: isRamadanMode
-            ? [
-                _buildBannerItem('RAMADAN'),
-                _buildBannerStar(),
-                _buildBannerItem('IS'),
-                _buildBannerStar(),
-                _buildBannerItem('EASIER'),
-                _buildBannerStar(),
-                _buildBannerItem('WITH'),
-                _buildBannerStar(),
-                _buildBannerItem('WADDY'),
-                _buildBannerStar(),
-              ]
-            : [
-                _buildBannerItem('SALE'),
-                _buildBannerStar(),
-                _buildBannerItem('EVERYTHING'),
-                _buildBannerStar(),
-                _buildBannerItem('MUST'),
-                _buildBannerStar(),
-                _buildBannerItem('GO!'),
-                _buildBannerStar(),
-              ],
-      );
-    });
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        final isRamadanMode = homeController.showRamadanDecorations;
+        return Row(
+          children:
+              isRamadanMode
+                  ? [
+                    _buildBannerItem('RAMADAN'),
+                    _buildBannerStar(),
+                    _buildBannerItem('IS'),
+                    _buildBannerStar(),
+                    _buildBannerItem('EASIER'),
+                    _buildBannerStar(),
+                    _buildBannerItem('WITH'),
+                    _buildBannerStar(),
+                    _buildBannerItem('WADDY'),
+                    _buildBannerStar(),
+                  ]
+                  : [
+                    _buildBannerItem('SALE'),
+                    _buildBannerStar(),
+                    _buildBannerItem('EVERYTHING'),
+                    _buildBannerStar(),
+                    _buildBannerItem('MUST'),
+                    _buildBannerStar(),
+                    _buildBannerItem('GO!'),
+                    _buildBannerStar(),
+                  ],
+        );
+      },
+    );
   }
 
   Widget _buildBannerItem(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+      ),
       child: Text(
         text,
-        style: robotoBold.copyWith(
+        style: waddyBold.copyWith(
           fontSize: kBannerTextSize,
           color: Colors.white,
           letterSpacing: 1,
@@ -570,7 +644,7 @@ class _SpecialOfferViewState extends State<SpecialOfferView> with SingleTickerPr
 
   Widget _buildBannerStar() {
     return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall),
       child: Icon(Icons.star, color: starColor, size: 14),
     );
   }
@@ -593,7 +667,7 @@ class MagazineShimmerView extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: primaryTeal,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         border: Border.all(color: accentGreen, width: 4),
       ),
       child: Shimmer(
@@ -606,21 +680,27 @@ class MagazineShimmerView extends StatelessWidget {
           children: [
             // Header shimmer
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeMedium,
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               child: Center(
                 child: Container(
                   width: 180,
                   height: 40,
                   decoration: BoxDecoration(
                     color: accentGreen.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                 ),
               ),
             ),
             // Decorative text row shimmer
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+                vertical: Dimensions.paddingSizeExtraSmall,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(5, (index) {
@@ -629,7 +709,9 @@ class MagazineShimmerView extends StatelessWidget {
                     height: 18,
                     decoration: BoxDecoration(
                       color: accentGreen.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusExtraSmall,
+                      ),
                     ),
                   );
                 }),
@@ -637,7 +719,10 @@ class MagazineShimmerView extends StatelessWidget {
             ),
             // Product grid shimmer
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeSmall,
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               child: Column(
                 children: [
                   _buildProductRowShimmer(),
@@ -652,8 +737,8 @@ class MagazineShimmerView extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: Color(0xFF0D3D38),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
+                  bottomLeft: Radius.circular(Dimensions.radiusDefault),
+                  bottomRight: Radius.circular(Dimensions.radiusDefault),
                 ),
               ),
             ),
@@ -672,7 +757,7 @@ class MagazineShimmerView extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           ),
           child: Column(
             children: [
@@ -682,7 +767,7 @@ class MagazineShimmerView extends StatelessWidget {
                 height: 80,
                 decoration: BoxDecoration(
                   color: ovalBackground.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
               ),
               const SizedBox(height: 6),
@@ -692,7 +777,9 @@ class MagazineShimmerView extends StatelessWidget {
                 height: 12,
                 decoration: BoxDecoration(
                   color: accentGreen.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusExtraSmall,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -702,8 +789,13 @@ class MagazineShimmerView extends StatelessWidget {
                 height: 28,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: primaryTeal.withOpacity(0.3), width: 1.5),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusExtraSmall,
+                  ),
+                  border: Border.all(
+                    color: primaryTeal.withOpacity(0.3),
+                    width: 1.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -713,7 +805,7 @@ class MagazineShimmerView extends StatelessWidget {
                 height: 26,
                 decoration: BoxDecoration(
                   color: accentGreen.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 ),
               ),
             ],

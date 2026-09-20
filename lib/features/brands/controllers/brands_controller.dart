@@ -23,17 +23,22 @@ class BrandsController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  Future<void> getBrandList({DataSourceEnum dataSource = DataSourceEnum.local}) async {
+  Future<void> getBrandList({
+    DataSourceEnum dataSource = DataSourceEnum.local,
+  }) async {
     List<BrandModel>? brandList;
-    if(dataSource == DataSourceEnum.local) {
-      brandList = await brandsServiceInterface.getBrandList(DataSourceEnum.local);
+    if (dataSource == DataSourceEnum.local) {
+      brandList = await brandsServiceInterface.getBrandList(
+        DataSourceEnum.local,
+      );
       _prepareBandList(brandList);
       getBrandList(dataSource: DataSourceEnum.client);
     } else {
-      brandList = await brandsServiceInterface.getBrandList(DataSourceEnum.client);
+      brandList = await brandsServiceInterface.getBrandList(
+        DataSourceEnum.client,
+      );
       _prepareBandList(brandList);
     }
-
   }
 
   _prepareBandList(List<BrandModel>? brandList) {
@@ -46,13 +51,16 @@ class BrandsController extends GetxController implements GetxService {
 
   Future<void> getBrandItemList(int brandId, int offset, bool notify) async {
     _offset = offset;
-    if(offset == 1) {
+    if (offset == 1) {
       _brandItems = null;
-      if(notify) {
+      if (notify) {
         update();
       }
     }
-    ItemModel? brandItemModel = await brandsServiceInterface.getBrandItemList(brandId: brandId, offset: offset);
+    ItemModel? brandItemModel = await brandsServiceInterface.getBrandItemList(
+      brandId: brandId,
+      offset: offset,
+    );
     if (brandItemModel != null) {
       if (offset == 1) {
         _brandItems = [];
@@ -68,5 +76,4 @@ class BrandsController extends GetxController implements GetxService {
     _isLoading = true;
     update();
   }
-
 }

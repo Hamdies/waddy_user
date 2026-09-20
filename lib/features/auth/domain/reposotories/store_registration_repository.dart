@@ -6,22 +6,33 @@ import 'package:waddy_app/features/auth/domain/reposotories/store_registration_r
 import 'package:waddy_app/features/business/domain/models/package_model.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
-class StoreRegistrationRepository implements StoreRegistrationRepositoryInterface {
+class StoreRegistrationRepository
+    implements StoreRegistrationRepositoryInterface {
   final ApiClient apiClient;
   StoreRegistrationRepository({required this.apiClient});
 
   @override
-  Future<Response> registerStore(StoreBodyModel store, XFile? logo, XFile? cover, List<MultipartDocument> tinFiles) async {
+  Future<Response> registerStore(
+    StoreBodyModel store,
+    XFile? logo,
+    XFile? cover,
+    List<MultipartDocument> tinFiles,
+  ) async {
     Response response = await apiClient.postMultipartData(
-      AppConstants.storeRegisterUri, store.toJson(), [MultipartBody('logo', logo), MultipartBody('cover_photo', cover)], multipartDoc: tinFiles,
+      AppConstants.storeRegisterUri,
+      store.toJson(),
+      [MultipartBody('logo', logo), MultipartBody('cover_photo', cover)],
+      multipartDoc: tinFiles,
     );
     return response;
   }
 
   @override
   Future<bool> checkInZone(String? lat, String? lng, int zoneId) async {
-    Response response = await apiClient.getData('${AppConstants.checkZoneUri}?lat=$lat&lng=$lng&zone_id=$zoneId');
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      '${AppConstants.checkZoneUri}?lat=$lat&lng=$lng&zone_id=$zoneId',
+    );
+    if (response.statusCode == 200) {
       return response.body;
     } else {
       return response.body;
@@ -31,8 +42,10 @@ class StoreRegistrationRepository implements StoreRegistrationRepositoryInterfac
   @override
   Future<PackageModel?> getPackageList({int? moduleId}) async {
     PackageModel? packageModel;
-    Response response = await apiClient.getData('${AppConstants.storePackagesUri}?module_id=$moduleId');
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      '${AppConstants.storePackagesUri}?module_id=$moduleId',
+    );
+    if (response.statusCode == 200) {
       packageModel = PackageModel.fromJson(response.body);
     }
     return packageModel;
@@ -62,5 +75,4 @@ class StoreRegistrationRepository implements StoreRegistrationRepositoryInterfac
   Future getList({int? offset}) {
     throw UnimplementedError();
   }
-
 }

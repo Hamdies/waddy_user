@@ -10,8 +10,26 @@ abstract class SearchServiceInterface {
   Future<bool> saveSearchHistory(List<String> searchHistories);
   List<String> getSearchAddress();
   Future<bool> clearSearchHistory();
-  List<Item>? sortItemSearchList( List<Item>? allItemList, double upperValue, double lowerValue, int rating, bool veg, bool nonVeg, bool isAvailableItems, bool isDiscountedItems, int sortIndex);
-  List<Store>? sortStoreSearchList(List<Store>? allStoreList, int storeRating, bool storeVeg, bool storeNonVeg, bool isAvailableStore, bool isDiscountedStore, int storeSortIndex);
+  List<Item>? sortItemSearchList(
+    List<Item>? allItemList,
+    double upperValue,
+    double lowerValue,
+    int rating,
+    bool veg,
+    bool nonVeg,
+    bool isAvailableItems,
+    bool isDiscountedItems,
+    int sortIndex,
+  );
+  List<Store>? sortStoreSearchList(
+    List<Store>? allStoreList,
+    int storeRating,
+    bool storeVeg,
+    bool storeNonVeg,
+    bool isAvailableStore,
+    bool isDiscountedStore,
+    int storeSortIndex,
+  );
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText);
   Future<List<PopularCategoryModel?>?> getPopularCategories();
 }

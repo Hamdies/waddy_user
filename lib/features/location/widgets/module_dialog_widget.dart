@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -13,69 +12,112 @@ class ModuleDialogWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
-      insetPadding: const EdgeInsets.all(30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      ),
+      insetPadding: const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge),
       clipBehavior: Clip.antiAliasWithSaveLayer,
-      child: PointerInterceptor(child: SingleChildScrollView(child: Container(
-        width: 700,
-        padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-        color: Theme.of(context).primaryColor.withAlpha(20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-          Padding(
-            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-            child: Text('select_the_type_of_modules_for_your_order'.tr, style: robotoMedium.copyWith(fontSize: 24)),
-          ),
-
-          GetBuilder<SplashController>(builder: (splashController) {
-            return Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                color: Theme.of(context).colorScheme.surface,
-              ),
-              child: splashController.moduleList != null ? GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3, childAspectRatio: (1/1),
-                  mainAxisSpacing: Dimensions.paddingSizeLarge, crossAxisSpacing: Dimensions.paddingSizeLarge,
-                ),
-                itemCount: splashController.moduleList!.length,
-                shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+      child: SingleChildScrollView(
+        child: Container(
+          width: 700,
+          padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+          color: Theme.of(context).primaryColor.withAlpha(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
                 padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-                itemBuilder: (context, index) {
-                  return InkWell(
-                    onTap: () {
-                      Get.find<SplashController>().setModule(splashController.moduleList![index]);
-                      callback();
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                        color: Theme.of(context).cardColor,
-                        boxShadow: const [BoxShadow(color: Colors.black12, spreadRadius: 1, blurRadius: 5)],
+                child: Text(
+                  'select_the_type_of_modules_for_your_order'.tr,
+                  style: waddyMedium.copyWith(fontSize: 24),
+                ),
+              ),
+
+              GetBuilder<SplashController>(
+                builder: (splashController) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusSmall,
                       ),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-
-                        CustomImage(
-                          image: '${splashController.moduleList![index].iconFullUrl}',
-                          height: 80, width: 80,
-                        ),
-                        const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                        Text(
-                          splashController.moduleList![index].moduleName!,
-                          style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-                        ),
-
-                      ]),
+                      color: Theme.of(context).colorScheme.surface,
                     ),
+                    child:
+                        splashController.moduleList != null
+                            ? GridView.builder(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: (1 / 1),
+                                    mainAxisSpacing:
+                                        Dimensions.paddingSizeLarge,
+                                    crossAxisSpacing:
+                                        Dimensions.paddingSizeLarge,
+                                  ),
+                              itemCount: splashController.moduleList!.length,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(
+                                Dimensions.paddingSizeLarge,
+                              ),
+                              itemBuilder: (context, index) {
+                                return InkWell(
+                                  onTap: () {
+                                    Get.find<SplashController>().enterModule(
+                                      splashController.moduleList![index],
+                                    );
+                                    callback();
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusSmall,
+                                      ),
+                                      color: Theme.of(context).cardColor,
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          spreadRadius: 1,
+                                          blurRadius: 5,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        CustomImage(
+                                          image:
+                                              '${splashController.moduleList![index].iconFullUrl}',
+                                          height: 80,
+                                          width: 80,
+                                        ),
+                                        const SizedBox(
+                                          height: Dimensions.paddingSizeSmall,
+                                        ),
+
+                                        Text(
+                                          splashController
+                                              .moduleList![index]
+                                              .moduleName!,
+                                          style: waddyRegular.copyWith(
+                                            fontSize: Dimensions.fontSizeSmall,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                            : const Center(child: CircularProgressIndicator()),
                   );
                 },
-              ) : const Center(child: CircularProgressIndicator()),
-            );
-          }),
-
-        ]),
-      ))),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

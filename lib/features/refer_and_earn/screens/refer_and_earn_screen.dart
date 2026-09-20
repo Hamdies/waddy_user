@@ -10,6 +10,7 @@ import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class ReferAndEarnScreen extends StatefulWidget {
   const ReferAndEarnScreen({super.key});
@@ -26,7 +27,8 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
   }
 
   void _initCall() {
-    if (AuthHelper.isLoggedIn() && Get.find<ProfileController>().userInfoModel == null) {
+    if (AuthHelper.isLoggedIn() &&
+        Get.find<ProfileController>().userInfoModel == null) {
       Get.find<ProfileController>().getUserInfo();
     }
   }
@@ -38,210 +40,263 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: isLoggedIn
-          ? SafeArea(
-              child: GetBuilder<ProfileController>(builder: (profileController) {
-                final refCode = profileController.userInfoModel?.refCode ?? '';
-                final rewardAmount = PriceConverter.convertPrice(
-                  Get.find<SplashController>().configModel?.refEarningExchangeRate?.toDouble() ?? 0.0,
-                );
+      body:
+          isLoggedIn
+              ? SafeArea(
+                child: GetBuilder<ProfileController>(
+                  builder: (profileController) {
+                    final refCode =
+                        profileController.userInfoModel?.refCode ?? '';
+                    final rewardAmount = PriceConverter.convertPrice(
+                      Get.find<SplashController>()
+                              .configModel
+                              .refEarningExchangeRate
+                              ?.toDouble() ??
+                          0.0,
+                    );
 
-                return Column(
-                  children: [
-                    // Back button
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: () => Get.back(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                        padding: const EdgeInsets.all(16),
-                      ),
-                    ),
-
-                    const Spacer(flex: 2),
-
-                    // Lottie
-                    Lottie.asset(
-                      "assets/animation/waddi_coins.json",
-                      width: 200,
-                      height: 200,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Title
-                    const Text(
-                      'Invite friends!',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Subtitle with reward
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 50),
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Color(0xFF666666),
-                            height: 1.5,
-                          ),
-                          children: [
-                            const TextSpan(text: 'Share your code and earn '),
-                            TextSpan(
-                              text: rewardAmount,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: primaryColor,
-                              ),
+                    return Column(
+                      children: [
+                        // Back button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            onPressed: () => Get.back(),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 20,
                             ),
-                            const TextSpan(text: ' for every friend who joins!'),
-                          ],
+                            padding: const EdgeInsets.all(
+                              Dimensions.paddingSizeDefault,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
 
-                    const Spacer(flex: 2),
+                        const Spacer(flex: 2),
 
-                    // Bottom card
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF7F7F8),
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Column(
-                        children: [
-                          // Label
-                          Text(
-                            'your_personal_code'.tr.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF999999),
-                              letterSpacing: 1.5,
+                        // Lottie
+                        Lottie.asset(
+                          "assets/animation/waddi_coins.json",
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 40),
+
+                        // Title
+                        const Text(
+                          'Invite friends!',
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Subtitle with reward
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 50),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF666666),
+                                height: 1.5,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: 'Share your code and earn ',
+                                ),
+                                TextSpan(
+                                  text: rewardAmount,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' for every friend who joins!',
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                        ),
 
-                          // Code
-                          profileController.userInfoModel != null
-                              ? Text(
-                                  refCode,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.black,
-                                    letterSpacing: 3,
-                                  ),
-                                )
-                              : const SizedBox(
-                                  height: 28,
-                                  width: 28,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                          const SizedBox(height: 24),
+                        const Spacer(flex: 2),
 
-                          // Buttons row
-                          Row(
+                        // Bottom card
+                        Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeExtraLarge,
+                          ),
+                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F7F8),
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: Column(
                             children: [
-                              // Copy button
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    if (refCode.isNotEmpty) {
-                                      Clipboard.setData(ClipboardData(text: refCode));
-                                      showCustomSnackBar('referral_code_copied'.tr, isError: false);
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: const Color(0xFFE8E8E8)),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.copy_rounded, size: 18, color: primaryColor),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'copy'.tr.toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: primaryColor,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                              // Label
+                              Text(
+                                'your_personal_code'.tr.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF999999),
+                                  letterSpacing: 1.5,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              // Share button
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    if (refCode.isNotEmpty) {
-                                      Share.share(
-                                        Get.find<SplashController>().configModel?.appUrlAndroid != null
-                                            ? '${AppConstants.appName} ${'referral_code'.tr}: $refCode \n${'download_app_from_this_link'.tr}: ${Get.find<SplashController>().configModel?.appUrlAndroid}'
-                                            : '${AppConstants.appName} ${'referral_code'.tr}: $refCode',
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: primaryColor,
-                                      borderRadius: BorderRadius.circular(16),
+                              const SizedBox(height: 12),
+
+                              // Code
+                              profileController.userInfoModel != null
+                                  ? Text(
+                                    refCode,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.black,
+                                      letterSpacing: 3,
                                     ),
-                                    child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.share_rounded, size: 18, color: Colors.white),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'SHARE',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                      ],
+                                  )
+                                  : const SizedBox(
+                                    height: 28,
+                                    width: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
                                   ),
-                                ),
+                              const SizedBox(height: 24),
+
+                              // Buttons row
+                              Row(
+                                children: [
+                                  // Copy button
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (refCode.isNotEmpty) {
+                                          Clipboard.setData(
+                                            ClipboardData(text: refCode),
+                                          );
+                                          showCustomSnackBar(
+                                            'referral_code_copied'.tr,
+                                            isError: false,
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical:
+                                              Dimensions.paddingSizeDefault,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            Dimensions.radiusLarge,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFE8E8E8),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.copy_rounded,
+                                              size: 18,
+                                              color: primaryColor,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'copy'.tr.toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: primaryColor,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Share button
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (refCode.isNotEmpty) {
+                                          Share.share(
+                                            Get.find<SplashController>()
+                                                        .configModel
+                                                        .appUrlAndroid !=
+                                                    null
+                                                ? '${AppConstants.appName} ${'referral_code'.tr}: $refCode \n${'download_app_from_this_link'.tr}: ${Get.find<SplashController>().configModelOrNull?.appUrlAndroid}'
+                                                : '${AppConstants.appName} ${'referral_code'.tr}: $refCode',
+                                          );
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical:
+                                              Dimensions.paddingSizeDefault,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: primaryColor,
+                                          borderRadius: BorderRadius.circular(
+                                            Dimensions.radiusLarge,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.share_rounded,
+                                              size: 18,
+                                              color: Colors.white,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'SHARE',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
 
-                    const SizedBox(height: 32),
-                  ],
-                );
-              }),
-            )
-          : SafeArea(
-              child: NotLoggedInScreen(callBack: (value) {
-                _initCall();
-                setState(() {});
-              }),
-            ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  },
+                ),
+              )
+              : SafeArea(
+                child: NotLoggedInScreen(
+                  callBack: (value) {
+                    _initCall();
+                    setState(() {});
+                  },
+                ),
+              ),
     );
   }
 }

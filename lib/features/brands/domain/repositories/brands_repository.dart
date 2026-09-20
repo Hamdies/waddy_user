@@ -10,29 +10,46 @@ import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
-class BrandsRepository implements BrandsRepositoryInterface{
+class BrandsRepository implements BrandsRepositoryInterface {
   final ApiClient apiClient;
   BrandsRepository({required this.apiClient});
 
   @override
-  Future<List<BrandModel>?> getBrandList({required DataSourceEnum source}) async {
+  Future<List<BrandModel>?> getBrandList({
+    required DataSourceEnum source,
+  }) async {
     List<BrandModel>? brandList;
-    String cacheId = '${AppConstants.brandListUri}-${Get.find<SplashController>().module!.id!}';
+    String cacheId =
+        '${AppConstants.brandListUri}-${Get.find<SplashController>().module!.id!}';
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
         Response response = await apiClient.getData(AppConstants.brandListUri);
         if (response.statusCode == 200) {
           brandList = [];
-          response.body.forEach((brand) => brandList!.add(BrandModel.fromJson(brand)));
-          LocalClient.organize(source, cacheId, jsonEncode(response.body), apiClient.getHeader());
+          response.body.forEach(
+            (brand) => brandList!.add(BrandModel.fromJson(brand)),
+          );
+          LocalClient.organize(
+            source,
+            cacheId,
+            jsonEncode(response.body),
+            apiClient.getHeader(),
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(source, cacheId, null, null);
-        if(cacheResponseData != null) {
+        String? cacheResponseData = await LocalClient.organize(
+          source,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
           brandList = [];
-          jsonDecode(cacheResponseData).forEach((brand) => brandList!.add(BrandModel.fromJson(brand)));
+          jsonDecode(
+            cacheResponseData,
+          ).forEach((brand) => brandList!.add(BrandModel.fromJson(brand)));
         }
     }
 
@@ -40,11 +57,16 @@ class BrandsRepository implements BrandsRepositoryInterface{
   }
 
   @override
-  Future<ItemModel?> getBrandItemList({required int brandId, int? offset}) async {
+  Future<ItemModel?> getBrandItemList({
+    required int brandId,
+    int? offset,
+  }) async {
     ItemModel? brandItemModel;
-    Response response = await apiClient.getData('${AppConstants.brandItemUri}/$brandId?offset=$offset&limit=12');
+    Response response = await apiClient.getData(
+      '${AppConstants.brandItemUri}/$brandId?offset=$offset&limit=12',
+    );
     if (response.statusCode == 200) {
-       brandItemModel = ItemModel.fromJson(response.body);
+      brandItemModel = ItemModel.fromJson(response.body);
     }
     return brandItemModel;
   }
@@ -74,5 +96,4 @@ class BrandsRepository implements BrandsRepositoryInterface{
     // TODO: implement getList
     throw UnimplementedError();
   }
-
 }

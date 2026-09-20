@@ -16,8 +16,18 @@ class SearchFieldWidget extends StatefulWidget {
   final double? radius;
   final bool isFocused;
   const SearchFieldWidget({
-    super.key, required this.controller, required this.hint, this.suffixIcon,
-    required this.iconPressed, this.filledColor, this.onSubmit, this.onChanged, this.iconColor, this.radius, this.prefixIcon, this.isFocused = true,
+    super.key,
+    required this.controller,
+    required this.hint,
+    this.suffixIcon,
+    required this.iconPressed,
+    this.filledColor,
+    this.onSubmit,
+    this.onChanged,
+    this.iconColor,
+    this.radius,
+    this.prefixIcon,
+    this.isFocused = true,
   });
 
   @override
@@ -32,19 +42,45 @@ class _SearchFieldWidgetState extends State<SearchFieldWidget> {
       textInputAction: TextInputAction.search,
       autofocus: widget.isFocused,
       inputFormatters: [
-        FilteringTextInputFormatter.deny(RegExp(r'[!@#$%^&*(),.?":{}|<>_+-/~`•√π÷×§∆£¢€¥°=©®™✓;]')),
+        FilteringTextInputFormatter.deny(
+          RegExp(r'[!@#$%^&*(),.?":{}|<>_+-/~`•√π÷×§∆£¢€¥°=©®™✓;]'),
+        ),
       ],
       decoration: InputDecoration(
         hintText: widget.hint,
-        hintStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).disabledColor),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(widget.radius ?? Dimensions.radiusSmall), borderSide: BorderSide.none),
-        filled: true, fillColor: widget.filledColor ?? Theme.of(context).cardColor,
+        hintStyle: waddyRegular.copyWith(
+          fontSize: Dimensions.fontSizeSmall,
+          color: Theme.of(context).disabledColor,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(
+            widget.radius ?? Dimensions.radiusSmall,
+          ),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: widget.filledColor ?? Theme.of(context).cardColor,
         isDense: true,
-        suffixIcon: widget.suffixIcon != null ? IconButton(
-          onPressed: widget.iconPressed as void Function()?,
-          icon: Icon(widget.suffixIcon, color: widget.iconColor ?? Theme.of(context).textTheme.bodyLarge!.color),
-        ) : null,
-        prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon, size: 24, color: Theme.of(context).disabledColor) : null,
+        suffixIcon:
+            widget.suffixIcon != null
+                ? IconButton(
+                  onPressed: widget.iconPressed as void Function()?,
+                  icon: Icon(
+                    widget.suffixIcon,
+                    color:
+                        widget.iconColor ??
+                        Theme.of(context).textTheme.bodyLarge!.color,
+                  ),
+                )
+                : null,
+        prefixIcon:
+            widget.prefixIcon != null
+                ? Icon(
+                  widget.prefixIcon,
+                  size: 24,
+                  color: Theme.of(context).disabledColor,
+                )
+                : null,
       ),
       onSubmitted: widget.onSubmit as void Function(String)?,
       onChanged: widget.onChanged as void Function(String)?,

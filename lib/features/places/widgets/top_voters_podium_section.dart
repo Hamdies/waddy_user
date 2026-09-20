@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/util/swallow.dart';
 import 'package:get/get.dart';
 import 'package:rive/rive.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
@@ -12,7 +13,6 @@ import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/styles.dart';
 
 /// "Top voters" — a 3-up podium (2nd · 1st crowned & taller · 3rd), a
@@ -57,7 +57,9 @@ class TopVotersPodiumSection extends StatelessWidget {
                     .join(' ')
                     .trim();
             if (meName.isEmpty) meName = null;
-          } catch (_) {}
+          } catch (e, s) {
+            swallow('read own name for podium', e, s);
+          }
         }
 
         _VoterTile tile(TopVoter? v, int rank, {bool lead = false}) {
@@ -98,12 +100,6 @@ class TopVotersPodiumSection extends StatelessWidget {
                 Expanded(flex: 100, child: tile(third, 3)),
               ],
             ),
-            // _DefendMission(
-            //   controller: controller,
-            //   leader: first,
-            //   runnerUp: second,
-            // ),
-            // const SizedBox(height: Spots.s12),
             const _PrizeFairnessNote(),
             const SizedBox(height: Spots.s12),
             LiveNewsBar(leaderName: first?.name),
@@ -406,145 +402,6 @@ class _VoterTile extends StatelessWidget {
   }
 }
 
-/// "Defend your crown" mission — shown to the logged-in leader; otherwise a
-/// generic "climb the board" nudge. Copy is derived from real rank/vote gaps.
-class _DefendMission extends StatelessWidget {
-  final PlacesController controller;
-  final TopVoter? leader;
-  final TopVoter? runnerUp;
-  const _DefendMission({
-    required this.controller,
-    required this.leader,
-    required this.runnerUp,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final loggedIn = AuthHelper.isLoggedIn();
-    final myRank = loggedIn ? controller.currentUserRank : null;
-    final myVotes = loggedIn ? controller.currentUserVotes : null;
-    final isLtr = Directionality.of(context) == TextDirection.ltr;
-
-    String title;
-    String subtitle;
-    if (myRank == 1 && runnerUp != null && myVotes != null) {
-      final lead = myVotes - runnerUp!.votesCount;
-      title = 'spots_defend_crown_title'.tr;
-      subtitle =
-          lead > 0
-              ? 'spots_defend_crown_ahead'.trParams({
-                'count': fmtCount(lead),
-                'votes':
-                    lead == 1
-                        ? 'spots_votes_label_one'.tr
-                        : 'spots_votes_label_other'.tr,
-                'name': _handle(runnerUp!.name),
-              })
-              : 'spots_defend_crown_tied'.trParams({
-                'name': _handle(runnerUp!.name),
-              });
-    } else if (myRank != null && myVotes != null && leader != null) {
-      final gap = leader!.votesCount - myVotes;
-      title = 'spots_climb_board_title'.tr;
-      subtitle =
-          gap > 0
-              ? 'spots_climb_board_behind'.trParams({
-                'rank': fmtCount(myRank),
-                'count': fmtCount(gap),
-                'votes':
-                    gap == 1
-                        ? 'spots_votes_label_one'.tr
-                        : 'spots_votes_label_other'.tr,
-              })
-              : 'spots_climb_board_on_board'.trParams({
-                'rank': fmtCount(myRank),
-              });
-    } else {
-      title = 'spots_get_on_board_title'.tr;
-      subtitle = 'spots_get_on_board_body'.tr;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(top: Spots.s20),
-      decoration: Spots.card(fill: Spots.mint),
-      padding: const EdgeInsets.all(Spots.s16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: Spots.display(
-                    17,
-                    color: Spots.teal,
-                  ).copyWith(height: 1),
-                ),
-              ),
-              const SizedBox(width: Spots.s8),
-              SpotsPressable(
-                onTap: _onVote,
-                dx: 2,
-                dy: 2,
-                radius: Spots.radiusMd,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Spots.teal,
-                    border: Border.all(
-                      color: Spots.border,
-                      width: Spots.borderThin,
-                    ),
-                    borderRadius: BorderRadius.circular(Spots.radiusMd),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Spots.s16,
-                    vertical: Spots.s8,
-                  ),
-                  child: Text(
-                    '${displayCaps('spots_vote_cta'.tr)} ${isLtr ? '→' : '←'}',
-                    style: waddyBlack.copyWith(
-                      fontSize: 13,
-                      color: Colors.white,
-                      letterSpacing: displayTracking(0.03 * 13),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Spots.s8),
-          Text(
-            subtitle,
-            style: waddyBlack.copyWith(
-              fontSize: 12,
-              color: Spots.teal.withValues(alpha: 0.9),
-              height: 1.15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A voter climbs the board by voting for any spot. Send them straight to the
-  /// live #1 place's vote sheet (the leader everyone's watching); if the board
-  /// is empty, drop to the leaderboard so there's always somewhere to go.
-  void _onVote() {
-    final standings = controller.liveStandings;
-    if (standings.isNotEmpty) {
-      openVoteSheet(standings.first.id);
-    } else {
-      Get.toNamed(RouteHelper.getXpLeaderboardRoute());
-    }
-  }
-
-  static String _handle(String name) {
-    final s = name.trim();
-    return s.startsWith('@') ? s : '@$s';
-  }
-}
-
 /// Empty podium — rendered instead of silently collapsing the whole section,
 /// which used to leave a dead 68px band between its neighbours.
 class _VotersEmpty extends StatelessWidget {
@@ -720,7 +577,9 @@ class SpotsTopVotersSheet extends StatelessWidget {
     int? meId;
     try {
       meId = Get.find<ProfileController>().userInfoModel?.id;
-    } catch (_) {}
+    } catch (e, s) {
+      swallow('read own id for podium', e, s);
+    }
 
     return SafeArea(
       top: false,

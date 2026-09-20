@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/util/app_design_tokens.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 /// Dialog shown when user tries to add items from a different module
 /// while cart already has items from another module.
-/// 
+///
 /// Example: Cart has "Food" items, user tries to add "Grocery" items.
 class CartModuleConflictDialog extends StatelessWidget {
   final String currentModuleName;
@@ -30,12 +31,13 @@ class CartModuleConflictDialog extends StatelessWidget {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => CartModuleConflictDialog(
-        currentModuleName: currentModuleName,
-        newModuleName: newModuleName,
-        onClearCart: () => Navigator.of(context).pop(true),
-        onCancel: () => Navigator.of(context).pop(false),
-      ),
+      builder:
+          (context) => CartModuleConflictDialog(
+            currentModuleName: currentModuleName,
+            newModuleName: newModuleName,
+            onClearCart: () => Navigator.of(context).pop(true),
+            onCancel: () => Navigator.of(context).pop(false),
+          ),
     );
     return result ?? false;
   }
@@ -44,7 +46,7 @@ class CartModuleConflictDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
       ),
       elevation: 0,
       backgroundColor: Colors.transparent,
@@ -54,10 +56,10 @@ class CartModuleConflictDialog extends StatelessWidget {
 
   Widget _buildDialogContent(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.15),
@@ -75,10 +77,7 @@ class CartModuleConflictDialog extends StatelessWidget {
             height: 72,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.orange.shade400,
-                  Colors.orange.shade600,
-                ],
+                colors: [Colors.orange.shade400, Colors.orange.shade600],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -102,7 +101,7 @@ class CartModuleConflictDialog extends StatelessWidget {
           // Title
           Text(
             'switch_module'.tr,
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: 20,
               color: Theme.of(context).textTheme.bodyLarge?.color,
             ),
@@ -114,16 +113,18 @@ class CartModuleConflictDialog extends StatelessWidget {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: robotoRegular.copyWith(
+              style: waddyRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                color: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
                 height: 1.5,
               ),
               children: [
                 TextSpan(text: 'your_cart_contains_items_from'.tr),
                 TextSpan(
                   text: ' $currentModuleName',
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: 14,
                     color: AppDesignTokens.primaryDark,
                   ),
@@ -131,7 +132,7 @@ class CartModuleConflictDialog extends StatelessWidget {
                 TextSpan(text: '. ${'adding_items_from'.tr}'),
                 TextSpan(
                   text: ' $newModuleName ',
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: 14,
                     color: AppDesignTokens.primaryDark,
                   ),
@@ -144,10 +145,13 @@ class CartModuleConflictDialog extends StatelessWidget {
 
           // Warning note
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeMedium,
+              vertical: Dimensions.paddingSizeSmall,
+            ),
             decoration: BoxDecoration(
               color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -161,7 +165,7 @@ class CartModuleConflictDialog extends StatelessWidget {
                 Flexible(
                   child: Text(
                     'this_action_cannot_be_undone'.tr,
-                    style: robotoMedium.copyWith(
+                    style: waddyMedium.copyWith(
                       fontSize: 12,
                       color: Colors.orange.shade700,
                     ),
@@ -180,17 +184,25 @@ class CartModuleConflictDialog extends StatelessWidget {
                 child: GestureDetector(
                   onTap: onCancel,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: Dimensions.paddingSizeMedium,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: Theme.of(
+                        context,
+                      ).dividerColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       border: Border.all(
-                        color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                        color: Theme.of(
+                          context,
+                        ).dividerColor.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Text(
                       'keep_cart'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 14,
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
@@ -205,7 +217,9 @@ class CartModuleConflictDialog extends StatelessWidget {
                 child: GestureDetector(
                   onTap: onClearCart,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: Dimensions.paddingSizeMedium,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [
@@ -215,10 +229,14 @@ class CartModuleConflictDialog extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppDesignTokens.primaryDark.withValues(alpha: 0.3),
+                          color: AppDesignTokens.primaryDark.withValues(
+                            alpha: 0.3,
+                          ),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -226,7 +244,7 @@ class CartModuleConflictDialog extends StatelessWidget {
                     ),
                     child: Text(
                       'clear_and_add'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 14,
                         color: Colors.white,
                       ),

@@ -6,24 +6,22 @@ import 'package:waddy_app/features/favourite/controllers/favourite_controller.da
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_favourite_widget.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class FavouriteItemCard extends StatelessWidget {
   final Item item;
   final Store? store;
 
-  const FavouriteItemCard({
-    super.key,
-    required this.item,
-    this.store,
-  });
+  const FavouriteItemCard({super.key, required this.item, this.store});
 
   @override
   Widget build(BuildContext context) {
-    final bool hasDiscount = item.discount != null && item.discount! > 0 && item.discountType != null;
+    final bool hasDiscount =
+        item.discount != null &&
+        item.discount! > 0 &&
+        item.discountType != null;
     final double originalPrice = item.price ?? 0;
     final String formattedPrice = PriceConverter.convertPrice(
       originalPrice,
@@ -37,11 +35,11 @@ class FavouriteItemCard extends StatelessWidget {
         Get.find<ItemController>().navigateToItemPage(item, context);
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeMedium),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           border: Border.all(color: Colors.grey.shade100),
           boxShadow: [
             BoxShadow(
@@ -62,11 +60,15 @@ class FavouriteItemCard extends StatelessWidget {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     color: Colors.grey.shade50,
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     child: CustomImage(
                       image: item.imageFullUrl ?? '',
                       fit: BoxFit.cover,
@@ -79,14 +81,19 @@ class FavouriteItemCard extends StatelessWidget {
                     top: -4,
                     right: -4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusSmall,
+                        ),
                       ),
                       child: Text(
                         '${item.discount}${item.discountType == 'percent' ? '%' : 'LE'} OFF',
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           color: Colors.white,
                           fontSize: 10,
                         ),
@@ -106,7 +113,7 @@ class FavouriteItemCard extends StatelessWidget {
                   // Item name
                   Text(
                     item.name ?? '',
-                    style: robotoBold.copyWith(fontSize: 13),
+                    style: waddyBold.copyWith(fontSize: 13),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -116,7 +123,7 @@ class FavouriteItemCard extends StatelessWidget {
                   if (store != null)
                     Text(
                       store!.name ?? '',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: 11,
                         color: Colors.grey.shade600,
                       ),
@@ -130,7 +137,7 @@ class FavouriteItemCard extends StatelessWidget {
                     children: [
                       Text(
                         formattedPrice,
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 13,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -139,7 +146,7 @@ class FavouriteItemCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           originalFormatted,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 11,
                             color: Colors.grey.shade500,
                             decoration: TextDecoration.lineThrough,
@@ -160,7 +167,9 @@ class FavouriteItemCard extends StatelessWidget {
               children: [
                 GetBuilder<FavouriteController>(
                   builder: (favouriteController) {
-                    bool isWished = favouriteController.wishItemIdList.contains(item.id);
+                    bool isWished = favouriteController.wishItemIdList.contains(
+                      item.id,
+                    );
                     return CustomFavouriteWidget(
                       isWished: isWished,
                       isStore: false,
@@ -172,7 +181,10 @@ class FavouriteItemCard extends StatelessWidget {
                 const SizedBox(height: 50),
                 GestureDetector(
                   onTap: () {
-                    Get.find<ItemController>().navigateToItemPage(item, context);
+                    Get.find<ItemController>().navigateToItemPage(
+                      item,
+                      context,
+                    );
                   },
                   child: Container(
                     decoration: BoxDecoration(
@@ -180,11 +192,7 @@ class FavouriteItemCard extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                     padding: const EdgeInsets.all(6),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 20),
                   ),
                 ),
               ],

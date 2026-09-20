@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:waddy_app/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
@@ -15,7 +14,6 @@ import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -42,8 +40,7 @@ class _MenuScreenState extends State<MenuScreen> {
   void initState() {
     super.initState();
     if (AuthHelper.isLoggedIn()) {
-      Get.find<XpController>().getCurrentLevel();
-      Get.find<XpController>().getAllLevels();
+      Get.find<XpController>().getLevelDetails();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.find<WalletController>().loadCardAppearance();
       });
@@ -145,7 +142,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     onTap: () => Get.toNamed(RouteHelper.getCouponRoute()),
                   ),
                   if (Get.find<SplashController>()
-                          .configModel!
+                          .configModel
                           .loyaltyPointStatus ==
                       1)
                     _buildFlatItem(
@@ -212,17 +209,19 @@ class _MenuScreenState extends State<MenuScreen> {
                         final confirmed = await Get.dialog<bool>(
                           AlertDialog(
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
                             ),
                             title: Text(
                               val ? 'Hide Phone Number?' : 'Show Phone Number?',
-                              style: robotoBold.copyWith(fontSize: 17),
+                              style: waddyBold.copyWith(fontSize: 17),
                             ),
                             content: Text(
                               val
                                   ? 'Your phone number will be hidden from delivery personnel and stores.'
                                   : 'Your phone number will be visible to delivery personnel and stores.',
-                              style: robotoRegular.copyWith(
+                              style: waddyRegular.copyWith(
                                 fontSize: 14,
                                 color: _subtitleColor,
                               ),
@@ -232,7 +231,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 onPressed: () => Get.back(result: false),
                                 child: Text(
                                   'Cancel',
-                                  style: robotoMedium.copyWith(
+                                  style: waddyMedium.copyWith(
                                     color: _subtitleColor,
                                   ),
                                 ),
@@ -241,7 +240,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 onPressed: () => Get.back(result: true),
                                 child: Text(
                                   'Confirm',
-                                  style: robotoMedium.copyWith(
+                                  style: waddyMedium.copyWith(
                                     color: primaryColor,
                                   ),
                                 ),
@@ -344,7 +343,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   Center(
                     child: Text(
                       '--',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: 14,
                         color: _subtitleColor.withOpacity(0.3),
                       ),
@@ -354,7 +353,7 @@ class _MenuScreenState extends State<MenuScreen> {
                   Center(
                     child: Text(
                       'Version ${AppConstants.appVersion}',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: 13,
                         color: _subtitleColor.withOpacity(0.6),
                       ),
@@ -371,17 +370,19 @@ class _MenuScreenState extends State<MenuScreen> {
                             ),
                         child: Text(
                           'privacy_policy'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: primaryColor,
                           ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeSmall,
+                        ),
                         child: Text(
                           '|',
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: _subtitleColor.withOpacity(0.4),
                           ),
@@ -394,17 +395,19 @@ class _MenuScreenState extends State<MenuScreen> {
                             ),
                         child: Text(
                           'terms_conditions'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: primaryColor,
                           ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeSmall,
+                        ),
                         child: Text(
                           '|',
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: _subtitleColor.withOpacity(0.4),
                           ),
@@ -417,7 +420,7 @@ class _MenuScreenState extends State<MenuScreen> {
                             ),
                         child: Text(
                           'about_us'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: primaryColor,
                           ),
@@ -430,19 +433,14 @@ class _MenuScreenState extends State<MenuScreen> {
                   Center(
                     child: Text(
                       'Made with ❤️ in Egypt',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: 11,
                         color: _subtitleColor.withValues(alpha: 0.45),
                       ),
                     ),
                   ),
 
-                  SizedBox(
-                    height:
-                        ResponsiveHelper.isDesktop(context)
-                            ? Dimensions.paddingSizeExtremeLarge
-                            : 80,
-                  ),
+                  SizedBox(height: 80),
                 ],
               ),
             ),
@@ -463,6 +461,7 @@ class _MenuScreenState extends State<MenuScreen> {
     Color secondaryColor,
   ) {
     return GetBuilder<XpController>(
+      id: XpController.idLevel,
       builder: (xpController) {
         final currentLevel = xpController.currentLevel;
         final levelsListModel = xpController.levelsListModel;
@@ -488,7 +487,7 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
           decoration: BoxDecoration(
             color: _cardBg,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             border: Border.all(color: _cardBorder, width: 1.5),
             boxShadow: [
               BoxShadow(
@@ -529,10 +528,14 @@ class _MenuScreenState extends State<MenuScreen> {
                                 end: Alignment.bottomRight,
                                 colors: [Color(0xFF134E4A), Color(0xFF1A7A6E)],
                               ),
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
                             ),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
                               child:
                                   isLoading
                                       ? Shimmer(
@@ -566,7 +569,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                             profileController,
                                             isLoggedIn,
                                           ),
-                                          style: robotoBold.copyWith(
+                                          style: waddyBold.copyWith(
                                             fontSize: 28,
                                             color: _valueColor,
                                           ),
@@ -583,12 +586,14 @@ class _MenuScreenState extends State<MenuScreen> {
                               child: Center(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
+                                    horizontal: Dimensions.paddingSizeSmall,
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
                                     color: _accentGreen,
-                                    borderRadius: BorderRadius.circular(7),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusSmall,
+                                    ),
                                     border: Border.all(
                                       color: _cardBg,
                                       width: 2,
@@ -596,7 +601,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                   ),
                                   child: Text(
                                     'LV$levelNumber',
-                                    style: robotoBold.copyWith(
+                                    style: waddyBold.copyWith(
                                       fontSize: 10,
                                       color: _cardBg,
                                     ),
@@ -619,7 +624,7 @@ class _MenuScreenState extends State<MenuScreen> {
                             children: [
                               Text(
                                 'Your Foodie Licence',
-                                style: robotoMedium.copyWith(
+                                style: waddyMedium.copyWith(
                                   color: _accentGreen,
                                   fontSize: 12,
                                 ),
@@ -646,13 +651,15 @@ class _MenuScreenState extends State<MenuScreen> {
                                   width: 120,
                                   decoration: BoxDecoration(
                                     color: Colors.grey.shade300,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusExtraSmall,
+                                    ),
                                   ),
                                 ),
                               )
                               : Text(
                                 userName,
-                                style: robotoBold.copyWith(
+                                style: waddyBold.copyWith(
                                   fontSize: 20,
                                   color: _valueColor,
                                 ),
@@ -662,7 +669,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           const SizedBox(height: 4),
                           Text(
                             userPhone,
-                            style: robotoRegular.copyWith(
+                            style: waddyRegular.copyWith(
                               fontSize: 12,
                               color: _labelColor,
                             ),
@@ -676,7 +683,9 @@ class _MenuScreenState extends State<MenuScreen> {
 
               // ── Divider ──
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeMedium,
+                ),
                 child: Divider(height: 1, color: _cardBorder),
               ),
 
@@ -702,8 +711,12 @@ class _MenuScreenState extends State<MenuScreen> {
                                 decoration: const BoxDecoration(
                                   color: Color(0xFF0A2E2B),
                                   borderRadius: BorderRadius.horizontal(
-                                    left: Radius.circular(8),
-                                    right: Radius.circular(4),
+                                    left: Radius.circular(
+                                      Dimensions.radiusSmall,
+                                    ),
+                                    right: Radius.circular(
+                                      Dimensions.radiusExtraSmall,
+                                    ),
                                   ),
                                 ),
                                 child: Stack(
@@ -721,10 +734,18 @@ class _MenuScreenState extends State<MenuScreen> {
                                             ],
                                           ),
                                           borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(8),
-                                            bottomLeft: Radius.circular(8),
-                                            topRight: Radius.circular(4),
-                                            bottomRight: Radius.circular(4),
+                                            topLeft: Radius.circular(
+                                              Dimensions.radiusSmall,
+                                            ),
+                                            bottomLeft: Radius.circular(
+                                              Dimensions.radiusSmall,
+                                            ),
+                                            topRight: Radius.circular(
+                                              Dimensions.radiusExtraSmall,
+                                            ),
+                                            bottomRight: Radius.circular(
+                                              Dimensions.radiusExtraSmall,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -732,7 +753,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                     Center(
                                       child: Text(
                                         '$currentXp / ${currentXp + xpForNextLevel} XP',
-                                        style: robotoBold.copyWith(
+                                        style: waddyBold.copyWith(
                                           fontSize: 10,
                                           color: secondaryColor,
                                           letterSpacing: 0.5,
@@ -764,7 +785,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               const SizedBox(width: 5),
                               Text(
                                 'Only $xpForNextLevel XP left for ',
-                                style: robotoMedium.copyWith(
+                                style: waddyMedium.copyWith(
                                   fontSize: 11,
                                   color: _labelColor,
                                 ),
@@ -777,7 +798,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                       levelNumber,
                                     )!,
                                   ),
-                                  style: robotoBold.copyWith(
+                                  style: waddyBold.copyWith(
                                     fontSize: 11,
                                     color: _accentGreen,
                                   ),
@@ -804,14 +825,20 @@ class _MenuScreenState extends State<MenuScreen> {
                 Container(
                   margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     onTap: () => _handleGuestSignIn(profileController),
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: Dimensions.paddingSizeSmall,
+                      ),
                       decoration: BoxDecoration(
                         color: _accentGreen,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusDefault,
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -824,7 +851,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           const SizedBox(width: 6),
                           Text(
                             'sign_in'.tr,
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 13,
                               color: Colors.white,
                             ),
@@ -850,8 +877,10 @@ class _MenuScreenState extends State<MenuScreen> {
     bool isLoggedIn,
     Color primaryColor,
   ) {
-    return GetBuilder<XpController>(
-      builder: (xpController) {
+    // No `GetBuilder` here: the quick-actions grid reads nothing off the XP
+    // controller, so subscribing only repainted 49 lines on every XP update.
+    return Builder(
+      builder: (context) {
         final normalItems = [
           _QuickAction(
             icon: HugeIcons.strokeRoundedInvoice01,
@@ -874,10 +903,13 @@ class _MenuScreenState extends State<MenuScreen> {
           margin: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeDefault,
           ),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          padding: const EdgeInsets.symmetric(
+            vertical: Dimensions.paddingSizeDefault,
+            horizontal: Dimensions.paddingSizeSmall,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -925,7 +957,7 @@ class _MenuScreenState extends State<MenuScreen> {
             const SizedBox(height: 8),
             Text(
               item.label,
-              style: robotoMedium.copyWith(fontSize: 11, color: _titleColor),
+              style: waddyMedium.copyWith(fontSize: 11, color: _titleColor),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -963,7 +995,9 @@ class _MenuScreenState extends State<MenuScreen> {
                       width: 60,
                       height: 38,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusSmall,
+                        ),
                         color: appearance.cardColor,
                         boxShadow: [
                           BoxShadow(
@@ -1003,10 +1037,7 @@ class _MenuScreenState extends State<MenuScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'my_wallet'.tr,
-                  style: robotoMedium.copyWith(
-                    fontSize: 11,
-                    color: _titleColor,
-                  ),
+                  style: waddyMedium.copyWith(fontSize: 11, color: _titleColor),
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -1031,7 +1062,7 @@ class _MenuScreenState extends State<MenuScreen> {
         Dimensions.paddingSizeLarge,
         8,
       ),
-      margin: const EdgeInsets.only(top: 4),
+      margin: const EdgeInsets.only(top: Dimensions.paddingSizeExtraSmall),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(color: Colors.grey.shade200, width: 0.5),
@@ -1039,7 +1070,7 @@ class _MenuScreenState extends State<MenuScreen> {
       ),
       child: Text(
         title,
-        style: robotoMedium.copyWith(fontSize: 13, color: _subtitleColor),
+        style: waddyMedium.copyWith(fontSize: 13, color: _subtitleColor),
       ),
     );
   }
@@ -1065,7 +1096,7 @@ class _MenuScreenState extends State<MenuScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeLarge,
-            vertical: 14,
+            vertical: Dimensions.paddingSizeMedium,
           ),
           child: Row(
             children: [
@@ -1074,7 +1105,7 @@ class _MenuScreenState extends State<MenuScreen> {
               Expanded(
                 child: Text(
                   title,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 15,
                     color: textColor ?? _titleColor,
                   ),
@@ -1083,7 +1114,7 @@ class _MenuScreenState extends State<MenuScreen> {
               if (suffix != null) ...[
                 Text(
                   suffix,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: 13,
                     color: _subtitleColor,
                   ),
@@ -1113,7 +1144,7 @@ class _MenuScreenState extends State<MenuScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeLarge,
-        vertical: 10,
+        vertical: Dimensions.paddingSizeSmall,
       ),
       child: Row(
         children: [
@@ -1122,7 +1153,7 @@ class _MenuScreenState extends State<MenuScreen> {
           Expanded(
             child: Text(
               title,
-              style: robotoMedium.copyWith(fontSize: 15, color: _titleColor),
+              style: waddyMedium.copyWith(fontSize: 15, color: _titleColor),
             ),
           ),
           Transform.scale(
@@ -1171,19 +1202,10 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   void _handleGuestSignIn(ProfileController profileController) async {
-    if (!ResponsiveHelper.isDesktop(context)) {
-      await Get.toNamed(RouteHelper.getSignInRoute(Get.currentRoute));
-      if (AuthHelper.isLoggedIn()) {
-        profileController.getUserInfo();
-        Get.find<XpController>().getCurrentLevel();
-        Get.find<XpController>().getAllLevels();
-      }
-    } else {
-      Get.dialog(
-        const Center(
-          child: AuthDialogWidget(exitFromApp: true, backFromThis: true),
-        ),
-      );
+    await Get.toNamed(RouteHelper.getSignInRoute(Get.currentRoute));
+    if (AuthHelper.isLoggedIn()) {
+      profileController.getUserInfo();
+      Get.find<XpController>().getLevelDetails();
     }
   }
 

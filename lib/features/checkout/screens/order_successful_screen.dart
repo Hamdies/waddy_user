@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lottie/lottie.dart';
-import 'package:waddy_app/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
@@ -10,18 +9,16 @@ import 'package:waddy_app/features/order/domain/models/order_details_model.dart'
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
-import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:waddy_app/features/checkout/widgets/payment_failed_dialog.dart';
 import 'package:waddy_app/services/live_activity_service.dart';
 import 'package:waddy_app/helper/live_activity_helper.dart';
@@ -76,6 +73,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
         )
         .then((_) {
           Get.find<OrderController>().getOrderDetails(orderId.toString());
+          _logPurchaseOnce();
           _startLiveActivity();
           _startLiveActivityPolling();
         });
@@ -102,6 +100,26 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     _buttonAnim = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
+    );
+  }
+
+  /// Order ids already reported as Purchase this session. The screen can be
+  /// remounted (web payment callbacks, back-and-forth) and the conversion
+  /// Meta optimizes on must never double-count.
+  static final Set<String> _loggedPurchases = <String>{};
+
+  void _logPurchaseOnce() {
+    final trackModel = Get.find<OrderController>().trackModel;
+    if (trackModel == null || orderId == null) return;
+    final bool paidOrCod =
+        trackModel.paymentStatus == 'paid' ||
+        trackModel.paymentMethod == 'cash_on_delivery' ||
+        trackModel.paymentMethod == 'partial_payment';
+    if (!paidOrCod) return;
+    if (!_loggedPurchases.add(orderId!)) return;
+    AnalyticsHelper.logPurchase(
+      amount: trackModel.orderAmount ?? 0,
+      orderId: orderId,
     );
   }
 
@@ -132,9 +150,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
       eta: trackModel.estimatedDelivery,
       storeName: trackModel.store?.name,
       storeLogoUrl: trackModel.store?.logoFullUrl,
-      deliveryManName: trackModel.deliveryMan != null
-          ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'.trim()
-          : null,
+      deliveryManName:
+          trackModel.deliveryMan != null
+              ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'
+                  .trim()
+              : null,
       orderType: trackModel.orderType ?? 'delivery',
     );
   }
@@ -165,9 +185,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           subStatus: trackModel.subStatus,
           eta: trackModel.estimatedDelivery,
           storeName: trackModel.store?.name,
-          deliveryManName: trackModel.deliveryMan != null
-              ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'.trim()
-              : null,
+          deliveryManName:
+              trackModel.deliveryMan != null
+                  ? '${trackModel.deliveryMan!.fName ?? ''} ${trackModel.deliveryMan!.lName ?? ''}'
+                      .trim()
+                  : null,
           orderType: trackModel.orderType ?? 'delivery',
         );
       }
@@ -265,10 +287,13 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     if (order.estimatedDelivery != null &&
         order.estimatedDelivery!.isNotEmpty) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
           border: Border.all(color: primary.withValues(alpha: 0.15)),
         ),
         child: Row(
@@ -278,7 +303,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             const SizedBox(width: 6),
             Text(
               '${'estimated_delivery'.tr}: ${order.estimatedDelivery}',
-              style: robotoMedium.copyWith(fontSize: 12, color: primary),
+              style: waddyMedium.copyWith(fontSize: 12, color: primary),
             ),
           ],
         ),
@@ -288,10 +313,13 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     final storeTime = order.store?.deliveryTime;
     if (storeTime != null && storeTime.isNotEmpty) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
           border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
         ),
         child: Row(
@@ -301,7 +329,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             const SizedBox(width: 6),
             Text(
               '${'estimated_delivery'.tr}: $storeTime ',
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: 12,
                 color: Colors.grey.shade600,
               ),
@@ -326,7 +354,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           (_, __) async => Get.offAllNamed(RouteHelper.getInitialRoute()),
       child: Scaffold(
         backgroundColor: const Color(0xFFF2F8F5),
-        appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
+        appBar: null,
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
         body: SafeArea(
@@ -340,7 +368,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                 loyaltyPts =
                     ((oc.trackModel!.orderAmount! / 100) *
                         Get.find<SplashController>()
-                            .configModel!
+                            .configModel
                             .loyaltyPointItemPurchasePoint!);
                 success =
                     oc.trackModel!.paymentStatus == 'paid' ||
@@ -403,7 +431,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
 
   Widget _failureView(Color primary, double total) => Center(
     child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeExtremeLarge,
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -411,12 +441,12 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           const SizedBox(height: 24),
           Text(
             'your_order_is_failed_to_place'.tr,
-            style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+            style: waddyBold.copyWith(fontSize: 18, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           Text(
             'your_order_is_failed_to_place_because'.tr,
-            style: robotoRegular.copyWith(fontSize: 14, color: Colors.black54),
+            style: waddyRegular.copyWith(fontSize: 14, color: Colors.black54),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
@@ -424,10 +454,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             buttonText: 'back_to_home'.tr,
             textColor: Colors.white,
             onPressed: () {
-              if (AuthHelper.isLoggedIn())
+              if (AuthHelper.isLoggedIn()) {
                 Get.find<AuthController>().saveEarningPoint(
                   total.toStringAsFixed(0),
                 );
+              }
               Get.offAllNamed(RouteHelper.getInitialRoute());
             },
           ),
@@ -455,7 +486,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     final double subtotal = total - tax - tips - delivery;
 
     final bool showRewards =
-        Get.find<SplashController>().configModel!.loyaltyPointStatus == 1 &&
+        Get.find<SplashController>().configModel.loyaltyPointStatus == 1 &&
         loyaltyPts.floor() > 0 &&
         AuthHelper.isLoggedIn();
 
@@ -491,53 +522,26 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            child:
-                ResponsiveHelper.isDesktop(ctx)
-                    ? FooterView(
-                      child: SizedBox(
-                        width: Dimensions.webMaxWidth,
-                        child: _body(
-                          ctx,
-                          order,
-                          details,
-                          storeLogo,
-                          orderNumber,
-                          dateFormatted,
-                          paymentMethod,
-                          subtotal,
-                          tax,
-                          tips,
-                          delivery,
-                          total,
-                          showRewards,
-                          loyaltyPts,
-                          xp,
-                          orderChallenges,
-                          primary,
-                          accent,
-                        ),
-                      ),
-                    )
-                    : _body(
-                      ctx,
-                      order,
-                      details,
-                      storeLogo,
-                      orderNumber,
-                      dateFormatted,
-                      paymentMethod,
-                      subtotal,
-                      tax,
-                      tips,
-                      delivery,
-                      total,
-                      showRewards,
-                      loyaltyPts,
-                      xp,
-                      orderChallenges,
-                      primary,
-                      accent,
-                    ),
+            child: _body(
+              ctx,
+              order,
+              details,
+              storeLogo,
+              orderNumber,
+              dateFormatted,
+              paymentMethod,
+              subtotal,
+              tax,
+              tips,
+              delivery,
+              total,
+              showRewards,
+              loyaltyPts,
+              xp,
+              orderChallenges,
+              primary,
+              accent,
+            ),
           ),
         ),
 
@@ -559,10 +563,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                         buttonText: 'track_order'.tr,
                         textColor: Colors.white,
                         onPressed: () {
-                          if (AuthHelper.isLoggedIn())
+                          if (AuthHelper.isLoggedIn()) {
                             Get.find<AuthController>().saveEarningPoint(
                               loyaltyPts.toStringAsFixed(0),
                             );
+                          }
                           Get.offAllNamed(
                             RouteHelper.getOrderDetailsRoute(
                               int.tryParse(orderId ?? ''),
@@ -576,10 +581,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                         buttonText: 'back_to_home'.tr,
                         transparent: true,
                         onPressed: () {
-                          if (AuthHelper.isLoggedIn())
+                          if (AuthHelper.isLoggedIn()) {
                             Get.find<AuthController>().saveEarningPoint(
                               loyaltyPts.toStringAsFixed(0),
                             );
+                          }
                           Get.offAllNamed(RouteHelper.getInitialRoute());
                         },
                       ),
@@ -617,7 +623,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     Color accent,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -651,7 +659,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                       const SizedBox(width: 14),
                       Text(
                         'order_confirmed'.tr,
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 22,
                           color: Colors.black87,
                         ),
@@ -661,7 +669,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   const SizedBox(height: 12),
                   Text(
                     'your_order_is_confirmed'.tr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: 13,
                       height: 1.5,
                       color: Colors.black45,
@@ -672,7 +680,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   // ── Status message ──
                   Text(
                     _orderStatusMessage(order),
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: 13,
                       height: 1.5,
                       color: Colors.black54,
@@ -687,7 +695,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   const SizedBox(height: 12),
                   Text(
                     orderNumber,
-                    style: robotoBold.copyWith(
+                    style: waddyBold.copyWith(
                       fontSize: 14,
                       color: Colors.black54,
                     ),
@@ -708,7 +716,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusExtraLarge,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -727,7 +737,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                         children: [
                           if (storeLogo != null && storeLogo.isNotEmpty) ...[
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusDefault,
+                              ),
                               child: CustomImage(
                                 image: storeLogo,
                                 height: 48,
@@ -744,7 +756,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                                 if (dateFormatted.isNotEmpty)
                                   Text(
                                     dateFormatted,
-                                    style: robotoRegular.copyWith(
+                                    style: waddyRegular.copyWith(
                                       fontSize: 12,
                                       height: 1.4,
                                       color: Colors.black45,
@@ -754,7 +766,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                                   const SizedBox(height: 6),
                                   Text(
                                     paymentMethod,
-                                    style: robotoMedium.copyWith(
+                                    style: waddyMedium.copyWith(
                                       fontSize: 13,
                                       color: Colors.black87,
                                     ),
@@ -770,8 +782,8 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                     // ── Divider ──
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 20,
+                        horizontal: Dimensions.paddingSizeExtraLarge,
+                        vertical: Dimensions.paddingSizeLarge,
                       ),
                       child: Container(
                         height: 1,
@@ -782,7 +794,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                     // ── Items ──
                     if (details != null && details.isNotEmpty) ...[
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeExtraLarge,
+                        ),
                         child: Column(
                           children: [
                             ...details.asMap().entries.map(
@@ -798,8 +812,8 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 20,
+                          horizontal: Dimensions.paddingSizeExtraLarge,
+                          vertical: Dimensions.paddingSizeLarge,
                         ),
                         child: Container(
                           height: 1,
@@ -810,7 +824,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
 
                     // ── Price breakdown ──
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeExtraLarge,
+                      ),
                       child: Column(
                         children: [
                           _priceRow(
@@ -854,14 +870,14 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                         children: [
                           Text(
                             'total'.tr,
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 16,
                               color: Colors.black87,
                             ),
                           ),
                           Text(
                             PriceConverter.convertPrice(total),
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 16,
                               color: Colors.black87,
                             ),
@@ -877,7 +893,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                         padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                         child: Text(
                           'rewards'.tr.toUpperCase(),
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: 11,
                             letterSpacing: 2,
                             color: Colors.black38,
@@ -887,12 +903,14 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                       const SizedBox(height: 14),
                       if (showRewards)
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeExtraLarge,
+                          ),
                           child: Row(
                             children: [
                               Text(
                                 '+${loyaltyPts.floor()} ${'points'.tr}',
-                                style: robotoBold.copyWith(
+                                style: waddyBold.copyWith(
                                   color: accent,
                                   fontSize: 15,
                                 ),
@@ -901,7 +919,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                               Expanded(
                                 child: Text(
                                   'loyalty_reward'.tr,
-                                  style: robotoRegular.copyWith(
+                                  style: waddyRegular.copyWith(
                                     fontSize: 13,
                                     height: 1.4,
                                     color: Colors.black54,
@@ -918,7 +936,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                             children: [
                               Text(
                                 '+1 ${'stamp'.tr}',
-                                style: robotoBold.copyWith(
+                                style: waddyBold.copyWith(
                                   color: accent,
                                   fontSize: 15,
                                 ),
@@ -927,7 +945,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                               Expanded(
                                 child: Text(
                                   c.title,
-                                  style: robotoRegular.copyWith(
+                                  style: waddyRegular.copyWith(
                                     fontSize: 13,
                                     height: 1.4,
                                     color: Colors.black54,
@@ -954,7 +972,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
               child: ScaleTransition(
                 scale: _scaleElastic(_xpAnim),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(
+                    top: Dimensions.paddingSizeMedium,
+                  ),
                   child: _xpPill(xp, primary, accent),
                 ),
               ),
@@ -967,7 +987,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'thank_you'.tr,
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   fontSize: 13,
                   color: Colors.black38,
                 ),
@@ -981,27 +1001,19 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('and_create_account_successfully'.tr, style: robotoMedium),
+                Text('and_create_account_successfully'.tr, style: waddyMedium),
                 InkWell(
                   onTap:
-                      () =>
-                          ResponsiveHelper.isDesktop(ctx)
-                              ? Get.dialog(
-                                const Center(
-                                  child: AuthDialogWidget(
-                                    exitFromApp: false,
-                                    backFromThis: false,
-                                  ),
-                                ),
-                              )
-                              : Get.toNamed(
-                                RouteHelper.getSignInRoute(RouteHelper.splash),
-                              ),
+                      () => Get.toNamed(
+                        RouteHelper.getSignInRoute(RouteHelper.splash),
+                      ),
                   child: Padding(
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(
+                      Dimensions.paddingSizeExtraSmall,
+                    ),
                     child: Text(
                       'sign_in'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         color: Theme.of(ctx).primaryColor,
                       ),
                     ),
@@ -1012,8 +1024,6 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           ],
 
           // Guest order ID (guest mode disabled)
-
-
           const SizedBox(height: 32),
         ],
       ),
@@ -1025,7 +1035,10 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
   Widget _xpPill(int xp, Color primary, Color accent) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeMedium,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1035,7 +1048,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
       ),
       child: Row(
         children: [
@@ -1055,13 +1068,13 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   children: [
                     Text(
                       'xp_earned'.tr,
-                      style: robotoBold.copyWith(fontSize: 14, color: primary),
+                      style: waddyBold.copyWith(fontSize: 14, color: primary),
                     ),
                     Row(
                       children: [
                         Text(
                           '+$xp XP ',
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 18,
                             color: primary,
                           ),
@@ -1078,7 +1091,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                 const SizedBox(height: 3),
                 Text(
                   'closer_to_next_level'.tr,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: 12,
                     color: Colors.black45,
                   ),
@@ -1106,12 +1119,12 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           height: 28,
           decoration: BoxDecoration(
             color: const Color(0xFFF2F8F5),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
           ),
           alignment: Alignment.center,
           child: Text(
             '$qty',
-            style: robotoMedium.copyWith(fontSize: 13, color: Colors.black54),
+            style: waddyMedium.copyWith(fontSize: 13, color: Colors.black54),
           ),
         ),
         const SizedBox(width: 14),
@@ -1121,7 +1134,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             children: [
               Text(
                 name,
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: 14,
                   height: 1.4,
                   color: Colors.black87,
@@ -1133,13 +1146,15 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                 const SizedBox(height: 6),
                 ...d.addOns!.map(
                   (a) => Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(
+                      top: Dimensions.paddingSizeExtraSmall,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
                             '+ ${a.name ?? ''}',
-                            style: robotoRegular.copyWith(
+                            style: waddyRegular.copyWith(
                               fontSize: 12,
                               height: 1.4,
                               color: Colors.black38,
@@ -1150,7 +1165,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                           PriceConverter.convertPrice(
                             (a.price ?? 0) * (a.quantity ?? 1),
                           ),
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: Colors.black38,
                           ),
@@ -1167,7 +1182,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
         const SizedBox(width: 14),
         Text(
           PriceConverter.convertPrice(price),
-          style: robotoMedium.copyWith(fontSize: 15, color: Colors.black87),
+          style: waddyMedium.copyWith(fontSize: 15, color: Colors.black87),
           textDirection: TextDirection.ltr,
         ),
       ],
@@ -1182,7 +1197,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     TextStyle? labelStyle,
     TextStyle? valueStyle,
   }) {
-    final ts = robotoRegular.copyWith(fontSize: 14, height: 1.5, color: Colors.black54);
+    final ts = waddyRegular.copyWith(
+      fontSize: 14,
+      height: 1.5,
+      color: Colors.black54,
+    );
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

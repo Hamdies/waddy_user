@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -11,9 +12,7 @@ import 'package:get/get.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/module_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
-import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/common/widgets/cart_snackbar.dart';
 import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
@@ -411,11 +410,13 @@ class ItemController extends GetxController implements GetxService {
     if (dataSource == DataSourceEnum.local) {
       _ramadanFeaturedItemList = null;
       update();
-      _ramadanFeaturedItemList = await itemServiceInterface.getRamadanFeaturedItemList(DataSourceEnum.local);
+      _ramadanFeaturedItemList = await itemServiceInterface
+          .getRamadanFeaturedItemList(DataSourceEnum.local);
       update();
       getRamadanFeaturedItemList(dataSource: DataSourceEnum.client);
     } else {
-      _ramadanFeaturedItemList = await itemServiceInterface.getRamadanFeaturedItemList(DataSourceEnum.client);
+      _ramadanFeaturedItemList = await itemServiceInterface
+          .getRamadanFeaturedItemList(DataSourceEnum.client);
       update();
     }
   }
@@ -820,22 +821,22 @@ class ItemController extends GetxController implements GetxService {
       if (Get.isRegistered<StoreController>()) {
         final storeController = Get.find<StoreController>();
         // If store is already loaded with matching ID, use its logo
-        if (storeController.store != null && storeController.store!.id == storeId) {
+        if (storeController.store != null &&
+            storeController.store!.id == storeId) {
           _storeLogoUrl = storeController.store!.logoFullUrl;
           update();
           return;
         }
       }
       // Lightweight fetch: use store service directly
-      final store = await Get.find<StoreController>().storeServiceInterface.getStoreDetails(
-        storeId.toString(),
-        false,
-        '',
-        Get.find<LocalizationController>().locale.languageCode,
-        ModuleHelper.getModule(),
-        ModuleHelper.getCacheModule()?.id,
-        ModuleHelper.getModule()?.id,
-      );
+      final store = await Get.find<StoreController>().storeServiceInterface
+          .getStoreDetails(
+            storeId.toString(),
+            false,
+            '',
+            Get.find<LocalizationController>().locale.languageCode,
+            ModuleHelper.currentModuleId(),
+          );
       if (store != null) {
         _storeLogoUrl = store.logoFullUrl;
         update();
@@ -971,7 +972,7 @@ class ItemController extends GetxController implements GetxService {
   }) async {
     _quantity = await itemServiceInterface.setQuantity(
       isIncrement,
-      Get.find<SplashController>().configModel!.moduleConfig!.module!.stock!,
+      Get.find<SplashController>().configModel.moduleConfig!.module!.stock!,
       stock,
       _quantity!,
       quantityLimit,
@@ -1078,30 +1079,20 @@ class ItemController extends GetxController implements GetxService {
     bool isCampaign = false,
   }) {
     if (Get.find<SplashController>()
-            .configModel!
+            .configModel
             .moduleConfig!
             .module!
             .showRestaurantText! ||
         item!.moduleType == 'food') {
-      ResponsiveHelper.isMobile(context)
-          ? Get.bottomSheet(
-            ItemBottomSheet(
-              itemId: item!.id!,
-              inStorePage: inStore,
-              isCampaign: isCampaign,
-            ),
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-          )
-          : Get.dialog(
-            Dialog(
-              child: ItemBottomSheet(
-                itemId: item!.id!,
-                inStorePage: inStore,
-                isCampaign: isCampaign,
-              ),
-            ),
-          );
+      Get.bottomSheet(
+        ItemBottomSheet(
+          itemId: item!.id!,
+          inStorePage: inStore,
+          isCampaign: isCampaign,
+        ),
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+      );
     } else {
       Get.toNamed(
         RouteHelper.getItemDetailsRoute(item.id, inStore),
@@ -1114,18 +1105,200 @@ class ItemController extends GetxController implements GetxService {
     }
   }
 
+  /// The "added to cart" toast, now off by default.
+  ///
+  /// Adding is self-evident: every surface that can add an item also shows the
+  /// cart bar updating in front of the user, so the toast announced something
+  /// already on screen while covering the content underneath it. Callers that
+  /// genuinely have no visible cart affordance can still opt in by passing
+  /// showToast: true.
+  void _maybeCartToast(bool showToast) {
+    if (showToast) showCartSnackBar();
+  }
+
+  /// Adds a variation-free item straight to the cart, with no detail fetch.
+  ///
+  /// Mirrors the simple-add branch of [itemDirectlyAddToCart] — including the
+  /// cross-module and cross-store guards, which are correctness rules and must
+  /// not be skipped for speed — but sources every field from the list item
+  /// instead of a fresh network record.
+  void _addSimpleItemToCart(Item item, {required bool showToast}) {
+    final double price = item.price ?? 0;
+    final double discount = item.discount ?? 0;
+    final double discountPrice =
+        PriceConverter.convertWithDiscount(
+          price,
+          discount,
+          item.discountType,
+        ) ??
+        price;
+
+    final CartModel cartModel = CartModel(
+      null,
+      price,
+      discountPrice,
+      [],
+      [],
+      (price - discountPrice),
+      1,
+      [],
+      [],
+      item.availableDateStarts != null,
+      item.stock,
+      item,
+      item.quantityLimit,
+    );
+
+    final OnlineCart onlineCart = OnlineCart(
+      null,
+      item.id,
+      null,
+      price.toString(),
+      '',
+      null,
+      ModuleHelper.getModuleConfig(item.moduleType).newVariation! ? [] : null,
+      1,
+      [],
+      [],
+      [],
+      'Item',
+    );
+
+    final cartController = Get.find<CartController>();
+    final splashController = Get.find<SplashController>();
+
+    if (splashController.configModel.moduleConfig!.module!.stock! &&
+        (item.stock ?? 0) <= 0) {
+      showCustomSnackBar('out_of_stock'.tr);
+      return;
+    }
+
+    final int? moduleId =
+        ModuleHelper.getModule()?.id ?? ModuleHelper.getCacheModule()?.id;
+
+    // Cross-module and cross-store conflicts still need confirmation — those
+    // dialogs guard against silently wiping someone's basket.
+    if (cartController.existAnotherModuleItem(moduleId)) {
+      String currentModuleName = 'another category'.tr;
+      if (cartController.cartList.isNotEmpty) {
+        final cartModuleId = cartController.cartList.first.item?.moduleId;
+        if (cartModuleId != null && splashController.moduleList != null) {
+          currentModuleName =
+              splashController.moduleList!
+                  .firstWhereOrNull((m) => m.id == cartModuleId)
+                  ?.moduleName ??
+              currentModuleName;
+        }
+      }
+      final newModuleName =
+          splashController.module?.moduleName ??
+          splashController.cacheModule?.moduleName ??
+          'this category'.tr;
+
+      Get.dialog(
+        CartModuleConflictDialog(
+          currentModuleName: currentModuleName,
+          newModuleName: newModuleName,
+          onClearCart: () {
+            cartController.clearCartOnline().then((success) async {
+              if (success) {
+                await cartController.addToCartOnline(
+                  onlineCart,
+                  localFallback: cartModel,
+                );
+                Get.back();
+                _maybeCartToast(showToast);
+              }
+            });
+          },
+          onCancel: () => Get.back(),
+        ),
+        barrierDismissible: false,
+      );
+      return;
+    }
+
+    if (cartController.existAnotherStoreItem(item.storeId, moduleId)) {
+      Get.dialog(
+        ConfirmationDialog(
+          icon: Images.warning,
+          title: 'are_you_sure_to_reset'.tr,
+          description:
+              splashController
+                      .configModel
+                      .moduleConfig!
+                      .module!
+                      .showRestaurantText!
+                  ? 'if_you_continue'.tr
+                  : 'if_you_continue_without_another_store'.tr,
+          onYesPressed: () {
+            cartController.clearCartOnline().then((success) async {
+              if (success) {
+                await cartController.addToCartOnline(
+                  onlineCart,
+                  localFallback: cartModel,
+                );
+                Get.back();
+                _maybeCartToast(showToast);
+              }
+            });
+          },
+        ),
+        barrierDismissible: false,
+      );
+      return;
+    }
+
+    cartController.addToCartOnline(onlineCart, localFallback: cartModel);
+    _maybeCartToast(showToast);
+  }
+
+  /// [showToast] gates the "item added to cart" bar. Off by default.
+  ///
+  /// Adding is self-evident — every surface that adds an item also shows a cart
+  /// bar updating in front of the user — so the toast restated what was already
+  /// on screen while covering the content beneath it. Callers with no visible
+  /// cart affordance can opt back in. See docs/food_store_add_feedback_plan.md.
   void itemDirectlyAddToCart(
     Item? item,
     BuildContext context, {
     bool inStore = false,
     bool isCampaign = false,
+    bool showToast = false,
   }) {
+    // FAST PATH — skip the getItemDetails round-trip.
+    //
+    // A tap on "+" used to fire THREE sequential network calls before the cart
+    // could change: getItemDetails, then _fetchStoreLogo inside it, then
+    // addToCartOnline. That is what made the bar feel laggy.
+    //
+    // The list item already carries everything the simple-add branch reads
+    // (price, discount, discountType, stock, quantityLimit, moduleType,
+    // variations, foodVariations) — the store screen's own menu row reads
+    // `foodVariations` to decide its "customizable" label, so the data is
+    // provably there. When the item has NO variations there is nothing the
+    // detail call would add, so go straight to the cart.
+    //
+    // Anything customizable still takes the slow path: those need the full
+    // record to build the options sheet.
+    final bool simpleItem =
+        (item?.variations?.isEmpty ?? false) &&
+        (item?.foodVariations?.isEmpty ?? false) &&
+        item?.price != null;
+
+    if (simpleItem && !isCampaign) {
+      _addSimpleItemToCart(item!, showToast: showToast);
+      return;
+    }
+
     getItemDetails(itemId: item!.id!).then((value) {
+      final bool isFoodItem =
+          ModuleType.of(_item?.moduleType) == ModuleType.food;
       if (((_item!.foodVariations != null && _item!.foodVariations!.isEmpty) &&
-              _item?.moduleType == AppConstants.food) ||
+              isFoodItem) ||
           (_item?.variations != null &&
               _item!.variations!.isEmpty &&
-              _item?.moduleType != AppConstants.food)) {
+              !isFoodItem)) {
         double price = _item!.price!;
         double discount = _item!.discount!;
         double discountPrice =
@@ -1168,7 +1341,7 @@ class ItemController extends GetxController implements GetxService {
           'Item',
         );
         if (Get.find<SplashController>()
-                .configModel!
+                .configModel
                 .moduleConfig!
                 .module!
                 .stock! &&
@@ -1182,7 +1355,7 @@ class ItemController extends GetxController implements GetxService {
           // Get module names for the dialog
           final cartController = Get.find<CartController>();
           final splashController = Get.find<SplashController>();
-          
+
           // Get current cart module name
           String currentModuleName = 'another category'.tr;
           if (cartController.cartList.isNotEmpty) {
@@ -1191,15 +1364,17 @@ class ItemController extends GetxController implements GetxService {
               final cartModule = splashController.moduleList!.firstWhereOrNull(
                 (m) => m.id == cartModuleId,
               );
-              currentModuleName = cartModule?.moduleName ?? 'another category'.tr;
+              currentModuleName =
+                  cartModule?.moduleName ?? 'another category'.tr;
             }
           }
-          
+
           // Get new module name
-          final newModuleName = splashController.module?.moduleName ?? 
-              splashController.cacheModule?.moduleName ?? 
+          final newModuleName =
+              splashController.module?.moduleName ??
+              splashController.cacheModule?.moduleName ??
               'this category'.tr;
-          
+
           Get.dialog(
             CartModuleConflictDialog(
               currentModuleName: currentModuleName,
@@ -1211,9 +1386,10 @@ class ItemController extends GetxController implements GetxService {
                   if (success) {
                     await Get.find<CartController>().addToCartOnline(
                       onlineCart,
+                      localFallback: cartModel,
                     );
                     Get.back();
-                    showCartSnackBar();
+                    _maybeCartToast(showToast);
                   }
                 });
               },
@@ -1233,7 +1409,7 @@ class ItemController extends GetxController implements GetxService {
               title: 'are_you_sure_to_reset'.tr,
               description:
                   Get.find<SplashController>()
-                          .configModel!
+                          .configModel
                           .moduleConfig!
                           .module!
                           .showRestaurantText!
@@ -1246,9 +1422,10 @@ class ItemController extends GetxController implements GetxService {
                   if (success) {
                     await Get.find<CartController>().addToCartOnline(
                       onlineCart,
+                      localFallback: cartModel,
                     );
                     Get.back();
-                    showCartSnackBar();
+                    _maybeCartToast(showToast);
                   }
                 });
               },
@@ -1256,34 +1433,27 @@ class ItemController extends GetxController implements GetxService {
             barrierDismissible: false,
           );
         } else {
-          Get.find<CartController>().addToCartOnline(onlineCart);
-          showCartSnackBar();
+          Get.find<CartController>().addToCartOnline(
+            onlineCart,
+            localFallback: cartModel,
+          );
+          _maybeCartToast(showToast);
         }
       } else if (Get.find<SplashController>()
-              .configModel!
+              .configModel
               .moduleConfig!
               .module!
               .showRestaurantText! ||
-          _item?.moduleType == AppConstants.food) {
-        ResponsiveHelper.isMobile(Get.context)
-            ? Get.bottomSheet(
-              ItemBottomSheet(
-                itemId: _item!.id!,
-                inStorePage: inStore,
-                isCampaign: isCampaign,
-              ),
-              backgroundColor: Colors.transparent,
-              isScrollControlled: true,
-            )
-            : Get.dialog(
-              Dialog(
-                child: ItemBottomSheet(
-                  itemId: _item!.id!,
-                  inStorePage: inStore,
-                  isCampaign: isCampaign,
-                ),
-              ),
-            );
+          ModuleType.of(_item?.moduleType) == ModuleType.food) {
+        Get.bottomSheet(
+          ItemBottomSheet(
+            itemId: _item!.id!,
+            inStorePage: inStore,
+            isCampaign: isCampaign,
+          ),
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+        );
       } else {
         Get.toNamed(
           RouteHelper.getItemDetailsRoute(_item!.id, inStore),

@@ -59,8 +59,14 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
 
   String _getSearchHint() {
     final splashController = Get.find<SplashController>();
-    final showRestaurantText = splashController.configModel?.moduleConfig?.module?.showRestaurantText ?? false;
-    
+    final showRestaurantText =
+        splashController
+            .configModel
+            .moduleConfig!
+            .module!
+            .showRestaurantText ??
+        false;
+
     if (showRestaurantText) {
       return 'search_food_or_restaurant'.tr;
     }
@@ -84,10 +90,7 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
         child: AnimatedBuilder(
           animation: _scaleAnimation,
           builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: child,
-            );
+            return Transform.scale(scale: _scaleAnimation.value, child: child);
           },
           child: Container(
             padding: const EdgeInsets.symmetric(
@@ -119,7 +122,7 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
               children: [
                 // Search Icon with background
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -129,7 +132,9 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
                   child: const Icon(
                     CupertinoIcons.search,
@@ -158,7 +163,7 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
                     child: Text(
                       _getSearchHint(),
                       key: ValueKey<int>(_currentHintIndex),
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeDefault,
                         color: Theme.of(context).hintColor,
                       ),
@@ -170,7 +175,9 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                   child: Icon(
@@ -195,7 +202,13 @@ class HomeSearchWidgetSimple extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final splashController = Get.find<SplashController>();
-    final showRestaurantText = splashController.configModel?.moduleConfig?.module?.showRestaurantText ?? false;
+    final showRestaurantText =
+        splashController
+            .configModel
+            .moduleConfig!
+            .module!
+            .showRestaurantText ??
+        false;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -223,10 +236,12 @@ class HomeSearchWidgetSimple extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor,
-                    borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
                   child: const Icon(
                     CupertinoIcons.search,
@@ -240,7 +255,7 @@ class HomeSearchWidgetSimple extends StatelessWidget {
                     showRestaurantText
                         ? 'search_food_or_restaurant'.tr
                         : 'search_item_or_store'.tr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeDefault,
                       color: Theme.of(context).hintColor,
                     ),

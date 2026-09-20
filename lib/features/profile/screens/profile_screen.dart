@@ -1,12 +1,10 @@
 import 'package:waddy_app/features/profile/widgets/notification_status_change_bottom_sheet.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/common/controllers/theme_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -14,14 +12,11 @@ import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
-import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:waddy_app/features/profile/widgets/profile_button_widget.dart';
 import 'package:waddy_app/features/profile/widgets/profile_card_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/profile/widgets/web_profile_widget.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/widgets/xp_progress_bar.dart';
 
@@ -45,7 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Initialize XP controller if logged in (deferred to avoid build-phase setState)
     if (AuthHelper.isLoggedIn()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.find<XpController>().getCurrentLevel();
+        Get.find<XpController>().getLevelDetails();
       });
     }
   }
@@ -53,13 +48,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final bool showWalletCard =
-        Get.find<SplashController>().configModel!.customerWalletStatus == 1 ||
-        Get.find<SplashController>().configModel!.loyaltyPointStatus == 1;
+        Get.find<SplashController>().configModel.customerWalletStatus == 1 ||
+        Get.find<SplashController>().configModel.loyaltyPointStatus == 1;
     bool isLoggedIn = AuthHelper.isLoggedIn();
-    bool isDesktop = ResponsiveHelper.isDesktop(context);
 
     return Scaffold(
-      appBar: isDesktop ? const WebMenuBar() : null,
+      appBar: null,
       endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
       key: UniqueKey(),
@@ -67,13 +61,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (profileController) {
           return (isLoggedIn && profileController.userInfoModel == null)
               ? const Center(child: CircularProgressIndicator())
-              : isDesktop
-              ? SingleChildScrollView(
-                child: FooterView(
-                  minHeight: isLoggedIn ? 0.6 : 0.35,
-                  child: const WebProfileWidget(),
-                ),
-              )
               : Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -103,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Text(
                       'profile'.tr,
                       textAlign: TextAlign.center,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).cardColor,
@@ -162,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   isLoggedIn
                                       ? '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
                                       : 'guest_user'.tr,
-                                  style: robotoBold.copyWith(
+                                  style: waddyBold.copyWith(
                                     fontSize: Dimensions.fontSizeExtraLarge,
                                     color: Theme.of(context).cardColor,
                                   ),
@@ -174,7 +161,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 isLoggedIn
                                     ? Text(
                                       '${'joined'.tr} ${DateConverter.containTAndZToUTCFormat(profileController.userInfoModel!.createdAt!)}',
-                                      style: robotoMedium.copyWith(
+                                      style: waddyMedium.copyWith(
                                         fontSize: Dimensions.fontSizeSmall,
                                         color: Theme.of(
                                           context,
@@ -194,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       },
                                       child: Text(
                                         'login_to_view_all_feature'.tr,
-                                        style: robotoMedium.copyWith(
+                                        style: waddyMedium.copyWith(
                                           fontSize: Dimensions.fontSizeSmall,
                                           color: Theme.of(
                                             context,
@@ -262,7 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   child: Text(
                                     'login'.tr,
-                                    style: robotoMedium.copyWith(
+                                    style: waddyMedium.copyWith(
                                       color: Theme.of(context).cardColor,
                                     ),
                                   ),
@@ -295,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ? Row(
                                 children: [
                                   Get.find<SplashController>()
-                                              .configModel!
+                                              .configModel
                                               .loyaltyPointStatus ==
                                           1
                                       ? Expanded(
@@ -318,7 +305,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   SizedBox(
                                     width:
                                         Get.find<SplashController>()
-                                                    .configModel!
+                                                    .configModel
                                                     .loyaltyPointStatus ==
                                                 1
                                             ? Dimensions.paddingSizeSmall
@@ -341,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   SizedBox(
                                     width:
                                         Get.find<SplashController>()
-                                                    .configModel!
+                                                    .configModel
                                                     .customerWalletStatus ==
                                                 1
                                             ? Dimensions.paddingSizeSmall
@@ -349,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
 
                                   Get.find<SplashController>()
-                                              .configModel!
+                                              .configModel
                                               .customerWalletStatus ==
                                           1
                                       ? Expanded(
@@ -377,16 +364,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               height: Dimensions.paddingSizeDefault,
                             ),
 
-                          ProfileButtonWidget(
-                            icon: Icons.tonality_outlined,
-                            title: 'dark_mode'.tr,
-                            isButtonActive: Get.isDarkMode,
-                            onTap: () {
-                              Get.find<ThemeController>().toggleTheme();
-                            },
-                          ),
-                          const SizedBox(height: Dimensions.paddingSizeSmall),
-
                           isLoggedIn
                               ? GetBuilder<AuthController>(
                                 builder: (authController) {
@@ -410,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           isLoggedIn &&
                                   Get.find<SplashController>()
-                                      .configModel!
+                                      .configModel
                                       .centralizeLoginSetup!
                                       .manualLoginStatus!
                               ? ProfileButtonWidget(
@@ -432,7 +409,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             height:
                                 isLoggedIn &&
                                         Get.find<SplashController>()
-                                            .configModel!
+                                            .configModel
                                             .centralizeLoginSetup!
                                             .manualLoginStatus!
                                     ? Dimensions.paddingSizeSmall
@@ -473,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               Text(
                                 '${'version'.tr}:',
-                                style: robotoRegular.copyWith(
+                                style: waddyRegular.copyWith(
                                   fontSize: Dimensions.fontSizeExtraSmall,
                                 ),
                               ),
@@ -482,7 +459,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               Text(
                                 AppConstants.appVersion.toStringAsFixed(1),
-                                style: robotoMedium.copyWith(
+                                style: waddyMedium.copyWith(
                                   fontSize: Dimensions.fontSizeExtraSmall,
                                 ),
                               ),
@@ -500,8 +477,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildXpCard(BuildContext context) {
-    return GetBuilder<XpController>(
-      builder: (xpController) {
+    // No `GetBuilder` here: this card reads nothing off the controller. The
+    // only live part is `XpProgressBar`, which subscribes on its own.
+    return Builder(
+      builder: (context) {
         return Container(
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
           decoration: BoxDecoration(
@@ -531,7 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'xp_and_levels'.tr,
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: Dimensions.fontSizeLarge,
                         ),
                       ),
@@ -543,7 +522,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           'view_all'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
                             color: Theme.of(context).primaryColor,
                           ),
@@ -616,7 +595,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(width: 6),
             Text(
               label,
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: Dimensions.fontSizeSmall,
                 color: Theme.of(context).primaryColor,
               ),

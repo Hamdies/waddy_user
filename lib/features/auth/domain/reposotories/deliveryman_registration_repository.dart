@@ -1,4 +1,3 @@
-
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waddy_app/api/api_client.dart';
@@ -9,22 +8,38 @@ import 'package:waddy_app/features/auth/domain/models/delivery_man_vehicles_mode
 import 'package:waddy_app/features/auth/domain/reposotories/deliveryman_registration_repository_interface.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
-class DeliverymanRegistrationRepository implements DeliverymanRegistrationRepositoryInterface{
+class DeliverymanRegistrationRepository
+    implements DeliverymanRegistrationRepositoryInterface {
   final ApiClient apiClient;
   final SharedPreferences sharedPreferences;
-  DeliverymanRegistrationRepository({required this.sharedPreferences, required this.apiClient});
+  DeliverymanRegistrationRepository({
+    required this.sharedPreferences,
+    required this.apiClient,
+  });
 
   @override
-  Future<bool> registerDeliveryMan(DeliveryManBody deliveryManBody, List<MultipartBody> multiParts) async {
-    Response response = await apiClient.postMultipartData(AppConstants.dmRegisterUri, deliveryManBody.toJson(), multiParts);
+  Future<bool> registerDeliveryMan(
+    DeliveryManBody deliveryManBody,
+    List<MultipartBody> multiParts,
+  ) async {
+    Response response = await apiClient.postMultipartData(
+      AppConstants.dmRegisterUri,
+      deliveryManBody.toJson(),
+      multiParts,
+    );
     return (response.statusCode == 200);
   }
 
   @override
-  Future getList({int? offset, int? zoneId, bool isZone = true, bool isVehicle = false}) async {
-    if(isZone) {
+  Future getList({
+    int? offset,
+    int? zoneId,
+    bool isZone = true,
+    bool isVehicle = false,
+  }) async {
+    if (isZone) {
       return await _getZoneList();
-    } else if(isVehicle) {
+    } else if (isVehicle) {
       return await _getVehicleList();
     } else {
       return await _getModules(zoneId);
@@ -36,22 +51,29 @@ class DeliverymanRegistrationRepository implements DeliverymanRegistrationReposi
     Response response = await apiClient.getData(AppConstants.zoneListUri);
     if (response.statusCode == 200) {
       zoneList = [];
-      response.body.forEach((zone) => zoneList!.add(ZoneDataModel.fromJson(zone)));
+      response.body.forEach(
+        (zone) => zoneList!.add(ZoneDataModel.fromJson(zone)),
+      );
     }
     return zoneList;
   }
 
   Future<List<ModuleModel>?> _getModules(int? zoneId) async {
     List<ModuleModel>? moduleList;
-    Response response = await apiClient.getData('${AppConstants.moduleUri}?zone_id=$zoneId',
+    Response response = await apiClient.getData(
+      '${AppConstants.moduleUri}?zone_id=$zoneId',
       headers: {
-      'Content-Type': 'application/json; charset=UTF-8',
-        AppConstants.localizationKey: sharedPreferences.getString(AppConstants.languageCode) ?? AppConstants.languages[0].languageCode!,
+        'Content-Type': 'application/json; charset=UTF-8',
+        AppConstants.localizationKey:
+            sharedPreferences.getString(AppConstants.languageCode) ??
+            AppConstants.languages[0].languageCode!,
       },
     );
     if (response.statusCode == 200) {
       moduleList = [];
-      response.body.forEach((storeCategory) => moduleList!.add(ModuleModel.fromJson(storeCategory)));
+      response.body.forEach(
+        (storeCategory) => moduleList!.add(ModuleModel.fromJson(storeCategory)),
+      );
     }
     return moduleList;
   }
@@ -61,7 +83,9 @@ class DeliverymanRegistrationRepository implements DeliverymanRegistrationReposi
     Response response = await apiClient.getData(AppConstants.vehiclesUri);
     if (response.statusCode == 200) {
       vehicles = [];
-      response.body.forEach((vehicle) => vehicles!.add(DeliveryManVehicleModel.fromJson(vehicle)));
+      response.body.forEach(
+        (vehicle) => vehicles!.add(DeliveryManVehicleModel.fromJson(vehicle)),
+      );
     }
     return vehicles;
   }
@@ -85,5 +109,4 @@ class DeliverymanRegistrationRepository implements DeliverymanRegistrationReposi
   Future get(String? id) {
     throw UnimplementedError();
   }
-
 }

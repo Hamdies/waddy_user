@@ -8,22 +8,30 @@ import 'package:waddy_app/features/order/domain/models/refund_model.dart';
 import 'package:waddy_app/features/order/domain/models/support_model.dart';
 import 'package:waddy_app/features/order/domain/repositories/order_repository_interface.dart';
 import 'package:waddy_app/util/app_constants.dart';
-import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 
 class OrderRepository implements OrderRepositoryInterface {
   final ApiClient apiClient;
   OrderRepository({required this.apiClient});
 
   @override
-  Future<Response> submitRefundRequest(Map<String, String> body, XFile? data) async {
-    return apiClient.postMultipartData(AppConstants.refundRequestUri, body,  [MultipartBody('image[]', data)]);
+  Future<Response> submitRefundRequest(
+    Map<String, String> body,
+    XFile? data,
+  ) async {
+    return apiClient.postMultipartData(AppConstants.refundRequestUri, body, [
+      MultipartBody('image[]', data),
+    ]);
   }
 
   @override
-  Future<Response> trackOrder(String? orderID, String? guestId, {String? contactNumber}) async {
+  Future<Response> trackOrder(
+    String? orderID,
+    String? guestId, {
+    String? contactNumber,
+  }) async {
     return await apiClient.getData(
       '${AppConstants.trackUri}$orderID'
-          '${contactNumber != null ? '&contact_number=$contactNumber' : ''}',
+      '${contactNumber != null ? '&contact_number=$contactNumber' : ''}',
     );
   }
 
@@ -44,13 +52,26 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
-  Future<bool> cancelOrder(String orderID, String? reason, {String? guestId}) async {
+  Future<bool> cancelOrder(
+    String orderID,
+    String? reason, {
+    String? guestId,
+  }) async {
     bool success = false;
-    Map<String, String> data = {'_method': 'put', 'order_id': orderID, 'reason': reason!};
-    Response response = await apiClient.postData(AppConstants.orderCancelUri, data);
+    Map<String, String> data = {
+      '_method': 'put',
+      'order_id': orderID,
+      'reason': reason!,
+    };
+    Response response = await apiClient.postData(
+      AppConstants.orderCancelUri,
+      data,
+    );
+    // No toast here. A repository must not show UI — it cannot tell a user tap
+    // from a background retry. The controller owns the announcement.
+    // See docs/snackbar_noise_plan.md RC3.
     if (response.statusCode == 200) {
       success = true;
-      showCustomSnackBar(response.body['message'], isError: false);
     }
     return success;
   }
@@ -60,34 +81,55 @@ class OrderRepository implements OrderRepositoryInterface {
     return await _getOrderDetails(id!, guestId);
   }
 
-  Future<List<OrderDetailsModel>?> _getOrderDetails(String orderID, String? guestId) async {
+  Future<List<OrderDetailsModel>?> _getOrderDetails(
+    String orderID,
+    String? guestId,
+  ) async {
     List<OrderDetailsModel>? orderDetails;
-    Response response = await apiClient.getData('${AppConstants.orderDetailsUri}$orderID');
+    Response response = await apiClient.getData(
+      '${AppConstants.orderDetailsUri}$orderID',
+    );
     if (response.statusCode == 200) {
       orderDetails = [];
-      response.body.forEach((orderDetail) => orderDetails!.add(OrderDetailsModel.fromJson(orderDetail)));
+      response.body.forEach(
+        (orderDetail) =>
+            orderDetails!.add(OrderDetailsModel.fromJson(orderDetail)),
+      );
     }
     return orderDetails;
   }
 
   @override
-  Future getList({int? offset, bool isRunningOrder = false, bool isHistoryOrder = false, bool isCancelReasons = false, bool isRefundReasons = false, bool fromDashboard = false, bool isSupportReasons = false}) async {
-    if(isRunningOrder) {
+  Future getList({
+    int? offset,
+    bool isRunningOrder = false,
+    bool isHistoryOrder = false,
+    bool isCancelReasons = false,
+    bool isRefundReasons = false,
+    bool fromDashboard = false,
+    bool isSupportReasons = false,
+  }) async {
+    if (isRunningOrder) {
       return await _getRunningOrderList(offset!, fromDashboard);
-    } else if(isHistoryOrder) {
+    } else if (isHistoryOrder) {
       return await _getHistoryOrderList(offset!);
-    } else if(isCancelReasons) {
+    } else if (isCancelReasons) {
       return await _getCancelReasons();
-    } else if(isRefundReasons) {
+    } else if (isRefundReasons) {
       return await _getRefundReasons();
-    } else if(isSupportReasons) {
+    } else if (isSupportReasons) {
       return await _getSupportReasons();
     }
   }
 
-  Future<PaginatedOrderModel?> _getRunningOrderList(int offset, bool fromDashboard) async {
+  Future<PaginatedOrderModel?> _getRunningOrderList(
+    int offset,
+    bool fromDashboard,
+  ) async {
     PaginatedOrderModel? runningOrderModel;
-    Response response = await apiClient.getData('${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}');
+    Response response = await apiClient.getData(
+      '${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}',
+    );
     if (response.statusCode == 200) {
       runningOrderModel = PaginatedOrderModel.fromJson(response.body);
     }
@@ -96,7 +138,9 @@ class OrderRepository implements OrderRepositoryInterface {
 
   Future<PaginatedOrderModel?> _getHistoryOrderList(int offset) async {
     PaginatedOrderModel? historyOrderModel;
-    Response response = await apiClient.getData('${AppConstants.historyOrderListUri}?offset=$offset&limit=10');
+    Response response = await apiClient.getData(
+      '${AppConstants.historyOrderListUri}?offset=$offset&limit=10',
+    );
     if (response.statusCode == 200) {
       historyOrderModel = PaginatedOrderModel.fromJson(response.body);
     }
@@ -105,9 +149,12 @@ class OrderRepository implements OrderRepositoryInterface {
 
   Future<List<CancellationData>?> _getCancelReasons() async {
     List<CancellationData>? orderCancelReasons;
-    Response response = await apiClient.getData('${AppConstants.orderCancellationUri}?offset=1&limit=30&type=customer');
+    Response response = await apiClient.getData(
+      '${AppConstants.orderCancellationUri}?offset=1&limit=30&type=customer',
+    );
     if (response.statusCode == 200) {
-      OrderCancellationBody orderCancellationBody = OrderCancellationBody.fromJson(response.body);
+      OrderCancellationBody orderCancellationBody =
+          OrderCancellationBody.fromJson(response.body);
       orderCancelReasons = [];
       for (var element in orderCancellationBody.reasons!) {
         orderCancelReasons.add(element);
@@ -150,15 +197,18 @@ class OrderRepository implements OrderRepositoryInterface {
     print('📦 [REORDER REPO] Order ID: $orderId');
     final requestBody = {'order_id': orderId};
     print('📦 [REORDER REPO] Request Body: $requestBody');
-    
+
     try {
       // Pass handleError: false to prevent global error handler from logging out user on 401
       final response = await apiClient.postData(
-        AppConstants.reorderUri, 
+        AppConstants.reorderUri,
         requestBody,
-        handleError: false,  // Important: Get the actual response, don't let global handler process it
+        handleError:
+            false, // Important: Get the actual response, don't let global handler process it
       );
-      print('📦 [REORDER REPO] Response received with status: ${response.statusCode}');
+      print(
+        '📦 [REORDER REPO] Response received with status: ${response.statusCode}',
+      );
       return response;
     } catch (e) {
       print('❌ [REORDER REPO] Exception in repository: $e');
@@ -170,5 +220,4 @@ class OrderRepository implements OrderRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-  
 }

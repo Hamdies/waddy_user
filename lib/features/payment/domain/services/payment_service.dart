@@ -20,5 +20,4 @@ class PaymentService implements PaymentServiceInterface {
   Future<bool> updateOfflineInfo(String data) async {
     return await paymentRepositoryInterface.updateOfflineInfo(data);
   }
-
 }

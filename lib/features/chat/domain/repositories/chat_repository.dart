@@ -107,10 +107,12 @@ class ChatRepository implements ChatRepositoryInterface {
 
   @override
   Future<Response> markAsRead(int conversationId, List<int> messageIds) async {
+    // Silent: a read receipt fires automatically as messages scroll into view.
+    // The user never asked for it, so a failure is not theirs to action.
     return await apiClient.postData(AppConstants.markMessageReadUri, {
       'conversation_id': conversationId,
       'message_ids': messageIds,
-    });
+    }, showError: false);
   }
 
   @override

@@ -5,19 +5,47 @@ import 'package:waddy_app/features/order/domain/models/order_details_model.dart'
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
 
 abstract class OrderServiceInterface {
-  Future<PaginatedOrderModel?> getRunningOrderList(int offset, bool fromDashboard);
+  Future<PaginatedOrderModel?> getRunningOrderList(
+    int offset,
+    bool fromDashboard,
+  );
   Future<PaginatedOrderModel?> getHistoryOrderList(int offset);
   Future<List<String?>?> getSupportReasonsList();
-  Future<List<OrderDetailsModel>?> getOrderDetails(String orderID, String? guestId);
+  Future<List<OrderDetailsModel>?> getOrderDetails(
+    String orderID,
+    String? guestId,
+  );
   Future<List<CancellationData>?> getCancelReasons();
   Future<List<String?>?> getRefundReasons();
-  Future<void> submitRefundRequest(int selectedReasonIndex, List<String?>? refundReasons, String note, String? orderId, XFile? refundImage);
-  Future<Response> trackOrder(String? orderID, String? guestId, {String? contactNumber});
+  Future<void> submitRefundRequest(
+    int selectedReasonIndex,
+    List<String?>? refundReasons,
+    String note,
+    String? orderId,
+    XFile? refundImage,
+  );
+  Future<Response> trackOrder(
+    String? orderID,
+    String? guestId, {
+    String? contactNumber,
+  });
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId});
-  OrderModel? prepareOrderModel(PaginatedOrderModel? runningOrderModel, int? orderID);
+  OrderModel? prepareOrderModel(
+    PaginatedOrderModel? runningOrderModel,
+    int? orderID,
+  );
   Future<bool> switchToCOD(String? orderID, {String? guestId});
   Future<Response> reorder(int orderId);
-  void paymentRedirect({required String url, required bool canRedirect, required String? contactNumber,
-    required Function onClose, required final String? addFundUrl, required final String? subscriptionUrl,
-    required final String orderID, int? storeId, required bool createAccount, required String guestId});
+  void paymentRedirect({
+    required String url,
+    required bool canRedirect,
+    required String? contactNumber,
+    required Function onClose,
+    required final String? addFundUrl,
+    required final String? subscriptionUrl,
+    required final String orderID,
+    int? storeId,
+    required bool createAccount,
+    required String guestId,
+  });
 }

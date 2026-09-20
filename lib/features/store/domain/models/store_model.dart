@@ -1,3 +1,6 @@
+import 'package:waddy_app/common/models/image_variants.dart';
+import 'package:waddy_app/util/parse.dart';
+
 class StoreModel {
   int? totalSize;
   String? limit;
@@ -9,7 +12,10 @@ class StoreModel {
   StoreModel.fromJson(Map<String, dynamic> json) {
     totalSize = json['total_size'];
     limit = json['limit'].toString();
-    offset = (json['offset'] != null && json['offset'].toString().trim().isNotEmpty) ? int.parse(json['offset'].toString()) : null;
+    offset =
+        (json['offset'] != null && json['offset'].toString().trim().isNotEmpty)
+            ? Parse.lenientInt(json['offset'])
+            : null;
     if (json['stores'] != null) {
       stores = [];
       json['stores'].forEach((v) {
@@ -36,6 +42,11 @@ class Store {
   String? phone;
   String? email;
   String? logoFullUrl;
+
+  /// Right-sized WebP/JPEG set for [logoFullUrl]; null when the backend did not
+  /// emit one (see ImageVariants). Pass it to CustomImage's `variants:`.
+  ImageVariants? logoVariants;
+  ImageVariants? coverPhotoVariants;
   String? latitude;
   String? longitude;
   String? address;
@@ -49,7 +60,20 @@ class Store {
   double? avgRating;
   double? tax;
   int? ratingCount;
+
+  /// How many orders this store has taken — the axis the dashboard
+  /// restaurant chart ranks on. Only sent by the endpoints that count it
+  /// (get-stores with store_type=popular), so null means "not asked for".
+  int? ordersCount;
   int? featured;
+
+  /// Position on the featured chart, set by hand in admin. Null means
+  /// featured but unranked — it still shows, after every ranked store.
+  ///
+  /// This is what the 1..10 numerals on the food rail are painted from. They
+  /// used to be painted over whatever order the query returned, which made
+  /// them look like a judgement and be an accident.
+  int? featuredOrder;
   int? zoneId;
   int? selfDeliverySystem;
   bool? posSystem;
@@ -60,6 +84,11 @@ class Store {
   bool? active;
   String? deliveryTime;
   List<int>? categoryIds;
+
+  /// Cuisine ids for food stores, and their names when the payload inlines
+  /// them. Restaurants are described by cuisine, not category.
+  List<int>? cuisineIds;
+  List<String>? cuisineNames;
   int? veg;
   int? nonVeg;
   int? moduleId;
@@ -102,8 +131,10 @@ class Store {
     this.avgRating,
     this.tax,
     this.featured,
+    this.featuredOrder,
     this.zoneId,
     this.ratingCount,
+    this.ordersCount,
     this.selfDeliverySystem,
     this.posSystem,
     this.minimumShippingCharge,
@@ -113,6 +144,8 @@ class Store {
     this.active,
     this.deliveryTime,
     this.categoryIds,
+    this.cuisineIds,
+    this.cuisineNames,
     this.veg,
     this.nonVeg,
     this.moduleId,
@@ -143,10 +176,13 @@ class Store {
     phone = json['phone'];
     email = json['email'];
     logoFullUrl = json['logo_full_url'] ?? '';
+    logoVariants = ImageVariants.fromJson(json['logo_variants']);
+    coverPhotoVariants = ImageVariants.fromJson(json['cover_photo_variants']);
     latitude = json['latitude'];
     longitude = json['longitude'];
     address = json['address'];
-    minimumOrder = json['minimum_order'] == null ? 0 : json['minimum_order']?.toDouble();
+    minimumOrder =
+        json['minimum_order'] == null ? 0 : json['minimum_order']?.toDouble();
     currency = json['currency'];
     freeDelivery = json['free_delivery'];
     coverPhotoFullUrl = json['cover_photo_full_url'] ?? '';
@@ -156,23 +192,48 @@ class Store {
     avgRating = json['avg_rating']?.toDouble();
     tax = json['tax']?.toDouble();
     ratingCount = json['rating_count'];
+    ordersCount = json['orders_count'];
     selfDeliverySystem = json['self_delivery_system'];
     posSystem = json['pos_system'];
     minimumShippingCharge = json['minimum_shipping_charge']?.toDouble();
     maximumShippingCharge = /*(json['maximum_shipping_charge'] != null && json['maximum_shipping_charge'] == 0) ? null : */
         json['maximum_shipping_charge']?.toDouble();
-    perKmShippingCharge = json['per_km_shipping_charge'] != null ? json['per_km_shipping_charge'].toDouble() : 0;
+    perKmShippingCharge =
+        json['per_km_shipping_charge'] != null
+            ? json['per_km_shipping_charge'].toDouble()
+            : 0;
     open = json['open'];
     active = json['active'];
-    featured = int.parse(json['featured'].toString());
+    featured = Parse.lenientInt(json['featured']);
+    featuredOrder =
+        json['featured_order'] is int
+            ? json['featured_order']
+            : int.tryParse('${json['featured_order']}');
     zoneId = json['zone_id'];
     deliveryTime = json['delivery_time'];
     veg = json['veg'];
     nonVeg = json['non_veg'];
     moduleId = json['module_id'];
     orderPlaceToScheduleInterval = json['order_place_to_schedule_interval'];
-    categoryIds = json['category_ids'] != null ? json['category_ids'].cast<int>() : [];
-    discount = json['discount'] != null ? Discount.fromJson(json['discount']) : null;
+    categoryIds =
+        json['category_ids'] != null ? json['category_ids'].cast<int>() : [];
+    // The backend has shipped this two ways: a bare id list, and a list of
+    // {id, name} objects. Accept both so the card subtitle fills in either way.
+    cuisineIds = [];
+    cuisineNames = [];
+    final dynamic rawCuisines = json['cuisines'] ?? json['cuisine_ids'];
+    if (rawCuisines is List) {
+      for (final dynamic entry in rawCuisines) {
+        if (entry is Map) {
+          if (entry['id'] is int) cuisineIds!.add(entry['id']);
+          if (entry['name'] is String) cuisineNames!.add(entry['name']);
+        } else if (entry is int) {
+          cuisineIds!.add(entry);
+        }
+      }
+    }
+    discount =
+        json['discount'] != null ? Discount.fromJson(json['discount']) : null;
     if (json['schedules'] != null) {
       schedules = <Schedules>[];
       json['schedules'].forEach((v) {
@@ -201,7 +262,10 @@ class Store {
       });
     }
     reviewsCommentsCount = json['reviews_comments_count'];
-    storeSubscription = json['store_sub'] != null ? StoreSubscription.fromJson(json['store_sub']) : null;
+    storeSubscription =
+        json['store_sub'] != null
+            ? StoreSubscription.fromJson(json['store_sub'])
+            : null;
     storeBusinessModel = json['store_business_model'];
     distance = json['distance']?.toDouble();
     storeOpeningTime = json['current_opening_time'];
@@ -214,6 +278,10 @@ class Store {
     data['phone'] = phone;
     data['email'] = email;
     data['logo_full_url'] = logoFullUrl;
+    if (logoVariants != null) data['logo_variants'] = logoVariants!.toJson();
+    if (coverPhotoVariants != null) {
+      data['cover_photo_variants'] = coverPhotoVariants!.toJson();
+    }
     data['latitude'] = latitude;
     data['longitude'] = longitude;
     data['address'] = address;
@@ -227,6 +295,7 @@ class Store {
     data['avg_rating'] = avgRating;
     data['tax'] = tax;
     data['rating_count'] = ratingCount;
+    data['orders_count'] = ordersCount;
     data['self_delivery_system'] = selfDeliverySystem;
     data['pos_system'] = posSystem;
     data['minimum_shipping_charge'] = minimumShippingCharge;
@@ -236,12 +305,14 @@ class Store {
     data['active'] = active;
     data['veg'] = veg;
     data['featured'] = featured;
+    data['featured_order'] = featuredOrder;
     data['zone_id'] = zoneId;
     data['non_veg'] = nonVeg;
     data['module_id'] = moduleId;
     data['order_place_to_schedule_interval'] = orderPlaceToScheduleInterval;
     data['delivery_time'] = deliveryTime;
     data['category_ids'] = categoryIds;
+    data['cuisine_ids'] = cuisineIds;
     if (discount != null) {
       data['discount'] = discount!.toJson();
     }

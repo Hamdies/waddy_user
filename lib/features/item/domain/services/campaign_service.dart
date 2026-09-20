@@ -9,8 +9,13 @@ class CampaignService implements CampaignServiceInterface {
   CampaignService({required this.campaignRepositoryInterface});
 
   @override
-  Future<List<BasicCampaignModel>?> getBasicCampaignList(DataSourceEnum source) async {
-    return await campaignRepositoryInterface.getList(isBasicCampaign: true, source: source);
+  Future<List<BasicCampaignModel>?> getBasicCampaignList(
+    DataSourceEnum source,
+  ) async {
+    return await campaignRepositoryInterface.getList(
+      isBasicCampaign: true,
+      source: source,
+    );
   }
 
   @override
@@ -20,7 +25,9 @@ class CampaignService implements CampaignServiceInterface {
 
   @override
   Future<List<Item>?> getItemCampaignList(DataSourceEnum dataSource) async {
-    return await campaignRepositoryInterface.getList(isItemCampaign: true, source: dataSource);
+    return await campaignRepositoryInterface.getList(
+      isItemCampaign: true,
+      source: dataSource,
+    );
   }
-
 }

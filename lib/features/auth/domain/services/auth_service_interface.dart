@@ -2,21 +2,50 @@ import 'package:waddy_app/common/models/response_model.dart';
 import 'package:waddy_app/features/auth/domain/models/signup_body_model.dart';
 import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
 
-abstract class AuthServiceInterface{
+abstract class AuthServiceInterface {
   bool isSharedPrefNotificationActive();
   Future<ResponseModel> registration(SignUpBodyModel signUpBody);
-  Future<ResponseModel> login({required String emailOrPhone, required String password, required String loginType, required String fieldType, bool alreadyInApp = false});
-  Future<ResponseModel> otpLogin({required String phone, required String otp, required String loginType, required String verified, bool alreadyInApp = false});
-  Future<ResponseModel> updatePersonalInfo({required String name, required String? phone, required String loginType, required String? email, required String? referCode, bool alreadyInApp = false});
+  Future<ResponseModel> login({
+    required String emailOrPhone,
+    required String password,
+    required String loginType,
+    required String fieldType,
+    bool alreadyInApp = false,
+  });
+  Future<ResponseModel> otpLogin({
+    required String phone,
+    required String otp,
+    required String loginType,
+    required String verified,
+    bool alreadyInApp = false,
+  });
+  Future<ResponseModel> updatePersonalInfo({
+    required String name,
+    required String? phone,
+    required String loginType,
+    required String? email,
+    required String? referCode,
+    bool alreadyInApp = false,
+  });
   Future<ResponseModel> guestLogin();
-  Future<ResponseModel> loginWithSocialMedia(SocialLogInBody socialLogInModel, {bool isCustomerVerificationOn = false});
+  Future<ResponseModel> loginWithSocialMedia(
+    SocialLogInBody socialLogInModel, {
+    bool isCustomerVerificationOn = false,
+  });
   Future<void> updateToken();
   bool isLoggedIn();
+  Future<bool> setProfileIncomplete(bool value, {String? phone});
+  bool isProfileIncomplete();
+  String? getPendingProfilePhone();
   bool isGuestLoggedIn();
   String getSharedPrefGuestId();
   Future<bool> clearSharedData({bool removeToken = true});
   Future<bool> clearSharedAddress();
-  Future<void> saveUserNumberAndPassword(String number, String password, String countryCode);
+  Future<void> saveUserNumberAndPassword(
+    String number,
+    String password,
+    String countryCode,
+  );
   String getUserNumber();
   String getUserCountryCode();
   String getUserPassword();

@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
+import 'package:waddy_app/util/parse.dart';
 
 class AddressModel {
   int? id;
@@ -47,13 +48,16 @@ class AddressModel {
     additionalAddress = json['additional_address'];
     latitude = json['latitude'].toString();
     longitude = json['longitude'].toString();
-    zoneId = (json['zone_id'] != null && json['zone_id'] != 'null') ? int.parse(json['zone_id'].toString()) : null;
+    zoneId =
+        (json['zone_id'] != null && json['zone_id'] != 'null')
+            ? Parse.strictInt(json['zone_id'], 'zone_id')
+            : null;
     zoneIds = json['zone_ids']?.cast<int>();
     method = json['_method'];
     contactPersonName = json['contact_person_name'];
     streetNumber = json['road'];
     house = json['house'];
-    floor = json['floor'] ;
+    floor = json['floor'];
     if (json['zone_data'] != null) {
       zoneData = [];
       json['zone_data'].forEach((v) {
@@ -61,7 +65,7 @@ class AddressModel {
       });
     }
     areaIds = json['area_ids']?.cast<int>();
-    if(json['contact_person_email'] != null) {
+    if (json['contact_person_email'] != null) {
       email = json['contact_person_email'];
     }
   }
@@ -86,7 +90,7 @@ class AddressModel {
       data['zone_data'] = zoneData!.map((v) => v.toJson()).toList();
     }
     data['area_ids'] = areaIds;
-    if(email != null) {
+    if (email != null) {
       data['contact_person_email'] = email;
     }
     return data;

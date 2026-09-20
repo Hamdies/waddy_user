@@ -12,10 +12,13 @@ import 'package:waddy_app/features/payment/domain/models/offline_method_model.da
 
 import '../models/parcel_instruction_model.dart';
 
-class ParcelService implements ParcelServiceInterface{
+class ParcelService implements ParcelServiceInterface {
   final ParcelRepositoryInterface parcelRepositoryInterface;
   final CheckoutRepositoryInterface checkoutRepositoryInterface;
-  ParcelService({required this.parcelRepositoryInterface, required this.checkoutRepositoryInterface});
+  ParcelService({
+    required this.parcelRepositoryInterface,
+    required this.checkoutRepositoryInterface,
+  });
 
   @override
   Future<List<ParcelCategoryModel>?> getParcelCategory() async {
@@ -24,25 +27,41 @@ class ParcelService implements ParcelServiceInterface{
 
   @override
   Future<List<Data>?> getParcelInstruction(int offset) async {
-    return await parcelRepositoryInterface.getList(offset: offset, parcelCategory: false);
+    return await parcelRepositoryInterface.getList(
+      offset: offset,
+      parcelCategory: false,
+    );
   }
 
   @override
-  Future<WhyChooseModel?> getWhyChooseDetails({required DataSourceEnum source}) async {
-    return await parcelRepositoryInterface.get(null, isVideoDetails: false, source: source);
+  Future<WhyChooseModel?> getWhyChooseDetails({
+    required DataSourceEnum source,
+  }) async {
+    return await parcelRepositoryInterface.get(
+      null,
+      isVideoDetails: false,
+      source: source,
+    );
   }
 
   @override
-  Future<VideoContentModel?> getVideoContentDetails({required DataSourceEnum source}) async {
-    return await parcelRepositoryInterface.get(null, isVideoDetails: true, source: source);
+  Future<VideoContentModel?> getVideoContentDetails({
+    required DataSourceEnum source,
+  }) async {
+    return await parcelRepositoryInterface.get(
+      null,
+      isVideoDetails: true,
+      source: source,
+    );
   }
 
   @override
   Future<LatLng> getPlaceDetails(String? placeID) async {
     LatLng latLng = const LatLng(0, 0);
-    Response? response = await parcelRepositoryInterface.getPlaceDetails(placeID);
-    if(response.statusCode == 200) {
-
+    Response? response = await parcelRepositoryInterface.getPlaceDetails(
+      placeID,
+    );
+    if (response.statusCode == 200) {
       final data = response.body;
       final location = data['location'];
       final double lat = location['latitude'];
@@ -66,5 +85,4 @@ class ParcelService implements ParcelServiceInterface{
   Future<Response> placeOrder(PlaceOrderBodyModel orderBody) async {
     return await checkoutRepositoryInterface.placeOrder(orderBody, null);
   }
-
 }

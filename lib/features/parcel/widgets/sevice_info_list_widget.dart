@@ -13,56 +13,107 @@ class ServiceInfoListWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     List<String>? title;
     List<String>? subTitle;
-    if(parcelController.videoContentDetails != null) {
+    if (parcelController.videoContentDetails != null) {
       title = [];
       subTitle = [];
-      for(int i=0; i<parcelController.videoContentDetails!.bannerContents!.length; i++) {
-        if(i%2 == 0){
-          title.add(parcelController.videoContentDetails!.bannerContents![i].value ?? '');
+      for (
+        int i = 0;
+        i < parcelController.videoContentDetails!.bannerContents!.length;
+        i++
+      ) {
+        if (i % 2 == 0) {
+          title.add(
+            parcelController.videoContentDetails!.bannerContents![i].value ??
+                '',
+          );
         } else {
-          subTitle.add(parcelController.videoContentDetails!.bannerContents![i].value ?? '');
+          subTitle.add(
+            parcelController.videoContentDetails!.bannerContents![i].value ??
+                '',
+          );
         }
       }
     }
-    return parcelController.videoContentDetails != null ? ListView.builder(
-      physics: const ScrollPhysics(),
-      shrinkWrap: true,
-      itemCount: title!.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return parcelController.videoContentDetails != null
+        ? ListView.builder(
+          physics: const ScrollPhysics(),
+          shrinkWrap: true,
+          itemCount: title!.length,
+          padding: EdgeInsets.zero,
+          itemBuilder: (context, index) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: Dimensions.paddingSizeSmall,
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        height: 14,
+                        width: 14,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: Dimensions.paddingSizeDefault),
 
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: Row(children: [
-              Container(
-                height: 14, width: 14,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).primaryColor,
+                      Flexible(
+                        child: Text(
+                          title![index],
+                          style: waddyBold,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: Dimensions.paddingSizeDefault),
 
-              Flexible(child: Text(title![index], style: robotoBold, maxLines: 1, overflow: TextOverflow.ellipsis)),
-            ]),
-          ),
-
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeSmall, horizontal: 22.5),
-            margin: EdgeInsets.only(left: Get.find<LocalizationController>().isLtr ? 15 : 0, right: Get.find<LocalizationController>().isLtr ? 0 : 7),
-            decoration: BoxDecoration(
-              border: index == title.length - 1 ? null : Border(left: Get.find<LocalizationController>().isLtr ? BorderSide(width: 1, color: Theme.of(context).disabledColor)
-                  : BorderSide.none, right: Get.find<LocalizationController>().isLtr ? BorderSide.none : BorderSide(width: 1, color: Theme.of(context).disabledColor)),
-            ),
-            child: Text(
-              subTitle![index],
-              style: robotoRegular.copyWith(color: Theme.of(context).disabledColor),
-              textAlign: TextAlign.justify,
-            ),
-          ),
-        ]);
-      },
-    ) : const SizedBox();
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: Dimensions.paddingSizeSmall,
+                    horizontal: 22.5,
+                  ),
+                  margin: EdgeInsets.only(
+                    left: Get.find<LocalizationController>().isLtr ? 15 : 0,
+                    right: Get.find<LocalizationController>().isLtr ? 0 : 7,
+                  ),
+                  decoration: BoxDecoration(
+                    border:
+                        index == title.length - 1
+                            ? null
+                            : Border(
+                              left:
+                                  Get.find<LocalizationController>().isLtr
+                                      ? BorderSide(
+                                        width: 1,
+                                        color: Theme.of(context).disabledColor,
+                                      )
+                                      : BorderSide.none,
+                              right:
+                                  Get.find<LocalizationController>().isLtr
+                                      ? BorderSide.none
+                                      : BorderSide(
+                                        width: 1,
+                                        color: Theme.of(context).disabledColor,
+                                      ),
+                            ),
+                  ),
+                  child: Text(
+                    subTitle![index],
+                    style: waddyRegular.copyWith(
+                      color: Theme.of(context).disabledColor,
+                    ),
+                    textAlign: TextAlign.justify,
+                  ),
+                ),
+              ],
+            );
+          },
+        )
+        : const SizedBox();
   }
 }

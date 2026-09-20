@@ -26,22 +26,26 @@ class _ItemCampaignScreenState extends State<ItemCampaignScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: widget.isJustForYou ? 'just_for_you'.tr : 'campaigns'.tr),
+      appBar: CustomAppBar(
+        title: widget.isJustForYou ? 'just_for_you'.tr : 'campaigns'.tr,
+      ),
       endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
       body: SingleChildScrollView(
         child: FooterView(
           child: SizedBox(
-            width: Dimensions.webMaxWidth,
-            child: GetBuilder<CampaignController>(builder: (campController) {
-              return ItemsView(
-                isStore: false,
-                items: campController.itemCampaignList,
-                stores: null,
-                isCampaign: true,
-                noDataText: 'no_campaign_found'.tr,
-              );
-            }),
+            width: Dimensions.maxContentWidth,
+            child: GetBuilder<CampaignController>(
+              builder: (campController) {
+                return ItemsView(
+                  isStore: false,
+                  items: campController.itemCampaignList,
+                  stores: null,
+                  isCampaign: true,
+                  noDataText: 'no_campaign_found'.tr,
+                );
+              },
+            ),
           ),
         ),
       ),

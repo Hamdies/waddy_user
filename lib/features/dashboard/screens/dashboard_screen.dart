@@ -1,7 +1,9 @@
+import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import 'package:waddy_app/features/dashboard/widgets/store_registration_success_bottom_sheet.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
@@ -13,23 +15,25 @@ import 'package:waddy_app/features/parcel/controllers/parcel_controller.dart';
 import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/deep_link_helper.dart';
+import 'package:waddy_app/helper/tracking_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 
 import 'package:waddy_app/common/widgets/custom_dialog.dart';
 import 'package:waddy_app/features/checkout/widgets/congratulation_dialogue.dart';
 import 'package:waddy_app/features/dashboard/widgets/parcel_bottom_sheet_widget.dart';
 import 'package:waddy_app/features/home/screens/home_screen.dart';
-import 'package:waddy_app/features/dashboard/widgets/live_cart_widget.dart';
-import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/screens/xp_levels_screen.dart';
 import 'package:waddy_app/features/menu/screens/menu_screen.dart';
 import 'package:waddy_app/features/order/screens/order_screen.dart';
-import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/screens/places_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/cart/widgets/pill_cart_bar.dart';
 
 class DashboardScreen extends StatefulWidget {
   final int pageIndex;
@@ -49,7 +53,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   int _pageIndex = 0;
   late List<Widget> _screens;
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey = GlobalKey();
-  bool _canExit = GetPlatform.isWeb ? true : false;
+  bool _canExit = false;
 
   late bool _isLogin;
   bool active = false;
@@ -58,14 +62,15 @@ class DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
 
+    _live = this;
+
     _isLogin = AuthHelper.isLoggedIn();
 
     _showRegistrationSuccessBottomSheet();
 
     if (_isLogin) {
-      if (Get.find<SplashController>().configModel!.loyaltyPointStatus == 1 &&
-          Get.find<AuthController>().getEarningPint().isNotEmpty &&
-          !ResponsiveHelper.isDesktop(Get.context)) {
+      if (Get.find<SplashController>().configModel.loyaltyPointStatus == 1 &&
+          Get.find<AuthController>().getEarningPint().isNotEmpty) {
         Future.delayed(
           const Duration(seconds: 1),
           () =>
@@ -74,6 +79,11 @@ class DashboardScreenState extends State<DashboardScreen> {
       }
       suggestAddressBottomSheet();
       Get.find<OrderController>().getRunningOrders(1, fromDashboard: true);
+      // Primes the Rewards badge. Both calls no-op once their model is
+      // loaded, and without them the dot could only ever light up after the
+      // user had already opened the tab it is meant to point at.
+      Get.find<XpController>().getChallenges();
+      Get.find<XpController>().getPrizes();
     }
 
     _pageIndex = widget.pageIndex;
@@ -88,14 +98,30 @@ class DashboardScreenState extends State<DashboardScreen> {
       const MenuScreen(),
     ];
 
-    // Ensure cart data is loaded for LiveCartWidget visibility
+    // Ensure cart data is loaded for the home cart bar's visibility
     // Skip cart for Places module - it doesn't use cart
     final isPlacesModule =
         Get.find<SplashController>().module?.moduleType.toString() ==
         AppConstants.places;
-    if (_isLogin && !isPlacesModule) {
+    if ((_isLogin || AuthHelper.isGuestLoggedIn()) && !isPlacesModule) {
       Get.find<CartController>().getCartDataOnline();
     }
+
+    // Every entry path (splash, guest bootstrap, location gate, picker) ends
+    // here, so this is the one safe place to fire a stashed deep link: zone
+    // context exists and the target lands on top of home.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHelper.consumePending();
+      TrackingHelper.requestOnce();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Only clear if this instance is still the registered one: a replacement
+    // dashboard runs its initState before the outgoing one disposes.
+    if (identical(_live, this)) _live = null;
+    super.dispose();
   }
 
   _showRegistrationSuccessBottomSheet() {
@@ -103,32 +129,18 @@ class DashboardScreenState extends State<DashboardScreen> {
         Get.find<HomeController>().getRegistrationSuccessfulSharedPref();
     if (canShowBottomSheet) {
       Future.delayed(const Duration(seconds: 1), () {
-        ResponsiveHelper.isDesktop(Get.context)
-            ? Get.dialog(
-              const Dialog(child: StoreRegistrationSuccessBottomSheet()),
-            ).then((value) {
-              Get.find<HomeController>().saveRegistrationSuccessfulSharedPref(
-                false,
-              );
-              Get.find<HomeController>().saveIsStoreRegistrationSharedPref(
-                false,
-              );
-              setState(() {});
-            })
-            : showModalBottomSheet(
-              context: Get.context!,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (con) => const StoreRegistrationSuccessBottomSheet(),
-            ).then((value) {
-              Get.find<HomeController>().saveRegistrationSuccessfulSharedPref(
-                false,
-              );
-              Get.find<HomeController>().saveIsStoreRegistrationSharedPref(
-                false,
-              );
-              setState(() {});
-            });
+        showModalBottomSheet(
+          context: Get.context!,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (con) => const StoreRegistrationSuccessBottomSheet(),
+        ).then((value) {
+          Get.find<HomeController>().saveRegistrationSuccessfulSharedPref(
+            false,
+          );
+          Get.find<HomeController>().saveIsStoreRegistrationSharedPref(false);
+          setState(() {});
+        });
       });
     }
   }
@@ -158,10 +170,9 @@ class DashboardScreenState extends State<DashboardScreen> {
             if (_pageIndex != 0) {
               _setPage(0);
             } else {
-              if (!ResponsiveHelper.isDesktop(context) &&
-                  Get.find<SplashController>().module != null &&
-                  Get.find<SplashController>().configModel!.module == null) {
-                Get.find<SplashController>().setModule(null);
+              if (Get.find<SplashController>().module != null &&
+                  Get.find<SplashController>().configModel.module == null) {
+                Get.find<SplashController>().leaveModule();
                 Get.find<StoreController>().resetStoreData();
               } else {
                 if (_canExit) {
@@ -171,17 +182,10 @@ class DashboardScreenState extends State<DashboardScreen> {
                     exit(0);
                   }
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'back_press_again_to_exit'.tr,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                      margin: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                    ),
+                  showCustomSnackBar(
+                    'back_press_again_to_exit'.tr,
+                    isError: false,
+                    showDuration: 2,
                   );
                   _canExit = true;
                   Timer(const Duration(seconds: 2), () {
@@ -198,19 +202,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                 bottom: GetPlatform.isAndroid,
                 child: Scaffold(
                   key: _scaffoldKey,
-                  // floatingActionButton: Padding(
-                  //   padding: const EdgeInsets.only(bottom: 100.0),
-                  //   child: FloatingActionButton(
-                  //     mini: true,
-                  //     onPressed: () {
-                  //       showDialog(
-                  //         context: context,
-                  //         builder: (context) => const LetterDialogWidget(),
-                  //       );
-                  //     },
-                  //     child: const Icon(Icons.email),
-                  //   ),
-                  // ),
+
                   body: Stack(
                     children: [
                       PageView.builder(
@@ -222,7 +214,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                         },
                       ),
 
-                      ResponsiveHelper.isDesktop(context) || keyboardVisible
+                      keyboardVisible
                           ? const SizedBox()
                           : Align(
                             alignment: Alignment.bottomCenter,
@@ -231,7 +223,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 bool isParcel =
                                     splashController.module != null &&
                                     splashController
-                                        .configModel!
+                                        .configModel
                                         .moduleConfig!
                                         .module!
                                         .isParcel!;
@@ -296,6 +288,34 @@ class DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// The live dashboard, so any screen already inside it can switch tabs without
+  /// pushing a second one.
+  ///
+  /// Entering a tab used to mean `Get.toNamed(RouteHelper.getMainRoute(...))`,
+  /// which stacks a whole new `DashboardScreen` over the current one — the back
+  /// button then pops to a *different* copy of the app. Registered in
+  /// `initState` and cleared in `dispose`, so it is null exactly when no
+  /// dashboard is mounted.
+  static DashboardScreenState? _live;
+
+  /// Switches the mounted dashboard to [pageIndex] and returns true. Returns
+  /// false when no dashboard is mounted, so callers can fall back to a route:
+  ///
+  /// ```dart
+  /// if (!DashboardScreenState.switchToTab(0)) {
+  ///   Get.offAllNamed(RouteHelper.getMainRoute('home'));
+  /// }
+  /// ```
+  ///
+  /// Goes through `_setPage` rather than the `PageController` directly, because
+  /// switching to home also clears module context and reloads the feed.
+  static bool switchToTab(int pageIndex) {
+    final state = _live;
+    if (state == null || !state.mounted) return false;
+    state._setPage(pageIndex);
+    return true;
+  }
+
   void _setPage(int pageIndex) {
     setState(() {
       _pageController!.jumpToPage(pageIndex);
@@ -304,8 +324,8 @@ class DashboardScreenState extends State<DashboardScreen> {
       // Clear module context when navigating to home tab to show all modules
       if (pageIndex == 0 &&
           Get.find<SplashController>().module != null &&
-          Get.find<SplashController>().configModel!.module == null) {
-        Get.find<SplashController>().setModule(null);
+          Get.find<SplashController>().configModel.module == null) {
+        Get.find<SplashController>().leaveModule();
         Get.find<StoreController>().resetStoreData();
         HomeScreen.loadData(false);
       }
@@ -361,13 +381,22 @@ class _FlatBottomNav extends StatelessWidget {
     final secondaryColor = Theme.of(context).colorScheme.secondary;
 
     return Container(
-      height: 70 + bottomPadding,
+      height: 58 + bottomPadding,
       padding: EdgeInsets.only(bottom: bottomPadding),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: WaddyColors.surface,
+        // The feed scrolls tinted bands (the grocery shelf) right up under the
+        // bar, where a 6%-alpha hairline all but disappears. The border sets
+        // the edge on white, the shadow keeps it readable on everything else.
+        border: Border(
+          top: BorderSide(
+            color: primaryColor.withValues(alpha: 0.08),
+            width: 1,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: primaryColor.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, -2),
           ),
@@ -376,40 +405,60 @@ class _FlatBottomNav extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _SvgNavItem(
-            svgPath: 'assets/image/nav_home.svg',
-            label: 'Home',
+          _NavItem(
+            icon: HugeIcons.strokeRoundedHome01,
+            imageIcon: Images.logoMarkTransparent,
+            label: 'home'.tr,
             isSelected: pageIndex == 0,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: () => onPageChanged(0),
           ),
-          _SvgNavItem(
-            svgPath: 'assets/image/nav_rewards.svg',
-            label: 'Rewards',
-            isSelected: pageIndex == 1,
-            primaryColor: primaryColor,
-            secondaryColor: secondaryColor,
-            onTap: () => onPageChanged(1),
+          // The badge says exactly one thing: a reward is sitting there
+          // unclaimed. It used to be hardwired on, which made it wallpaper —
+          // and wallpaper is what people stop seeing.
+          GetBuilder<XpController>(
+            id: XpController.idBadge,
+            builder:
+                (xpController) => _NavItem(
+                  icon: HugeIcons.strokeRoundedGiftCard02,
+                  label: 'rewards'.tr,
+                  isSelected: pageIndex == 1,
+                  primaryColor: primaryColor,
+                  secondaryColor: secondaryColor,
+                  showPulsingBadge: isLogin && xpController.hasUnclaimedRewards,
+                  onTap: () => onPageChanged(1),
+                ),
           ),
-          // Places to Visit tab — cycles top 3 leaderboard images
-          _PlacesNavItem(
+          // Places to Visit tab — icon auto-morphs between a small set of
+          // "what you can explore" glyphs (compass/pin/building/coffee) so
+          // the tab itself hints at variety; discovery content still lives
+          // in the feed, this is chrome-level texture only.
+          _NavItem(
+            icon: HugeIcons.strokeRoundedCompass01,
+            morphIcons: const [
+              HugeIcons.strokeRoundedCoffee02,
+              HugeIcons.strokeRoundedBowling,
+              HugeIcons.strokeRoundedGameController01,
+              HugeIcons.strokeRoundedMaskTheater02,
+            ],
+            label: 'explore'.tr,
             isSelected: pageIndex == 2,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: onCenterTap,
           ),
-          _SvgNavItem(
-            svgPath: 'assets/image/nav_orders.svg',
-            label: 'Orders',
+          _NavItem(
+            icon: HugeIcons.strokeRoundedInvoice01,
+            label: 'orders'.tr,
             isSelected: pageIndex == 3,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             onTap: () => onPageChanged(3),
           ),
-          _SvgNavItem(
-            svgPath: 'assets/image/nav_profile.svg',
-            label: 'Account',
+          _NavItem(
+            icon: HugeIcons.strokeRoundedUser,
+            label: 'account'.tr,
             isSelected: pageIndex == 4,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
@@ -421,17 +470,31 @@ class _FlatBottomNav extends StatelessWidget {
   }
 }
 
-/// Navigation item using SVG icon
-class _SvgNavItem extends StatefulWidget {
-  final String svgPath;
+/// Navigation item using a HugeIcons glyph — one consistent icon family
+/// across every tab, at a bigger size for stronger visual presence.
+///
+/// Optional per-tab embellishments:
+/// - [imageIcon]: renders this image (tinted to match the selected/unselected
+///   nav color) instead of [icon] — used for the Home tab's brand mark.
+/// - [morphIcons]: when set, the icon shape auto-cycles through this list on
+///   a timer instead of showing a single static [icon] — used for Explore.
+/// - [showPulsingBadge]: draws a small pulsing mint dot over the icon.
+class _NavItem extends StatefulWidget {
+  final List<List<dynamic>> icon;
+  final String? imageIcon;
+  final List<List<List<dynamic>>>? morphIcons;
+  final bool showPulsingBadge;
   final String label;
   final bool isSelected;
   final Color primaryColor;
   final Color secondaryColor;
   final VoidCallback onTap;
 
-  const _SvgNavItem({
-    required this.svgPath,
+  const _NavItem({
+    required this.icon,
+    this.imageIcon,
+    this.morphIcons,
+    this.showPulsingBadge = false,
     required this.label,
     required this.isSelected,
     required this.primaryColor,
@@ -440,13 +503,18 @@ class _SvgNavItem extends StatefulWidget {
   });
 
   @override
-  State<_SvgNavItem> createState() => _SvgNavItemState();
+  State<_NavItem> createState() => _NavItemState();
 }
 
-class _SvgNavItemState extends State<_SvgNavItem>
-    with SingleTickerProviderStateMixin {
+class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
   late AnimationController _scaleController;
   late Animation<double> _scaleAnimation;
+
+  Timer? _morphTimer;
+  int _morphIndex = 0;
+
+  AnimationController? _pulseController;
+  Animation<double>? _pulseAnimation;
 
   @override
   void initState() {
@@ -455,17 +523,76 @@ class _SvgNavItemState extends State<_SvgNavItem>
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.9,
-    ).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
+
+    if (widget.showPulsingBadge) _startPulse();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncMorph();
+  }
+
+  /// The Explore tab's icon cycles through a set of glyphs. That is permanent,
+  /// unprompted motion in the app's chrome, so it has to answer to the OS
+  /// reduce-motion setting — it previously ran on a 2s timer forever regardless,
+  /// which is exactly the kind of ambient movement that setting exists to stop.
+  ///
+  /// Frozen, the tab falls back to its base [icon] (the compass), which is also
+  /// the one glyph that actually means "explore".
+  void _syncMorph() {
+    _morphTimer?.cancel();
+    _morphTimer = null;
+
+    final morphIcons = widget.morphIcons;
+    if (morphIcons == null || morphIcons.length <= 1) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      if (_morphIndex != 0) setState(() => _morphIndex = 0);
+      return;
+    }
+
+    _morphTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!mounted) return;
+      setState(() => _morphIndex = (_morphIndex + 1) % morphIcons.length);
+    });
+  }
+
+  /// The badge is now data-driven, so it can switch on mid-session (a
+  /// challenge completes, prizes finish loading). Without this the pulse
+  /// controller would only ever exist if the badge was already showing on
+  /// the frame this tab was first built.
+  @override
+  void didUpdateWidget(covariant _NavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.showPulsingBadge == oldWidget.showPulsingBadge) return;
+    if (widget.showPulsingBadge) {
+      _startPulse();
+    } else {
+      _pulseController?.dispose();
+      _pulseController = null;
+      _pulseAnimation = null;
+    }
+  }
+
+  void _startPulse() {
+    _pulseController?.dispose();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 2.0).animate(
+      CurvedAnimation(parent: _pulseController!, curve: Curves.easeOut),
     );
   }
 
   @override
   void dispose() {
     _scaleController.dispose();
+    _morphTimer?.cancel();
+    _pulseController?.dispose();
     super.dispose();
   }
 
@@ -475,10 +602,46 @@ class _SvgNavItemState extends State<_SvgNavItem>
     widget.onTap();
   }
 
+  Widget _buildIcon(Color color) {
+    if (widget.imageIcon != null) {
+      // The logo glyph has built-in transparent padding, so it needs to
+      // render larger than the icon box to read at the same visual size
+      // as the HugeIcons glyphs on the other tabs.
+      return Image.asset(
+        widget.imageIcon!,
+        width: 52,
+        height: 52,
+        color: color,
+      );
+    }
+
+    final morphIcons = widget.morphIcons;
+    final currentIcon =
+        morphIcons != null
+            ? morphIcons[_morphIndex % morphIcons.length]
+            : widget.icon;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder:
+          (child, animation) => ScaleTransition(
+            scale: animation,
+            child: FadeTransition(opacity: animation, child: child),
+          ),
+      child: HugeIcon(
+        key: ValueKey(morphIcons != null ? _morphIndex : 0),
+        icon: currentIcon,
+        color: color,
+        size: 22,
+        strokeWidth: widget.isSelected ? 2.0 : 1.7,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final color =
-        widget.isSelected ? widget.primaryColor : const Color(0xFF9CA3AF);
+        widget.isSelected ? widget.primaryColor : WaddyColors.inkLight;
 
     return GestureDetector(
       onTap: _handleTap,
@@ -486,35 +649,80 @@ class _SvgNavItemState extends State<_SvgNavItem>
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: SizedBox(
-          width: 70,
-          height: 68,
+          width: 68,
+          height: 56,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? widget.secondaryColor.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SvgPicture.asset(
-                  widget.svgPath,
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+              SizedBox(
+                width: 26,
+                height: 26,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    _buildIcon(color),
+                    if (widget.showPulsingBadge && _pulseAnimation != null)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: AnimatedBuilder(
+                          animation: _pulseAnimation!,
+                          builder: (context, _) {
+                            final scale = _pulseAnimation!.value;
+                            final fade = (1.0 - _pulseController!.value).clamp(
+                              0.0,
+                              1.0,
+                            );
+                            return Stack(
+                              alignment: Alignment.center,
+                              clipBehavior: Clip.none,
+                              children: [
+                                Transform.scale(
+                                  scale: scale,
+                                  child: Opacity(
+                                    opacity: fade,
+                                    child: Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: const BoxDecoration(
+                                        color: WaddyColors.mint,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: WaddyColors.mint,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
+                // Icon and label share one colour and swing weight together,
+                // so the selected tab reads as a single object rather than a
+                // tinted glyph with some text near it. w600 was too close to
+                // w700 for that switch to register at 11pt.
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight:
-                      widget.isSelected ? FontWeight.w700 : FontWeight.w500,
+                      widget.isSelected ? FontWeight.w800 : FontWeight.w500,
                   color: color,
                   letterSpacing: 0.1,
                   height: 1.1,
@@ -534,244 +742,9 @@ class _SvgNavItemState extends State<_SvgNavItem>
   }
 }
 
-/// Places tab — cycles top 3 leaderboard place images with smooth fade
-class _PlacesNavItem extends StatefulWidget {
-  final bool isSelected;
-  final Color primaryColor;
-  final Color secondaryColor;
-  final VoidCallback onTap;
-
-  const _PlacesNavItem({
-    required this.isSelected,
-    required this.primaryColor,
-    required this.secondaryColor,
-    required this.onTap,
-  });
-
-  @override
-  State<_PlacesNavItem> createState() => _PlacesNavItemState();
-}
-
-class _PlacesNavItemState extends State<_PlacesNavItem>
-    with TickerProviderStateMixin {
-  late AnimationController _scaleController;
-  late Animation<double> _scaleAnimation;
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
-  Timer? _cycleTimer;
-  int _currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-    );
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-      value: 1.0,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    );
-
-    // Load places data the same way _FullWidthShimmerGemCard does
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPlaces());
-    _startCycling();
-  }
-
-  void _loadPlaces() {
-    try {
-      if (!Get.isRegistered<PlacesController>()) return;
-      final ctrl = Get.find<PlacesController>();
-      if (ctrl.places == null || ctrl.places!.isEmpty) {
-        ctrl.getPlaces(reload: false);
-      }
-    } catch (_) {}
-  }
-
-  void _startCycling() {
-    _cycleTimer = Timer.periodic(const Duration(seconds: 2), (_) => _advance());
-  }
-
-  Future<void> _advance() async {
-    final places = _getTopPlaceUrls();
-    if (places.length < 2) return;
-    await _fadeController.reverse();
-    if (mounted) {
-      setState(() {
-        _currentIndex = (_currentIndex + 1) % places.length;
-      });
-    }
-    if (mounted) await _fadeController.forward();
-  }
-
-  List<String> _getTopPlaceUrls() {
-    try {
-      final ctrl = Get.find<PlacesController>();
-      final list = ctrl.places;
-      if (list == null || list.isEmpty) return [];
-      return list
-          .take(3)
-          .map((p) => p.image ?? '')
-          .where((url) => url.isNotEmpty)
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  @override
-  void dispose() {
-    _cycleTimer?.cancel();
-    _scaleController.dispose();
-    _fadeController.dispose();
-    super.dispose();
-  }
-
-  void _handleTap() {
-    HapticFeedback.selectionClick();
-    _scaleController.forward().then((_) => _scaleController.reverse());
-    widget.onTap();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        widget.isSelected ? widget.primaryColor : const Color(0xFF9CA3AF);
-
-    return GestureDetector(
-      onTap: _handleTap,
-      behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: SizedBox(
-          width: 70,
-          height: 68,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? widget.secondaryColor.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                // GetBuilder rebuilds when PlacesController.update() is called
-                // after getPlaces() finishes — same pattern as _FullWidthShimmerGemCard
-                child: GetBuilder<PlacesController>(
-                  builder: (_) {
-                    final places = _getTopPlaceUrls();
-                    final imageUrl = places.isNotEmpty
-                        ? places[_currentIndex % places.length]
-                        : null;
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: imageUrl != null
-                              ? Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: widget.isSelected
-                                          ? widget.primaryColor
-                                          : const Color(0xFFD1D5DB),
-                                      width: 2,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: widget.primaryColor
-                                            .withValues(alpha: 0.18),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipOval(
-                                    child: Image.network(
-                                      imageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          _buildPlaceholderIcon(color),
-                                    ),
-                                  ),
-                                )
-                              : _buildPlaceholderIcon(color),
-                        ),
-                        if (places.length > 1) ...[
-                          const SizedBox(height: 3),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                              places.length.clamp(0, 3),
-                              (i) => AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                                width: _currentIndex % places.length == i ? 8 : 4,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: _currentIndex % places.length == i
-                                      ? widget.primaryColor
-                                      : widget.primaryColor.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight:
-                      widget.isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: color,
-                  letterSpacing: 0.1,
-                  height: 1.1,
-                ),
-                child: const Text(
-                  'Explore',
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderIcon(Color color) {
-    return Icon(Icons.place_rounded, color: color, size: 26);
-  }
-}
-
-/// Wrapper widget that combines LiveCartWidget above the bottom nav bar
-/// Features scroll-aware hiding of bottom nav while keeping LiveCartWidget visible
+/// Bottom slot for the dashboard: the home cart bar for food/grocery modules,
+/// the flat nav bar otherwise. Scroll-aware, and yields to any route pushed on
+/// top so its bar does not render through screens with their own cart bar.
 class _BottomNavWithLiveCart extends StatefulWidget {
   final int pageIndex;
   final bool isParcel;
@@ -801,11 +774,52 @@ class _BottomNavWithLiveCart extends StatefulWidget {
   State<_BottomNavWithLiveCart> createState() => _BottomNavWithLiveCartState();
 }
 
+/// Notifies the dashboard when another route covers or uncovers it.
+///
+/// Needed because the dashboard stays mounted under pushed routes, so its
+/// floating cart bar would otherwise render through them. `Get.routing.current`
+/// is a plain String (not an Rx), so it cannot drive an Obx; `ModalRoute
+/// .isCurrent` never notifies. RouteAware is the primitive that actually fires
+/// on both push and pop.
+final RouteObserver<ModalRoute<void>> dashboardRouteObserver =
+    RouteObserver<ModalRoute<void>>();
+
 class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
+
+  /// True while another route sits on top of the dashboard.
+  bool _isCovered = false;
+
+  ModalRoute<void>? _subscribedRoute;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // didChangeDependencies can fire repeatedly (locale, media query, theme),
+    // so re-subscribing blindly would stack duplicate registrations. Only
+    // resubscribe when the route we are attached to actually changes.
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void> && route != _subscribedRoute) {
+      if (_subscribedRoute != null) {
+        dashboardRouteObserver.unsubscribe(this);
+      }
+      _subscribedRoute = route;
+      dashboardRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPushNext() {
+    if (mounted) setState(() => _isCovered = true);
+  }
+
+  @override
+  void didPopNext() {
+    if (mounted) setState(() => _isCovered = false);
+  }
 
   @override
   void initState() {
@@ -827,6 +841,7 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
 
   @override
   void dispose() {
+    dashboardRouteObserver.unsubscribe(this);
     _animationController.dispose();
     super.dispose();
   }
@@ -838,19 +853,25 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
       return const SizedBox();
     }
 
-    // Hide bottom nav for grocery or food module - show LiveCartWidget instead
+    // Hide bottom nav for grocery or food module - show the cart bar instead
     return GetBuilder<SplashController>(
       builder: (splashController) {
         // Check if current module is grocery or food
         final module = splashController.module;
         final isGroceryOrFood =
-            module != null &&
-            (module.moduleType.toString() == AppConstants.grocery ||
-                module.moduleType.toString() == AppConstants.food);
+            module?.type == ModuleType.grocery ||
+            module?.type == ModuleType.food;
 
-        // For grocery/food modules, show floating LiveCartWidget instead of bottom nav
-        // But hide it when already on the cart page (index 2)
+        // On food/grocery the cart bar REPLACES the bottom nav — it IS the
+        // nav for those modules, not an extra bar stacked above one.
         if (isGroceryOrFood) {
+          // The dashboard stays mounted underneath anything pushed on top of
+          // it, so without this its cart bar renders THROUGH pushed screens —
+          // stacking a second bar under FoodStoreScreen's own anchored one.
+          // `_isCovered` is kept current by a RouteObserver (didPushNext /
+          // didPopNext), which notifies on both push and pop.
+          if (_isCovered) return const SizedBox.shrink();
+
           return GetBuilder<HomeController>(
             builder: (homeController) {
               // Hide on scroll down, show when stopped or scrolling up
@@ -863,14 +884,13 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
                 child: AnimatedOpacity(
                   opacity: isVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 300),
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(context).padding.bottom + 8,
-                    ),
-                    child: LiveCartWidget(
-                      onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
-                    ),
-                  ),
+                  // No outer padding: the bar carries the system inset as
+                  // padding INSIDE its own white ground, so the white runs to
+                  // the physical screen edge instead of leaving a gap under it.
+                  // Store-agnostic: the cart may span a store whose minimum
+                  // and free-delivery flags are not in memory here, so only
+                  // the admin-wide rules are evaluated.
+                  child: const PillCartBar(globalOnly: true),
                 ),
               );
             },

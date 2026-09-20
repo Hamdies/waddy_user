@@ -1,0 +1,175 @@
+import 'package:card_swiper/card_swiper.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:waddy_app/features/auth/controllers/store_registration_controller.dart';
+import 'package:waddy_app/features/auth/widgets/business/base_card_widget.dart';
+import 'package:waddy_app/features/business/widgets/package_card_widget.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/styles.dart';
+
+/// Subscription-plan picker shown at the last step of the store-registration
+/// wizard (`storeStatus == 0.9`).
+///
+/// Was `WebBusinessPlanWidget` in `web_business_plan_widget.dart`. The `Web`
+/// prefix was a misnomer inherited from the upstream template — this renders on
+/// phones and is the only reachable copy; the duplicate under
+/// `features/business/widgets/` had no importers and was deleted.
+class BusinessPlanWidget extends StatelessWidget {
+  const BusinessPlanWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<StoreRegistrationController>(
+      builder: (storeRegController) {
+        return Column(
+          children: [
+            Container(
+              width: Dimensions.maxContentWidth,
+              padding: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeExtraOverLarge,
+                horizontal: 50,
+              ),
+              margin: const EdgeInsets.only(top: Dimensions.paddingSizeLarge),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text('choose_your_business_plan'.tr, style: waddyBold),
+                  const SizedBox(height: Dimensions.paddingSizeLarge),
+
+                  Row(
+                    children: [
+                      Get.find<SplashController>()
+                                  .configModel
+                                  .commissionBusinessModel !=
+                              0
+                          ? Expanded(
+                            child: BaseCardWidget(
+                              storeRegistrationController: storeRegController,
+                              title: 'commission_base'.tr,
+                              description:
+                                  "${'store_will_pay'.tr} ${Get.find<SplashController>().configModel.adminCommission}% ${'commission_to'.tr} ${Get.find<SplashController>().configModel.businessName} ${'from_each_order_You_will_get_access_of_all'.tr}",
+                              index: 0,
+                              onTap: () => storeRegController.setBusiness(0),
+                            ),
+                          )
+                          : const SizedBox(),
+                      SizedBox(
+                        width:
+                            Get.find<SplashController>()
+                                        .configModel
+                                        .commissionBusinessModel !=
+                                    0
+                                ? Dimensions.paddingSizeLarge
+                                : 0,
+                      ),
+
+                      Get.find<SplashController>()
+                                  .configModel
+                                  .subscriptionBusinessModel !=
+                              0
+                          ? Expanded(
+                            child: BaseCardWidget(
+                              storeRegistrationController: storeRegController,
+                              title: 'subscription_base'.tr,
+                              description:
+                                  'run_store_by_purchasing_subscription_packages'
+                                      .tr,
+                              index: 1,
+                              onTap: () => storeRegController.setBusiness(1),
+                            ),
+                          )
+                          : const SizedBox(),
+                    ],
+                  ),
+
+                  storeRegController.businessIndex == 1
+                      ? Column(
+                        children: [
+                          const SizedBox(height: 50),
+                          Text(
+                            'choose_subscription_package'.tr,
+                            style: waddyBold,
+                          ),
+                          const SizedBox(height: Dimensions.paddingSizeLarge),
+
+                          storeRegController.packageModel != null
+                              ? SizedBox(
+                                height: 420,
+                                width: 700,
+                                child:
+                                    storeRegController
+                                            .packageModel!
+                                            .packages!
+                                            .isNotEmpty
+                                        ? Swiper(
+                                          itemCount:
+                                              storeRegController
+                                                  .packageModel!
+                                                  .packages!
+                                                  .length,
+                                          viewportFraction: 0.34,
+                                          scale: 0.8,
+                                          itemBuilder: (context, index) {
+                                            return PackageCardWidget(
+                                              canSelect:
+                                                  storeRegController
+                                                      .activeSubscriptionIndex ==
+                                                  index,
+                                              packages:
+                                                  storeRegController
+                                                      .packageModel!
+                                                      .packages![index],
+                                            );
+                                          },
+                                          onIndexChanged: (index) {
+                                            storeRegController
+                                                .selectSubscriptionCard(index);
+                                          },
+                                        )
+                                        : Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Image.asset(
+                                                Images.emptyBox,
+                                                height: 150,
+                                              ),
+                                              const SizedBox(
+                                                height:
+                                                    Dimensions.paddingSizeLarge,
+                                              ),
+                                              Text(
+                                                'no_package_available'.tr,
+                                                style: waddyMedium,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                              )
+                              : const CircularProgressIndicator(),
+                        ],
+                      )
+                      : const SizedBox(),
+                ],
+              ),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeExtremeLarge),
+          ],
+        );
+      },
+    );
+  }
+}

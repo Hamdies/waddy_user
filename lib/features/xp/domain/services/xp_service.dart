@@ -1,5 +1,4 @@
 import 'package:get/get_connect/http/src/response/response.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
@@ -15,18 +14,15 @@ class XpService implements XpServiceInterface {
   XpService({required this.xpRepositoryInterface});
 
   @override
-  Future<XpLevelModel?> getCurrentLevel() async {
-    return await xpRepositoryInterface.getCurrentLevel();
-  }
-
-  @override
-  Future<LevelsListModel?> getAllLevels() async {
-    return await xpRepositoryInterface.getAllLevels();
-  }
-
-  @override
   Future<Map<String, dynamic>?> getLevelDetails() async {
     return await xpRepositoryInterface.getLevelDetails();
+  }
+
+  @override
+  Future<Response> acknowledgeLevelUps({List<int>? transactionIds}) async {
+    return await xpRepositoryInterface.acknowledgeLevelUps(
+      transactionIds: transactionIds,
+    );
   }
 
   @override
@@ -65,7 +61,13 @@ class XpService implements XpServiceInterface {
   }
 
   @override
-  Future<XpLeaderboardModel?> getLeaderboard({String type = 'global'}) async {
-    return await xpRepositoryInterface.getLeaderboard(type: type);
+  Future<XpLeaderboardModel?> getLeaderboard({
+    String type = 'global',
+    String period = 'alltime',
+  }) async {
+    return await xpRepositoryInterface.getLeaderboard(
+      type: type,
+      period: period,
+    );
   }
 }

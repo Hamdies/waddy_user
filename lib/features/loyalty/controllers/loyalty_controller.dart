@@ -24,17 +24,18 @@ class LoyaltyController extends GetxController implements GetxService {
   bool get isLoading => _isLoading;
 
   Future<void> getLoyaltyTransactionList(String offset, bool reload) async {
-    if(offset == '1' || reload) {
+    if (offset == '1' || reload) {
       _offsetList = [];
       _offset = 1;
       _transactionList = null;
-      if(reload) {
+      if (reload) {
         update();
       }
     }
     if (!_offsetList.contains(offset)) {
       _offsetList.add(offset);
-      TransactionModel? transactionModel = await loyaltyServiceInterface.getLoyaltyTransactionList(offset);
+      TransactionModel? transactionModel = await loyaltyServiceInterface
+          .getLoyaltyTransactionList(offset);
 
       if (transactionModel != null) {
         if (offset == '1') {
@@ -47,7 +48,7 @@ class LoyaltyController extends GetxController implements GetxService {
         update();
       }
     } else {
-      if(isLoading) {
+      if (isLoading) {
         _isLoading = false;
         update();
       }
@@ -57,17 +58,21 @@ class LoyaltyController extends GetxController implements GetxService {
   Future<void> pointToWallet(int point) async {
     _isLoading = true;
     update();
-    Response response = await loyaltyServiceInterface.pointToWallet(point: point);
+    Response response = await loyaltyServiceInterface.pointToWallet(
+      point: point,
+    );
     if (response.statusCode == 200) {
       Get.back();
       getLoyaltyTransactionList('1', true);
       Get.find<ProfileController>().getUserInfo();
-      showCustomSnackBar('converted_successfully_transfer_to_your_wallet'.tr, isError: false);
+      showCustomSnackBar(
+        'converted_successfully_transfer_to_your_wallet'.tr,
+        isError: false,
+      );
     }
     _isLoading = false;
     update();
   }
-
 
   void setOffset(int offset) {
     _offset = offset;
@@ -77,5 +82,4 @@ class LoyaltyController extends GetxController implements GetxService {
     _isLoading = true;
     update();
   }
-
 }

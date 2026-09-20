@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:waddy_app/util/image_url.dart';
+
 class Place {
   final int id;
   final String title;
@@ -19,6 +23,8 @@ class Place {
   final bool? isOpenNow;
   final bool? isFavorited;
   final int favoritesCount;
+  final int titlesCount; // weekly crowns this place has won
+  final bool isCurrentChampion; // won the most recently closed week
   final dynamic openingHours;
   final List<PlaceImage>? gallery;
   final List<PlaceTag>? tags;
@@ -45,6 +51,8 @@ class Place {
     this.isOpenNow,
     this.isFavorited,
     this.favoritesCount = 0,
+    this.titlesCount = 0,
+    this.isCurrentChampion = false,
     this.openingHours,
     this.gallery,
     this.tags,
@@ -65,8 +73,11 @@ class Place {
           0.0,
       votesCount: json['votes_count'] ?? 0,
       rank: json['rank'],
-      image: json['image'] ?? json['image_full_url'],
-      coverImage: json['cover_image'] ?? json['cover_image_full_url'],
+      image: pickImageUrl([json['image_full_url'], json['image']]),
+      coverImage: pickImageUrl([
+        json['cover_image_full_url'],
+        json['cover_image'],
+      ]),
       lat: _parseDouble(json['lat'] ?? json['latitude']),
       lng: _parseDouble(json['lng'] ?? json['longitude']),
       address: json['address'],
@@ -77,6 +88,8 @@ class Place {
       isOpenNow: json['is_open_now'],
       isFavorited: json['is_favorited'],
       favoritesCount: json['favorites_count'] ?? 0,
+      titlesCount: json['titles_count'] ?? 0,
+      isCurrentChampion: json['is_current_champion'] == true,
       openingHours: json['opening_hours'],
       gallery: _parseGallery(json['gallery']) ?? _parseGallery(json['images']),
       tags: _parseTags(json['tags']),
@@ -87,6 +100,7 @@ class Place {
   /// Safely parse category name from either a direct string or nested object
   static String? _safeCategoryName(dynamic directValue, dynamic categoryObj) {
     if (directValue is String) return directValue;
+    if (categoryObj is String) return categoryObj;
     if (categoryObj is Map<String, dynamic>) {
       return categoryObj['name'] as String?;
     }
@@ -104,7 +118,7 @@ class Place {
             .toList();
       }
     } catch (e) {
-      print('Error parsing gallery: $e');
+      debugPrint('Error parsing gallery: $e');
     }
     return null;
   }
@@ -120,7 +134,7 @@ class Place {
             .toList();
       }
     } catch (e) {
-      print('Error parsing tags: $e');
+      debugPrint('Error parsing tags: $e');
     }
     return null;
   }
@@ -133,7 +147,7 @@ class Place {
         return PlaceZone.fromJson(zoneData);
       }
     } catch (e) {
-      print('Error parsing zone: $e');
+      debugPrint('Error parsing zone: $e');
     }
     return null;
   }
@@ -169,6 +183,8 @@ class Place {
       'is_open_now': isOpenNow,
       'is_favorited': isFavorited,
       'favorites_count': favoritesCount,
+      'titles_count': titlesCount,
+      'is_current_champion': isCurrentChampion,
       'opening_hours': openingHours,
       'gallery': gallery?.map((e) => e.toJson()).toList(),
       'tags': tags?.map((e) => e.toJson()).toList(),
@@ -196,15 +212,18 @@ class PlaceImage {
     return PlaceImage(
       id: json['id'] ?? 0,
       placeId: json['place_id'] ?? 0,
-      image: json['image'] ?? json['image_full_url'] ?? '',
+      image: pickImageUrl([json['image_full_url'], json['image']]) ?? '',
       sortOrder: json['sort_order'] ?? 0,
       isPrimary: json['is_primary'] == true || json['is_primary'] == 1,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'place_id': placeId, 'image': image,
-    'sort_order': sortOrder, 'is_primary': isPrimary,
+    'id': id,
+    'place_id': placeId,
+    'image': image,
+    'sort_order': sortOrder,
+    'is_primary': isPrimary,
   };
 }
 
@@ -214,12 +233,7 @@ class PlaceTag {
   final String? nameAr;
   final String? icon;
 
-  PlaceTag({
-    required this.id,
-    required this.name,
-    this.nameAr,
-    this.icon,
-  });
+  PlaceTag({required this.id, required this.name, this.nameAr, this.icon});
 
   factory PlaceTag.fromJson(Map<String, dynamic> json) {
     return PlaceTag(
@@ -230,10 +244,16 @@ class PlaceTag {
     );
   }
 
-  String get localizedName => nameAr ?? name;
+  String get localizedName =>
+      (Get.locale?.languageCode == 'ar' && nameAr != null && nameAr!.isNotEmpty)
+          ? nameAr!
+          : name;
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name, 'name_ar': nameAr, 'icon': icon,
+    'id': id,
+    'name': name,
+    'name_ar': nameAr,
+    'icon': icon,
   };
 }
 
@@ -253,8 +273,8 @@ class PlaceList {
                   .map((item) => Place.fromJson(item))
                   .toList()
               : [],
-      totalSize: json['total_size'] ?? json['total'],
-      offset: json['offset'],
+      totalSize: json['total_size'] ?? json['total'] ?? json['meta']?['total'],
+      offset: json['offset'] ?? json['meta']?['current_page'],
       period: json['period'],
     );
   }
@@ -291,11 +311,12 @@ class PlaceZoneList {
 
   factory PlaceZoneList.fromJson(Map<String, dynamic> json) {
     return PlaceZoneList(
-      zones: json['data'] != null
-          ? (json['data'] as List)
-              .map((item) => PlaceZone.fromJson(item))
-              .toList()
-          : [],
+      zones:
+          json['data'] != null
+              ? (json['data'] as List)
+                  .map((item) => PlaceZone.fromJson(item))
+                  .toList()
+              : [],
     );
   }
 }
@@ -307,23 +328,38 @@ class TopVoter {
   final int? position;
   final String name;
   final String? avatar;
-  final int votesCount;
+
+  /// Cumulative loyalty points — one per week this voter cast their vote,
+  /// summed across every week they've played. A single week can't rank
+  /// anyone (voting is capped at 1/week), so this is the only real score.
+  final int points;
 
   TopVoter({
     required this.id,
     this.position,
     required this.name,
     this.avatar,
-    this.votesCount = 0,
+    this.points = 0,
   });
+
+  /// Kept so existing call sites keep compiling; same number as [points].
+  int get votesCount => points;
 
   factory TopVoter.fromJson(Map<String, dynamic> json) {
     return TopVoter(
       id: json['id'] ?? json['user_id'] ?? 0,
       position: json['position'],
       name: json['username'] ?? json['name'] ?? json['user']?['name'] ?? '',
-      avatar: json['image'] ?? json['image_full_url'] ?? json['avatar'] ?? json['user']?['image_full_url'] ?? json['user']?['avatar'],
-      votesCount: json['votes_count'] ?? 0,
+      avatar: pickImageUrl([
+        json['image_full_url'],
+        json['user']?['image_full_url'],
+        json['image'],
+        json['avatar'],
+        json['user']?['avatar'],
+      ]),
+      // `points` is the current key; `votes_count` is the legacy one the
+      // backend still emits so older builds don't render a wall of zeroes.
+      points: json['points'] ?? json['votes_count'] ?? 0,
     );
   }
 
@@ -332,7 +368,8 @@ class TopVoter {
     'position': position,
     'username': name,
     'image': avatar,
-    'votes_count': votesCount,
+    'points': points,
+    'votes_count': points,
   };
 }
 
@@ -346,9 +383,10 @@ class TopVoterList {
 
   factory TopVoterList.fromJson(Map<String, dynamic> json) {
     return TopVoterList(
-      voters: json['data'] != null
-          ? (json['data'] as List).map((e) => TopVoter.fromJson(e)).toList()
-          : [],
+      voters:
+          json['data'] != null
+              ? (json['data'] as List).map((e) => TopVoter.fromJson(e)).toList()
+              : [],
       period: json['period'],
     );
   }

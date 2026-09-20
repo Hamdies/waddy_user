@@ -23,29 +23,29 @@ class PrizeModel {
 
     // Parse grouped format: usable_prizes, used_prizes, expired_prizes
     if (json['usable_prizes'] != null) {
-      usable = (json['usable_prizes'] as List)
-          .map((p) => Prize.fromJson(p))
-          .toList();
+      usable =
+          (json['usable_prizes'] as List)
+              .map((p) => Prize.fromJson(p))
+              .toList();
       allPrizes.addAll(usable);
     }
     if (json['used_prizes'] != null) {
-      used = (json['used_prizes'] as List)
-          .map((p) => Prize.fromJson(p))
-          .toList();
+      used =
+          (json['used_prizes'] as List).map((p) => Prize.fromJson(p)).toList();
       allPrizes.addAll(used);
     }
     if (json['expired_prizes'] != null) {
-      expired = (json['expired_prizes'] as List)
-          .map((p) => Prize.fromJson(p))
-          .toList();
+      expired =
+          (json['expired_prizes'] as List)
+              .map((p) => Prize.fromJson(p))
+              .toList();
       allPrizes.addAll(expired);
     }
 
     // Fallback: flat prizes array
     if (allPrizes.isEmpty && json['prizes'] != null) {
-      allPrizes = (json['prizes'] as List)
-          .map((p) => Prize.fromJson(p))
-          .toList();
+      allPrizes =
+          (json['prizes'] as List).map((p) => Prize.fromJson(p)).toList();
     }
 
     return PrizeModel(
@@ -79,7 +79,8 @@ class Prize {
   final int? prizeId; // Prize template ID
   final int level;
   final String? levelName;
-  final String type; // badge, free_delivery, discount, wallet_credit, free_item, custom
+  final String
+  type; // badge, free_delivery, discount, wallet_credit, free_item, custom
   final String title;
   final String? description;
   final double? value;
@@ -134,18 +135,22 @@ class Prize {
       status: status,
       isClaimed: json['is_claimed'] ?? status == 'claimed',
       isUsable: json['is_usable'] ?? false,
-      unlockedAt: json['unlocked_at'] != null
-          ? DateTime.tryParse(json['unlocked_at'].toString())
-          : null,
-      claimedAt: json['claimed_at'] != null
-          ? DateTime.tryParse(json['claimed_at'].toString())
-          : null,
-      expiresAt: json['expires_at'] != null
-          ? DateTime.tryParse(json['expires_at'].toString())
-          : null,
-      usedAt: json['used_at'] != null
-          ? DateTime.tryParse(json['used_at'].toString())
-          : null,
+      unlockedAt:
+          json['unlocked_at'] != null
+              ? DateTime.tryParse(json['unlocked_at'].toString())
+              : null,
+      claimedAt:
+          json['claimed_at'] != null
+              ? DateTime.tryParse(json['claimed_at'].toString())
+              : null,
+      expiresAt:
+          json['expires_at'] != null
+              ? DateTime.tryParse(json['expires_at'].toString())
+              : null,
+      usedAt:
+          json['used_at'] != null
+              ? DateTime.tryParse(json['used_at'].toString())
+              : null,
       icon: json['icon'],
     );
   }

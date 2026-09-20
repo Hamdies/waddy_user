@@ -8,6 +8,7 @@ import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_status.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ZomatoOrderInfoCard
@@ -31,6 +32,7 @@ class ZomatoOrderInfoCard extends StatefulWidget {
   final OrderController orderController;
   final VoidCallback? onViewDetails;
   final bool ongoing;
+
   /// When non-null, overrides internal OTP visibility logic.
   /// Allows parent to control when OTP appears (e.g. only when rider is en-route).
   final bool? showOtpOverride;
@@ -49,7 +51,6 @@ class ZomatoOrderInfoCard extends StatefulWidget {
 }
 
 class _ZomatoOrderInfoCardState extends State<ZomatoOrderInfoCard> {
-
   @override
   Widget build(BuildContext context) {
     final items = widget.orderController.orderDetails ?? [];
@@ -58,10 +59,11 @@ class _ZomatoOrderInfoCardState extends State<ZomatoOrderInfoCard> {
     );
     final bool enRoute =
         status == OrderStatus.handover || status == OrderStatus.pickedUp;
-    final bool showOtp = widget.showOtpOverride ??
+    final bool showOtp =
+        widget.showOtpOverride ??
         (widget.ongoing &&
-        widget.order.otp != null &&
-        widget.order.otp!.isNotEmpty);
+            widget.order.otp != null &&
+            widget.order.otp!.isNotEmpty);
 
     if (enRoute) {
       return _CompactOrderStrip(
@@ -93,10 +95,12 @@ class _ZomatoOrderInfoCardState extends State<ZomatoOrderInfoCard> {
         ],
 
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
+          margin: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
           decoration: BoxDecoration(
             color: WaddyColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -122,7 +126,8 @@ class _ZomatoOrderInfoCardState extends State<ZomatoOrderInfoCard> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                 child: _StepProgressBar(
                   steps: 3,
-                  completed: (orderReceived ? 1 : 0) +
+                  completed:
+                      (orderReceived ? 1 : 0) +
                       (kitchenInProgress ? 1 : 0) +
                       (riderAssigned ? 1 : 0),
                 ),
@@ -148,7 +153,6 @@ class _ZomatoOrderInfoCardState extends State<ZomatoOrderInfoCard> {
       ],
     );
   }
-
 }
 
 // ─── Compact strip shown during en-route ──────────────────────────────────────
@@ -176,11 +180,16 @@ class _CompactOrderStrip extends StatelessWidget {
         ],
 
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          margin: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeMedium,
+            vertical: Dimensions.paddingSizeMedium,
+          ),
           decoration: BoxDecoration(
             color: WaddyColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.07),
@@ -226,12 +235,12 @@ class _CompactOrderStrip extends StatelessWidget {
               // Order ID chip
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: Dimensions.paddingSizeSmall,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: WaddyColors.surfaceRaised,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                   border: Border.all(color: WaddyColors.divider),
                 ),
                 child: Text(
@@ -327,10 +336,13 @@ class _ItemHeader extends StatelessWidget {
           GestureDetector(
             onTap: onViewDetails,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeSmall,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
                 color: WaddyColors.primarySurface,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
               ),
               child: Text(
                 'View',
@@ -505,7 +517,8 @@ class _OrderTimeline extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _StepLabel(
-                  title: riderAssigned ? 'Rider on the way!' : 'Finding a rider',
+                  title:
+                      riderAssigned ? 'Rider on the way!' : 'Finding a rider',
                   subtitle:
                       riderAssigned
                           ? _riderLabel(status)
@@ -668,12 +681,11 @@ class _StepLabel extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
-      padding: active
-          ? const EdgeInsets.fromLTRB(10, 8, 10, 8)
-          : EdgeInsets.zero,
+      padding:
+          active ? const EdgeInsets.fromLTRB(10, 8, 10, 8) : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: active ? WaddyColors.primarySurface : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: minHeight),
@@ -758,14 +770,16 @@ class _OtpBlockState extends State<_OtpBlock>
       animation: _glow,
       builder:
           (_, __) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF0D3B38), Color(0xFF134E4A)],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
               boxShadow: [
                 BoxShadow(
                   color: WaddyColors.primary.withValues(
@@ -789,7 +803,9 @@ class _OtpBlockState extends State<_OtpBlock>
                         height: 36,
                         decoration: BoxDecoration(
                           color: WaddyColors.mint.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(11),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusDefault,
+                          ),
                           border: Border.all(
                             color: WaddyColors.mint.withValues(alpha: 0.25),
                           ),
@@ -840,8 +856,8 @@ class _OtpBlockState extends State<_OtpBlock>
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
+                                horizontal: Dimensions.paddingSizeSmall,
+                                vertical: Dimensions.paddingSizeSmall,
                               ),
                               decoration: BoxDecoration(
                                 color:
@@ -923,7 +939,9 @@ class _OtpBlockState extends State<_OtpBlock>
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
                                   border: Border.all(
                                     color: WaddyColors.mint.withValues(
                                       alpha: 0.30,
@@ -963,12 +981,15 @@ class _CardFooter extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAF9),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          bottomLeft: Radius.circular(Dimensions.radiusExtraLarge),
+          bottomRight: Radius.circular(Dimensions.radiusExtraLarge),
         ),
         border: Border(top: BorderSide(color: WaddyColors.divider)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeMedium,
+      ),
       child: Row(
         children: [
           Column(
@@ -1013,7 +1034,10 @@ class _PaymentChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = _label();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.primarySurface,
         borderRadius: BorderRadius.circular(999),
@@ -1077,7 +1101,9 @@ class _StepProgressBar extends StatelessWidget {
       case 3:
         return 'Rider assigned';
       default:
-        return completed >= steps ? 'Ready for pickup' : 'Step $completed of $steps';
+        return completed >= steps
+            ? 'Ready for pickup'
+            : 'Step $completed of $steps';
     }
   }
 
@@ -1089,7 +1115,7 @@ class _StepProgressBar extends StatelessWidget {
       children: [
         // Track + fill
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
           child: SizedBox(
             height: 6,
             child: Stack(
@@ -1098,7 +1124,7 @@ class _StepProgressBar extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     color: WaddyColors.progressTrack,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                 ),
                 // Fill
@@ -1112,7 +1138,9 @@ class _StepProgressBar extends StatelessWidget {
                       gradient: const LinearGradient(
                         colors: [WaddyColors.primary, WaddyColors.mintDark],
                       ),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusSmall,
+                      ),
                     ),
                   ),
                 ),
@@ -1136,11 +1164,15 @@ class _StepProgressBar extends StatelessWidget {
                     height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: done ? WaddyColors.mintDark : WaddyColors.progressTrack,
+                      color:
+                          done
+                              ? WaddyColors.mintDark
+                              : WaddyColors.progressTrack,
                       border: Border.all(
-                        color: done
-                            ? WaddyColors.mintDark
-                            : WaddyColors.inkMuted.withValues(alpha: 0.3),
+                        color:
+                            done
+                                ? WaddyColors.mintDark
+                                : WaddyColors.inkMuted.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -1151,9 +1183,10 @@ class _StepProgressBar extends StatelessWidget {
             Text(
               _stepLabel(),
               style: waddyMicro.copyWith(
-                color: completed == steps
-                    ? WaddyColors.mintDark
-                    : WaddyColors.inkLight,
+                color:
+                    completed == steps
+                        ? WaddyColors.mintDark
+                        : WaddyColors.inkLight,
                 fontWeight: FontWeight.w600,
                 fontSize: 10.5,
               ),
@@ -1191,11 +1224,13 @@ class AnimatedFractionallySizedBoxState
 
   @override
   void forEachTween(TweenVisitor<dynamic> visitor) {
-    _widthFactor = visitor(
-      _widthFactor,
-      widget.widthFactor,
-      (v) => Tween<double>(begin: v as double),
-    ) as Tween<double>?;
+    _widthFactor =
+        visitor(
+              _widthFactor,
+              widget.widthFactor,
+              (v) => Tween<double>(begin: v as double),
+            )
+            as Tween<double>?;
   }
 
   @override

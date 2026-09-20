@@ -1,4 +1,3 @@
-
 class LandingModel {
   String? fixedHeaderTitle;
   String? fixedHeaderSubTitle;
@@ -82,7 +81,10 @@ class LandingModel {
         specialCriterias!.add(SpecialCriterias.fromJson(v));
       });
     }
-    downloadUserAppLinks = json['download_user_app_links'] != null ? DownloadUserAppLinks.fromJson(json['download_user_app_links']) : null;
+    downloadUserAppLinks =
+        json['download_user_app_links'] != null
+            ? DownloadUserAppLinks.fromJson(json['download_user_app_links'])
+            : null;
     availableZoneStatus = json['available_zone_status'];
     availableZoneTitle = json['available_zone_title'];
     availableZoneShortDescription = json['available_zone_short_description'];
@@ -118,7 +120,8 @@ class LandingModel {
     data['download_user_app_sub_title'] = downloadUserAppSubTitle;
     data['download_user_app_image_full_url'] = downloadUserAppImageFullUrl;
     if (specialCriterias != null) {
-      data['special_criterias'] = specialCriterias!.map((v) => v.toJson()).toList();
+      data['special_criterias'] =
+          specialCriterias!.map((v) => v.toJson()).toList();
     }
     if (downloadUserAppLinks != null) {
       data['download_user_app_links'] = downloadUserAppLinks!.toJson();
@@ -129,7 +132,8 @@ class LandingModel {
     data['available_zone_image'] = availableZoneImage;
     data['available_zone_image_full_url'] = availableZoneImageFullUrl;
     if (availableZoneList != null) {
-      data['available_zone_list'] = availableZoneList!.map((v) => v.toJson()).toList();
+      data['available_zone_list'] =
+          availableZoneList!.map((v) => v.toJson()).toList();
     }
     data['join_seller_status'] = joinSellerStatus;
     data['join_delivery_man_status'] = joinDeliveryManStatus;

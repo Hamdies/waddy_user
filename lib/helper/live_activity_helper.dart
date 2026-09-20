@@ -23,7 +23,6 @@ class LiveActivityData {
 }
 
 class LiveActivityHelper {
-
   static LiveActivityData getActivityData({
     required String status,
     String? subStatus,
@@ -103,6 +102,12 @@ class LiveActivityHelper {
   }
 
   static bool isTerminalStatus(String status) {
-    return ['delivered', 'failed', 'canceled', 'refund_requested', 'refunded'].contains(status);
+    return [
+      'delivered',
+      'failed',
+      'canceled',
+      'refund_requested',
+      'refunded',
+    ].contains(status);
   }
 }

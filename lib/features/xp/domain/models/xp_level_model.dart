@@ -10,6 +10,17 @@ class XpLevelModel {
   final NextLevel? nextLevel;
   final List<Level> allLevels;
 
+  /// Real identity for the home hero: the user's global XP rank and their
+  /// neighbourhood (zone) name — the "RANK #128 · MAADI" line. Null when the
+  /// server didn't supply them (older backend / no zone set).
+  final int? rank;
+  final String? zoneName;
+
+  /// Most recent positive XP award and how long ago it landed, so the
+  /// "+N XP JUST EARNED" toast only shows for a genuinely recent earn.
+  final int? recentEarnedXp;
+  final int? recentEarnedSecondsAgo;
+
   XpLevelModel({
     required this.currentLevel,
     required this.levelName,
@@ -21,9 +32,14 @@ class XpLevelModel {
     this.isMaxLevel = false,
     this.nextLevel,
     this.allLevels = const [],
+    this.rank,
+    this.zoneName,
+    this.recentEarnedXp,
+    this.recentEarnedSecondsAgo,
   });
 
   factory XpLevelModel.fromJson(Map<String, dynamic> json) {
+    final recent = json['recent_earned'];
     return XpLevelModel(
       currentLevel: json['current_level'] ?? 1,
       levelName: json['level_name'] ?? 'Newbie',
@@ -34,15 +50,27 @@ class XpLevelModel {
       xpToNextLevel: json['xp_to_next_level'] ?? 100,
       progressPercentage: (json['progress_percentage'] ?? 0.0).toDouble(),
       isMaxLevel: json['is_max_level'] ?? false,
-      nextLevel: json['next_level'] != null
-          ? NextLevel.fromJson(json['next_level'])
-          : null,
+      nextLevel:
+          json['next_level'] != null
+              ? NextLevel.fromJson(json['next_level'])
+              : null,
       allLevels:
           json['all_levels'] != null
               ? (json['all_levels'] as List)
                   .map((level) => Level.fromJson(level))
                   .toList()
               : [],
+      rank:
+          json['rank'] is int
+              ? json['rank']
+              : int.tryParse('${json['rank'] ?? ''}'),
+      zoneName:
+          (json['zone_name'] == null || '${json['zone_name']}'.isEmpty)
+              ? null
+              : '${json['zone_name']}',
+      recentEarnedXp: recent is Map ? recent['xp'] as int? : null,
+      recentEarnedSecondsAgo:
+          recent is Map ? recent['seconds_ago'] as int? : null,
     );
   }
 
@@ -114,10 +142,14 @@ class Level {
     this.prizes = const [],
   });
 
-  factory Level.fromJson(Map<String, dynamic> json, {int? currentLevel, int? currentXp}) {
+  factory Level.fromJson(
+    Map<String, dynamic> json, {
+    int? currentLevel,
+    int? currentXp,
+  }) {
     final levelNumber = json['level_number'] ?? json['level'] ?? 1;
     final xpRequired = json['xp_required'] ?? 0;
-    
+
     // Determine unlock status:
     // 1. First check backend's is_unlocked
     // 2. If not provided, check if user has enough XP
@@ -129,13 +161,13 @@ class Level {
     if (!isUnlocked && currentLevel != null && levelNumber <= currentLevel) {
       isUnlocked = true;
     }
-    
+
     // Determine if this is the current active level
     bool isCurrent = json['is_current'] ?? false;
     if (!isCurrent && currentLevel != null) {
       isCurrent = levelNumber == currentLevel;
     }
-    
+
     return Level(
       level: levelNumber,
       name: json['name'] ?? '',
@@ -246,12 +278,15 @@ class LevelsListModel {
   factory LevelsListModel.fromJson(Map<String, dynamic> json) {
     final backendCurrentLevel = json['current_level'] ?? 1;
     final currentXp = json['current_xp'] ?? 0;
-    
+
     // Parse levels first to calculate the actual current level based on XP
-    final levelsList = json['levels'] != null
-        ? (json['levels'] as List).map((l) => l as Map<String, dynamic>).toList()
-        : <Map<String, dynamic>>[];
-    
+    final levelsList =
+        json['levels'] != null
+            ? (json['levels'] as List)
+                .map((l) => l as Map<String, dynamic>)
+                .toList()
+            : <Map<String, dynamic>>[];
+
     // Calculate actual current level based on XP (highest level user qualifies for)
     int calculatedCurrentLevel = backendCurrentLevel;
     for (var levelJson in levelsList) {
@@ -261,22 +296,24 @@ class LevelsListModel {
         calculatedCurrentLevel = levelNum;
       }
     }
-    
+
     // Use the higher of backend's current_level or calculated level
-    final effectiveCurrentLevel = calculatedCurrentLevel > backendCurrentLevel 
-        ? calculatedCurrentLevel 
-        : backendCurrentLevel;
-    
+    final effectiveCurrentLevel =
+        calculatedCurrentLevel > backendCurrentLevel
+            ? calculatedCurrentLevel
+            : backendCurrentLevel;
+
     return LevelsListModel(
-      levels: levelsList
-          .map(
-            (level) => Level.fromJson(
-              level, 
-              currentLevel: effectiveCurrentLevel,
-              currentXp: currentXp,
-            ),
-          )
-          .toList(),
+      levels:
+          levelsList
+              .map(
+                (level) => Level.fromJson(
+                  level,
+                  currentLevel: effectiveCurrentLevel,
+                  currentXp: currentXp,
+                ),
+              )
+              .toList(),
       currentLevel: effectiveCurrentLevel,
       currentXp: currentXp,
       xpForNextLevel: json['xp_for_next_level'],

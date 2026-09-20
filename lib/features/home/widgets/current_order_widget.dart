@@ -11,6 +11,7 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class CurrentOrderWidget extends StatelessWidget {
   const CurrentOrderWidget({super.key});
@@ -21,13 +22,14 @@ class CurrentOrderWidget extends StatelessWidget {
 
     return GetBuilder<OrderController>(
       builder: (ctrl) {
-        final orders = ctrl.runningOrderModel?.orders
-            ?.where((o) => o.orderStatus != AppConstants.delivered)
-            .toList();
+        final orders =
+            ctrl.runningOrderModel?.orders
+                ?.where((o) => o.orderStatus != AppConstants.delivered)
+                .toList();
         if (orders == null || orders.isEmpty) return const SizedBox.shrink();
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: _OrderCard(order: orders.first),
         );
       },
@@ -112,9 +114,13 @@ class _OrderCard extends StatelessWidget {
     final label = _statusLabel(status);
     final lottie = _lottieForStatus(status);
 
+    // "Arriving now" only once the courier is actually en route \u2014 an expired
+    // ETA on a pending order must not contradict the "Order Placed" status.
+    final bool courierEnRoute = status == AppConstants.pickedUp;
     final String subtitle;
     if (eta == 'now'.tr) {
-      subtitle = '$storeName \u00b7 ${'arriving_now'.tr}';
+      subtitle =
+          courierEnRoute ? '$storeName \u00b7 ${'arriving_now'.tr}' : storeName;
     } else if (eta.isNotEmpty) {
       subtitle = '$storeName \u00b7 $eta';
     } else {
@@ -128,12 +134,15 @@ class _OrderCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: _goToDetails,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeMedium,
+              vertical: Dimensions.paddingSizeMedium,
+            ),
             decoration: BoxDecoration(
               color: WaddyColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
               border: Border.all(
                 color: WaddyColors.primary.withValues(alpha: 0.18),
                 width: 1.2,
@@ -155,10 +164,14 @@ class _OrderCard extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: WaddyColors.primarySurface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       child: Lottie.asset(
                         lottie,
                         fit: BoxFit.cover,
@@ -174,7 +187,7 @@ class _OrderCard extends StatelessWidget {
                       children: [
                         Text(
                           label,
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 11,
                             color: WaddyColors.primary,
                             letterSpacing: 0.3,
@@ -185,7 +198,7 @@ class _OrderCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle,
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: 12,
                             color: WaddyColors.ink,
                           ),
@@ -197,20 +210,27 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 44),
+                    // 48, not 44: this is the track-order CTA on a live order,
+                    // the one control the user is most likely to be reaching
+                    // for one-handed while walking.
+                    constraints: const BoxConstraints(
+                      minHeight: Dimensions.minTapTarget,
+                    ),
                     child: Container(
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                        horizontal: Dimensions.paddingSizeMedium,
+                        vertical: Dimensions.paddingSizeSmall,
                       ),
                       decoration: BoxDecoration(
                         color: WaddyColors.primary,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusDefault,
+                        ),
                       ),
                       child: Text(
                         'track'.tr,
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: 12,
                           color: Colors.white,
                         ),

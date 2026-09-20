@@ -17,20 +17,33 @@ class FlashSaleRepository implements FlashSaleRepositoryInterface {
   @override
   Future<FlashSaleModel?> getFlashSale({required DataSourceEnum source}) async {
     FlashSaleModel? flashSaleModel;
-    String cacheId = '${AppConstants.flashSaleUri}-${Get.find<SplashController>().module!.id!}';
+    String cacheId =
+        '${AppConstants.flashSaleUri}-${Get.find<SplashController>().module!.id!}';
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
         Response response = await apiClient.getData(AppConstants.flashSaleUri);
-        if(response.statusCode == 200) {
+        if (response.statusCode == 200) {
           flashSaleModel = FlashSaleModel.fromJson(response.body);
-          LocalClient.organize(source, cacheId, jsonEncode(response.body), apiClient.getHeader());
+          LocalClient.organize(
+            source,
+            cacheId,
+            jsonEncode(response.body),
+            apiClient.getHeader(),
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(source, cacheId, null, null);
-        if(cacheResponseData != null) {
-          flashSaleModel = FlashSaleModel.fromJson(jsonDecode(cacheResponseData));
+        String? cacheResponseData = await LocalClient.organize(
+          source,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
+          flashSaleModel = FlashSaleModel.fromJson(
+            jsonDecode(cacheResponseData),
+          );
         }
     }
 
@@ -40,8 +53,10 @@ class FlashSaleRepository implements FlashSaleRepositoryInterface {
   @override
   Future<ProductFlashSale?> getFlashSaleWithId(int id, int offset) async {
     ProductFlashSale? productFlashSale;
-    Response response = await apiClient.getData('${AppConstants.flashSaleProductsUri}?flash_sale_id=$id&offset=$offset&limit=10');
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      '${AppConstants.flashSaleProductsUri}?flash_sale_id=$id&offset=$offset&limit=10',
+    );
+    if (response.statusCode == 200) {
       productFlashSale = ProductFlashSale.fromJson(response.body);
     }
     return productFlashSale;
@@ -71,5 +86,4 @@ class FlashSaleRepository implements FlashSaleRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

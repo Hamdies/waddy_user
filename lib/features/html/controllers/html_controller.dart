@@ -13,18 +13,19 @@ class HtmlController extends GetxController implements GetxService {
     _htmlText = null;
     Response response = await htmlServiceInterface.getHtmlText(htmlType);
     if (response.statusCode == 200) {
-      if(response.body != null && response.body.isNotEmpty && response.body is String){
+      if (response.body != null &&
+          response.body.isNotEmpty &&
+          response.body is String) {
         _htmlText = response.body;
-      }else{
+      } else {
         _htmlText = '';
       }
-      if(_htmlText != null && _htmlText!.isNotEmpty) {
+      if (_htmlText != null && _htmlText!.isNotEmpty) {
         _htmlText = _htmlText!.replaceAll('href=', 'target="_blank" href=');
-      }else {
+      } else {
         _htmlText = '';
       }
     }
     update();
   }
-
 }

@@ -1,5 +1,10 @@
 class Images {
-  static const String logo = 'assets/image/logo.png';
+  static const String logo = 'assets/image/waddy.png';
+  static const String logoNoBg = 'assets/image/waddy.png';
+
+  /// Transparent-background W mark. Unlike [logoNoBg] this really is the
+  /// bare glyph, so it can be recolored with a ColorFilter.
+  static const String logoMarkTransparent = 'assets/image/logo_no_bg.png';
   static const String waddyLogo = 'assets/image/waddy.png';
   static const String logoModern = 'assets/image/logo_modern.svg';
   static const String scratchCardLogo = 'assets/image/Group 3.png';

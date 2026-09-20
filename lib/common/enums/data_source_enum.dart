@@ -1,1 +1,1 @@
-enum DataSourceEnum {client, local}
+enum DataSourceEnum { client, local }

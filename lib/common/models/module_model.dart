@@ -1,3 +1,46 @@
+import 'package:waddy_app/util/app_constants.dart';
+
+/// The kinds of module the app knows how to render.
+///
+/// `module_type` arrives as a bare string and used to be compared by hand in
+/// 41 places — `module?.moduleType.toString() == AppConstants.food`, including
+/// 26 `.toString()` calls on a field already declared `String?`. A typo in any
+/// of them is a silently wrong branch, and adding a module meant finding all
+/// 41 by grep. Parsing once at the model boundary turns every one of those into
+/// a comparison the compiler checks, and a `switch` over this enum tells you at
+/// compile time when a case is missing.
+///
+/// [wire] is the string the backend sends and the header carries; it stays the
+/// currency at the API edge, and this enum is the currency everywhere else.
+enum ModuleType {
+  grocery(AppConstants.grocery),
+  food(AppConstants.food),
+  pharmacy(AppConstants.pharmacy),
+  ecommerce(AppConstants.ecommerce),
+  parcel(AppConstants.parcel),
+  places(AppConstants.places),
+
+  /// A module type this build does not know — a new one the backend has
+  /// started serving, or a missing field. Never matches a real branch, so the
+  /// app falls through to its generic handling rather than guessing.
+  unknown('');
+
+  const ModuleType(this.wire);
+
+  final String wire;
+
+  /// The type for a raw `module_type` string. Case-insensitive: the payload
+  /// has been seen with both casings, which is what the scattered
+  /// `?.toLowerCase()` calls were patching over one site at a time.
+  static ModuleType of(String? value) {
+    if (value == null) return ModuleType.unknown;
+    final String normalised = value.toLowerCase().trim();
+    for (final ModuleType type in ModuleType.values) {
+      if (type != ModuleType.unknown && type.wire == normalised) return type;
+    }
+    return ModuleType.unknown;
+  }
+}
 
 class ModuleModel {
   int? id;
@@ -11,6 +54,9 @@ class ModuleModel {
   String? createdAt;
   String? updatedAt;
   List<ModuleZoneData>? zones;
+
+  /// This module's kind, parsed once. Prefer this to comparing [moduleType].
+  ModuleType get type => ModuleType.of(moduleType);
 
   ModuleModel({
     this.id,

@@ -13,6 +13,7 @@ class PrizeSelectionWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<XpController>(
+      id: XpController.idCheckoutPrizes,
       builder: (xpController) {
         // Don't show if no prizes available
         if (xpController.checkoutPrizes.isEmpty &&
@@ -52,7 +53,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                     const SizedBox(width: Dimensions.paddingSizeSmall),
                     Text(
                       'apply_xp_prize'.tr,
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                       ),
                     ),
@@ -140,7 +141,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                                       Expanded(
                                         child: Text(
                                           prize.title,
-                                          style: robotoMedium.copyWith(
+                                          style: waddyMedium.copyWith(
                                             fontSize:
                                                 Dimensions.fontSizeDefault,
                                           ),
@@ -152,7 +153,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                                     const SizedBox(height: 4),
                                     Text(
                                       _formatExpiry(prize),
-                                      style: robotoRegular.copyWith(
+                                      style: waddyRegular.copyWith(
                                         fontSize: Dimensions.fontSizeSmall,
                                         color: _getExpiryColor(prize),
                                       ),
@@ -166,16 +167,18 @@ class PrizeSelectionWidget extends StatelessWidget {
                             if (prize.isFreeDelivery)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: Dimensions.paddingSizeSmall,
+                                  vertical: Dimensions.paddingSizeExtraSmall,
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault,
+                                  ),
                                 ),
                                 child: Text(
                                   'free_delivery'.tr,
-                                  style: robotoMedium.copyWith(
+                                  style: waddyMedium.copyWith(
                                     fontSize: Dimensions.fontSizeExtraSmall,
                                     color: Colors.green,
                                   ),
@@ -220,7 +223,7 @@ class PrizeSelectionWidget extends StatelessWidget {
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: iconColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
       ),
       child: Icon(iconData, size: 16, color: iconColor),
     );

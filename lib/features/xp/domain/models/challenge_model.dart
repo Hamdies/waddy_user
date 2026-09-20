@@ -15,7 +15,7 @@ class ChallengeModel {
     List<Challenge> daily = [];
     List<Challenge> weekly = [];
 
-    // Handle new API format: { "challenges": { "daily": {...}, "weekly": {...} }, "has_daily": true }
+    // API format: { "challenges": { "daily": {...}, "weekly": {...} }, "has_daily": true }
     if (json['challenges'] != null) {
       final challenges = json['challenges'];
 
@@ -37,21 +37,6 @@ class ChallengeModel {
         } else if (weeklyData is Map<String, dynamic>) {
           weekly = [Challenge.fromJson(weeklyData)];
         }
-      }
-    }
-    // Handle old API format: { "daily_challenges": [...], "weekly_challenges": [...] }
-    else {
-      if (json['daily_challenges'] != null) {
-        daily =
-            (json['daily_challenges'] as List)
-                .map((c) => Challenge.fromJson(c))
-                .toList();
-      }
-      if (json['weekly_challenges'] != null) {
-        weekly =
-            (json['weekly_challenges'] as List)
-                .map((c) => Challenge.fromJson(c))
-                .toList();
       }
     }
 
@@ -84,7 +69,8 @@ class Challenge {
   final int id; // User-assignment ID (use this for claiming)
   final int? challengeId; // Template challenge ID
   final String type; // daily, weekly
-  final String challengeType; // complete_order, min_order_amount, multiple_orders, new_store
+  final String
+  challengeType; // complete_order, min_order_amount, multiple_orders, new_store
   final String title;
   final String description;
   final int xpReward;
@@ -162,18 +148,22 @@ class Challenge {
       status: status,
       currentProgress: currentProgress,
       targetProgress: targetProgress,
-      conditions: json['conditions'] is Map<String, dynamic>
-          ? json['conditions']
-          : null,
-      startedAt: json['started_at'] != null
-          ? DateTime.tryParse(json['started_at'])
-          : null,
-      expiresAt: json['expires_at'] != null
-          ? DateTime.tryParse(json['expires_at'].toString())
-          : null,
-      completedAt: json['completed_at'] != null
-          ? DateTime.tryParse(json['completed_at'])
-          : null,
+      conditions:
+          json['conditions'] is Map<String, dynamic>
+              ? json['conditions']
+              : null,
+      startedAt:
+          json['started_at'] != null
+              ? DateTime.tryParse(json['started_at'])
+              : null,
+      expiresAt:
+          json['expires_at'] != null
+              ? DateTime.tryParse(json['expires_at'].toString())
+              : null,
+      completedAt:
+          json['completed_at'] != null
+              ? DateTime.tryParse(json['completed_at'])
+              : null,
       icon: json['icon'],
       actionType: json['action_type'] ?? json['challenge_type'],
     );

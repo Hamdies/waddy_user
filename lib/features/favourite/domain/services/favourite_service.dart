@@ -17,7 +17,11 @@ class FavouriteService implements FavouriteServiceInterface {
 
   @override
   Future<ResponseModel> addFavouriteList(int? id, bool isStore) async {
-    return await favouriteRepositoryInterface.add(null, isStore: isStore, id: id);
+    return await favouriteRepositoryInterface.add(
+      null,
+      isStore: isStore,
+      id: id,
+    );
   }
 
   @override
@@ -30,8 +34,8 @@ class FavouriteService implements FavouriteServiceInterface {
     List<Item?> wishItemList = [];
     for (var zone in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
       for (var module in zone.modules!) {
-        if(module.id == item.moduleId){
-          if(module.pivot!.zoneId == item.zoneId){
+        if (module.id == item.moduleId) {
+          if (module.pivot!.zoneId == item.zoneId) {
             wishItemList.add(item);
           }
         }
@@ -41,12 +45,12 @@ class FavouriteService implements FavouriteServiceInterface {
   }
 
   @override
-  List<int?> wishItemIdList (Item item) {
+  List<int?> wishItemIdList(Item item) {
     List<int?> wishItemIdList = [];
     for (var zone in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
       for (var module in zone.modules!) {
-        if(module.id == item.moduleId){
-          if(module.pivot!.zoneId == item.zoneId){
+        if (module.id == item.moduleId) {
+          if (module.pivot!.zoneId == item.zoneId) {
             wishItemIdList.add(item.id);
           }
         }
@@ -60,8 +64,8 @@ class FavouriteService implements FavouriteServiceInterface {
     List<Store?> wishStoreList = [];
     for (var zone in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
       for (var module in zone.modules!) {
-        if(module.id == Store.fromJson(store).moduleId){
-          if(module.pivot!.zoneId == Store.fromJson(store).zoneId){
+        if (module.id == Store.fromJson(store).moduleId) {
+          if (module.pivot!.zoneId == Store.fromJson(store).zoneId) {
             wishStoreList.add(Store.fromJson(store));
           }
         }
@@ -75,8 +79,8 @@ class FavouriteService implements FavouriteServiceInterface {
     List<int?> wishStoreIdList = [];
     for (var zone in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
       for (var module in zone.modules!) {
-        if(module.id == Store.fromJson(store).moduleId){
-          if(module.pivot!.zoneId == Store.fromJson(store).zoneId){
+        if (module.id == Store.fromJson(store).moduleId) {
+          if (module.pivot!.zoneId == Store.fromJson(store).zoneId) {
             wishStoreIdList.add(Store.fromJson(store).id);
           }
         }
@@ -84,5 +88,4 @@ class FavouriteService implements FavouriteServiceInterface {
     }
     return wishStoreIdList;
   }
-
 }

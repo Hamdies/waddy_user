@@ -18,32 +18,49 @@ class BusinessController extends GetxController implements GetxService {
   String? _digitalPaymentName;
   String? get digitalPaymentName => _digitalPaymentName;
 
-  void changeDigitalPaymentName(String? name, {bool canUpdate = true}){
+  void changeDigitalPaymentName(String? name, {bool canUpdate = true}) {
     _digitalPaymentName = name;
-    if(canUpdate) {
+    if (canUpdate) {
       update();
     }
   }
 
-  void setPaymentIndex(int index){
+  void setPaymentIndex(int index) {
     _paymentIndex = index;
     update();
   }
 
-  Future<void> submitBusinessPlan({required int storeId, required int? packageId})async {
+  Future<void> submitBusinessPlan({
+    required int storeId,
+    required int? packageId,
+  }) async {
     _isLoading = true;
     update();
 
-    if(packageId != null) {
+    if (packageId != null) {
       _businessPlanStatus = 'payment';
-      _businessPlanStatus = await businessServiceInterface.processesBusinessPlan(_businessPlanStatus, _paymentIndex, storeId, _digitalPaymentName, packageId);
+      _businessPlanStatus = await businessServiceInterface
+          .processesBusinessPlan(
+            _businessPlanStatus,
+            _paymentIndex,
+            storeId,
+            _digitalPaymentName,
+            packageId,
+          );
     } else {
       String businessPlan = 'commission';
-      await businessServiceInterface.setUpBusinessPlan(BusinessPlanBody(businessPlan: businessPlan, storeId: storeId.toString()), _digitalPaymentName, businessPlanStatus, storeId);
+      await businessServiceInterface.setUpBusinessPlan(
+        BusinessPlanBody(
+          businessPlan: businessPlan,
+          storeId: storeId.toString(),
+        ),
+        _digitalPaymentName,
+        businessPlanStatus,
+        storeId,
+      );
     }
 
     _isLoading = false;
     update();
   }
-
 }

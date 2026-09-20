@@ -13,20 +13,21 @@ class FundBonusModel {
   String? updatedAt;
   List<Translations>? translations;
 
-  FundBonusModel(
-      {this.id,
-        this.title,
-        this.description,
-        this.bonusType,
-        this.bonusAmount,
-        this.minimumAddAmount,
-        this.maximumBonusAmount,
-        this.startDate,
-        this.endDate,
-        this.status,
-        this.createdAt,
-        this.updatedAt,
-        this.translations});
+  FundBonusModel({
+    this.id,
+    this.title,
+    this.description,
+    this.bonusType,
+    this.bonusAmount,
+    this.minimumAddAmount,
+    this.maximumBonusAmount,
+    this.startDate,
+    this.endDate,
+    this.status,
+    this.createdAt,
+    this.updatedAt,
+    this.translations,
+  });
 
   FundBonusModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -80,15 +81,16 @@ class Translations {
   String? createdAt;
   String? updatedAt;
 
-  Translations(
-      {this.id,
-        this.translationableType,
-        this.translationableId,
-        this.locale,
-        this.key,
-        this.value,
-        this.createdAt,
-        this.updatedAt});
+  Translations({
+    this.id,
+    this.translationableType,
+    this.translationableId,
+    this.locale,
+    this.key,
+    this.value,
+    this.createdAt,
+    this.updatedAt,
+  });
 
   Translations.fromJson(Map<String, dynamic> json) {
     id = json['id'];

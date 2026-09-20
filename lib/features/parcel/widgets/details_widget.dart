@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -12,42 +11,78 @@ class DetailsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: waddyMedium),
+        const SizedBox(height: Dimensions.paddingSizeExtraSmall),
 
-      Text(title, style: robotoMedium),
-      const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+        Text(
+          address!.contactPersonName ?? '',
+          style: waddyRegular.copyWith(
+            fontSize: Dimensions.fontSizeSmall,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
 
-      Text(
-        address!.contactPersonName ?? '',
-        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
-      ),
+        Text(
+          address!.address ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: waddyRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+        ),
 
-      Text(
-        address!.address ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-      ),
+        Wrap(
+          children: [
+            (address!.streetNumber != null && address!.streetNumber!.isNotEmpty)
+                ? Text(
+                  '${'street_number'.tr}: ${address!.streetNumber!}, ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: waddyRegular.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                    color: Theme.of(context).hintColor,
+                  ),
+                )
+                : const SizedBox(),
 
-      Wrap(children: [
-        (address!.streetNumber != null && address!.streetNumber!.isNotEmpty) ? Text('${'street_number'.tr}: ${address!.streetNumber!}, ',
-          maxLines: 1, overflow: TextOverflow.ellipsis, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
-        ) : const SizedBox(),
+            (address!.house != null &&
+                    address?.house != 'null' &&
+                    address!.house!.isNotEmpty)
+                ? Text(
+                  '${'house'.tr}: ${address!.house!}, ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: waddyRegular.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                    color: Theme.of(context).hintColor,
+                  ),
+                )
+                : const SizedBox(),
 
-        (address!.house != null && address?.house != 'null' && address!.house!.isNotEmpty) ? Text('${'house'.tr}: ${address!.house!}, ',
-          maxLines: 1, overflow: TextOverflow.ellipsis, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
-        ) : const SizedBox(),
+            (address!.floor != null && address!.floor!.isNotEmpty)
+                ? Text(
+                  '${'floor'.tr}: ${address!.floor!}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: waddyRegular.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                    color: Theme.of(context).hintColor,
+                  ),
+                )
+                : const SizedBox(),
+          ],
+        ),
 
-        (address!.floor != null && address!.floor!.isNotEmpty) ? Text('${'floor'.tr}: ${address!.floor!}',
-          maxLines: 1, overflow: TextOverflow.ellipsis, style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
-        ) : const SizedBox(),
-      ]),
+        Text(
+          address!.contactPersonNumber ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: waddyRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+        ),
 
-      Text(
-        address!.contactPersonNumber ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
-      ),
-
-      const SizedBox(),
-
-    ]);
+        const SizedBox(),
+      ],
+    );
   }
 }

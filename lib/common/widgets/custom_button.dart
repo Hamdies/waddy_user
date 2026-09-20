@@ -1,9 +1,10 @@
 import 'package:get/get.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
 
-class CustomButton extends StatelessWidget {
+class CustomButton extends StatefulWidget {
   final Function? onPressed;
   final String buttonText;
   final bool transparent;
@@ -18,6 +19,18 @@ class CustomButton extends StatelessWidget {
   final bool isLoading;
   final bool isBold;
   final bool isBorder;
+
+  /// Replaces the default centered text/icon row entirely when set. The
+  /// container, fill, border and tap handling are unchanged — only the
+  /// content inside them differs — so call sites with their own layout (a
+  /// split left/right row, an inline chip) can still get the button's shared
+  /// look and disabled/loading behaviour instead of rebuilding it.
+  ///
+  /// [buttonText] is still required for accessibility (it backs the
+  /// semantic label a screen reader announces) even when [child] supplies the
+  /// visible content.
+  final Widget? child;
+
   const CustomButton({
     super.key,
     this.onPressed,
@@ -27,113 +40,185 @@ class CustomButton extends StatelessWidget {
     this.width,
     this.height,
     this.fontSize,
-    this.radius = 30,
+    this.radius = 12,
     this.icon,
     this.color,
     this.textColor,
     this.isLoading = false,
     this.isBold = true,
     this.isBorder = false,
+    this.child,
   });
 
   @override
+  State<CustomButton> createState() => _CustomButtonState();
+}
+
+class _CustomButtonState extends State<CustomButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _nudgeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nudgeController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _nudgeController.stop();
+      _nudgeController.value = 0.0;
+    } else if (!_nudgeController.isAnimating) {
+      _nudgeController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nudgeController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool isDisabled = onPressed == null;
-    final Color buttonColor = isDisabled
-        ? Theme.of(context).disabledColor
-        : transparent
+    final bool isDisabled = widget.onPressed == null;
+
+    // Default look: mint fill with an ink (dark teal) border and ink text —
+    // the two-tone brand treatment. `color`/`textColor`/`transparent` still
+    // override per call site for the few buttons that need something else.
+    final Color buttonColor =
+        isDisabled
+            ? Theme.of(context).disabledColor
+            : widget.transparent
             ? Colors.transparent
-            : color ?? Theme.of(context).primaryColor;
+            : widget.color ?? WaddyColors.mint;
+    final Color inkColor = widget.textColor ?? WaddyColors.primary;
+    // The teal border is part of the default two-tone look, so a call site
+    // that already supplies its own fill (a disabled/grey state, a brand
+    // color of its own) draws no border rather than a teal ring that clashes
+    // with a fill the border was never designed to sit on.
+    final Color borderColor =
+        widget.transparent
+            ? WaddyColors.primary.withValues(alpha: 0.4)
+            : widget.color ?? WaddyColors.primary;
 
     return Center(
       child: SizedBox(
-        width: width ?? Dimensions.webMaxWidth,
+        width: widget.width ?? Dimensions.maxContentWidth,
         child: Padding(
-          padding: margin ?? EdgeInsets.zero,
+          padding: widget.margin ?? EdgeInsets.zero,
           child: GestureDetector(
-            onTap: isLoading || isDisabled ? null : onPressed as void Function()?,
-            child: Container(
-              height: height ?? 50,
-              decoration: BoxDecoration(
-                color: buttonColor,
-                borderRadius: BorderRadius.circular(radius),
-                border: Border.all(
-                  color: transparent
-                      ? Theme.of(context).primaryColor.withOpacity(0.4)
-                      : Theme.of(context).secondaryHeaderColor.withOpacity(0.4),
-                  width: 0.5,
-                ),
-                boxShadow: transparent || isDisabled
+            onTap:
+                widget.isLoading || isDisabled
                     ? null
-                    : [
-                        BoxShadow(
-                          color: Theme.of(context).secondaryHeaderColor,
-                          blurRadius: 0,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Center(
-                child: isLoading
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            height: 15,
-                            width: 15,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                    : widget.onPressed as void Function()?,
+            child: Semantics(
+              button: true,
+              label: widget.buttonText,
+              child: Container(
+                height: widget.height ?? 50,
+                decoration: BoxDecoration(
+                  color: buttonColor,
+                  borderRadius: BorderRadius.circular(widget.radius),
+                  border: Border.all(
+                    color: borderColor,
+                    width: widget.transparent ? 0.5 : 2,
+                  ),
+                  boxShadow:
+                      widget.transparent || isDisabled
+                          ? null
+                          : [
+                            BoxShadow(
+                              color: WaddyColors.primary.withValues(
+                                alpha: 0.12,
                               ),
-                              strokeWidth: 2,
+                              blurRadius: 0,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-                          Text(
-                            'loading'.tr,
-                            style: robotoMedium.copyWith(color: Colors.white),
-                          ),
-                        ],
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          icon != null
-                              ? Padding(
-                                  padding: const EdgeInsets.only(
-                                    right: Dimensions.paddingSizeExtraSmall,
+                          ],
+                ),
+                child:
+                    widget.child ??
+                    Center(
+                      child:
+                          widget.isLoading
+                              ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    height: 15,
+                                    width: 15,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        inkColor,
+                                      ),
+                                      strokeWidth: 2,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    icon,
-                                    color: transparent
-                                        ? Theme.of(context).primaryColor
-                                        : Theme.of(context).cardColor,
+                                  const SizedBox(
+                                    width: Dimensions.paddingSizeSmall,
                                   ),
-                                )
-                              : const SizedBox(),
-                          Text(
-                            buttonText,
-                            textAlign: TextAlign.center,
-                            style: isBold
-                                ? robotoBold.copyWith(
-                                    color: textColor ??
-                                        (transparent
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.white),
-                                    fontSize:
-                                        fontSize ?? Dimensions.fontSizeLarge,
-                                  )
-                                : robotoRegular.copyWith(
-                                    color: textColor ??
-                                        (transparent
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.white),
-                                    fontSize:
-                                        fontSize ?? Dimensions.fontSizeLarge,
+                                  Text(
+                                    'loading'.tr,
+                                    style: waddyMedium.copyWith(
+                                      color: inkColor,
+                                    ),
                                   ),
-                          ),
-                        ],
-                      ),
+                                ],
+                              )
+                              : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    widget.buttonText,
+                                    textAlign: TextAlign.center,
+                                    style:
+                                        widget.isBold
+                                            ? waddyBold.copyWith(
+                                              color: inkColor,
+                                              fontSize:
+                                                  widget.fontSize ??
+                                                  Dimensions.fontSizeLarge,
+                                            )
+                                            : waddyRegular.copyWith(
+                                              color: inkColor,
+                                              fontSize:
+                                                  widget.fontSize ??
+                                                  Dimensions.fontSizeLarge,
+                                            ),
+                                  ),
+                                  if (widget.icon != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: Dimensions.paddingSizeExtraSmall,
+                                      ),
+                                      child: AnimatedBuilder(
+                                        animation: _nudgeController,
+                                        builder: (context, child) {
+                                          final nudge =
+                                              Curves.easeInOut.transform(
+                                                _nudgeController.value,
+                                              ) *
+                                              4.0;
+                                          return Transform.translate(
+                                            offset: Offset(nudge, 0),
+                                            child: child,
+                                          );
+                                        },
+                                        child: Icon(
+                                          widget.icon,
+                                          color: inkColor,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                    ),
               ),
             ),
           ),

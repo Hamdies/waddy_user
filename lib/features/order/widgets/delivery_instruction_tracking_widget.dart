@@ -10,16 +10,15 @@ import 'package:waddy_app/util/styles.dart';
 class DeliveryInstructionTrackingWidget extends StatelessWidget {
   final OrderModel order;
 
-  const DeliveryInstructionTrackingWidget({
-    super.key,
-    required this.order,
-  });
+  const DeliveryInstructionTrackingWidget({super.key, required this.order});
 
   @override
   Widget build(BuildContext context) {
-    final bool hasVoice = order.voiceInstructionFullUrl != null &&
+    final bool hasVoice =
+        order.voiceInstructionFullUrl != null &&
         order.voiceInstructionFullUrl!.isNotEmpty;
-    final bool hasText = order.deliveryInstruction != null &&
+    final bool hasText =
+        order.deliveryInstruction != null &&
         order.deliveryInstruction!.isNotEmpty;
 
     if (!hasVoice && !hasText) return const SizedBox();
@@ -32,7 +31,7 @@ class DeliveryInstructionTrackingWidget extends StatelessWidget {
       padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -54,7 +53,7 @@ class DeliveryInstructionTrackingWidget extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'delivery_instructions'.tr,
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: Dimensions.fontSizeDefault,
                 ),
               ),
@@ -74,41 +73,48 @@ class DeliveryInstructionTrackingWidget extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: instructions.map((instruction) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getInstructionIcon(instruction),
-                        size: 14,
-                        color: Theme.of(context).primaryColor,
+              children:
+                  instructions.map((instruction) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeMedium,
+                        vertical: 6,
                       ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          instruction.tr,
-                          style: robotoRegular.copyWith(
-                            fontSize: Dimensions.fontSizeExtraSmall,
-                            color: Theme.of(context).primaryColor,
-                          ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).primaryColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusExtraLarge,
+                        ),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.2),
                         ),
                       ),
-                    ],
-                  ),
-                );
-              }).toList(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getInstructionIcon(instruction),
+                            size: 14,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              instruction.tr,
+                              style: waddyRegular.copyWith(
+                                fontSize: Dimensions.fontSizeExtraSmall,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
             ),
           ],
         ],

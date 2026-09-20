@@ -5,7 +5,14 @@ class ZoneResponseModel {
   final List<ZoneData> _zoneData;
   final List<int> _areaIds;
   final int? statusCode;
-  ZoneResponseModel(this._isSuccess, this._message, this._zoneIds, this._zoneData, this._areaIds, this.statusCode);
+  ZoneResponseModel(
+    this._isSuccess,
+    this._message,
+    this._zoneIds,
+    this._zoneData,
+    this._areaIds,
+    this.statusCode,
+  );
 
   String? get message => _message;
   List<int> get zoneIds => _zoneIds;
@@ -154,7 +161,7 @@ class Pivot {
     moduleId = json['module_id'];
     perKmShippingCharge = json['per_km_shipping_charge']?.toDouble();
     minimumShippingCharge = json['minimum_shipping_charge']?.toDouble();
-    maximumShippingCharge =  json['maximum_shipping_charge']?.toDouble();
+    maximumShippingCharge = json['maximum_shipping_charge']?.toDouble();
     maximumCodOrderAmount = json['maximum_cod_order_amount']?.toDouble();
     deliveryChargeType = json['delivery_charge_type'];
     fixedShippingCharge = json['fixed_shipping_charge']?.toDouble();

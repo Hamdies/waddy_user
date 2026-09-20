@@ -16,9 +16,10 @@ class UserStreakModel {
       currentStreak: json['current_streak'] ?? 0,
       longestStreak: json['longest_streak'] ?? 0,
       streakBonusXp: json['streak_bonus_xp'] ?? 0,
-      lastActivityDate: json['last_activity_date'] != null
-          ? DateTime.tryParse(json['last_activity_date'].toString())
-          : null,
+      lastActivityDate:
+          json['last_activity_date'] != null
+              ? DateTime.tryParse(json['last_activity_date'].toString())
+              : null,
     );
   }
 

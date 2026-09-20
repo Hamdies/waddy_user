@@ -4,23 +4,32 @@ import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/corner_banner/banner.dart';
 import 'package:waddy_app/common/widgets/corner_banner/positioned_banner.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/styles.dart';
 
 /// A [CornerBanner] that displays "Built with" and the Flutter logo, to
 /// let the world know that your product is built with Flutter.
 class CornerDiscountTag extends StatelessWidget {
   const CornerDiscountTag.positioned({
-    super.key, required this.bannerPosition,
-    this.elevation = 0, this.shadowColor = const Color(0xCC000000), required this.discount,
-    required this.discountType, this.fontSize, this.freeDelivery = false,
-  })  : isPositioned = true;
+    super.key,
+    required this.bannerPosition,
+    this.elevation = 0,
+    this.shadowColor = const Color(0xCC000000),
+    required this.discount,
+    required this.discountType,
+    this.fontSize,
+    this.freeDelivery = false,
+  }) : isPositioned = true;
 
   const CornerDiscountTag({
-    super.key, required this.bannerPosition,
-    this.elevation = 0, this.shadowColor = const Color(0xCC000000), required this.discount,
-    required this.discountType, this.fontSize, this.freeDelivery = false,
-  })  : isPositioned = false;
+    super.key,
+    required this.bannerPosition,
+    this.elevation = 0,
+    this.shadowColor = const Color(0xCC000000),
+    required this.discount,
+    required this.discountType,
+    this.fontSize,
+    this.freeDelivery = false,
+  }) : isPositioned = false;
 
   final bool isPositioned;
   final CornerBannerPosition bannerPosition;
@@ -42,19 +51,21 @@ class CornerDiscountTag extends StatelessWidget {
         child: _buildBannerContent(),
       );
     } else {
-      return (discount! > 0 || freeDelivery!) ? CornerBanner(
-        bannerPosition: bannerPosition,
-        bannerColor: Theme.of(context).colorScheme.error,
-        elevation: 5,
-        shadowColor: Colors.transparent,
-        child: _buildBannerContent(),
-      ) : const SizedBox();
+      return (discount! > 0 || freeDelivery!)
+          ? CornerBanner(
+            bannerPosition: bannerPosition,
+            bannerColor: Theme.of(context).colorScheme.error,
+            elevation: 5,
+            shadowColor: Colors.transparent,
+            child: _buildBannerContent(),
+          )
+          : const SizedBox();
     }
   }
 
   Widget _buildBannerContent() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3.0,),
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
       child: Material(
         // Material prevents ugly text display when there is no
         // Scaffold above this banner.
@@ -67,13 +78,14 @@ class CornerDiscountTag extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
-              children:  [
+              children: [
                 Text(
-                  discount! > 0 ? '$discount${discountType == 'percent' ? '%'
-                      : Get.find<SplashController>().configModel!.currencySymbol} ${'off'.tr}' : 'free_delivery'.tr,
-                  style: robotoMedium.copyWith(
+                  discount! > 0
+                      ? '$discount${discountType == 'percent' ? '%' : Get.find<SplashController>().configModel.currencySymbol} ${'off'.tr}'
+                      : 'free_delivery'.tr,
+                  style: waddyMedium.copyWith(
                     color: Colors.white,
-                    fontSize: fontSize ?? (ResponsiveHelper.isMobile(Get.context) ? 8 : 12),
+                    fontSize: fontSize ?? (8),
                   ),
                   textAlign: TextAlign.center,
                 ),

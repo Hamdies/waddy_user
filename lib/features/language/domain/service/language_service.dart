@@ -17,7 +17,8 @@ class LanguageService implements LanguageServiceInterface {
 
   @override
   updateHeader(Locale locale, int? moduleId) {
-    AddressModel? addressModel = languageRepositoryInterface.getAddressFormSharedPref();
+    AddressModel? addressModel =
+        languageRepositoryInterface.getAddressFormSharedPref();
     languageRepositoryInterface.updateHeader(addressModel, locale, moduleId);
   }
 
@@ -29,8 +30,8 @@ class LanguageService implements LanguageServiceInterface {
   @override
   setSelectedIndex(List<LanguageModel> languages, Locale locale) {
     int selectedIndex = 0;
-    for(int index = 0; index<languages.length; index++) {
-      if(languages[index].languageCode == locale.languageCode) {
+    for (int index = 0; index < languages.length; index++) {
+      if (languages[index].languageCode == locale.languageCode) {
         selectedIndex = index;
         break;
       }
@@ -52,5 +53,4 @@ class LanguageService implements LanguageServiceInterface {
   Locale getCacheLocaleFromSharedPref() {
     return languageRepositoryInterface.getCacheLocaleFromSharedPref();
   }
-
 }

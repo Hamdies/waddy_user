@@ -26,8 +26,14 @@ class ParcelCategoryModel {
     description = json['description'];
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
-    parcelPerKmShippingCharge = json['parcel_per_km_shipping_charge'] != null ? json['parcel_per_km_shipping_charge'].toDouble() : 0;
-    parcelMinimumShippingCharge = json['parcel_minimum_shipping_charge'] != null ? json['parcel_minimum_shipping_charge'].toDouble() : 0;
+    parcelPerKmShippingCharge =
+        json['parcel_per_km_shipping_charge'] != null
+            ? json['parcel_per_km_shipping_charge'].toDouble()
+            : 0;
+    parcelMinimumShippingCharge =
+        json['parcel_minimum_shipping_charge'] != null
+            ? json['parcel_minimum_shipping_charge'].toDouble()
+            : 0;
   }
 
   Map<String, dynamic> toJson() {

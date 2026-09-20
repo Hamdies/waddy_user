@@ -1,11 +1,9 @@
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
-import 'package:waddy_app/common/widgets/web_page_title_widget.dart';
 import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
 import 'package:waddy_app/features/notification/widgets/notification_bottom_sheet.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
@@ -16,7 +14,6 @@ import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/common/widgets/no_data_screen.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
-import 'package:waddy_app/features/notification/widgets/notification_dialog_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -31,7 +28,7 @@ class NotificationScreen extends StatefulWidget {
 class _NotificationScreenState extends State<NotificationScreen> {
   void _loadData() async {
     Get.find<NotificationController>().clearNotification();
-    if (Get.find<SplashController>().configModel == null) {
+    if (Get.find<SplashController>().configModelOrNull == null) {
       await Get.find<SplashController>().getConfigData();
     }
     if (AuthHelper.isLoggedIn()) {
@@ -92,13 +89,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                 child: FooterView(
                                   child: Column(
                                     children: [
-                                      WebScreenTitleWidget(
-                                        title: 'notification'.tr,
-                                      ),
-
                                       Center(
                                         child: SizedBox(
-                                          width: Dimensions.webMaxWidth,
+                                          width: Dimensions.maxContentWidth,
                                           child: ListView.builder(
                                             itemCount:
                                                 notificationController
@@ -163,7 +156,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                   .notificationList![index]
                                                                   .createdAt!,
                                                             ),
-                                                            style: robotoMedium
+                                                            style: waddyMedium
                                                                 .copyWith(
                                                                   color:
                                                                       Theme.of(
@@ -183,62 +176,45 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                   .id!,
                                                             );
 
-                                                        ResponsiveHelper.isDesktop(
-                                                              context,
-                                                            )
-                                                            ? showDialog(
-                                                              context: context,
-                                                              builder: (
-                                                                BuildContext
-                                                                context,
-                                                              ) {
-                                                                return NotificationDialogWidget(
-                                                                  notificationModel:
-                                                                      notificationController
-                                                                          .notificationList![index],
-                                                                );
-                                                              },
-                                                            )
-                                                            : showModalBottomSheet(
-                                                              isScrollControlled:
-                                                                  true,
-                                                              useRootNavigator:
-                                                                  true,
-                                                              context:
-                                                                  Get.context!,
-                                                              backgroundColor:
-                                                                  Colors.white,
-                                                              shape: const RoundedRectangleBorder(
-                                                                borderRadius: BorderRadius.only(
-                                                                  topLeft: Radius.circular(
+                                                        showModalBottomSheet(
+                                                          isScrollControlled:
+                                                              true,
+                                                          useRootNavigator:
+                                                              true,
+                                                          context: Get.context!,
+                                                          backgroundColor:
+                                                              Colors.white,
+                                                          shape: const RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.only(
+                                                              topLeft:
+                                                                  Radius.circular(
                                                                     Dimensions
                                                                         .radiusExtraLarge,
                                                                   ),
-                                                                  topRight: Radius.circular(
+                                                              topRight:
+                                                                  Radius.circular(
                                                                     Dimensions
                                                                         .radiusExtraLarge,
                                                                   ),
-                                                                ),
+                                                            ),
+                                                          ),
+                                                          builder: (context) {
+                                                            return ConstrainedBox(
+                                                              constraints: BoxConstraints(
+                                                                maxHeight:
+                                                                    MediaQuery.of(
+                                                                      context,
+                                                                    ).size.height *
+                                                                    0.8,
                                                               ),
-                                                              builder: (
-                                                                context,
-                                                              ) {
-                                                                return ConstrainedBox(
-                                                                  constraints: BoxConstraints(
-                                                                    maxHeight:
-                                                                        MediaQuery.of(
-                                                                          context,
-                                                                        ).size.height *
-                                                                        0.8,
-                                                                  ),
-                                                                  child: NotificationBottomSheet(
-                                                                    notificationModel:
-                                                                        notificationController
-                                                                            .notificationList![index],
-                                                                  ),
-                                                                );
-                                                              },
+                                                              child: NotificationBottomSheet(
+                                                                notificationModel:
+                                                                    notificationController
+                                                                        .notificationList![index],
+                                                              ),
                                                             );
+                                                          },
+                                                        );
                                                       },
                                                       child: Container(
                                                         decoration: BoxDecoration(
@@ -347,7 +323,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                               1,
                                                                           overflow:
                                                                               TextOverflow.ellipsis,
-                                                                          style: robotoBold.copyWith(
+                                                                          style: waddyBold.copyWith(
                                                                             color:
                                                                                 isSeen
                                                                                     ? Theme.of(
@@ -376,7 +352,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                           DateConverter.dateTimeStringToFormattedTime(
                                                                             notificationController.notificationList![index].createdAt!,
                                                                           ),
-                                                                          style: robotoRegular.copyWith(
+                                                                          style: waddyRegular.copyWith(
                                                                             color:
                                                                                 Theme.of(
                                                                                   context,
@@ -407,7 +383,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                                               2,
                                                                           overflow:
                                                                               TextOverflow.ellipsis,
-                                                                          style: robotoRegular.copyWith(
+                                                                          style: waddyRegular.copyWith(
                                                                             color:
                                                                                 isSeen
                                                                                     ? Theme.of(

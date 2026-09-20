@@ -25,20 +25,14 @@ class _EmptyChatStateWidgetState extends State<EmptyChatStateWidget>
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
 
     _animationController.forward();
@@ -64,7 +58,7 @@ class _EmptyChatStateWidgetState extends State<EmptyChatStateWidget>
               const SizedBox(height: Dimensions.paddingSizeLarge),
               Text(
                 'no_messages_yet'.tr,
-                style: robotoBold.copyWith(
+                style: waddyBold.copyWith(
                   fontSize: Dimensions.fontSizeExtraLarge,
                   color: Theme.of(context).textTheme.bodyLarge!.color,
                 ),
@@ -77,7 +71,7 @@ class _EmptyChatStateWidgetState extends State<EmptyChatStateWidget>
                 child: Text(
                   'start_conversation_message'.tr,
                   textAlign: TextAlign.center,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: Dimensions.fontSizeDefault,
                     color: Theme.of(context).hintColor,
                   ),
@@ -123,11 +117,7 @@ class _EmptyChatStateWidgetState extends State<EmptyChatStateWidget>
                       color: Theme.of(context).primaryColor,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.add,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.add, size: 16, color: Colors.white),
                   ),
                 ),
               ],

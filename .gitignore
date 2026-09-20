@@ -39,7 +39,9 @@ get_changed_files.sh
 changed_files.zip
 script.dart
 
-# Web related
+# iOS build artifacts (ios/build/ was previously tracked by mistake)
+/ios/build/
+/ios/Pods/
 
 # Symbolication related
 app.*.symbols

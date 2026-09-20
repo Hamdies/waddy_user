@@ -9,19 +9,24 @@ import 'package:waddy_app/util/app_constants.dart';
 class NotificationRepository implements NotificationRepositoryInterface {
   final ApiClient apiClient;
   final SharedPreferences sharedPreferences;
-  NotificationRepository({required this.apiClient, required this.sharedPreferences});
+  NotificationRepository({
+    required this.apiClient,
+    required this.sharedPreferences,
+  });
 
   @override
   Future<List<NotificationModel>?> getList({int? offset}) async {
     List<NotificationModel>? notificationList;
     Response response = await apiClient.getData(AppConstants.notificationUri);
-    if(response.statusCode == 200) {
+    if (response.statusCode == 200) {
       notificationList = [];
-      response.body.forEach((notification) => notificationList!.add(NotificationModel.fromJson(notification)));
+      response.body.forEach(
+        (notification) =>
+            notificationList!.add(NotificationModel.fromJson(notification)),
+      );
     }
     return notificationList;
   }
-
 
   @override
   void saveSeenNotificationCount(int count) {
@@ -36,7 +41,7 @@ class NotificationRepository implements NotificationRepositoryInterface {
   @override
   List<int> getNotificationIdList() {
     List<String>? list = [];
-    if(sharedPreferences.containsKey(AppConstants.notificationIdList)) {
+    if (sharedPreferences.containsKey(AppConstants.notificationIdList)) {
       list = sharedPreferences.getStringList(AppConstants.notificationIdList);
     }
     List<int> notificationIdList = [];
@@ -74,5 +79,4 @@ class NotificationRepository implements NotificationRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

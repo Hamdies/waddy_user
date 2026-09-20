@@ -7,7 +7,12 @@ class SlotWidget extends StatelessWidget {
   final String title;
   final bool isSelected;
   final Function onTap;
-  const SlotWidget({super.key, required this.title, required this.isSelected, required this.onTap});
+  const SlotWidget({
+    super.key,
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,28 +27,28 @@ class SlotWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          padding: const EdgeInsets.symmetric(
+            vertical: Dimensions.paddingSizeSmall,
+            horizontal: Dimensions.paddingSizeSmall,
+          ),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected
-                ? primaryColor
-                : Theme.of(context).cardColor,
+            color: isSelected ? primaryColor : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             border: Border.all(
-              color: isSelected
-                  ? accentColor
-                  : Colors.grey.shade200,
+              color: isSelected ? accentColor : Colors.grey.shade200,
               width: isSelected ? 1.5 : 1,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
+            boxShadow:
+                isSelected
+                    ? [
+                      BoxShadow(
+                        color: accentColor.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                    : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -63,10 +68,11 @@ class SlotWidget extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: robotoMedium.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : Theme.of(context).textTheme.bodyLarge!.color,
+                  style: waddyMedium.copyWith(
+                    color:
+                        isSelected
+                            ? Colors.white
+                            : Theme.of(context).textTheme.bodyLarge!.color,
                     fontSize: Dimensions.fontSizeExtraSmall,
                   ),
                 ),

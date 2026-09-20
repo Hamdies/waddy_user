@@ -9,11 +9,13 @@ import 'package:waddy_app/features/payment/domain/models/offline_method_model.da
 
 import '../models/parcel_instruction_model.dart';
 
-abstract class ParcelServiceInterface{
+abstract class ParcelServiceInterface {
   Future<List<ParcelCategoryModel>?> getParcelCategory();
   Future<List<Data>?> getParcelInstruction(int offset);
   Future<WhyChooseModel?> getWhyChooseDetails({required DataSourceEnum source});
-  Future<VideoContentModel?> getVideoContentDetails({required DataSourceEnum source});
+  Future<VideoContentModel?> getVideoContentDetails({
+    required DataSourceEnum source,
+  });
   Future<LatLng> getPlaceDetails(String? placeID);
   Future<List<OfflineMethodModel>?> getOfflineMethodList();
   Future<int> getDmTipMostTapped();

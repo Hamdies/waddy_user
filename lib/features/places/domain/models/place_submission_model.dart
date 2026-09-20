@@ -1,3 +1,5 @@
+import 'package:waddy_app/util/image_url.dart';
+
 class PlaceSubmission {
   final int id;
   final int? userId;
@@ -49,12 +51,13 @@ class PlaceSubmission {
       phone: json['phone'],
       website: json['website'],
       instagram: json['instagram'],
-      image: json['image'] ?? json['image_full_url'],
+      image: pickImageUrl([json['image_full_url'], json['image']]),
       status: json['status'] ?? 'pending',
       adminNote: json['admin_note'],
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'])
-          : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.tryParse(json['created_at'])
+              : null,
     );
   }
 
@@ -94,11 +97,12 @@ class PlaceSubmissionList {
 
   factory PlaceSubmissionList.fromJson(Map<String, dynamic> json) {
     return PlaceSubmissionList(
-      submissions: json['data'] != null
-          ? (json['data'] as List)
-              .map((item) => PlaceSubmission.fromJson(item))
-              .toList()
-          : [],
+      submissions:
+          json['data'] != null
+              ? (json['data'] as List)
+                  .map((item) => PlaceSubmission.fromJson(item))
+                  .toList()
+              : [],
       totalSize: json['total_size'] ?? json['total'],
     );
   }

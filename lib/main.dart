@@ -1,21 +1,16 @@
 import 'dart:async';
+import 'package:waddy_app/util/swallow.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
-import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/common/controllers/theme_controller.dart';
 import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
-import 'package:waddy_app/helper/address_helper.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/helper/deep_link_helper.dart';
 import 'package:waddy_app/helper/notification_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
-import 'package:waddy_app/theme/dark_theme.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/messages.dart';
@@ -25,8 +20,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/home/widgets/cookies_view.dart';
-import 'package:url_strategy/url_strategy.dart';
+import 'package:waddy_app/features/dashboard/screens/dashboard_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'helper/get_di.dart' as di;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -35,10 +30,9 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kDebugMode && ResponsiveHelper.isMobilePhone()) {
+  if (kDebugMode) {
     HttpOverrides.global = MyHttpOverrides();
   }
-  setPathUrlStrategy();
 
   /// Pass all uncaught "fatal" errors from the framework to Crashlytics
   FlutterError.onError = (errorDetails) {
@@ -51,18 +45,7 @@ Future<void> main() async {
     return true;
   };
 
-  if (GetPlatform.isWeb) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyD0Z911mOoWCVkeGdjhIKwWFPRgvd6ZyAw",
-        authDomain: "stackmart-500c7.firebaseapp.com",
-        projectId: "stackmart-500c7",
-        storageBucket: "stackmart-500c7.appspot.com",
-        messagingSenderId: "491987943015",
-        appId: "1:491987943015:web:d8bc7ab8dbc9991c8f1ec2",
-      ),
-    );
-  } else if (GetPlatform.isAndroid) {
+  if (GetPlatform.isAndroid) {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyCRcROEiqQ0P8X0kqlTO1RmINlK9derFpA",
@@ -88,16 +71,20 @@ Future<void> main() async {
       await NotificationHelper.initialize(flutterLocalNotificationsPlugin);
       FirebaseMessaging.onBackgroundMessage(myBackgroundMessageHandler);
     }
-  } catch (_) {}
-
-  if (ResponsiveHelper.isWeb()) {
-    await FacebookAuth.instance.webAndDesktopInitialize(
-      appId: "380903914182154",
-      cookie: true,
-      xfbml: true,
-      version: "v15.0",
-    );
+  } catch (e, s) {
+    swallow('firebase messaging / notification init', e, s, true);
   }
+
+  if (GetPlatform.isMobile) {
+    await DeepLinkHelper.init();
+  }
+
+  /// `intl` ships no locale data until it is explicitly loaded, so any
+  /// locale-aware DateFormat/NumberFormat throws LocaleDataException on a
+  /// cold start. Spots formats the round lock label and prize dates this way,
+  /// so load the data for every language the app offers before the first
+  /// frame rather than lazily per screen.
+  await initializeDateFormatting();
 
   runApp(MyApp(languages: languages, body: body));
 }
@@ -115,41 +102,28 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-
-    _route();
-  }
-
-  void _route() async {
-    if (GetPlatform.isWeb) {
-      Get.find<SplashController>().initSharedData();
-      if (AddressHelper.getUserAddressFromSharedPref() != null &&
-          AddressHelper.getUserAddressFromSharedPref()!.zoneIds == null) {
-        Get.find<AuthController>().clearSharedAddress();
+    // di.init() loads only the locale being rendered, so the first frame is not
+    // held up decoding a bundle nobody is about to read. Pull the rest in once
+    // that frame is on screen; Get.appendTranslations makes them available to
+    // the language picker without rebuilding GetMaterialApp.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.languages != null) {
+        di.loadRemainingLanguages(widget.languages!);
       }
-
-      if (AuthHelper.isLoggedIn() &&
-          Get.find<SplashController>().cacheModule != null) {
-        Get.find<CartController>().getCartDataOnline();
-      }
-
-      Get.find<SplashController>().getConfigData(
-        loadLandingData:
-            (GetPlatform.isWeb &&
-                AddressHelper.getUserAddressFromSharedPref() == null),
-        fromMainFunction: true,
-      );
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      statusBarBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
 
     return GetBuilder<ThemeController>(
       builder: (themeController) {
@@ -157,78 +131,71 @@ class _MyAppState extends State<MyApp> {
           builder: (localizeController) {
             return GetBuilder<SplashController>(
               builder: (splashController) {
-                return (GetPlatform.isWeb &&
-                        splashController.configModel == null)
-                    ? const SizedBox()
-                    : GetMaterialApp(
-                      
-                      title: AppConstants.appName,
-                      debugShowCheckedModeBanner: false,
-                      navigatorKey: Get.key,
-                      scrollBehavior: const MaterialScrollBehavior().copyWith(
-                        dragDevices: {
-                          PointerDeviceKind.mouse,
-                          PointerDeviceKind.touch,
-                        },
+                return GetMaterialApp(
+                  title: AppConstants.appName,
+                  debugShowCheckedModeBanner: false,
+                  // Matches what get_di.init() already set. GetMaterialApp
+                  // assigns Get.smartManagement on build, so leaving this
+                  // at its `full` default would flip the global mode back
+                  // after DI ran. See the note in helper/get_di.dart.
+                  smartManagement: SmartManagement.keepFactory,
+                  navigatorKey: Get.key,
+                  // Lets the dashboard know when another route covers it,
+                  // so its floating cart bar does not render through
+                  // pushed screens that carry their own cart bar.
+                  navigatorObservers: [dashboardRouteObserver],
+                  scrollBehavior: const MaterialScrollBehavior().copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.touch,
+                    },
+                  ),
+                  // Waddi ships light-only on iOS/Android. The dark
+                  // palette is unreachable by design: the module screens
+                  // paint fixed light surfaces, so a dark scaffold would
+                  // render white cards on near-black.
+                  theme: light(),
+                  locale: localizeController.locale,
+                  translations: Messages(languages: widget.languages),
+                  fallbackLocale: Locale(
+                    AppConstants.languages[0].languageCode!,
+                    AppConstants.languages[0].countryCode,
+                  ),
+                  initialRoute: RouteHelper.getSplashRoute(widget.body),
+                  getPages: RouteHelper.routes,
+                  defaultTransition: Transition.topLevel,
+                  transitionDuration: const Duration(milliseconds: 500),
+                  builder: (BuildContext context, widget) {
+                    // No textScaler override here.
+                    //
+                    // This used to be a MediaQuery pinning
+                    // `TextScaler.linear(1)` across every route in the app,
+                    // which silently discarded the OS font-size setting —
+                    // and, because it wrapped GetMaterialApp's builder,
+                    // there was nowhere downstream that could opt back in.
+                    // It dated to the initial import with no rationale,
+                    // i.e. inherited template boilerplate rather than a
+                    // decision.
+                    //
+                    // Every `MediaQuery.textScalerOf` clamp in the app was
+                    // written against a value this pin held at 1.0, so
+                    // those clamps were dead code until it came out. The
+                    // rails that size fixed text blocks now scale them:
+                    // see `_rankTextScale` / `_railHeight` in
+                    // top_restaurants_view.dart and `_shelfTextScale` /
+                    // `_shelfHeight` in grocery_shelf_view.dart.
+                    return MediaQuery(
+                      data: MediaQuery.of(context),
+                      child: Material(
+                        child: SafeArea(
+                          top: false,
+                          bottom: GetPlatform.isAndroid,
+                          child: widget!,
+                        ),
                       ),
-                      theme: themeController.darkTheme ? dark() : light(),
-                      locale: localizeController.locale,
-                      translations: Messages(languages: widget.languages),
-                      fallbackLocale: Locale(
-                        AppConstants.languages[0].languageCode!,
-                        AppConstants.languages[0].countryCode,
-                      ),
-                      initialRoute:
-                          GetPlatform.isWeb
-                              ? RouteHelper.getInitialRoute()
-                              : RouteHelper.getSplashRoute(widget.body),
-                      getPages: RouteHelper.routes,
-                      defaultTransition: Transition.topLevel,
-                      transitionDuration: const Duration(milliseconds: 500),
-                      builder: (BuildContext context, widget) {
-                        return MediaQuery(
-                          data: MediaQuery.of(
-                            context,
-                          ).copyWith(textScaler: const TextScaler.linear(1)),
-                          child: Material(
-                            
-                            child: SafeArea(
-                              top: false,
-                              bottom: GetPlatform.isAndroid,
-                              child: Stack(
-                                children: [
-                                  widget!,
-
-                                  GetBuilder<SplashController>(
-                                    builder: (splashController) {
-                                      if (!splashController.savedCookiesData &&
-                                          !splashController
-                                              .getAcceptCookiesStatus(
-                                                splashController.configModel !=
-                                                        null
-                                                    ? splashController
-                                                        .configModel!
-                                                        .cookiesText!
-                                                    : '',
-                                              )) {
-                                        return ResponsiveHelper.isWeb()
-                                            ? const Align(
-                                              alignment: Alignment.bottomCenter,
-                                              child: CookiesView(),
-                                            )
-                                            : const SizedBox();
-                                      } else {
-                                        return const SizedBox();
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
                     );
+                  },
+                );
               },
             );
           },

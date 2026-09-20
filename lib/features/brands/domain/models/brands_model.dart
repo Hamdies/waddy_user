@@ -1,4 +1,3 @@
-
 class BrandModel {
   int? id;
   String? name;

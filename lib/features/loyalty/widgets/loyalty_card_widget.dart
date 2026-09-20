@@ -4,7 +4,6 @@ import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:waddy_app/features/loyalty/widgets/loyalty_bottom_sheet_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -22,52 +21,61 @@ class LoyaltyCardWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: EdgeInsets.all( ResponsiveHelper.isDesktop(context) ? 35 : Dimensions.paddingSizeExtraLarge),
+              padding: EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 color: Theme.of(context).disabledColor.withValues(alpha: 0.2),
               ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(Images.loyal, height: 60, width: 60),
+                  const SizedBox(width: Dimensions.paddingSizeExtraLarge),
 
-                Image.asset(Images.loyal , height: 60, width: 60),
-                const SizedBox(width: Dimensions.paddingSizeExtraLarge),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${'convertible_points'.tr} !',
+                        style: waddyRegular.copyWith(
+                          fontSize: Dimensions.fontSizeSmall,
+                          color: Theme.of(context).textTheme.bodyLarge!.color,
+                        ),
+                      ),
 
-                Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Text(
+                        profileController.userInfoModel!.loyaltyPoint == null
+                            ? '0'
+                            : profileController.userInfoModel!.loyaltyPoint
+                                .toString(),
+                        style: waddyBold.copyWith(
+                          fontSize: Dimensions.fontSizeOverLarge,
+                          color: Theme.of(context).textTheme.bodyLarge!.color,
+                        ),
+                      ),
 
-                  ResponsiveHelper.isDesktop(context) ? const SizedBox() : Text(
-                    '${'convertible_points'.tr} !',
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).textTheme.bodyLarge!.color),
+                      const SizedBox(),
+
+                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                    ],
                   ),
-
-                  Text(
-                    profileController.userInfoModel!.loyaltyPoint == null ? '0' : profileController.userInfoModel!.loyaltyPoint.toString(),
-                    style: robotoBold.copyWith(fontSize: Dimensions.fontSizeOverLarge, color: Theme.of(context).textTheme.bodyLarge!.color),
-                  ),
-
-                  ResponsiveHelper.isDesktop(context) ? Text(
-                    '${'convertible_points'.tr} !',
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).textTheme.bodyLarge!.color),
-                  ) : const SizedBox(),
-
-                  const SizedBox(height: Dimensions.paddingSizeSmall),
-                ]),
-              ]),
+                ],
+              ),
             ),
 
-            ResponsiveHelper.isDesktop(context) ? const SizedBox(height: Dimensions.paddingSizeDefault) : const SizedBox(),
+            const SizedBox(),
 
-            ResponsiveHelper.isDesktop(context) ? Text('how_to_use'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)) : const SizedBox(),
-            ResponsiveHelper.isDesktop(context) ? const SizedBox(height: Dimensions.paddingSizeDefault) : const SizedBox(),
+            const SizedBox(),
+            const SizedBox(),
 
-            !ResponsiveHelper.isDesktop(context) ? const SizedBox() : const LoyaltyStepper(),
+            const SizedBox(),
           ],
         );
-      }
+      },
     );
   }
 }
-
-
 
 class LoyaltyStepper extends StatelessWidget {
   const LoyaltyStepper({super.key});
@@ -85,19 +93,26 @@ class LoyaltyStepper extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Container(
-                    margin: const EdgeInsets.only(top: Dimensions.paddingSizeExtraSmall),
+                    margin: const EdgeInsets.only(
+                      top: Dimensions.paddingSizeExtraSmall,
+                    ),
                     height: 15,
                     width: 15,
                     decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Theme.of(context).primaryColor, width: 2)
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
                     ),
                   ),
 
                   Expanded(
                     child: VerticalDivider(
                       thickness: 3,
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.30),
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.30),
                     ),
                   ),
 
@@ -105,8 +120,11 @@ class LoyaltyStepper extends StatelessWidget {
                     height: 15,
                     width: 15,
                     decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Theme.of(context).primaryColor, width: 2)
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ],
@@ -118,12 +136,17 @@ class LoyaltyStepper extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('convert_your_loyalty_point_to_wallet_money'.tr, style: robotoRegular),
-                    Text('${'minimun'.tr} ${Get.find<SplashController>().configModel!.loyaltyPointExchangeRate} ${'points_required_to_convert_into_currency'.tr}', style: robotoRegular),
+                    Text(
+                      'convert_your_loyalty_point_to_wallet_money'.tr,
+                      style: waddyRegular,
+                    ),
+                    Text(
+                      '${'minimun'.tr} ${Get.find<SplashController>().configModel.loyaltyPointExchangeRate} ${'points_required_to_convert_into_currency'.tr}',
+                      style: waddyRegular,
+                    ),
                   ],
                 ),
               ),
-
             ],
           ),
         ),
@@ -134,10 +157,21 @@ class LoyaltyStepper extends StatelessWidget {
           buttonText: 'convert_to_currency_now'.tr,
           onPressed: () {
             Get.dialog(
-              Dialog(backgroundColor: Colors.transparent, child: LoyaltyBottomSheetWidget(
-                amount: Get.find<ProfileController>().userInfoModel!.loyaltyPoint == null
-                  ? '0' : Get.find<ProfileController>().userInfoModel!.loyaltyPoint.toString(),
-              )),
+              Dialog(
+                backgroundColor: Colors.transparent,
+                child: LoyaltyBottomSheetWidget(
+                  amount:
+                      Get.find<ProfileController>()
+                                  .userInfoModel!
+                                  .loyaltyPoint ==
+                              null
+                          ? '0'
+                          : Get.find<ProfileController>()
+                              .userInfoModel!
+                              .loyaltyPoint
+                              .toString(),
+                ),
+              ),
             );
           },
         ),
@@ -145,4 +179,3 @@ class LoyaltyStepper extends StatelessWidget {
     );
   }
 }
-

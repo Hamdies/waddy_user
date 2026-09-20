@@ -1,12 +1,12 @@
 import 'dart:async';
+import 'package:waddy_app/util/app_constants.dart';
+import 'package:waddy_app/util/parse.dart';
+import 'package:waddy_app/util/swallow.dart';
 import 'dart:collection';
 
-import 'package:geolocator/geolocator.dart';
 import 'package:waddy_app/common/controllers/theme_controller.dart';
-import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/features/location/controllers/location_controller.dart';
-import 'package:waddy_app/features/location/widgets/permission_dialog_widget.dart';
 import 'package:waddy_app/features/order/widgets/delivery_instruction_tracking_widget.dart';
 import 'package:waddy_app/features/order/widgets/modern_tracking_card_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -21,18 +21,15 @@ import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/eta_calculator.dart';
 import 'package:waddy_app/helper/marker_animator.dart';
 import 'package:waddy_app/helper/marker_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/common/widgets/custom_app_bar.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/features/order/widgets/track_details_view_widget.dart';
-import 'package:waddy_app/features/order/widgets/tracking_stepper_widget.dart';
-import 'package:waddy_app/helper/live_activity_helper.dart';
-import 'package:waddy_app/services/live_activity_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/helper/location_gate_helper.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -56,7 +53,6 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
   Set<Polyline> _polylines = HashSet<Polyline>();
   Timer? _timer;
   bool showChatPermission = true;
-  bool isHovered = false;
 
   // Polling and animation support
   final MarkerAnimator _markerAnimator = MarkerAnimator();
@@ -66,10 +62,10 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     await Get.find<LocationController>().getCurrentLocation(
       true,
       notify: false,
-      defaultLatLng: LatLng(
-        double.parse(AddressHelper.getUserAddressFromSharedPref()!.latitude!),
-        double.parse(AddressHelper.getUserAddressFromSharedPref()!.longitude!),
-      ),
+      // Falls back to the configured default rather than crashing: a user can
+      // open a tracking link before an address has ever been saved, and both
+      // the `!` and the parse used to throw on that path.
+      defaultLatLng: _userLatLngOrDefault(),
     );
     await Get.find<OrderController>().trackOrder(
       widget.orderID,
@@ -297,12 +293,6 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
     super.dispose();
   }
 
-  void onEntered(bool isHovered) {
-    setState(() {
-      this.isHovered = isHovered;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -331,92 +321,77 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
 
           return track != null
               ? SingleChildScrollView(
-                physics:
-                    isHovered || !ResponsiveHelper.isDesktop(context)
-                        ? const NeverScrollableScrollPhysics()
-                        : const AlwaysScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 child: FooterView(
                   child: Center(
                     child: SizedBox(
-                      width: Dimensions.webMaxWidth,
-                      height:
-                          ResponsiveHelper.isDesktop(context)
-                              ? 700
-                              : MediaQuery.of(context).size.height * 0.85,
+                      width: Dimensions.maxContentWidth,
+                      height: MediaQuery.of(context).size.height * 0.85,
                       child: Stack(
                         children: [
-                          MouseRegion(
-                            onEnter: (event) => onEntered(true),
-                            onExit: (event) => onEntered(false),
-                            child: GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: LatLng(
-                                  double.parse(
-                                    track.deliveryAddress!.latitude!,
-                                  ),
-                                  double.parse(
-                                    track.deliveryAddress!.longitude!,
-                                  ),
-                                ),
-                                zoom: 16,
+                          GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(
+                                double.parse(track.deliveryAddress!.latitude!),
+                                double.parse(track.deliveryAddress!.longitude!),
                               ),
-                              minMaxZoomPreference: const MinMaxZoomPreference(
-                                0,
-                                16,
-                              ),
-                              zoomControlsEnabled: false,
-                              markers: _markers,
-                              polylines: _polylines,
-                              onMapCreated: (GoogleMapController controller) {
-                                _controller = controller;
-                                _isLoading = false;
-                                setMarker(
-                                  track!.orderType == 'parcel'
-                                      ? Store(
-                                        latitude:
-                                            track.receiverDetails!.latitude,
-                                        longitude:
-                                            track.receiverDetails!.longitude,
-                                        address: track.receiverDetails!.address,
-                                        name:
-                                            track
-                                                .receiverDetails!
-                                                .contactPersonName,
-                                      )
-                                      : track.store,
-                                  track.deliveryMan,
-                                  track.orderType == 'take_away'
-                                      ? Get.find<LocationController>()
-                                                  .position
-                                                  .latitude ==
-                                              0
-                                          ? track.deliveryAddress
-                                          : AddressModel(
-                                            latitude:
-                                                Get.find<LocationController>()
-                                                    .position
-                                                    .latitude
-                                                    .toString(),
-                                            longitude:
-                                                Get.find<LocationController>()
-                                                    .position
-                                                    .longitude
-                                                    .toString(),
-                                            address:
-                                                Get.find<LocationController>()
-                                                    .address,
-                                          )
-                                      : track.deliveryAddress,
-                                  track.orderType == 'take_away',
-                                  track.orderType == 'parcel',
-                                  track.moduleType == 'food',
-                                );
-                              },
-                              style:
-                                  Get.isDarkMode
-                                      ? Get.find<ThemeController>().darkMap
-                                      : Get.find<ThemeController>().lightMap,
+                              zoom: 16,
                             ),
+                            minMaxZoomPreference: const MinMaxZoomPreference(
+                              0,
+                              16,
+                            ),
+                            zoomControlsEnabled: false,
+                            markers: _markers,
+                            polylines: _polylines,
+                            onMapCreated: (GoogleMapController controller) {
+                              _controller = controller;
+                              _isLoading = false;
+                              setMarker(
+                                track!.orderType == 'parcel'
+                                    ? Store(
+                                      latitude: track.receiverDetails!.latitude,
+                                      longitude:
+                                          track.receiverDetails!.longitude,
+                                      address: track.receiverDetails!.address,
+                                      name:
+                                          track
+                                              .receiverDetails!
+                                              .contactPersonName,
+                                    )
+                                    : track.store,
+                                track.deliveryMan,
+                                track.orderType == 'take_away'
+                                    ? Get.find<LocationController>()
+                                                .position
+                                                .latitude ==
+                                            0
+                                        ? track.deliveryAddress
+                                        : AddressModel(
+                                          latitude:
+                                              Get.find<LocationController>()
+                                                  .position
+                                                  .latitude
+                                                  .toString(),
+                                          longitude:
+                                              Get.find<LocationController>()
+                                                  .position
+                                                  .longitude
+                                                  .toString(),
+                                          address:
+                                              Get.find<LocationController>()
+                                                  .address,
+                                        )
+                                    : track.deliveryAddress,
+                                track.orderType == 'take_away',
+                                track.orderType == 'parcel',
+                                track.moduleType == 'food',
+                              );
+                            },
+                            style:
+                                Get.isDarkMode
+                                    ? Get.find<ThemeController>().darkMap
+                                    : Get.find<ThemeController>().lightMap,
                           ),
 
                           _isLoading
@@ -456,7 +431,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
                                     : 220,
                             child: InkWell(
                               onTap:
-                                  () => _checkPermission(() async {
+                                  () => LocationGate.ensureForAction(() async {
                                     AddressModel address =
                                         await Get.find<LocationController>()
                                             .getCurrentLocation(
@@ -672,10 +647,7 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
         );
         _controller!.moveCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: currentLocation,
-              zoom: GetPlatform.isWeb ? 7 : 15,
-            ),
+            CameraPosition(target: currentLocation, zoom: 15),
           ),
         );
       }
@@ -683,20 +655,10 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
       if (!fromCurrentLocation) {
         _controller!.moveCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: centerBounds,
-              zoom: GetPlatform.isWeb ? 10 : 17,
-            ),
+            CameraPosition(target: centerBounds, zoom: 17),
           ),
         );
-        if (!ResponsiveHelper.isWeb()) {
-          zoomToFit(
-            _controller,
-            bounds,
-            centerBounds,
-            padding: GetPlatform.isWeb ? 15 : 3,
-          );
-        }
+        zoomToFit(_controller, bounds, centerBounds, padding: 3);
       }
 
       /// user for normal order , but sender for parcel order
@@ -755,10 +717,11 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
                     parcel
                         ? 'receiver'.tr
                         : Get.find<SplashController>()
-                            .configModel!
+                            .configModel
                             .moduleConfig!
                             .module!
-                            .showRestaurantText!
+                            .showRestaurantText ??
+                                false
                         ? 'store'.tr
                         : 'store'.tr,
                 snippet: store.address,
@@ -788,7 +751,9 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
 
       // Initialize route polyline (Store → Driver → Destination)
       _initRoutePolyline(store, deliveryMan, addressModel);
-    } catch (_) {}
+    } catch (e, s) {
+      swallow('build tracking map overlay', e, s, true);
+    }
     setState(() {});
   }
 
@@ -918,10 +883,11 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
                     parcel
                         ? 'receiver'.tr
                         : Get.find<SplashController>()
-                            .configModel!
+                            .configModel
                             .moduleConfig!
                             .module!
-                            .showRestaurantText!
+                            .showRestaurantText ??
+                                false
                         ? 'store'.tr
                         : 'store'.tr,
                 snippet: store.address,
@@ -948,8 +914,25 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
             ),
           )
           : const SizedBox();
-    } catch (_) {}
+    } catch (e, s) {
+      swallow('build delivery-man marker', e, s, true);
+    }
     setState(() {});
+  }
+
+  /// The saved address as a [LatLng], or the configured default.
+  ///
+  /// Both halves of the old expression could throw — the address is null until
+  /// the location gate resolves one, and its coordinates are server strings.
+  static LatLng _userLatLngOrDefault() {
+    final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
+    final double? lat = Parse.coordinate(address?.latitude);
+    final double? lng = Parse.coordinate(address?.longitude);
+    if (lat != null && lng != null) return LatLng(lat, lng);
+    return const LatLng(
+      AppConstants.maadiDefaultLatitude,
+      AppConstants.maadiDefaultLongitude,
+    );
   }
 
   Future<void> zoomToFit(
@@ -998,19 +981,5 @@ class OrderTrackingScreenState extends State<OrderTrackingScreen>
         northEastLongitudeCheck &&
         southWestLatitudeCheck &&
         southWestLongitudeCheck;
-  }
-
-  void _checkPermission(Function onTap) async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied) {
-      showCustomSnackBar('you_have_to_allow'.tr);
-    } else if (permission == LocationPermission.deniedForever) {
-      Get.dialog(const PermissionDialogWidget());
-    } else {
-      onTap();
-    }
   }
 }

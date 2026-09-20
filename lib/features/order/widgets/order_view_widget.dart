@@ -1,3 +1,5 @@
+import 'package:waddy_app/common/widgets/custom_button.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
@@ -6,7 +8,6 @@ import 'package:waddy_app/features/review/screens/rate_review_screen.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -28,6 +29,7 @@ class OrderViewWidget extends StatefulWidget {
 }
 
 enum _DateFilter { all, today, week, month }
+
 enum _PriceSort { none, lowToHigh, highToLow }
 
 class _OrderViewWidgetState extends State<OrderViewWidget> {
@@ -38,30 +40,36 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
   _DateFilter _dateFilter = _DateFilter.all;
   _PriceSort _priceSort = _PriceSort.none;
 
-  List<OrderModel> _applyFilters(List<OrderModel> orders, OrderController orderController) {
+  List<OrderModel> _applyFilters(
+    List<OrderModel> orders,
+    OrderController orderController,
+  ) {
     List<OrderModel> result = List.from(orders);
 
     // Date filter
     if (_dateFilter != _DateFilter.all) {
       final now = DateTime.now();
-      result = result.where((order) {
-        if (order.createdAt == null) return false;
-        try {
-          final date = DateTime.parse(order.createdAt!).toLocal();
-          switch (_dateFilter) {
-            case _DateFilter.today:
-              return date.year == now.year && date.month == now.month && date.day == now.day;
-            case _DateFilter.week:
-              return now.difference(date).inDays < 7;
-            case _DateFilter.month:
-              return date.year == now.year && date.month == now.month;
-            default:
+      result =
+          result.where((order) {
+            if (order.createdAt == null) return false;
+            try {
+              final date = DateTime.parse(order.createdAt!).toLocal();
+              switch (_dateFilter) {
+                case _DateFilter.today:
+                  return date.year == now.year &&
+                      date.month == now.month &&
+                      date.day == now.day;
+                case _DateFilter.week:
+                  return now.difference(date).inDays < 7;
+                case _DateFilter.month:
+                  return date.year == now.year && date.month == now.month;
+                default:
+                  return true;
+              }
+            } catch (_) {
               return true;
-          }
-        } catch (_) {
-          return true;
-        }
-      }).toList();
+            }
+          }).toList();
     }
 
     // Price sort
@@ -242,9 +250,10 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
 
           final allOrders = paginatedOrderModel.orders ?? [];
           final bool showSearchBar = allOrders.length > 10;
-          final List<OrderModel> filteredOrders = showSearchBar
-              ? _applyFilters(allOrders, orderController)
-              : allOrders;
+          final List<OrderModel> filteredOrders =
+              showSearchBar
+                  ? _applyFilters(allOrders, orderController)
+                  : allOrders;
 
           if (allOrders.isEmpty) {
             return NoDataScreen(text: 'no_order_found'.tr, showFooter: true);
@@ -264,84 +273,137 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                       await orderController.getHistoryOrders(1, isUpdate: true);
                     }
                   },
-                  child: filteredOrders.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                            Center(
-                              child: Column(
-                                children: [
-                                  Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.shade300),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    'no_order_found'.tr,
-                                    style: robotoRegular.copyWith(color: Colors.grey.shade400, fontSize: 14),
-                                  ),
-                                ],
+                  child:
+                      filteredOrders.isEmpty
+                          ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.25,
                               ),
-                            ),
-                          ],
-                        )
-                      : SingleChildScrollView(
-                          controller: scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: FooterView(
-                            child: SizedBox(
-                              width: Dimensions.webMaxWidth,
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: ResponsiveHelper.isDesktop(context) ? 0 : 100,
-                                  left: 16,
-                                  right: 16,
-                                  top: 16,
-                                ),
-                                child: showSearchBar
-                                    // When filtering, render flat list (no pagination needed for client-side filter)
-                                    ? ListView.builder(
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        shrinkWrap: true,
-                                        padding: EdgeInsets.zero,
-                                        itemCount: filteredOrders.length,
-                                        itemBuilder: (context, index) {
-                                          final order = filteredOrders[index];
-                                          return widget.isRunning
-                                              ? _buildRunningCard(context, order, orderController, primary)
-                                              : _buildTalabatStyleHistoryCard(context, order, orderController, primary);
-                                        },
-                                      )
-                                    : PaginatedListView(
-                                        scrollController: scrollController,
-                                        onPaginate: (int? offset) async {
-                                          if (widget.isRunning) {
-                                            await orderController.getRunningOrders(offset!, isUpdate: true);
-                                          } else {
-                                            await orderController.getHistoryOrders(offset!, isUpdate: true);
-                                          }
-                                        },
-                                        totalSize: widget.isRunning
-                                            ? orderController.runningOrderModel?.totalSize
-                                            : orderController.historyOrderModel?.totalSize,
-                                        offset: widget.isRunning
-                                            ? orderController.runningOrderModel?.offset
-                                            : orderController.historyOrderModel?.offset,
-                                        itemView: ListView.builder(
-                                          physics: const NeverScrollableScrollPhysics(),
-                                          shrinkWrap: true,
-                                          padding: EdgeInsets.zero,
-                                          itemCount: allOrders.length,
-                                          itemBuilder: (context, index) {
-                                            final order = allOrders[index];
-                                            return widget.isRunning
-                                                ? _buildRunningCard(context, order, orderController, primary)
-                                                : _buildTalabatStyleHistoryCard(context, order, orderController, primary);
-                                          },
-                                        ),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.search_off_rounded,
+                                      size: 48,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'no_order_found'.tr,
+                                      style: waddyRegular.copyWith(
+                                        color: Colors.grey.shade400,
+                                        fontSize: 14,
                                       ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                          : SingleChildScrollView(
+                            controller: scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: FooterView(
+                              child: SizedBox(
+                                width: Dimensions.maxContentWidth,
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: 100,
+                                    left: Dimensions.paddingSizeDefault,
+                                    right: Dimensions.paddingSizeDefault,
+                                    top: Dimensions.paddingSizeDefault,
+                                  ),
+                                  child:
+                                      showSearchBar
+                                          // When filtering, render flat list (no pagination needed for client-side filter)
+                                          ? ListView.builder(
+                                            physics:
+                                                const NeverScrollableScrollPhysics(),
+                                            shrinkWrap: true,
+                                            padding: EdgeInsets.zero,
+                                            itemCount: filteredOrders.length,
+                                            itemBuilder: (context, index) {
+                                              final order =
+                                                  filteredOrders[index];
+                                              return widget.isRunning
+                                                  ? _buildRunningCard(
+                                                    context,
+                                                    order,
+                                                    orderController,
+                                                    primary,
+                                                  )
+                                                  : _buildTalabatStyleHistoryCard(
+                                                    context,
+                                                    order,
+                                                    orderController,
+                                                    primary,
+                                                  );
+                                            },
+                                          )
+                                          : PaginatedListView(
+                                            scrollController: scrollController,
+                                            onPaginate: (int? offset) async {
+                                              if (widget.isRunning) {
+                                                await orderController
+                                                    .getRunningOrders(
+                                                      offset!,
+                                                      isUpdate: true,
+                                                    );
+                                              } else {
+                                                await orderController
+                                                    .getHistoryOrders(
+                                                      offset!,
+                                                      isUpdate: true,
+                                                    );
+                                              }
+                                            },
+                                            totalSize:
+                                                widget.isRunning
+                                                    ? orderController
+                                                        .runningOrderModel
+                                                        ?.totalSize
+                                                    : orderController
+                                                        .historyOrderModel
+                                                        ?.totalSize,
+                                            offset:
+                                                widget.isRunning
+                                                    ? orderController
+                                                        .runningOrderModel
+                                                        ?.offset
+                                                    : orderController
+                                                        .historyOrderModel
+                                                        ?.offset,
+                                            itemView: ListView.builder(
+                                              physics:
+                                                  const NeverScrollableScrollPhysics(),
+                                              shrinkWrap: true,
+                                              padding: EdgeInsets.zero,
+                                              itemCount: allOrders.length,
+                                              itemBuilder: (context, index) {
+                                                final order = allOrders[index];
+                                                return widget.isRunning
+                                                    ? _buildRunningCard(
+                                                      context,
+                                                      order,
+                                                      orderController,
+                                                      primary,
+                                                    )
+                                                    : _buildTalabatStyleHistoryCard(
+                                                      context,
+                                                      order,
+                                                      orderController,
+                                                      primary,
+                                                    );
+                                              },
+                                            ),
+                                          ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
                 ),
               ),
             ],
@@ -352,7 +414,8 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
   }
 
   Widget _buildSearchAndFilter(Color primary) {
-    final bool hasActiveFilter = _dateFilter != _DateFilter.all || _priceSort != _PriceSort.none;
+    final bool hasActiveFilter =
+        _dateFilter != _DateFilter.all || _priceSort != _PriceSort.none;
 
     return Container(
       color: Colors.white,
@@ -374,21 +437,29 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                   final (filter, label) = entry;
                   final bool selected = _dateFilter == filter;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(
+                      right: Dimensions.paddingSizeSmall,
+                    ),
                     child: GestureDetector(
                       onTap: () => setState(() => _dateFilter = filter),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeMedium,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: selected ? primary : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusExtraLarge,
+                          ),
                         ),
                         child: Text(
                           label,
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: 12,
-                            color: selected ? Colors.white : Colors.grey.shade600,
+                            color:
+                                selected ? Colors.white : Colors.grey.shade600,
                           ),
                         ),
                       ),
@@ -397,25 +468,41 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                 }),
 
                 // Divider
-                Container(width: 1, height: 20, color: Colors.grey.shade200, margin: const EdgeInsets.only(right: 8)),
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: Colors.grey.shade200,
+                  margin: const EdgeInsets.only(
+                    right: Dimensions.paddingSizeSmall,
+                  ),
+                ),
 
                 // Price sort toggle
                 GestureDetector(
-                  onTap: () => setState(() {
-                    if (_priceSort == _PriceSort.none) {
-                      _priceSort = _PriceSort.lowToHigh;
-                    } else if (_priceSort == _PriceSort.lowToHigh) {
-                      _priceSort = _PriceSort.highToLow;
-                    } else {
-                      _priceSort = _PriceSort.none;
-                    }
-                  }),
+                  onTap:
+                      () => setState(() {
+                        if (_priceSort == _PriceSort.none) {
+                          _priceSort = _PriceSort.lowToHigh;
+                        } else if (_priceSort == _PriceSort.lowToHigh) {
+                          _priceSort = _PriceSort.highToLow;
+                        } else {
+                          _priceSort = _PriceSort.none;
+                        }
+                      }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeMedium,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: _priceSort != _PriceSort.none ? primary : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
+                      color:
+                          _priceSort != _PriceSort.none
+                              ? primary
+                              : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusExtraLarge,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -425,14 +512,22 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                               ? Icons.arrow_downward_rounded
                               : Icons.arrow_upward_rounded,
                           size: 12,
-                          color: _priceSort != _PriceSort.none ? Colors.white : Colors.grey.shade600,
+                          color:
+                              _priceSort != _PriceSort.none
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _priceSort == _PriceSort.highToLow ? 'price_high_low'.tr : 'price_low_high'.tr,
-                          style: robotoMedium.copyWith(
+                          _priceSort == _PriceSort.highToLow
+                              ? 'price_high_low'.tr
+                              : 'price_low_high'.tr,
+                          style: waddyMedium.copyWith(
                             fontSize: 12,
-                            color: _priceSort != _PriceSort.none ? Colors.white : Colors.grey.shade600,
+                            color:
+                                _priceSort != _PriceSort.none
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -444,11 +539,16 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                 if (hasActiveFilter) ...[
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => setState(() {
-                      _dateFilter = _DateFilter.all;
-                      _priceSort = _PriceSort.none;
-                    }),
-                    child: Icon(Icons.tune_rounded, size: 18, color: Colors.grey.shade400),
+                    onTap:
+                        () => setState(() {
+                          _dateFilter = _DateFilter.all;
+                          _priceSort = _PriceSort.none;
+                        }),
+                    child: Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: Colors.grey.shade400,
+                    ),
                   ),
                 ],
               ],
@@ -524,11 +624,11 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeMedium),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.07),
@@ -547,10 +647,15 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                 children: [
                   // Status badge — pill, ALL CAPS
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeSmall,
+                      vertical: Dimensions.paddingSizeExtraSmall,
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusBackgroundColor(order.orderStatus),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusExtraLarge,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -563,7 +668,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         const SizedBox(width: 5),
                         Text(
                           (order.orderStatus?.tr ?? '').toUpperCase(),
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 11,
                             color: _getStatusTextColor(order.orderStatus),
                             letterSpacing: 0.4,
@@ -575,7 +680,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                   const Spacer(),
                   Text(
                     dateStr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: 12,
                       color: Colors.grey.shade500,
                     ),
@@ -592,32 +697,37 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                 children: [
                   // Food image — larger, square
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     child: Container(
                       width: 74,
                       height: 74,
                       color: Colors.grey.shade100,
-                      child: _isValidUrl(firstItemImage)
-                          ? CustomImage(
-                              image: firstItemImage!,
-                              height: 74,
-                              width: 74,
-                              fit: BoxFit.cover,
-                            )
-                          : _isValidUrl(storeLogoUrl)
+                      child:
+                          _isValidUrl(firstItemImage)
                               ? CustomImage(
-                                  image: storeLogoUrl,
-                                  height: 74,
-                                  width: 74,
-                                  fit: BoxFit.cover,
-                                )
+                                image: firstItemImage!,
+                                height: 74,
+                                width: 74,
+                                fit: BoxFit.cover,
+                              )
+                              : _isValidUrl(storeLogoUrl)
+                              ? CustomImage(
+                                image: storeLogoUrl,
+                                height: 74,
+                                width: 74,
+                                fit: BoxFit.cover,
+                              )
                               : Center(
-                                  child: Icon(
-                                    isParcel ? Icons.inventory_2_rounded : Icons.fastfood_rounded,
-                                    color: Colors.grey.shade400,
-                                    size: 32,
-                                  ),
+                                child: Icon(
+                                  isParcel
+                                      ? Icons.inventory_2_rounded
+                                      : Icons.fastfood_rounded,
+                                  color: Colors.grey.shade400,
+                                  size: 32,
                                 ),
+                              ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -627,8 +737,10 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          memoryTriggerText.isNotEmpty ? memoryTriggerText : storeName,
-                          style: robotoBold.copyWith(
+                          memoryTriggerText.isNotEmpty
+                              ? memoryTriggerText
+                              : storeName,
+                          style: waddyBold.copyWith(
                             fontSize: 16,
                             color: Colors.black87,
                             height: 1.2,
@@ -639,7 +751,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         const SizedBox(height: 4),
                         Text(
                           '$storeName • $itemCount ${itemCount == 1 ? 'item'.tr : 'items'.tr}',
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 12,
                             color: Colors.grey.shade500,
                           ),
@@ -649,7 +761,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         const SizedBox(height: 6),
                         Text(
                           priceStr,
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 16,
                             color: Colors.black87,
                           ),
@@ -682,7 +794,9 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                           final List<int?> orderDetailsIdList = [];
                           for (var detail in cachedDetails) {
                             if (detail.itemDetails?.id != null &&
-                                !orderDetailsIdList.contains(detail.itemDetails!.id)) {
+                                !orderDetailsIdList.contains(
+                                  detail.itemDetails!.id,
+                                )) {
                               orderDetailsList.add(detail);
                               orderDetailsIdList.add(detail.itemDetails!.id);
                             }
@@ -701,29 +815,49 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.star_border_rounded, color: Colors.grey.shade400, size: 15),
+                            Icon(
+                              Icons.star_border_rounded,
+                              color: Colors.grey.shade400,
+                              size: 15,
+                            ),
                             const SizedBox(width: 4),
                             Text(
-                              xpEarned > 0 ? '${'rate_to_earn'.tr} +$xpEarned' : 'rate_to_earn'.tr,
-                              style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade500),
+                              xpEarned > 0
+                                  ? '${'rate_to_earn'.tr} +$xpEarned'
+                                  : 'rate_to_earn'.tr,
+                              style: waddyRegular.copyWith(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     const Spacer(),
                     GestureDetector(
-                      onTap: () => Get.toNamed(
-                        RouteHelper.getOrderDetailsRoute(order.id),
-                        arguments: OrderDetailsScreen(orderId: order.id, orderModel: order),
-                      ),
+                      onTap:
+                          () => Get.toNamed(
+                            RouteHelper.getOrderDetailsRoute(order.id),
+                            arguments: OrderDetailsScreen(
+                              orderId: order.id,
+                              orderModel: order,
+                            ),
+                          ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'view_details'.tr,
-                            style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade500),
+                            style: waddyRegular.copyWith(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
                           ),
-                          Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: Colors.grey.shade400,
+                          ),
                         ],
                       ),
                     ),
@@ -737,18 +871,29 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     GestureDetector(
-                      onTap: () => Get.toNamed(
-                        RouteHelper.getOrderDetailsRoute(order.id),
-                        arguments: OrderDetailsScreen(orderId: order.id, orderModel: order),
-                      ),
+                      onTap:
+                          () => Get.toNamed(
+                            RouteHelper.getOrderDetailsRoute(order.id),
+                            arguments: OrderDetailsScreen(
+                              orderId: order.id,
+                              orderModel: order,
+                            ),
+                          ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'view_details'.tr,
-                            style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade500),
+                            style: waddyRegular.copyWith(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
                           ),
-                          Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: Colors.grey.shade400,
+                          ),
                         ],
                       ),
                     ),
@@ -762,7 +907,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
   }
 
   // ══════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
   //  RUNNING CARD — Redesigned with smart UX actions & progress bar
   // ══════════════════════════════════════════════════════════════
   Widget _buildRunningCard(
@@ -817,9 +962,11 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
 
     // ETA display: use computed estimatedDelivery, fallback to store.deliveryTime
     String etaText = '';
-    if (order.estimatedDelivery != null && order.estimatedDelivery!.isNotEmpty) {
+    if (order.estimatedDelivery != null &&
+        order.estimatedDelivery!.isNotEmpty) {
       etaText = order.estimatedDelivery!;
-    } else if (order.store?.deliveryTime != null && order.store!.deliveryTime!.isNotEmpty) {
+    } else if (order.store?.deliveryTime != null &&
+        order.store!.deliveryTime!.isNotEmpty) {
       etaText = order.store!.deliveryTime!;
     }
 
@@ -827,7 +974,9 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
     int journeyStep = 0;
     if (status.contains('confirmed') || status.contains('processing')) {
       journeyStep = 1;
-    } else if (status.contains('handover') || status.contains('picked_up') || status.contains('out_for_delivery')) {
+    } else if (status.contains('handover') ||
+        status.contains('picked_up') ||
+        status.contains('out_for_delivery')) {
       journeyStep = 2;
     } else if (status.contains('delivered')) {
       journeyStep = 3;
@@ -842,7 +991,8 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
     } else if (status.contains('processing') || status.contains('confirmed')) {
       trackButtonText = 'track_live'.tr;
       trackButtonIcon = Icons.radar_rounded;
-    } else if (status.contains('out_for_delivery') || status.contains('handover')) {
+    } else if (status.contains('out_for_delivery') ||
+        status.contains('handover')) {
       trackButtonText = 'track_rider'.tr;
       trackButtonIcon = Icons.delivery_dining_rounded;
     } else {
@@ -853,11 +1003,11 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
     final bool isLive = journeyStep == 2;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeMedium),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.07),
@@ -878,8 +1028,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                   // Status badge with green dot
                   _buildStatusBadge(status, primary),
                   // ETA section: "ARRIVING IN" + bold time
-                  if (etaText.isNotEmpty)
-                    _buildEtaSection(etaText, primary),
+                  if (etaText.isNotEmpty) _buildEtaSection(etaText, primary),
                 ],
               ),
             ),
@@ -892,7 +1041,9 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                 children: [
                   // Food image 74×74 rounded
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     child: Container(
                       width: 74,
                       height: 74,
@@ -906,27 +1057,28 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                           ],
                         ),
                       ),
-                      child: _isValidUrl(firstItemImage)
-                          ? CustomImage(
-                              image: firstItemImage!,
-                              height: 74,
-                              width: 74,
-                              fit: BoxFit.cover,
-                            )
-                          : Center(
-                              child: ColorFiltered(
-                                colorFilter: ColorFilter.mode(
-                                  Colors.grey.shade400,
-                                  BlendMode.srcIn,
-                                ),
-                                child: Image.asset(
-                                  'assets/image/waddy.png',
-                                  height: 48,
-                                  width: 48,
-                                  fit: BoxFit.contain,
+                      child:
+                          _isValidUrl(firstItemImage)
+                              ? CustomImage(
+                                image: firstItemImage!,
+                                height: 74,
+                                width: 74,
+                                fit: BoxFit.cover,
+                              )
+                              : Center(
+                                child: ColorFiltered(
+                                  colorFilter: ColorFilter.mode(
+                                    Colors.grey.shade400,
+                                    BlendMode.srcIn,
+                                  ),
+                                  child: Image.asset(
+                                    'assets/image/waddy.png',
+                                    height: 48,
+                                    width: 48,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -936,8 +1088,10 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          memoryTriggerText.isNotEmpty ? memoryTriggerText : storeName,
-                          style: robotoBold.copyWith(
+                          memoryTriggerText.isNotEmpty
+                              ? memoryTriggerText
+                              : storeName,
+                          style: waddyBold.copyWith(
                             fontSize: 16,
                             color: Colors.black87,
                             height: 1.2,
@@ -948,7 +1102,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         const SizedBox(height: 4),
                         Text(
                           '$storeName • $itemCount ${itemCount == 1 ? 'item'.tr : 'items'.tr}',
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 13,
                             color: Colors.grey.shade600,
                           ),
@@ -958,7 +1112,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                         const SizedBox(height: 8),
                         Text(
                           PriceConverter.convertPrice(order.orderAmount ?? 0),
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 16,
                             color: primary,
                           ),
@@ -973,34 +1127,16 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
             // ── TRACK BUTTON: Simple button with just "Track Order" ──
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      Get.toNamed(
-                        RouteHelper.getOrderDetailsRoute(order.id),
-                        arguments: OrderDetailsScreen(
-                          orderId: order.id,
-                          orderModel: order,
-                        ),
+              child: CustomButton(
+                buttonText: trackButtonText,
+                onPressed:
+                    () => Get.toNamed(
+                      RouteHelper.getOrderDetailsRoute(order.id),
+                      arguments: OrderDetailsScreen(
+                        orderId: order.id,
+                        orderModel: order,
                       ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).secondaryHeaderColor,
-                    foregroundColor: const Color(0xFF134E4A),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  child: Text(
-                    'track_order'.tr,
-                    style: robotoBold.copyWith(
-                      fontSize: 14,
-                      color: const Color(0xFF134E4A),
-                    ),
-                  ),
-                ),
               ),
             ),
           ],
@@ -1013,29 +1149,35 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
   //  HELPER: Status badge with green dot
   // ══════════════════════════════════════════════════════════════
   Widget _buildStatusBadge(String status, Color primary) {
-    final Color statusColor = _getStatusColor(status.isNotEmpty ? status.replaceAll('_', ' ') : null);
-    
+    final Color statusColor = _getStatusColor(
+      status.isNotEmpty ? status.replaceAll('_', ' ') : null,
+    );
+
     // Green dot for in-transit/active statuses
-    bool showGreenDot = status.contains('confirmed') ||
+    bool showGreenDot =
+        status.contains('confirmed') ||
         status.contains('processing') ||
         status.contains('handover') ||
         status.contains('picked_up') ||
         status.contains('out_for_delivery');
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-         
-          
           Text(
-            (status.isEmpty ? 'pending' : status).replaceAll('_', ' ').toUpperCase(),
-            style: robotoMedium.copyWith(
+            (status.isEmpty ? 'pending' : status)
+                .replaceAll('_', ' ')
+                .toUpperCase(),
+            style: waddyMedium.copyWith(
               fontSize: 11,
               color: statusColor,
               letterSpacing: 0.3,
@@ -1056,7 +1198,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       children: [
         Text(
           'arriving_in'.tr.toUpperCase(),
-          style: robotoRegular.copyWith(
+          style: waddyRegular.copyWith(
             fontSize: 10,
             color: Colors.grey.shade500,
             letterSpacing: 0.3,
@@ -1065,7 +1207,7 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
         const SizedBox(height: 2),
         Text(
           etaText,
-          style: robotoBold.copyWith(
+          style: waddyBold.copyWith(
             fontSize: 18,
             color: Theme.of(context).primaryColor, // Neon green
           ),
@@ -1105,15 +1247,11 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.chat_rounded,
-            size: 14,
-            color: Colors.grey.shade500,
-          ),
+          Icon(Icons.chat_rounded, size: 14, color: Colors.grey.shade500),
           const SizedBox(width: 4),
           Text(
             actionLabel,
-            style: robotoRegular.copyWith(
+            style: waddyRegular.copyWith(
               fontSize: 12,
               color: Colors.grey.shade500,
             ),
@@ -1126,14 +1264,13 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
   // ══════════════════════════════════════════════════════════════
   //  ACTION HANDLERS
   // ══════════════════════════════════════════════════════════════
-  
+
   void _openSupportScreen() {
     // TODO: Navigate to support screen or create support ticket
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('support_feature_coming_soon'.tr),
-        duration: const Duration(seconds: 2),
-      ),
+    showCustomSnackBar(
+      'support_feature_coming_soon'.tr,
+      isError: false,
+      showDuration: 2,
     );
   }
 
@@ -1151,25 +1288,14 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('dialer_error'.tr),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        showCustomSnackBar('dialer_error'.tr, showDuration: 2);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('call_failed'.tr),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        showCustomSnackBar('call_failed'.tr, showDuration: 2);
       }
     }
   }
-
 }
 
 // Button state enum for micro-interactions
@@ -1253,7 +1379,10 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
     Get.showSnackbar(
       GetSnackBar(
         messageText: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+            vertical: 11,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xFF134E4A),
             borderRadius: BorderRadius.circular(32),
@@ -1268,18 +1397,11 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset(
-                'assets/image/waddy_coin.png',
-                width: 18,
-                height: 18,
-              ),
+              Image.asset('assets/image/waddy_coin.png', width: 18, height: 18),
               const SizedBox(width: 6),
               Text(
                 '+${widget.xpEarned} coins earned!',
-                style: robotoBold.copyWith(
-                  color: Colors.white,
-                  fontSize: 13,
-                ),
+                style: waddyBold.copyWith(color: Colors.white, fontSize: 13),
               ),
             ],
           ),
@@ -1294,9 +1416,9 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
 
   @override
   Widget build(BuildContext context) {
-     Color brandNeon = Theme.of(context).secondaryHeaderColor;
-     Color brandDark = Color(0xFF134E4A);
-     Color successGreen = Color(0xFF00C853);
+    Color brandNeon = Theme.of(context).secondaryHeaderColor;
+    Color brandDark = Color(0xFF134E4A);
+    Color successGreen = Color(0xFF00C853);
 
     final bgColor = _state == _ButtonState.success ? successGreen : brandNeon;
 
@@ -1306,16 +1428,17 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
         onTap: _handleReorder,
         child: AnimatedBuilder(
           animation: _scaleController,
-          builder: (context, child) => Transform.scale(
-            scale: _scaleController.value,
-            child: child,
-          ),
+          builder:
+              (context, child) =>
+                  Transform.scale(scale: _scaleController.value, child: child),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              vertical: Dimensions.paddingSizeMedium,
+            ),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             ),
             alignment: Alignment.center,
             child: AnimatedSwitcher(
@@ -1346,7 +1469,7 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
             const SizedBox(width: 8),
             Text(
               'adding'.tr.toUpperCase(),
-              style: robotoBold.copyWith(
+              style: waddyBold.copyWith(
                 fontSize: 13,
                 color: textColor,
                 letterSpacing: 0.5,
@@ -1363,7 +1486,7 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
             const SizedBox(width: 6),
             Text(
               'added_to_cart'.tr,
-              style: robotoBold.copyWith(
+              style: waddyBold.copyWith(
                 fontSize: 12,
                 color: Colors.white,
                 letterSpacing: 0.3,
@@ -1379,25 +1502,15 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
           children: [
             Text(
               'reorder'.tr,
-              style: robotoBold.copyWith(
-                fontSize: 14,
-                color: textColor,
-              ),
+              style: waddyBold.copyWith(fontSize: 14, color: textColor),
             ),
             if (widget.xpEarned > 0) ...[
               const SizedBox(width: 8),
-              Image.asset(
-                'assets/image/waddy_coin.png',
-                width: 18,
-                height: 18,
-              ),
+              Image.asset('assets/image/waddy_coin.png', width: 18, height: 18),
               const SizedBox(width: 4),
               Text(
                 '+${widget.xpEarned}',
-                style: robotoBold.copyWith(
-                  fontSize: 14,
-                  color: textColor,
-                ),
+                style: waddyBold.copyWith(fontSize: 14, color: textColor),
               ),
             ],
           ],
@@ -1466,16 +1579,20 @@ class _TrackOrderButtonState extends State<_TrackOrderButton>
         onTap: widget.onTap,
         child: AnimatedBuilder(
           animation: _pulseAnim,
-          builder: (context, child) => Transform.scale(
-            scale: widget.isLive ? _pulseAnim.value : 1.0,
-            child: child,
-          ),
+          builder:
+              (context, child) => Transform.scale(
+                scale: widget.isLive ? _pulseAnim.value : 1.0,
+                child: child,
+              ),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            padding: const EdgeInsets.symmetric(
+              vertical: Dimensions.paddingSizeMedium,
+              horizontal: Dimensions.paddingSizeMedium,
+            ),
             decoration: BoxDecoration(
               color: brandNeon,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
               boxShadow: [
                 BoxShadow(
                   color: brandNeon.withValues(alpha: 0.35),
@@ -1504,7 +1621,7 @@ class _TrackOrderButtonState extends State<_TrackOrderButton>
                 const SizedBox(width: 8),
                 Text(
                   widget.label,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 14,
                     color: brandDark,
                     letterSpacing: 0.2,

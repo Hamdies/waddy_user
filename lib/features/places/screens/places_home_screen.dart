@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/util/swallow.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
-import 'package:waddy_app/features/places/widgets/area_filter_tabs.dart';
-import 'package:waddy_app/features/places/widgets/chillers_section.dart';
-import 'package:waddy_app/features/places/widgets/places_list_view.dart';
-import 'package:waddy_app/features/places/widgets/podium_section.dart';
+import 'package:waddy_app/features/places/widgets/places_to_visit_section.dart';
+import 'package:waddy_app/features/places/widgets/recent_winners_strip.dart';
+import 'package:waddy_app/features/places/widgets/round_countdown_bar.dart';
+import 'package:waddy_app/features/places/widgets/spots_error_card.dart';
+import 'package:waddy_app/features/places/widgets/spots_masthead.dart';
+import 'package:waddy_app/features/places/widgets/spots_win_card.dart';
+import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
+import 'package:waddy_app/features/places/widgets/top_voters_podium_section.dart';
+import 'package:waddy_app/features/places/widgets/weekly_top3_section.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 
-// Warm off-white page tint — makes white cards feel elevated
-const _kPageBg = Color(0xFFF5F4F1);
-
+/// WADDI Spots home — the live weekly leaderboard experience.
+/// Faithful implementation of the "WADDI Spots Design System" Home template:
+/// deep-teal masthead over a dot-grid canvas, then the anticipation headline +
+/// live countdown, this week's top-3 leaderboard, the top-voters podium with a
+/// live movement ticker, and the category-filterable places-to-visit rail.
 class PlacesHomeScreen extends StatefulWidget {
   const PlacesHomeScreen({super.key});
 
@@ -22,267 +28,207 @@ class PlacesHomeScreen extends StatefulWidget {
   State<PlacesHomeScreen> createState() => _PlacesHomeScreenState();
 }
 
+/// The race half of the home screen — the board, the voters podium and the
+/// winners strip — or the error card, when nothing arrived at all.
+///
+/// Only the error/content swap needs the controller here; each section
+/// subscribes for itself and renders its own loading and empty states.
+class _RaceSections extends StatelessWidget {
+  const _RaceSections();
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<PlacesController>(
+      // The leaderboard id is what every board fetch and `refreshRankDeltas`
+      // repaint, so it is the one that knows whether anything landed.
+      id: PlacesController.idLeaderboard,
+      builder: (controller) {
+        if (controller.hasInitError && !controller.hasAnyHomeData) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: Spots.sectionGap),
+            child: SpotsErrorCard(onRetry: controller.retryInitialize),
+          );
+        }
+
+        return const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Each section owns its own empty state, so none of them is gated
+            // on the round's heat.
+            //
+            // An earlier pass hid the podium and the winners strip below
+            // `stage.isHot`, reading `SpotsStage`'s doc comment as a mandate to
+            // gate composition. It is not the right cut here: `roundHeat` sums
+            // the *venues'* votes, and the podium ranks *people* — a voters
+            // board is perfectly real on a week where no single spot has pulled
+            // ahead yet. `WeeklyTop3Section` has its "the crown is open" state
+            // and `_VotersEmpty` has its own, which is the honest way to handle
+            // a quiet round: say so in place, rather than remove the section
+            // and leave the screen looking like the feature is missing.
+            WeeklyTop3Section(),
+            SizedBox(height: Spots.sectionGap),
+            TopVotersPodiumSection(),
+            SizedBox(height: Spots.sectionGap),
+            // People who won the prize draw — sits below the podium but
+            // styled apart from it, so a ranking and a random draw never
+            // read as the same list.
+            RecentWinnersStrip(),
+            SizedBox(height: Spots.sectionGap),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+  ScrollDirection _lastDirection = ScrollDirection.idle;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+
+    _scrollController.addListener(() {
+      _maybeLoadMore();
+
+      final direction = _scrollController.position.userScrollDirection;
+      if (direction == _lastDirection) return;
+      _lastDirection = direction;
+
+      if (direction == ScrollDirection.reverse) {
+        Get.find<HomeController>().onScrollDown();
+      } else {
+        Get.find<HomeController>().onScrollUp();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Append the next page of spots as the bottom of the list approaches.
+  ///
+  /// The venue list was one page forever: `getPlaces` is paginated and the
+  /// controller merges pages, but nothing on this screen ever asked for page
+  /// two — while the section header rendered the server's catalogue count over
+  /// it, so it claimed "48 SPOTS" above ten rows. See `S-09`.
+  ///
+  /// 300px of lead time, matching the store screens. The guards live on the
+  /// controller (`isLoadingMorePlaces`, `hasMorePlaces`) because this fires on
+  /// every scroll frame inside the trigger zone.
+  void _maybeLoadMore() {
+    if (!_scrollController.hasClients) return;
+    final ScrollPosition position = _scrollController.position;
+    if (position.pixels < position.maxScrollExtent - 300) return;
+
+    final PlacesController controller = Get.find<PlacesController>();
+    if (controller.isPlacesLoading ||
+        controller.isLoadingMorePlaces ||
+        !controller.hasMorePlaces) {
+      return;
+    }
+    controller.getPlaces(offset: controller.nextPlacesPage);
   }
 
   Future<void> _loadData() async {
     final controller = Get.find<PlacesController>();
     await controller.initializePlacesData();
-    if (AuthHelper.isLoggedIn()) controller.getFavorites();
+    if (AuthHelper.isLoggedIn()) {
+      controller.getFavorites();
+      // Drives the masthead's prize badge — a won voucher has to be findable
+      // even when the push was swiped away.
+      await controller.getMyPrizes();
+      _offerCelebration();
+      try {
+        await Get.find<ProfileController>().getUserInfo();
+      } catch (e, s) {
+        swallow('refresh profile after prize', e, s);
+      }
+    }
+  }
+
+  /// Congratulate a winner where the win actually arrives.
+  ///
+  /// The home already spends a request on `getMyPrizes` specifically so a
+  /// voucher is "findable when the push was swiped away" — but the celebration
+  /// only ever fired from the prizes screen. So someone who won while the app
+  /// was closed opened Spots, saw a small mint dot on a pill, and got the card
+  /// only if they independently decided to tap through. See `S-11`.
+  ///
+  /// `markPrizeCelebrated` is the once-per-prize gate and it is persisted, so
+  /// this cannot nag: whichever surface offers the card first is the only one
+  /// that offers it.
+  void _offerCelebration() {
+    if (!mounted) return;
+    final controller = Get.find<PlacesController>();
+    final prize = controller.uncelebratedPrize;
+    if (prize == null) return;
+
+    controller.markPrizeCelebrated(prize.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      SpotsWinCardSheet.show(context, prize);
+    });
+  }
+
+  Future<void> _refresh() async {
+    final controller = Get.find<PlacesController>();
+    await controller.initializePlacesData(reload: true);
+    if (AuthHelper.isLoggedIn()) {
+      await controller.getMyPrizes(reload: true, notify: false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final neon    = Theme.of(context).secondaryHeaderColor;
-    final primary = Theme.of(context).primaryColor;
-
-    return ColoredBox(
-      color: _kPageBg,
-      child: GetBuilder<PlacesController>(
-        builder: (placesController) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-
-              // ── Header ──
-              _buildHeaderBar(context, neon, primary, placesController),
-              const SizedBox(height: 8),
-
-              // ── Area filter tabs ──
-              const AreaFilterTabs(),
-
-              // ── The Podium ──
-              const PodiumSection(),
-
-              // ── Divider ──
-              _divider(),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions.paddingSizeDefault),
-                child: Row(
-                  children: [
-                    Text(
-                      'TOP VOTERS',
-                      style: robotoBlack.copyWith(
-                        fontSize: 11,
-                        color: Colors.black45,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions.paddingSizeDefault, vertical: 0),
-                child: const ChillersSection(),
-              ),
-
-              const SizedBox(height: 16),
-               _divider(),
-              // ── All Spots (primary action area) ──
-              const PlacesListView(),
-
-              // ── Divider ──
-             
-
-              // ── Top 3 Chillers (social proof, secondary) ──
-             
-
-              SizedBox(height: MediaQuery.of(context).padding.bottom + 80),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // Thin full-width black rule — consistent visual rhythm between sections
-  Widget _divider() => Container(
-        height: 1.5,
-        color: Colors.black,
-        margin: const EdgeInsets.symmetric(vertical: 10),
-      );
-
-  Widget _buildHeaderBar(BuildContext context, Color neon, Color primary,
-      PlacesController placesController) {
-    // Compute badge label from selected zone
-    String badgeLabel = 'Maadi';
-    final selId = placesController.selectedZoneId;
-    if (selId != null) {
-      final zones = placesController.zones;
-      if (zones != null) {
-        for (final z in zones) {
-          if (z.id == selId) {
-            badgeLabel = z.displayName ?? z.name ?? 'Area';
-            break;
-          }
-        }
-      }
-    }
-
-    // Read live loyalty points safely
-    String points = '—';
-    try {
-      points = Get.find<ProfileController>()
-              .userInfoModel
-              ?.loyaltyPoint
-              ?.toString() ??
-          '—';
-    } catch (_) {}
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingSizeDefault, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return SafeArea(
+      bottom: false,
+      child: Column(
         children: [
-
-          // ── Back button — neubrutalism square ──
-          GestureDetector(
-            onTap: () => Get.find<SplashController>().setModule(null),
-            child: Container(
-              width:  40,
-              height: 40,
-              decoration: BoxDecoration(
-                color:     Colors.white,
-                border:    Border.all(color: Colors.black, width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                      color:      Colors.black,
-                      offset:     Offset(2, 2),
-                      blurRadius: 0),
-                ],
-              ),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  size: 16, color: Colors.black),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // ── Branding ──
+          // Masthead is fixed — it no longer scrolls with the content.
+          const SpotsMasthead(),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'WADDI',
-                      style: robotoBlack.copyWith(
-                          fontSize: 26, height: 1, color: Colors.black),
-                    ),
-                    const SizedBox(width: 6),
-                    // Area badge — tappable filter trigger
-                    GestureDetector(
-                      onTap: () => showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.white,
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero),
-                        builder: (_) => Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                    bottom: BorderSide(
-                                        color: Colors.black, width: 1.5)),
-                              ),
-                              child: Text(
-                                'SELECT AREA',
-                                style: robotoBlack.copyWith(
-                                    fontSize: 13, letterSpacing: 1.4),
-                              ),
-                            ),
-                            const AreaFilterTabs(),
-                            SizedBox(
-                                height: MediaQuery.of(context).padding.bottom +
-                                    16),
-                          ],
-                        ),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color:  neon,
-                          border: Border.all(color: Colors.black, width: 2),
-                          boxShadow: const [
-                            BoxShadow(
-                                color:      Colors.black,
-                                offset:     Offset(2, 2),
-                                blurRadius: 0),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              badgeLabel,
-                              style: robotoBlack.copyWith(
-                                  fontSize: 13, color: Colors.black),
-                            ),
-                            const SizedBox(width: 3),
-                            const Icon(Icons.keyboard_arrow_down_rounded,
-                                size: 14, color: Colors.black),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              color: Spots.teal,
+              backgroundColor: Spots.mint,
+              // A CustomScrollView, not a SingleChildScrollView + Column: the
+              // latter builds and lays out every section on the first frame,
+              // including the podium and the full places list far below the
+              // fold. Slivers build lazily, so opening the screen only pays
+              // for what is actually on screen. This mirrors the food home.
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
                 ),
-                Text(
-                  'Spots',
-                  style: robotoBlack.copyWith(
-                    fontSize: 20,
-                    color:       primary,
-                    fontStyle:   FontStyle.italic,
-                    height:      1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Coin display — live loyalty points, tappable ──
-          GestureDetector(
-            onTap: () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color:     Colors.white,
-                border:    Border.all(color: Colors.black, width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                      color:      Colors.black,
-                      offset:     Offset(2, 2),
-                      blurRadius: 0),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/image/waddy_coin.png',
-                      width: 20, height: 20),
-                  const SizedBox(width: 6),
-                  Text(
-                    points,
-                    style: robotoBlack.copyWith(
-                        fontSize: 16, color: primary),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      Spots.gutter,
+                      Spots.gutter,
+                      Spots.gutter,
+                      MediaQuery.of(context).padding.bottom + Spots.s24,
+                    ),
+                    sliver: SliverList.list(
+                      children: const [
+                        // The countdown is client-side — it survives outages.
+                        RoundCountdownBar(),
+                        SizedBox(height: Spots.sectionGap),
+                        // Everything between the countdown and the venue list
+                        // is earned, not fixed. See [_RaceSections].
+                        _RaceSections(),
+                        PlacesToVisitSection(),
+                        // Extra room so the last card clears the floating
+                        // bottom nav bar once it slides back in at rest.
+                        SizedBox(height: 90),
+                      ],
+                    ),
                   ),
                 ],
               ),

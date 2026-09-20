@@ -1,9 +1,13 @@
+import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 
 class BasicCampaignModel {
   int? id;
   String? title;
   String? imageFullUrl;
+
+  /// Right-sized WebP set for [imageFullUrl]; see ImageVariants.
+  ImageVariants? imageVariants;
   String? description;
   String? availableDateStarts;
   String? availableDateEnds;
@@ -27,6 +31,7 @@ class BasicCampaignModel {
     id = json['id'];
     title = json['title'];
     imageFullUrl = json['image_full_url'];
+    imageVariants = ImageVariants.fromJson(json['image_variants']);
     description = json['description'];
     availableDateStarts = json['available_date_starts'];
     availableDateEnds = json['available_date_ends'];
@@ -45,6 +50,7 @@ class BasicCampaignModel {
     data['id'] = id;
     data['title'] = title;
     data['image_full_url'] = imageFullUrl;
+    if (imageVariants != null) data['image_variants'] = imageVariants!.toJson();
     data['description'] = description;
     data['available_date_starts'] = availableDateStarts;
     data['available_date_ends'] = availableDateEnds;

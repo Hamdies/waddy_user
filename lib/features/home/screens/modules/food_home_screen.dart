@@ -1,134 +1,173 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
-import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
+import 'package:waddy_app/features/home/widgets/views/top_restaurants_view.dart';
 import 'package:waddy_app/features/store/controllers/store_controller.dart';
-import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/cuisine/controllers/cuisine_controller.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_category_circles.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_store_list.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/ramadan_reorder_section.dart';
 import 'package:waddy_app/features/home/widgets/banner_view.dart';
+import 'package:waddy_app/features/home/widgets/home_hero_banner_widget.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/store/screens/food_store_screen.dart';
-import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/util/app_design_tokens.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_store_row_card.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
 
+// ── Filter chip metrics ──────────────────────────────────────────────────────
+// Shared by the filter chips, the clear chip and the pinned header's height so
+// the three can never disagree about how tall the strip is.
+
+/// Chip visual height. The tap target is larger — see [_kChipRowHeight].
+const double _kChipHeight = 34;
+
+/// Fully rounded at this height; named so the clear chip cannot drift from the
+/// filters it sits beside.
+const double _kChipRadius = 30;
+
+/// Row height, and therefore the chips' tap target. 44 is the iOS HIG minimum
+/// and this strip is thumb-targeted on a moving feed.
+const double _kChipRowHeight = 44;
+
+/// Space above and below the chip row inside the pinned band.
+///
+/// Top matches the bind gap used elsewhere on the screen rather than going
+/// tighter: the chips are their own control group, not part of the cuisine
+/// strip above them, and at 8 they read as a second row of that strip.
+const double _kChipStripTopPad = Dimensions.paddingSizeMedium;
+
+/// Gap between chips and around the sort/filter hairline. The design runs a
+/// single 9px rhythm across the whole strip.
+const double _kChipGap = 9;
+const double _kChipStripBottomPad = Dimensions.paddingSizeMedium;
+
+// ── Section rhythm ───────────────────────────────────────────────────────────
+// One gap between whole sections, one smaller gap where a section binds to the
+// thing it introduces. The screen previously spaced its sections with ad-hoc
+// 16 / 8 / 20 literals, so the seam between "Order again" and the ranked rail
+// was half the seam between the rail and the catalogue, with nothing deciding
+// which was which.
+
+/// Between two unrelated sections.
+const double _kSectionGap = Dimensions.paddingSizeExtraLarge;
+
+/// Between a section and content that belongs to it — a header and its strip,
+/// a rail and its own cards. Deliberately less than [_kSectionGap]: proximity
+/// is what says "these two things are one thing".
+const double _kSectionGapTight = Dimensions.paddingSizeMedium;
+
 class FoodHomeScreen extends StatefulWidget {
-  const FoodHomeScreen({super.key});
+  final ScrollController scrollController;
+  const FoodHomeScreen({super.key, required this.scrollController});
 
   @override
   State<FoodHomeScreen> createState() => _FoodHomeScreenState();
 }
 
-class _FoodHomeScreenState extends State<FoodHomeScreen>
-    with TickerProviderStateMixin {
-  int? _selectedCategoryId;
-  bool _filterOffers = false;
-  bool _filterUnder30 = false;
-  bool _filterFreeDelivery = false;
+class _FoodHomeScreenState extends State<FoodHomeScreen> {
+  /// Food filters by cuisine, not category: the Food module has no category
+  /// rows, so the strip and the store query both key off cuisine ids.
+  ///
+  /// The filter state itself lives on [StoreController], and only there. This
+  /// screen used to keep its own copy in five `setState` fields and push them
+  /// into the controller without ever reading back — so the chips rendered
+  /// from one copy and the list from the other. `DashboardScreen` builds its
+  /// pages with a `PageView.builder` that keeps nothing alive, so a hop to the
+  /// Orders tab disposed this State: the chips came back empty while the
+  /// controller was still filtering the list, and the only way out was to
+  /// toggle a chip on and off again.
+  ModuleStoreFilters get _filters => Get.find<StoreController>().moduleFilters;
 
-  late final AnimationController _categoryAnimController;
-  late final Animation<double> _categoryFadeAnim;
+  int? get _selectedCuisineId => _filters.cuisineId;
+  bool get _filterOffers => _filters.offers;
+  bool get _filterUnder30 => _filters.maxDeliveryTime != null;
+  bool get _filterFreeDelivery => _filters.freeDelivery;
+  String get _selectedSort => _filters.sort ?? 'default';
 
-  int _storeSlideIndex = 0;
-  Timer? _storeSlideTimer;
-
-  void _startStoreSlideshow() {
-    _storeSlideTimer?.cancel();
-    _storeSlideTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted) setState(() => _storeSlideIndex++);
-    });
+  /// Change one filter, keeping the rest. The controller refetches and
+  /// notifies; every widget that renders filter state is a `GetBuilder` on it,
+  /// so nothing here calls `setState` for a filter any more.
+  void _applyFilters(ModuleStoreFilters next) {
+    Get.find<StoreController>().setModuleStoreFilters(next);
   }
 
-  @override
-  void dispose() {
-    _categoryAnimController.dispose();
-    _storeSlideTimer?.cancel();
-    super.dispose();
-  }
+  /// Horizontal offset of the filter strip.
+  ///
+  /// Held so the strip can be sent back to its start when the clear chip
+  /// appears. The chip is inserted at index 0, and a `ListView` keeps its pixel
+  /// offset across a rebuild — so on a strip already scrolled past "Sort by",
+  /// the new leading chip is inserted *behind* the current viewport and the
+  /// control that just appeared is invisible until the user scrolls back for
+  /// it.
+  final ScrollController _chipScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _categoryAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _categoryFadeAnim = CurvedAnimation(
-      parent: _categoryAnimController,
-      curve: Curves.easeOutCubic,
-    );
-    _categoryAnimController.forward();
-    _startStoreSlideshow();
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _chipScrollController.dispose();
+    super.dispose();
+  }
+
   void _loadData() {
-    Get.find<CategoryController>().getCategoryList(false);
+    Get.find<CuisineController>().getCuisineList(false);
     if (Get.find<AddressController>().addressList == null) {
       Get.find<AddressController>().getAddressList();
     }
+    // Feeds TopRestaurantsView's ranked rail. Nothing else fetches this for
+    // the Food module: home_screen.dart only calls it for the no-module
+    // dashboard and for pharmacy, and splash_controller only refetches it on
+    // module exit — so without this call the rail is stuck on stale data
+    // from whatever module was open before, or null forever.
+    Get.find<StoreController>().getFeaturedStoreList();
   }
 
-  void _onCategoryTap(int? categoryId) {
-    setState(() {
-      _selectedCategoryId =
-          (_selectedCategoryId == categoryId) ? null : categoryId;
-    });
+  // Chips/sort/cuisine are applied server-side: results cover the whole
+  // catalogue, not just the pages loaded so far.
+  void _onCuisineTap(int? cuisineId) {
+    _applyFilters(
+      _filters.copyWith(
+        cuisineId: _selectedCuisineId == cuisineId ? null : cuisineId,
+      ),
+    );
   }
-
-  String _selectedSort = 'default';
 
   void _showSortBottomSheet() {
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                height: 5,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
-            Text(
-              'sort_by'.tr,
-              style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge),
-            ),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
-            _buildSortOption('default', 'recommended'.tr, Icons.star_rounded),
-            _buildSortOption(
-              'rating',
-              'top_rated'.tr,
-              Icons.star_border_rounded,
-            ),
-            _buildSortOption(
-              'distance',
-              'nearest_first'.tr,
-              Icons.location_on_outlined,
-            ),
-            _buildSortOption('a_z', 'a_z'.tr, Icons.sort_by_alpha_rounded),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
-          ],
+      _DesignSheet(
+        title: 'sort_by'.tr,
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            Dimensions.paddingSizeSmall,
+            0,
+            Dimensions.paddingSizeSmall,
+            Dimensions.paddingSizeMedium,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSortOption('default', 'recommended'.tr),
+              _buildSortOption('rating', 'top_rated'.tr),
+              _buildSortOption('distance', 'nearest_first'.tr),
+              _buildSortOption('a_z', 'a_z'.tr),
+            ],
+          ),
         ),
       ),
       isScrollControlled: true,
@@ -136,123 +175,81 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
     );
   }
 
-  Widget _buildSortOption(String value, String title, IconData icon) {
-    bool isSelected = _selectedSort == value;
-    return InkWell(
-      onTap: () {
-        setState(() => _selectedSort = value);
-        Get.back();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color:
-                  isSelected
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey.shade600,
-            ),
-            const SizedBox(width: Dimensions.paddingSizeSmall),
-            Expanded(
-              child: Text(
-                title,
-                style: robotoMedium.copyWith(
-                  fontSize: Dimensions.fontSizeDefault,
-                  color:
-                      isSelected
-                          ? Theme.of(context).primaryColor
-                          : Colors.black87,
+  Widget _buildSortOption(String value, String title) {
+    final bool isSelected = _selectedSort == value;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Get.back();
+          _applyFilters(
+            _filters.copyWith(sort: value == 'default' ? null : value),
+          );
+        },
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeMedium,
+            vertical: 15,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: waddyMedium.copyWith(
+                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                    color:
+                        isSelected
+                            ? Theme.of(context).primaryColor
+                            : WaddyColors.ink,
+                  ),
                 ),
               ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: Theme.of(context).primaryColor,
-                size: 20,
-              ),
-          ],
+              if (isSelected)
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedTick02,
+                  color: Theme.of(context).primaryColor,
+                  size: 19,
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List<Store> _filterStores(List<Store>? stores) {
-    if (stores == null) return [];
+  Object _storeScreenArguments(Store store) =>
+      FoodStoreScreen(store: store, fromModule: false);
 
-    // Start with all stores
-    Iterable<Store> filtered = stores;
-
-    // Filter by Category
-    if (_selectedCategoryId != null) {
-      filtered = filtered.where((store) {
-        return store.categoryIds != null &&
-            store.categoryIds!.contains(_selectedCategoryId);
-      });
-    }
-
-    // Filter by Offers (Discount > 0)
-    if (_filterOffers) {
-      filtered = filtered.where((store) {
-        return store.discount != null &&
-            store.discount!.discount != null &&
-            store.discount!.discount! > 0;
-      });
-    }
-
-    // Filter by Under 30 Mins
-    if (_filterUnder30) {
-      filtered = filtered.where((store) {
-        if (store.deliveryTime == null || store.deliveryTime!.isEmpty) {
-          return false;
-        }
-        // Delivery time is often formatted as "30-45" or "10-20 min"
-        // We extract the maximum time to be safe.
-        final parts = store.deliveryTime!.split('-');
-        final maxTimeStr = parts.last.replaceAll(RegExp(r'[^0-9]'), '');
-        final maxTime = int.tryParse(maxTimeStr) ?? 999;
-        return maxTime <= 30;
-      });
-    }
-
-    // Filter by Free Delivery
-    if (_filterFreeDelivery) {
-      filtered = filtered.where((store) {
-        return store.freeDelivery == true ||
-            (store.minimumShippingCharge != null &&
-                store.minimumShippingCharge == 0);
-      });
-    }
-
-    List<Store> result = filtered.toList();
-
-    // Apply Sorting
-    switch (_selectedSort) {
-      case 'rating':
-        result.sort((a, b) => (b.avgRating ?? 0).compareTo(a.avgRating ?? 0));
-        break;
-      case 'distance':
-        result.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
-        break;
-      case 'a_z':
-        result.sort(
-          (a, b) => (a.name?.toLowerCase() ?? '').compareTo(
-            b.name?.toLowerCase() ?? '',
-          ),
-        );
-        break;
-      case 'default':
-      default:
-        // Already in the default order provided by the API
-        break;
-    }
-
-    return result;
+  // Opens the item sheet (handles variations/addons) instead of blind
+  // cart insertion — same pattern as cart_item_widget.
+  void _openItemSheet(BuildContext context, Items item) {
+    if (item.id == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (con) => ItemBottomSheet(itemId: item.id!),
+    );
   }
 
+  /// Returns a SLIVER, not a box. This screen is rendered directly into the
+  /// home screen's `CustomScrollView`, so it must be placed in `slivers:`.
+  ///
+  /// It used to return a flat `Column` of the sections below, which the home
+  /// screen then wrapped in a single `SliverToBoxAdapter`. A `Column` has no
+  /// viewport awareness, so every rail, card, shimmer and image — the whole
+  /// restaurant catalogue included — was built, laid out and painted in the
+  /// first frame and rebuilt on every controller update, however far below the
+  /// fold it sat. The lazy-loading machinery was present and defeated by one
+  /// wrapper.
+  ///
+  /// `SliverMainAxisGroup` lets the sections become real slivers without moving
+  /// this widget's state (`_selectedCuisineId`, the category fade) up to the
+  /// parent. The section widgets themselves are unchanged; only the store list
+  /// swapped to a builder, because it is the one with an unbounded item count.
   bool get _hasActiveChipFilter =>
       _filterOffers ||
       _filterUnder30 ||
@@ -261,726 +258,101 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAppBar(context),
-        _buildSearchBar(context),
-        const CurrentOrderWidget(),
-        const SizedBox(height: 16),
-        _buildOrderAgainSection(context),
-        const SizedBox(height: 8),
-        _buildPopularRestaurantsSection(context),
-        const BannerView(isFeatured: false, showRamadanWrapper: false),
-        const SizedBox(height: 20),
-        _buildBrowseAllRestaurantsHeader(context),
-        _buildCategoryCircles(context),
-        const SizedBox(height: 6),
-        _buildFilterChips(context),
-        const SizedBox(height: 8),
-        _buildStoreList(context),
-        const SizedBox(height: 20),
+    return SliverMainAxisGroup(
+      slivers: [
+        const SliverToBoxAdapter(
+          child: HomeHeroBannerWidget(showBackButton: true, compact: true),
+        ),
+        const SliverToBoxAdapter(child: CurrentOrderWidget()),
+        const SliverToBoxAdapter(child: SizedBox(height: _kSectionGap)),
+        SliverToBoxAdapter(child: _buildOrderAgainSection(context)),
+        const SliverToBoxAdapter(child: SizedBox(height: _kSectionGapTight)),
+        const SliverToBoxAdapter(child: TopRestaurantsView()),
+        const SliverToBoxAdapter(
+          child: BannerView(isFeatured: false, showRamadanWrapper: false),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: _kSectionGap)),
+        // A hairline, not just the gap above: when there is no active banner
+        // the rail and "All restaurants" were separated by nothing but
+        // whitespace, which reads as a soft pause rather than a section
+        // ending. The rule gives the eye an actual edge to land on before the
+        // catalogue starts.
+        const SliverToBoxAdapter(child: _SectionDivider()),
+        const SliverToBoxAdapter(child: SizedBox(height: _kSectionGap)),
+        SliverToBoxAdapter(child: _buildCatalogueHeader(context)),
+        SliverToBoxAdapter(
+          // Same reason as the chip strip: the selected tile's ring is filter
+          // state, and the screen no longer rebuilds when that changes.
+          child: GetBuilder<StoreController>(
+            builder:
+                (_) => ModuleCuisineCircles(
+                  selectedCuisineId: _selectedCuisineId,
+                  onCuisineTap: _onCuisineTap,
+                  // No leading "all" tile: the section header directly above the
+                  // strip already reads "All restaurants" whenever nothing is
+                  // selected, and says it in words rather than as a logo slideshow
+                  // wearing a selected ring. See [ModuleCuisineCircles.showAllTile].
+                  showAllTile: false,
+                  allLabel: 'all'.tr,
+                  allSemanticLabel: 'all_restaurants'.tr,
+                  fallbackIcon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedRestaurant02,
+                    size: 26,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  // 0: the chip strip below supplies its own top pad, and the strip
+                  // box now ends at the label rather than at a two-line reservation,
+                  // so anything here lands on top of that and re-opens the gap this
+                  // pass closed.
+                  bottomPadding: 0,
+                ),
+          ),
+        ),
+        // Pinned, not scrolled away with the cuisines above it. The chips are
+        // how you narrow a catalogue you are scrolling *through* — leaving
+        // them at the top meant scrolling back to the cuisine strip to change
+        // your mind about free delivery. The cuisine tiles keep scrolling:
+        // they are a starting point, the chips are a running control.
+        SliverPersistentHeader(
+          pinned: true,
+          // No filter signature any more. The delegate used to be handed a
+          // hash of the five local filter fields so it would repaint when one
+          // changed; the strip inside it now subscribes to the controller
+          // directly, so the delegate has nothing left to compare — its size
+          // is fixed and its child is self-updating.
+          delegate: _FilterChipsHeader(child: _buildFilterChips(context)),
+        ),
+        // No trailing SizedBox: the store list reserves the bottom-nav overlay
+        // itself via isLastInScrollView.
+        _buildStoreListSliver(context),
       ],
     );
   }
 
   // ═══════════════════════════════════════════
-  // APP BAR
-  // ═══════════════════════════════════════════
-  Widget _buildAppBar(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () {
-                Get.find<SplashController>().setModule(null);
-                Get.find<StoreController>().resetStoreData();
-              },
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Icon(
-                  Icons.arrow_back_rounded,
-                  size: 22,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: GestureDetector(
-              onTap:
-                  () => Get.toNamed(RouteHelper.getAccessLocationRoute('home')),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'deliver_to'.tr,
-                              style: robotoRegular.copyWith(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Colors.grey.shade500,
-                            ),
-                          ],
-                        ),
-                        Builder(
-                          builder: (context) {
-                            final address =
-                                AddressHelper.getUserAddressFromSharedPref();
-                            return Text(
-                              address?.address ?? 'select_location'.tr,
-                              style: robotoMedium.copyWith(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Center(
-                      child: HugeIcon(
-                        icon: HugeIcons.strokeRoundedShoppingBag02,
-                        size: 21,
-                        color: primaryColor,
-                      ),
-                    ),
-                    GetBuilder<CartController>(
-                      builder: (cartController) {
-                        return cartController.cartList.isNotEmpty
-                            ? Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                height: 18,
-                                width: 18,
-                                decoration: BoxDecoration(
-                                  color: accentColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cartController.cartList.length.toString(),
-                                    style: robotoBold.copyWith(
-                                      fontSize: 9,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            : const SizedBox();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // SEARCH BAR
-  // ═══════════════════════════════════════════
-  Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        Dimensions.paddingSizeDefault,
-        12,
-        Dimensions.paddingSizeDefault,
-        0,
-      ),
-      child: GestureDetector(
-        onTap: () => Get.toNamed(RouteHelper.getSearchRoute()),
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.search, size: 22, color: Colors.grey.shade500),
-              const SizedBox(width: 10),
-              Text(
-                'search_food_or_restaurant'.tr,
-                style: robotoRegular.copyWith(
-                  color: Colors.grey.shade500,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // POPULAR RESTAURANTS (Big Brands equivalent)
-  // ═══════════════════════════════════════════
-  Widget _buildPopularRestaurantsSection(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        final stores =
-            storeController.popularStoreList ?? storeController.latestStoreList;
-        if (stores == null) return _buildBigBrandsShimmer();
-        if (stores.isEmpty) return const SizedBox();
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    IntrinsicWidth(
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            bottom: 2,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: accentColor.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'popular_restaurants'.tr,
-                            style: robotoBold.copyWith(
-                              fontSize: 18,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap:
-                          () => Get.toNamed(
-                            RouteHelper.getAllStoreRoute(
-                              'popular',
-                              isNearbyStore: true,
-                            ),
-                          ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppDesignTokens.secondaryNeon.withValues(
-                            alpha: 0.08,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'view_all'.tr,
-                              style: robotoMedium.copyWith(
-                                fontSize: 12,
-                                color: primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: primaryColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                height: 155,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: stores.length > 8 ? 8 : stores.length,
-                  padding: const EdgeInsets.only(
-                    left: Dimensions.paddingSizeDefault,
-                  ),
-                  itemBuilder: (context, index) {
-                    return _buildBestNearbyCard(
-                      context,
-                      stores[index],
-                      primaryColor,
-                      accentColor,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // STICKER SYSTEM
-  // ═══════════════════════════════════════════
-  List<_StickerData> _getStickersForStore(Store store) {
-    final stickers = <_StickerData>[];
-    if (store.featured == 1) {
-      stickers.add(
-        const _StickerData(
-          text: 'SPEEDY 🍕',
-          icon: Icons.delivery_dining_rounded,
-          bgColor: Color(0xFF134E4A),
-          textColor: Color(0xFF1EF2A0),
-          rotation: -0.08,
-        ),
-      );
-    }
-    if (store.deliveryTime != null && store.deliveryTime!.isNotEmpty) {
-      final parts = store.deliveryTime!.split('-');
-      final maxTime = int.tryParse(parts.last.trim()) ?? 999;
-      if (maxTime <= 30) {
-        stickers.add(
-          const _StickerData(
-            text: 'QUICK BITES 🍔',
-            icon: Icons.timer_rounded,
-            bgColor: Color(0xFFFFD600),
-            textColor: Color(0xFF3E2700),
-            rotation: 0.1,
-          ),
-        );
-      }
-    }
-    if (store.freeDelivery == true) {
-      stickers.add(
-        const _StickerData(
-          text: 'FREE DELIVERY 🛵',
-          icon: Icons.delivery_dining_outlined,
-          bgColor: Color(0xFFFF5252),
-          textColor: Colors.white,
-          rotation: -0.06,
-        ),
-      );
-    }
-    if (store.discount != null &&
-        store.discount!.discount != null &&
-        store.discount!.discount! > 0) {
-      stickers.add(
-        _StickerData(
-          text: 'HOT DEALS 🌶️',
-          icon: Icons.local_fire_department_rounded,
-          bgColor: const Color(0xFFFF6D00),
-          textColor: Colors.white,
-          rotation: 0.08,
-        ),
-      );
-    }
-    if (store.avgRating != null && store.avgRating! >= 4.5) {
-      stickers.add(
-        const _StickerData(
-          text: 'TOP RATED 🍽️',
-          icon: Icons.restaurant_rounded,
-          bgColor: Color(0xFF7C4DFF),
-          textColor: Colors.white,
-          rotation: -0.07,
-        ),
-      );
-    }
-    if ((store.ratingCount ?? 0) < 5 && stickers.length < 2) {
-      stickers.add(
-        const _StickerData(
-          text: 'NEW TASTES 🧑‍🍳',
-          icon: Icons.auto_awesome_rounded,
-          bgColor: Color(0xFF00E676),
-          textColor: Color(0xFF0D3B2E),
-          rotation: 0.12,
-        ),
-      );
-    }
-    return stickers.take(1).toList();
-  }
-
-  Widget _buildRibbonSticker(_StickerData sticker, {bool compact = false}) {
-    return Transform.rotate(
-      angle: sticker.rotation,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 8 : 10,
-          vertical: compact ? 4 : 5,
-        ),
-        decoration: BoxDecoration(
-          color: sticker.bgColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(8),
-            bottomLeft: Radius.circular(8),
-            topRight: Radius.circular(3),
-            bottomRight: Radius.circular(3),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: sticker.bgColor.withValues(alpha: 0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (sticker.icon != null) ...[
-              Icon(
-                sticker.icon,
-                size: compact ? 10 : 12,
-                color: sticker.textColor,
-              ),
-              SizedBox(width: compact ? 3 : 4),
-            ],
-            Text(
-              sticker.text,
-              style: robotoBold.copyWith(
-                fontSize: compact ? 8 : 9.5,
-                color: sticker.textColor,
-                letterSpacing: 0.6,
-                height: 1.0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // BEST NEARBY CARD
-  // ═══════════════════════════════════════════
-  Widget _buildBestNearbyCard(
-    BuildContext context,
-    Store store,
-    Color primaryColor,
-    Color accentColor,
-  ) {
-    final bool isOpen = store.open == 1;
-    final stickers = _getStickersForStore(store);
-    return GestureDetector(
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: FoodStoreScreen(store: store, fromModule: false),
-          ),
-      child: Container(
-        width: 210,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: CustomImage(
-                  image: store.coverPhotoFullUrl ?? '',
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.transparent,
-                        primaryColor.withValues(alpha: 0.6),
-                        primaryColor.withValues(alpha: 0.95),
-                      ],
-                      stops: const [0.0, 0.3, 0.70, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-              if (!isOpen)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    child: Center(
-                      child: Transform.rotate(
-                        angle: -0.12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'closed_now'.tr.toUpperCase(),
-                            style: robotoBold.copyWith(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: CustomImage(
-                      image: store.logoFullUrl ?? '',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-              if (stickers.isNotEmpty && isOpen)
-                Positioned(
-                  top: 12,
-                  right: 0,
-                  child: _buildRibbonSticker(stickers.first),
-                ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        store.name ?? '',
-                        style: robotoBold.copyWith(
-                          fontSize: 15,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      if (store.deliveryTime != null)
-                        _buildInfoPill(
-                          icon: Icons.schedule_rounded,
-                          text: '${store.deliveryTime}',
-                          bgColor: accentColor,
-                          textColor: primaryColor,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoPill({
-    required IconData icon,
-    required String text,
-    required Color bgColor,
-    required Color textColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: textColor),
-          const SizedBox(width: 3),
-          Text(
-            text,
-            style: robotoBold.copyWith(fontSize: 10, color: textColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBigBrandsShimmer() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Shimmer(
-              child: Container(
-                width: 180,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 185,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              padding: const EdgeInsets.only(
-                left: Dimensions.paddingSizeDefault,
-              ),
-              itemBuilder:
-                  (context, index) => Padding(
-                    padding: const EdgeInsets.only(right: 14),
-                    child: Shimmer(
-                      child: Container(
-                        width: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // ORDER AGAIN (Buy Again equivalent)
+  // ORDER AGAIN
   // ═══════════════════════════════════════════
   Widget _buildOrderAgainSection(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color accentColor = Theme.of(context).secondaryHeaderColor;
     return GetBuilder<HomeController>(
       builder: (homeController) {
-        final bool isRamadan = homeController.isRamadanCelebrationActive;
+        final bool isRamadan = homeController.showRamadanDecorations;
         return GetBuilder<StoreController>(
           builder: (storeController) {
             final stores = storeController.visitAgainStoreList;
             if (stores == null || stores.isEmpty) return const SizedBox();
-            if (isRamadan)
-              return _buildRamadanOrderAgain(
-                context,
-                stores,
-                primaryColor,
-                accentColor,
+            if (isRamadan) {
+              return RamadanReorderSection(
+                stores: stores,
+                storeScreenBuilder: _storeScreenArguments,
+                titleFontSize: 20,
+                subtitleFontSize: 13,
+                listHeight: 170,
+                bottomPadding: 20,
+                subtitleGap: 14,
               );
+            }
             return _buildNormalOrderAgain(
               context,
               stores,
@@ -1012,7 +384,10 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
     final displayItems = allItems.take(10).toList();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      // No bottom pad of its own: the slivers list places the gap after this
+      // section. Both was how the Order Again → rail seam ended up larger than
+      // the gap between the rail and the catalogue below it.
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1034,15 +409,17 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                           height: 8,
                           decoration: BoxDecoration(
                             color: accentColor.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusExtraSmall,
+                            ),
                           ),
                         ),
                       ),
                       Text(
                         'order_again'.tr,
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 18,
-                          color: Colors.black87,
+                          color: WaddyColors.ink,
                         ),
                       ),
                     ],
@@ -1051,7 +428,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: _kSectionGapTight),
           // ─── Compact horizontal item cards ───
           SizedBox(
             height: 110,
@@ -1096,7 +473,13 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
     );
     final String originalFormatted = PriceConverter.convertPrice(originalPrice);
 
-    return GestureDetector(
+    return PressableScale(
+      // Item first: this card leads with the dish, the store is context.
+      semanticLabel: [
+        item.name?.trim(),
+        store.name?.trim(),
+        formattedPrice,
+      ].whereType<String>().where((e) => e.isNotEmpty).join(', '),
       onTap:
           () => Get.toNamed(
             RouteHelper.getStoreRoute(id: store.id, page: 'store'),
@@ -1104,17 +487,20 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
           ),
       child: Container(
         width: 220,
-        margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(8),
+        margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
-          boxShadow: [
+          color: WaddyColors.surface,
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+          border: Border.all(color: WaddyColors.divider),
+          boxShadow: const [
+            // shadowTeal, not black-at-6%: every other elevated surface in the
+            // app casts a teal-tinted shadow, and a neutral one here read as a
+            // slightly colder card in a warm-tinted feed.
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: WaddyColors.shadowTeal,
               blurRadius: 12,
-              offset: const Offset(0, 3),
+              offset: Offset(0, 3),
             ),
           ],
         ),
@@ -1128,11 +514,17 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                   width: 88,
                   height: 88,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
+                    // Same mint plate the store thumbnails sit on while their
+                    // photo loads, rather than a cold grey hole.
+                    color: WaddyColors.mintSurface,
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     child: CustomImage(
                       image: item.imageFullUrl ?? '',
                       fit: BoxFit.cover,
@@ -1150,16 +542,23 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF3D00),
-                        borderRadius: BorderRadius.circular(6),
+                        // Was a bare 0xFFFF3D00 — an orange-red from outside
+                        // the palette entirely, which put two different reds
+                        // for "money off" on one screen: this badge and the
+                        // ranked rail's coral offer pill. coralInk is the
+                        // discount colour everywhere else.
+                        color: WaddyColors.coralInk,
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusSmall,
+                        ),
                       ),
                       child: Text(
                         item.discountType == 'percent'
                             ? '${item.discount!.toInt()}%'
                             : '-${PriceConverter.convertPrice(item.discount!)}',
-                        style: robotoBold.copyWith(
+                        style: waddyBold.copyWith(
                           fontSize: 9,
-                          color: Colors.white,
+                          color: WaddyColors.surface,
                         ),
                       ),
                     ),
@@ -1176,9 +575,9 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                   // Item name
                   Text(
                     item.name ?? '',
-                    style: robotoBold.copyWith(
+                    style: waddyBold.copyWith(
                       fontSize: 13,
-                      color: Colors.black87,
+                      color: WaddyColors.ink,
                       height: 1.2,
                     ),
                     maxLines: 2,
@@ -1192,14 +591,18 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                         width: 16,
                         height: 16,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusExtraSmall,
+                          ),
                           border: Border.all(
-                            color: Colors.grey.shade200,
+                            color: WaddyColors.divider,
                             width: 0.5,
                           ),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusExtraSmall,
+                          ),
                           child: CustomImage(
                             image: store.logoFullUrl ?? '',
                             fit: BoxFit.cover,
@@ -1210,9 +613,12 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                       Expanded(
                         child: Text(
                           store.name ?? '',
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: 11,
-                            color: Colors.grey.shade500,
+                            // grey.shade500 on white is 2.68:1 — below AA for
+                            // text this size. inkLight is 4.59:1 and reads as
+                            // the same weight of "secondary".
+                            color: WaddyColors.inkLight,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1232,7 +638,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                           children: [
                             Text(
                               formattedPrice,
-                              style: robotoBold.copyWith(
+                              style: waddyBold.copyWith(
                                 fontSize: 14,
                                 color: primaryColor,
                               ),
@@ -1241,28 +647,65 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
                               const SizedBox(width: 4),
                               Text(
                                 originalFormatted,
-                                style: robotoRegular.copyWith(
+                                style: waddyRegular.copyWith(
                                   fontSize: 10,
-                                  color: Colors.grey.shade400,
+                                  // Was grey.shade400 at 1.88:1 — effectively
+                                  // invisible, on the one number that tells
+                                  // the user how much the discount saves.
+                                  color: WaddyColors.inkLight,
                                   decoration: TextDecoration.lineThrough,
-                                  decorationColor: Colors.grey.shade400,
+                                  decorationColor: WaddyColors.inkLight,
                                 ),
                               ),
                             ],
                           ],
                         ),
                       ),
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.add_rounded,
-                          size: 18,
-                          color: Colors.white,
+                      // Own tap target so it wins the gesture arena — the
+                      // card's onTap (store navigation) must not fire here.
+                      //
+                      // The 28pt square is the *visual*; the target around it
+                      // is 44 (iOS HIG) / 48 (Material) because a near-miss
+                      // here does not do nothing — it falls through to the
+                      // card and navigates to the store instead of adding the
+                      // item, which is the most annoying possible failure for
+                      // a one-handed tap. The OverflowBox lets the 44pt
+                      // target spill past the 28pt slot without re-flowing
+                      // the row (a negative Container margin asserts).
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _openItemSheet(context, item),
+                        child: Semantics(
+                          button: true,
+                          label: '${'add_to_cart'.tr}, ${item.name ?? ''}',
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: OverflowBox(
+                              minWidth: 44,
+                              minHeight: 44,
+                              maxWidth: 44,
+                              maxHeight: 44,
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                // Without this the plus is stretched to the
+                                // full 28pt square — see _FilterIconButton.
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusSmall,
+                                  ),
+                                ),
+                                child: const HugeIcon(
+                                  icon: HugeIcons.strokeRoundedPlusSign,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -1277,1227 +720,385 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
   }
 
   // ═══════════════════════════════════════════
-  // RAMADAN ORDER AGAIN
+  // CATALOGUE HEADER
   // ═══════════════════════════════════════════
-  static const Color _ramadanGold = Color(0xFFD4AF37);
 
-  Widget _buildRamadanOrderAgain(
-    BuildContext context,
-    List<Store> stores,
-    Color primaryColor,
-    Color accentColor,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Row(
-              children: [
-                const HugeIcon(
-                  icon: HugeIcons.strokeRoundedRamadhan01,
-                  color: _ramadanGold,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                Stack(
-                  children: [
-                    Positioned(
-                      bottom: 0,
-                      left: -3,
-                      right: -3,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: _ramadanGold.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'ramadan_reorder'.tr,
-                      style: robotoBold.copyWith(
-                        fontSize: 20,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Text(
-              'ramadan_reorder_subtitle'.tr,
-              style: robotoRegular.copyWith(
-                fontSize: 13,
-                color: Colors.grey.shade600,
+  /// Names what the list below is currently showing: "All restaurants" when
+  /// nothing is filtered, "Pizza · 4 restaurants" when something is.
+  ///
+  /// This is the cuisine strip's only strong feedback. Selection was carried
+  /// by a 2pt ring on a 76pt tile and by the list silently changing beneath
+  /// it — on a strip that scrolls horizontally, the selected tile can be off
+  /// screen entirely, so the user had no on-screen statement of what they had
+  /// picked. Naming it here also explains a thin result *before* the user
+  /// scrolls into it and wonders whether the app is broken.
+  ///
+  /// The count is [StoreModel.totalSize] — the server's total for the whole
+  /// active filter set, not the cuisine's own catalogue size and not the
+  /// number of rows loaded so far. That matters twice over: pagination means
+  /// `stores.length` is only the first page, and the chips narrow the result
+  /// too, so a count taken from the cuisine alone would disagree with the list
+  /// the moment "Under 30 mins" is also on.
+  Widget _buildCatalogueHeader(BuildContext context) {
+    return GetBuilder<CuisineController>(
+      builder: (cuisineController) {
+        return GetBuilder<StoreController>(
+          builder: (storeController) {
+            return Padding(
+              // No top pad: the section gap above already placed this header.
+              // Bottom binds it to the cuisine strip it labels — the header and
+              // the tiles are one unit, so this seam stays tighter than the one
+              // that separated it from the rail above.
+              padding: const EdgeInsets.fromLTRB(
+                Dimensions.paddingSizeDefault,
+                0,
+                Dimensions.paddingSizeDefault,
+                _kSectionGapTight,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 170,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeDefault,
+              child: Text(
+                _catalogueHeadline(cuisineController, storeController),
+                style: waddyBold.copyWith(fontSize: 18, color: WaddyColors.ink),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              itemCount: stores.length > 6 ? 6 : stores.length,
-              itemBuilder:
-                  (context, index) =>
-                      _buildRamadanChip(context, stores[index], primaryColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRamadanChip(
-    BuildContext context,
-    Store store,
-    Color primaryColor,
-  ) {
-    final items = store.items ?? [];
-    final displayItems = items.take(3).toList();
-    return GestureDetector(
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: FoodStoreScreen(store: store, fromModule: false),
-          ),
-      child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _ramadanGold.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: _ramadanGold.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFFFFFDF5), Color(0xFFFFF8E7)],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: -6,
-                right: -4,
-                child: Icon(
-                  Icons.nightlight_round,
-                  size: 44,
-                  color: _ramadanGold.withValues(alpha: 0.06),
-                ),
-              ),
-              Positioned(
-                bottom: 12,
-                left: 6,
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 16,
-                  color: _ramadanGold.withValues(alpha: 0.08),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                            border: Border.all(
-                              color: _ramadanGold.withValues(alpha: 0.25),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _ramadanGold.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: CustomImage(
-                              image: store.logoFullUrl ?? '',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                store.name ?? '',
-                                style: robotoBold.copyWith(
-                                  fontSize: 13,
-                                  color: Colors.black87,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (store.deliveryTime != null)
-                                Text(
-                                  '${store.deliveryTime}',
-                                  style: robotoRegular.copyWith(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ...displayItems.map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.06),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                  BoxShadow(
-                                    color: _ramadanGold.withValues(alpha: 0.06),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(5),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
-                                child: CustomImage(
-                                  image: item.imageFullUrl ?? '',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (items.length > 3)
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  _ramadanGold.withValues(alpha: 0.15),
-                                  _ramadanGold.withValues(alpha: 0.08),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '+${items.length - 3}',
-                              style: robotoBold.copyWith(
-                                fontSize: 11,
-                                color: const Color(0xFF8B6914),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _ramadanGold.withValues(alpha: 0.18),
-                            _ramadanGold.withValues(alpha: 0.08),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _ramadanGold.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.refresh_rounded,
-                            size: 13,
-                            color: Color(0xFF8B6914),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'ramadan_reorder'.tr,
-                            style: robotoMedium.copyWith(
-                              fontSize: 11,
-                              color: const Color(0xFF8B6914),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // BROWSE ALL RESTAURANTS HEADER
-  // ═══════════════════════════════════════════
-  Widget _buildBrowseAllRestaurantsHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        Dimensions.paddingSizeDefault,
-        8,
-        Dimensions.paddingSizeDefault,
-        12,
-      ),
-      child: Text(
-        'browse_by_cuisine'.tr,
-        style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // CATEGORY CIRCLES
-  // ═══════════════════════════════════════════
-  Widget _buildCategoryCircles(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-    return GetBuilder<CategoryController>(
-      builder: (categoryController) {
-        if (categoryController.categoryList == null)
-          return _buildCategoryCirclesShimmer();
-        if (categoryController.categoryList!.isEmpty) return const SizedBox();
-        final allCategories = categoryController.categoryList!;
-        final storeController = Get.find<StoreController>();
-        final stores =
-            storeController.popularStoreList ??
-            storeController.latestStoreList ??
-            [];
-        return FadeTransition(
-          opacity: _categoryFadeAnim,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: SizedBox(
-              height: 110,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                clipBehavior: Clip.none,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                children: List.generate(allCategories.length + 1, (index) {
-                  if (index == 0) {
-                    return _buildAllStoresItem(
-                      context: context,
-                      isSelected: _selectedCategoryId == null,
-                      primaryColor: primaryColor,
-                      accentColor: accentColor,
-                      stores: stores,
-                      onTap: () => _onCategoryTap(null),
-                    );
-                  }
-                  final category = allCategories[index - 1];
-                  return _buildCategoryItem(
-                    context: context,
-                    isSelected: _selectedCategoryId == category.id,
-                    label: category.name ?? '',
-                    imageUrl: category.imageFullUrl,
-                    primaryColor: primaryColor,
-                    accentColor: accentColor,
-                    onTap: () => _onCategoryTap(category.id),
-                    index: index,
-                  );
-                }),
-              ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildAllStoresItem({
-    required BuildContext context,
-    required bool isSelected,
-    required Color primaryColor,
-    required Color accentColor,
-    required List<Store> stores,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          width: 82,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 66,
-                height: 66,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: isSelected ? primaryColor : Colors.grey.shade100,
-                  border: Border.all(
-                    color:
-                        isSelected
-                            ? accentColor.withValues(alpha: 0.5)
-                            : Colors.grey.shade200,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                  boxShadow:
-                      isSelected
-                          ? [
-                            BoxShadow(
-                              color: accentColor.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child:
-                      stores.isNotEmpty
-                          ? AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 600),
-                            child: CustomImage(
-                              key: ValueKey<int>(
-                                _storeSlideIndex % stores.length,
-                              ),
-                              image:
-                                  stores[_storeSlideIndex % stores.length]
-                                      .logoFullUrl ??
-                                  '',
-                              fit: BoxFit.cover,
-                              width: 66,
-                              height: 66,
-                            ),
-                          )
-                          : Icon(
-                            Icons.restaurant_rounded,
-                            size: 26,
-                            color:
-                                isSelected
-                                    ? Colors.white
-                                    : Colors.grey.shade500,
-                          ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: robotoMedium.copyWith(
-                  fontSize: isSelected ? 11 : 10.5,
-                  color: isSelected ? primaryColor : Colors.grey.shade700,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-                child: Text(
-                  'all_restaurants'.tr,
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.only(top: 4),
-                width: isSelected ? 20 : 0,
-                height: isSelected ? 3 : 0,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: accentColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  /// The headline string. Falls back to the unqualified "All restaurants" in
+  /// every case where a specific claim can't be made — no cuisine selected, a
+  /// cuisine whose name we can't resolve, or a list still loading (null
+  /// `totalSize`). A header that printed "Pizza · 0 restaurants" while the
+  /// shimmer was still running would be wrong for the half-second that matters
+  /// most.
+  String _catalogueHeadline(
+    CuisineController cuisineController,
+    StoreController storeController,
+  ) {
+    final int? cuisineId = _selectedCuisineId;
+    if (cuisineId == null) return 'all_restaurants'.tr;
 
-  Widget _buildCategoryItem({
-    required BuildContext context,
-    required bool isSelected,
-    required String label,
-    required String? imageUrl,
-    required Color primaryColor,
-    required Color accentColor,
-    required VoidCallback onTap,
-    required int index,
-  }) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 300 + (index * 50)),
-      curve: Curves.easeOutCubic,
-      builder:
-          (context, value, child) => Transform.translate(
-            offset: Offset(0, 8 * (1 - value)),
-            child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-          ),
-      child: Padding(
-        padding: const EdgeInsets.only(right: 10),
-        child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 82,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 66,
-                  height: 66,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color:
-                        isSelected
-                            ? accentColor.withValues(alpha: 0.1)
-                            : Colors.grey.shade50,
-                    border: Border.all(
-                      color:
-                          isSelected
-                              ? accentColor.withValues(alpha: 0.5)
-                              : Colors.grey.shade200,
-                      width: isSelected ? 1.5 : 1,
-                    ),
-                    boxShadow:
-                        isSelected
-                            ? [
-                              BoxShadow(
-                                color: accentColor.withValues(alpha: 0.15),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                            : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: CustomImage(
-                      image: imageUrl ?? '',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: robotoMedium.copyWith(
-                    fontSize: isSelected ? 11 : 10.5,
-                    color: isSelected ? primaryColor : Colors.grey.shade700,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.only(top: 4),
-                  width: isSelected ? 20 : 0,
-                  height: isSelected ? 3 : 0,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    color: accentColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    final String cuisineName = cuisineController.namesFor([cuisineId]);
+    if (cuisineName.isEmpty) return 'all_restaurants'.tr;
 
-  Widget _buildCategoryCirclesShimmer() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: SizedBox(
-        height: 110,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 5,
-          padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-          itemBuilder:
-              (context, index) => Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Column(
-                  children: [
-                    Shimmer(
-                      child: Container(
-                        width: 62,
-                        height: 62,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: Colors.grey.shade200,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Shimmer(
-                      child: Container(
-                        width: 50,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-        ),
-      ),
-    );
+    final int? total = storeController.storeModel?.totalSize;
+    if (total == null) return cuisineName;
+
+    return (total == 1
+            ? 'cuisine_restaurant_count_one'
+            : 'cuisine_restaurant_count_other')
+        .trParams({'cuisine': cuisineName, 'count': '$total'});
   }
 
   // ═══════════════════════════════════════════
   // FILTER CHIPS
   // ═══════════════════════════════════════════
+  //
+  // Two fixed icon buttons (sort · filters), a hairline, then a horizontally
+  // scrolling row of one-tap quick chips (Hot Deals · Nearest · Best Seller).
+  //
+  // The two full-option controls — the sort sheet's "Recommended"/"A-Z" and
+  // the filters sheet's "Under 30 mins"/"Free delivery" — moved off the
+  // scrolling strip and behind icons so the strip's remaining chips could be
+  // the ones people actually reach for one-tap: Nearest and Best Seller are
+  // promoted straight out of the sort sheet into the strip because they are
+  // the two most common intents on a food list, and hiding them a tap deeper
+  // than "Sort by" cost most users a step they took every session. "Hot
+  // Deals" replaces the flatter "Offers" label — same filter, warmer name.
+  /// Wrapped in its own `GetBuilder`, because the strip lives inside a pinned
+  /// `SliverPersistentHeader` whose delegate is built by the screen's `build`
+  /// — and nothing rebuilds that when a filter changes now that the state
+  /// lives on the controller. Subscribing here is also the narrower repaint:
+  /// toggling a chip redraws the strip, not the page.
   Widget _buildFilterChips(BuildContext context) {
+    return GetBuilder<StoreController>(
+      builder: (_) => _filterChipsRow(context),
+    );
+  }
+
+  Widget _filterChipsRow(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-    final filters = [
+
+    // Single-select against each other and against "no sort": tapping one
+    // while another quick-sort chip is active swaps the sort rather than
+    // combining it, because a list can only be ordered one way at a time.
+    final quickChips = [
       {
-        'label': 'sort_by'.tr,
-        'icon': Icons.swap_vert_rounded,
-        'active': _selectedSort != 'default',
-        'isSort': true,
-        'onTap': _showSortBottomSheet,
-      },
-      {
-        'label': 'offers'.tr,
-        'icon': Icons.local_offer_outlined,
+        'label': 'hot_deals'.tr,
         'active': _filterOffers,
-        'isSort': false,
-        'onTap': () => setState(() => _filterOffers = !_filterOffers),
+        'onTap': () => _applyFilters(_filters.copyWith(offers: !_filterOffers)),
       },
       {
-        'label': 'under_30_mins'.tr,
-        'icon': Icons.access_time_rounded,
-        'active': _filterUnder30,
-        'isSort': false,
-        'onTap': () => setState(() => _filterUnder30 = !_filterUnder30),
-      },
-      {
-        'label': 'free_delivery'.tr,
-        'icon': Icons.delivery_dining_outlined,
-        'active': _filterFreeDelivery,
-        'isSort': false,
+        'label': 'nearest'.tr,
+        'active': _selectedSort == 'distance',
         'onTap':
-            () => setState(() => _filterFreeDelivery = !_filterFreeDelivery),
+            () => _applyFilters(
+              _filters.copyWith(
+                sort: _selectedSort == 'distance' ? null : 'distance',
+              ),
+            ),
+      },
+      {
+        'label': 'best_seller'.tr,
+        'active': _selectedSort == 'rating',
+        'onTap':
+            () => _applyFilters(
+              _filters.copyWith(
+                sort: _selectedSort == 'rating' ? null : 'rating',
+              ),
+            ),
       },
     ];
+    // No clear chip. Every filter on this strip is a toggle that stays on
+    // screen wearing its own on-state, so the row already shows what is on and
+    // tapping a chip again turns it off. A dedicated reset only restated that,
+    // and it was inserted at the head of the strip — so switching one filter
+    // on shoved the rest of the chips out of view, which cost more than the
+    // reset ever bought. Clearing is tapping the lit chips off.
+
     return Padding(
       padding: const EdgeInsets.only(
+        top: _kChipStripTopPad,
+        bottom: _kChipStripBottomPad,
         left: Dimensions.paddingSizeDefault,
-        bottom: 16,
       ),
       child: SizedBox(
-        height: 40,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: filters.length,
-          itemBuilder: (context, index) {
-            final filter = filters[index];
-            final bool isActive = filter['active'] as bool;
-            final VoidCallback onTap = filter['onTap'] as VoidCallback;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: onTap,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeInOut,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: isActive ? primaryColor : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isActive ? primaryColor : Colors.grey.shade300,
-                      width: 1.2,
-                    ),
-                    boxShadow:
-                        isActive
-                            ? [
-                              BoxShadow(
-                                color: primaryColor.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                            : [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          isActive
-                              ? Icons.check_circle_rounded
-                              : filter['icon'] as IconData,
-                          key: ValueKey(isActive),
-                          size: 16,
-                          color: isActive ? accentColor : Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        filter['label'] as String,
-                        style: robotoMedium.copyWith(
-                          fontSize: 12,
-                          color: isActive ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      if (filter['isSort'] == true) ...[
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ],
-                    ],
-                  ),
+        height: _kChipRowHeight,
+        child: Row(
+          children: [
+            _FilterIconButton(
+              icon: HugeIcons.strokeRoundedArrowUpDown,
+              // The sheet still owns Recommended/Top rated/A-Z; only its
+              // Nearest and Best seller entries have quick-chip twins, so the
+              // icon is "on" only for the one sheet option nothing else
+              // represents on the strip.
+              active: _selectedSort == 'a_z',
+              semanticLabel: 'sort_by'.tr,
+              onTap: _showSortBottomSheet,
+            ),
+            const SizedBox(width: _kChipGap),
+            _FilterIconButton(
+              icon: HugeIcons.strokeRoundedFilterHorizontal,
+              active: _filterUnder30 || _filterFreeDelivery,
+              semanticLabel: 'filters'.tr,
+              onTap: _showFiltersBottomSheet,
+            ),
+            const SizedBox(width: _kChipGap),
+            Container(width: 1, height: 20, color: WaddyColors.divider),
+            const SizedBox(width: _kChipGap),
+            Expanded(
+              child: ListView.builder(
+                controller: _chipScrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                // Padding on the list, not the parent: the trailing inset has
+                // to be *inside* the scrollable or the last chip ends flush
+                // against the screen edge when the strip is scrolled to its
+                // end.
+                padding: const EdgeInsets.only(
+                  right: Dimensions.paddingSizeDefault,
                 ),
+                itemCount: quickChips.length,
+                itemBuilder: (context, index) {
+                  final filter = quickChips[index];
+                  final bool isActive = filter['active'] as bool;
+                  final VoidCallback onTap = filter['onTap'] as VoidCallback;
+                  final String filterLabel = (filter['label'] as String?) ?? '';
+                  final bool isLast = index == quickChips.length - 1;
+                  return Padding(
+                    padding: EdgeInsets.only(right: isLast ? 0 : _kChipGap),
+                    child: PressableScale(
+                      semanticLabel:
+                          isActive
+                              ? '$filterLabel, ${'selected'.tr}'
+                              : filterLabel,
+                      onTap: onTap,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeInOut,
+                        height: _kChipHeight,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeMedium,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              isActive
+                                  ? primaryColor
+                                  : WaddyColors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(_kChipRadius),
+                          // Matches _FilterIconButton's inactive hairline —
+                          // see the comment there.
+                          border:
+                              isActive
+                                  ? null
+                                  : Border.all(
+                                    color: WaddyColors.divider,
+                                    width: 1,
+                                  ),
+                        ),
+                        child: Text(
+                          filterLabel,
+                          style: waddyMedium.copyWith(
+                            fontSize: 14,
+                            color: isActive ? Colors.white : WaddyColors.ink,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ═══════════════════════════════════════════
-  // STORE LIST
-  // ═══════════════════════════════════════════
-  Widget _buildStoreList(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        final allStores = storeController.storeModel?.stores;
-        final filteredStores = _filterStores(allStores);
-        if (allStores == null) return _buildStoreListShimmer();
-        if (filteredStores.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-              vertical: Dimensions.paddingSizeExtraLarge,
-            ),
-            child: Center(
+  /// "Under 30 mins" and "Free delivery" — the two hard constraints, moved off
+  /// the visible strip and into a sheet behind the filters icon so the strip
+  /// itself stays three quick chips wide.
+  ///
+  /// A `GetBuilder` on the store controller, not a `StatefulBuilder`: the
+  /// sheet renders in its own overlay route, so it has to subscribe to the
+  /// filter state itself rather than wait for the screen behind it to rebuild.
+  /// It also gets the live result count in the footer for free, which used to
+  /// be read once when the sheet opened and never updated as switches moved.
+  void _showFiltersBottomSheet() {
+    Get.bottomSheet(
+      GetBuilder<StoreController>(
+        builder: (storeController) {
+          final ModuleStoreFilters filters = storeController.moduleFilters;
+          final int? total = storeController.storeModel?.totalSize;
+
+          return _DesignSheet(
+            title: 'filters'.tr,
+            body: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                Dimensions.paddingSizeLarge,
+                0,
+                Dimensions.paddingSizeLarge,
+                Dimensions.paddingSizeMedium,
+              ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.restaurant_outlined,
-                    size: 52,
-                    color: Colors.grey.shade300,
+                  _SheetSection(
+                    title: 'delivery_time'.tr,
+                    chips: [
+                      _SheetChip(
+                        label: 'under_30_mins'.tr,
+                        selected: filters.maxDeliveryTime != null,
+                        onTap:
+                            () => _applyFilters(
+                              filters.copyWith(
+                                maxDeliveryTime:
+                                    filters.maxDeliveryTime != null ? null : 30,
+                              ),
+                            ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  Text(
-                    (_selectedCategoryId != null || _hasActiveChipFilter)
-                        ? 'no_restaurants_in_category'.tr
-                        : 'no_restaurant_available'.tr,
-                    style: robotoMedium.copyWith(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'try_different_category'.tr,
-                    style: robotoRegular.copyWith(
-                      fontSize: 12,
-                      color: Colors.grey.shade400,
-                    ),
-                    textAlign: TextAlign.center,
+                  const SizedBox(height: Dimensions.paddingSizeLarge),
+                  _SheetSection(
+                    title: 'offers'.tr,
+                    chips: [
+                      _SheetChip(
+                        label: 'free_delivery'.tr,
+                        selected: filters.freeDelivery,
+                        onTap:
+                            () => _applyFilters(
+                              filters.copyWith(
+                                freeDelivery: !filters.freeDelivery,
+                              ),
+                            ),
+                      ),
+                      _SheetChip(
+                        label: 'hot_deals'.tr,
+                        selected: filters.offers,
+                        onTap:
+                            () => _applyFilters(
+                              filters.copyWith(offers: !filters.offers),
+                            ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+            footer: _SheetFooter(
+              resultCount: total,
+              // Resets what this sheet owns. The cuisine and the sort are set
+              // elsewhere on the screen and stay put — a reset button clears
+              // the panel it sits in, not the whole screen behind it.
+              onReset:
+                  () => _applyFilters(
+                    filters.copyWith(
+                      maxDeliveryTime: null,
+                      freeDelivery: false,
+                      offers: false,
+                    ),
+                  ),
+              onApply: () => Get.back(),
+            ),
           );
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Widget _buildStoreListSliver(BuildContext context) {
+    return GetBuilder<StoreController>(
+      builder: (storeController) {
+        final bool hasFilters =
+            _selectedCuisineId != null || _hasActiveChipFilter;
+        return ModuleStoreListSliver(
+          scrollController: widget.scrollController,
+          // Last element in the food home — reserves the bottom-nav overlay.
+          isLastInScrollView: true,
+          storeModel: storeController.storeModel,
+          shimmer: _buildStoreListShimmer(),
+          emptyIcon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedChefHat,
+            size: 52,
+            color: WaddyColors.inkMuted,
           ),
-          child: Column(
-            children:
-                filteredStores
-                    .map(
-                      (store) => _buildStoreCard(
-                        context,
-                        store,
-                        primaryColor,
-                        accentColor,
-                      ),
-                    )
-                    .toList(),
-          ),
+          emptyTitle:
+              hasFilters
+                  ? 'no_restaurants_in_category'.tr
+                  : 'no_restaurant_available'.tr,
+          emptySubtitle: 'try_different_category'.tr,
+          cardBuilder: (store) => _buildStoreCard(context, store),
         );
       },
     );
   }
 
-  Widget _buildStoreCard(
-    BuildContext context,
-    Store store,
-    Color primaryColor,
-    Color accentColor,
-  ) {
-    final bool isOpen = store.open == 1;
-    final bool hasDiscount =
-        store.discount != null &&
-        store.discount!.discount != null &&
-        store.discount!.discount! > 0;
-    final bool hasFreeDelivery =
-        store.freeDelivery == true ||
-        (store.minimumShippingCharge != null &&
-            store.minimumShippingCharge == 0);
-
-    String cuisines = '';
-    if (store.categoryIds != null &&
-        store.categoryIds!.isNotEmpty &&
-        Get.find<CategoryController>().categoryList != null) {
-      List<String> names = [];
-      for (int id in store.categoryIds!) {
-        for (var cat in Get.find<CategoryController>().categoryList!) {
-          if (cat.id == id && cat.name != null) {
-            names.add(cat.name!);
-            break;
-          }
-        }
-      }
-      cuisines = names.join(', ');
-    }
-    if (cuisines.isEmpty) cuisines = 'Restaurant';
-
-    return GestureDetector(
+  /// Browse row for one restaurant. See [ModuleStoreRowCard] for why the card
+  /// is a row rather than a hero.
+  Widget _buildStoreCard(BuildContext context, Store store) {
+    return ModuleStoreRowCard(
+      store: store,
       onTap:
           () => Get.toNamed(
             RouteHelper.getStoreRoute(id: store.id, page: 'store'),
             arguments: FoodStoreScreen(store: store, fromModule: false),
           ),
-      child: Opacity(
-        opacity: isOpen ? 1.0 : 0.6,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(19),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).secondaryHeaderColor.withValues(
-                  alpha: 0.1,
-                ), // Soft neon green top
-                Theme.of(
-                  context,
-                ).secondaryHeaderColor.withValues(alpha: 0.4), // Fade out
-                Theme.of(context).cardColor, // Blend into card
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Container(
-            margin: const EdgeInsets.all(1.5), // creates the border thickness
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(18), // Inner border
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── LEFT: Modern Floating Image with Tags ───
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 95, // Slightly larger base
-                      height: 95,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          16,
-                        ), // Match container
-                        child: CustomImage(
-                          image: store.coverPhotoFullUrl ?? '',
-                          width: 95,
-                          height: 95,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    // Chic tilted Top-Left "Featured / Near You" Tag
-                    if (store.featured == 1 ||
-                        (store.distance != null && store.distance! < 2))
-                      Positioned(
-                        top: 8,
-                        left: -8, // Hangs off edge slightly
-                        child: Transform.rotate(
-                          angle: -0.1, // Slight tilt
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF134E4A), Color(0xFF1B6A65)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF134E4A,
-                                  ).withValues(alpha: 0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Text(
-                              store.featured == 1
-                                  ? 'featured'.tr
-                                  : 'near_you'.tr,
-                              style: robotoBold.copyWith(
-                                fontSize: 9,
-                                color: const Color(
-                                  0xFF1EF2A0,
-                                ), // Secondary neon
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Logo overlay beautifully intersecting bottom-right
-                    Positioned(
-                      bottom: -8,
-                      right: -8,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.all(2.5),
-                        child: ClipOval(
-                          child: CustomImage(
-                            image: store.logoFullUrl ?? '',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (!isOpen)
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'closed'.tr.toUpperCase(),
-                              style: robotoBold.copyWith(
-                                fontSize: 10,
-                                color: Colors.white,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                // ─── RIGHT: Premium Details ───
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Name
-                      Text(
-                        store.name ?? '',
-                        style: robotoBold.copyWith(
-                          fontSize: 16,
-                          color: Colors.black87,
-                          letterSpacing: -0.2, // Tighter brand font vibe
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      // Subtitles (Cuisines)
-                      Text(
-                        cuisines,
-                        style: robotoRegular.copyWith(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      // Modern Delivery Info Row
-
-                      // Offers & Delivery Time Row
-                      Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // Align items centrally
-                        children: [
-                          // Delivery Time Pill Highlight
-                          if (store.deliveryTime != null &&
-                              store.deliveryTime!.isNotEmpty) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).primaryColor.withValues(
-                                  alpha: 0.9,
-                                ), // Dark teal background
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.delivery_dining,
-                                    size: 10,
-                                    color:
-                                        Theme.of(context).secondaryHeaderColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    store.deliveryTime!.contains('min')
-                                        ? store.deliveryTime!.replaceAll(
-                                          'min',
-                                          'min'.tr,
-                                        )
-                                        : '${store.deliveryTime!} ${'min'.tr}',
-                                    style: robotoBold.copyWith(
-                                      fontSize: 10.5,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).secondaryHeaderColor, // Neon green text
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6), // Spacing before offers
-                          ],
-                          // Expand offers into the remaining space
-                          if (hasDiscount || hasFreeDelivery)
-                            Expanded(
-                              // Prevent wrap overflow by expanding remaining space horizontally
-                              child: SingleChildScrollView(
-                                // Allow scrolling if offers are too long
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                child: Row(
-                                  children: [
-                                    if (hasDiscount) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFF2D1),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFFFD56B),
-                                            width: 0.5,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.local_offer_rounded,
-                                              size: 10,
-                                              color: Color(0xFFD68A00),
-                                            ),
-                                            const SizedBox(width: 3),
-                                            Text(
-                                              store.discount!.discountType ==
-                                                      'percent'
-                                                  ? '${store.discount!.discount!.toInt()}% ${'off'.tr}'
-                                                  : '${PriceConverter.convertPrice(store.discount!.discount!)} ${'off'.tr}',
-                                              style: robotoBold.copyWith(
-                                                fontSize: 10,
-                                                color: const Color(0xFFD68A00),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    if (hasDiscount && hasFreeDelivery)
-                                      const SizedBox(width: 6),
-                                    if (hasFreeDelivery) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFE8F6F0),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFA1DBC3),
-                                            width: 0.5,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.celebration_rounded,
-                                              size: 10,
-                                              color: Color(0xFF008955),
-                                            ),
-                                            const SizedBox(width: 3),
-                                            Text(
-                                              'free_delivery'.tr,
-                                              style: robotoBold.copyWith(
-                                                fontSize: 10,
-                                                color: const Color(0xFF008955),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
+  /// Placeholder shaped like [ModuleStoreRowCard]: 84pt square, then three
+  /// text bars and a chip row. A shimmer that does not match the real card
+  /// makes the list jump when data lands — so the square, its radius and the
+  /// 20pt row gutter are the card's numbers, not approximations of them.
   Widget _buildStoreListShimmer() {
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -2505,68 +1106,138 @@ class _FoodHomeScreenState extends State<FoodHomeScreen>
       ),
       child: Column(
         children: List.generate(
-          5,
+          6,
           (_) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(vertical: 10),
             child: Shimmer(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: WaddyColors.surfaceRaised,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 140,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            width: 100,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            width: 180,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _shimmerBar(width: 170, height: 18),
+                        const SizedBox(
+                          height: Dimensions.paddingSizeExtraSmall,
+                        ),
+                        _shimmerBar(width: 130, height: 14),
+                        const SizedBox(
+                          height: Dimensions.paddingSizeExtraSmall,
+                        ),
+                        _shimmerBar(width: 150, height: 14),
+                        const SizedBox(height: Dimensions.paddingSizeSmall),
+                        _shimmerBar(width: 120, height: 23),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _shimmerBar({required double width, required double height}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        // Warm-tinted, matching the rails' shimmer. grey.shade200 is a cold
+        // neutral and read as a different loading state to the one directly
+        // above it on the same screen.
+        color: WaddyColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════
+// FILTER STRIP ICON BUTTON
+// ═══════════════════════════════════════════
+
+/// One of the two fixed circles at the head of the filter strip (sort ·
+/// filters). Plain grey at rest, filled with the brand colour once the sheet
+/// behind it has something switched on — the only feedback available once
+/// that state is a sheet's worth of controls away and not itself on screen.
+class _FilterIconButton extends StatelessWidget {
+  /// A HugeIcons glyph (`HugeIcons.strokeRounded*`), not an [IconData]: the
+  /// package ships icons as path data rather than a font codepoint.
+  final List<List<dynamic>> icon;
+  final bool active;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  const _FilterIconButton({
+    required this.icon,
+    required this.active,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      semanticLabel:
+          active ? '$semanticLabel, ${'selected'.tr}' : semanticLabel,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: 34,
+        height: 34,
+        // Required, and not cosmetic: a sized Container with a child but no
+        // alignment passes its own tight constraints straight down, so the
+        // icon is stretched to the full 34pt circle and its `size` is
+        // ignored. `Icon` hid this by centring its glyph itself; HugeIcon
+        // paints an SvgPicture, which simply scales to fill what it is given.
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color:
+              active
+                  ? Theme.of(context).primaryColor
+                  : WaddyColors.surfaceRaised,
+          shape: BoxShape.circle,
+          // Same hairline as the quick chips' inactive state (see
+          // _buildFilterChips) — one border language across every control on
+          // the strip, circle and pill alike, so the divider in between reads
+          // as a seam inside one group rather than a line between two.
+          border:
+              active ? null : Border.all(color: WaddyColors.divider, width: 1),
+        ),
+        child: HugeIcon(
+          icon: icon,
+          size: 16,
+          color: active ? Colors.white : WaddyColors.ink,
+        ),
+      ),
+    );
+  }
+}
+
+/// A single hairline marking the end of the "Top 10" block, page-margin to
+/// page-margin. Its own top/bottom gap comes from the [_kSectionGap]
+/// [SizedBox]es placed around it, not internal padding — one seam owns the
+/// spacing, this rule just gives it an edge to break on.
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
+      child: Divider(height: 1, thickness: 1, color: WaddyColors.divider),
     );
   }
 }
@@ -2582,20 +1253,274 @@ class _OrderAgainItemData {
 }
 
 // ═══════════════════════════════════════════
-// STICKER DATA MODEL
+// PINNED FILTER CHIPS
 // ═══════════════════════════════════════════
-class _StickerData {
-  final String text;
-  final IconData? icon;
-  final Color bgColor;
-  final Color textColor;
-  final double rotation;
 
-  const _StickerData({
-    required this.text,
-    this.icon,
-    required this.bgColor,
-    required this.textColor,
-    this.rotation = 0.0,
+/// Holds the filter strip at the top of the viewport once the cuisine tiles
+/// have scrolled past it.
+///
+/// The band is a fixed height and does not collapse: a shrinking filter row
+/// is harder to hit than a still one, and there is nothing in it worth
+/// reclaiming 20pt for. It paints an opaque background because a pinned
+/// header sits *over* the store rows sliding beneath it — without one the
+/// restaurant names read straight through the chips.
+class _FilterChipsHeader extends SliverPersistentHeaderDelegate {
+  /// Derived from the same constants `_buildFilterChips` lays out with, rather
+  /// than a hand-added total. The two were separately maintained numbers that
+  /// had to agree exactly — a pinned header shorter than its child clips it,
+  /// taller leaves a band of dead colour — so the sum is computed once here.
+  static const double _height =
+      _kChipStripTopPad + _kChipRowHeight + _kChipStripBottomPad;
+
+  final Widget child;
+
+  const _FilterChipsHeader({required this.child});
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(color: Theme.of(context).cardColor, child: child);
+  }
+
+  /// Never, on its own account. The strip is a `GetBuilder` on the store
+  /// controller, so it repaints itself when a filter changes; the delegate's
+  /// only other input is a fixed height. Returning true here would repaint the
+  /// header on every parent build — a `Widget` field compares by identity, so
+  /// "did the child change" is always yes.
+  @override
+  bool shouldRebuild(_FilterChipsHeader oldDelegate) => false;
+}
+
+/// Shared chrome for the sort and filters sheets: grab handle, title row with
+/// a close button, scrollable body and an optional pinned footer. Content
+/// sizes the sheet; the cap only matters once the body outgrows the screen.
+class _DesignSheet extends StatelessWidget {
+  final String title;
+  final Widget body;
+  final Widget? footer;
+
+  const _DesignSheet({required this.title, required this.body, this.footer});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+      ),
+      decoration: const BoxDecoration(
+        color: WaddyColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: WaddyColors.divider,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: waddyBold.copyWith(
+                    fontSize: 18,
+                    color: WaddyColors.ink,
+                  ),
+                ),
+                InkWell(
+                  onTap: () => Get.back(),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: WaddyColors.surfaceRaised,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedCancel01,
+                      size: 14,
+                      color: WaddyColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(child: SingleChildScrollView(child: body)),
+          if (footer != null) footer!,
+        ],
+      ),
+    );
+  }
+}
+
+/// One labelled group of filter chips inside a sheet.
+class _SheetSection extends StatelessWidget {
+  final String title;
+  final List<Widget> chips;
+
+  const _SheetSection({required this.title, required this.chips});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: waddyMedium.copyWith(
+            fontSize: 13,
+            color: WaddyColors.inkLight,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(spacing: _kChipGap, runSpacing: _kChipGap, children: chips),
+      ],
+    );
+  }
+}
+
+/// Selectable pill inside a sheet — same fill/radius language as the strip.
+class _SheetChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SheetChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(_kChipRadius),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color:
+                selected
+                    ? Theme.of(context).primaryColor
+                    : WaddyColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(_kChipRadius),
+          ),
+          child: Text(
+            label,
+            style: waddyMedium.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : WaddyColors.ink,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Reset / apply pair pinned to the bottom of the filters sheet.
+class _SheetFooter extends StatelessWidget {
+  final int? resultCount;
+  final VoidCallback onReset;
+  final VoidCallback onApply;
+
+  const _SheetFooter({
+    required this.resultCount,
+    required this.onReset,
+    required this.onApply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final int? count = resultCount;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        MediaQuery.of(context).padding.bottom + 20,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: WaddyColors.divider)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: onReset,
+              borderRadius: BorderRadius.circular(_kChipRadius),
+              child: Container(
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(_kChipRadius),
+                  border: Border.all(color: WaddyColors.divider),
+                ),
+                child: Text(
+                  'reset'.tr,
+                  style: waddyMedium.copyWith(
+                    fontSize: 15,
+                    color: WaddyColors.ink,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: InkWell(
+              onTap: onApply,
+              borderRadius: BorderRadius.circular(_kChipRadius),
+              child: Container(
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(_kChipRadius),
+                ),
+                child: Text(
+                  // Falls back to a plain apply label until the server has
+                  // reported a total, so the button never reads "Show null".
+                  count == null
+                      ? 'apply'.tr
+                      : '${'show'.tr} $count ${'restaurants'.tr}',
+                  style: waddyBold.copyWith(fontSize: 15, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -1,0 +1,6 @@
+{
+  "WADDI_FLAVOR": "dev",
+  "WADDI_BASE_URL": "https://waddyapp.com",
+  "WADDI_WEB_URL": "https://waddyapp.com",
+  "_comment": "TODO: point at the staging backend once it exists. staging.waddyapp.com does not resolve today, so this flavor currently talks to production and only the applicationId and launcher name differ. See docs/build_flavors.md."
+}

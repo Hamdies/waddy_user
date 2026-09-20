@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/features/item/domain/models/basic_campaign_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -40,6 +41,10 @@ class Banner {
   String? title;
   String? type;
   String? imageFullUrl;
+
+  /// Right-sized WebP set for [imageFullUrl]; null when the backend emitted
+  /// none. Hand it to CustomImage's `variants:`. See ImageVariants.
+  ImageVariants? imageVariants;
   String? link;
   Store? store;
   Item? item;
@@ -59,6 +64,7 @@ class Banner {
     title = json['title'];
     type = json['type'];
     imageFullUrl = json['image_full_url'];
+    imageVariants = ImageVariants.fromJson(json['image_variants']);
     link = json['link'];
     store = json['store'] != null ? Store.fromJson(json['store']) : null;
     item = json['item'] != null ? Item.fromJson(json['item']) : null;
@@ -70,6 +76,7 @@ class Banner {
     data['title'] = title;
     data['type'] = type;
     data['image_full_url'] = imageFullUrl;
+    if (imageVariants != null) data['image_variants'] = imageVariants!.toJson();
     data['link'] = link;
     if (store != null) {
       data['store'] = store!.toJson();

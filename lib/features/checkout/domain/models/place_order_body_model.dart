@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:waddy_app/util/parse.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 
@@ -43,8 +44,6 @@ class PlaceOrderBodyModel {
   int? _usePrizeId;
   String? idempotencyKey;
   String? deviceFingerprint;
-  String? orderSignature;
-  String? orderTimestamp;
 
   PlaceOrderBodyModel({
     required List<OnlineCart> cart,
@@ -171,22 +170,20 @@ class PlaceOrderBodyModel {
         _cart!.add(OnlineCart.fromJson(v));
       });
     }
-    _couponDiscountAmount = double.parse(
-      json['coupon_discount_amount'] ?? 0.toString(),
-    );
-    _orderAmount = double.parse(json['order_amount'].toString());
+    // Money fields read strictly: an unreadable amount stays null and is
+    // reported, rather than becoming a plausible zero that flows into a total.
+    _couponDiscountAmount =
+        Parse.strictDouble(json['coupon_discount_amount'], 'coupon_discount_amount') ?? 0;
+    _orderAmount = Parse.strictDouble(json['order_amount'], 'order_amount');
     _orderType = json['order_type'];
     _paymentMethod = json['payment_method'];
     _orderNote = json['order_note'];
     _couponCode = json['coupon_code'];
-    _storeId =
-        json['store_id'] != null
-            ? int.parse(json['store_id'].toString())
-            : null;
-    _distance = double.parse(json['distance'].toString());
+    _storeId = Parse.strictInt(json['store_id'], 'store_id');
+    _distance = Parse.lenientDouble(json['distance']);
     _scheduleAt = json['schedule_at'];
-    _discountAmount = double.parse(json['discount_amount'].toString());
-    _taxAmount = double.parse(json['tax_amount'].toString());
+    _discountAmount = Parse.strictDouble(json['discount_amount'], 'discount_amount');
+    _taxAmount = Parse.strictDouble(json['tax_amount'], 'tax_amount');
     _address = json['address'];
     _receiverDetails =
         json['receiver_details'] != null
@@ -198,10 +195,7 @@ class PlaceOrderBodyModel {
             : null;
     _latitude = json['latitude'];
     _longitude = json['longitude'];
-    _senderZoneId =
-        json['sender_zone_id'] != null
-            ? int.parse(json['sender_zone_id'].toString())
-            : null;
+    _senderZoneId = Parse.strictInt(json['sender_zone_id'], 'sender_zone_id');
     _contactPersonName = json['contact_person_name'];
     _contactPersonNumber = json['contact_person_number'];
     _addressType = json['address_type'];
@@ -214,26 +208,17 @@ class PlaceOrderBodyModel {
     _unavailableItemNote = json['unavailable_item_note'];
     _deliveryInstruction = json['delivery_instruction'];
     _cutlery =
-        json['cutlery'] != null ? int.parse(json['cutlery'].toString()) : null;
-    _partialPayment =
-        json['partial_payment'] != null
-            ? int.parse(json['partial_payment'].toString())
-            : null;
-    _guestId =
-        json['guest_id'] != null
-            ? int.parse(json['guest_id'].toString())
-            : null;
-    _isBuyNow = int.parse(json['is_buy_now'].toString());
+        Parse.lenientInt(json['cutlery']);
+    _partialPayment = Parse.strictInt(json['partial_payment'], 'partial_payment');
+    _guestId = Parse.strictInt(json['guest_id'], 'guest_id');
+    _isBuyNow = Parse.lenientInt(json['is_buy_now']);
     _guestEmail = json['contact_person_email'];
-    _extraPackagingAmount =
-        json['extra_packaging_amount'] != null &&
-                json['extra_packaging_amount'] != 'null'
-            ? double.parse(json['extra_packaging_amount'].toString())
-            : null;
-    _createNewUser =
-        json['create_new_user'] != null
-            ? int.parse(json['create_new_user'].toString())
-            : null;
+    // Parse.strictDouble already treats null and the literal "null" as absent.
+    _extraPackagingAmount = Parse.strictDouble(
+      json['extra_packaging_amount'],
+      'extra_packaging_amount',
+    );
+    _createNewUser = Parse.lenientInt(json['create_new_user']);
     _password = json['password'];
     isPrescriptionOrder =
         json['is_prescription'] != null
@@ -316,12 +301,6 @@ class PlaceOrderBodyModel {
     }
     if (deviceFingerprint != null) {
       data['device_fingerprint'] = deviceFingerprint!;
-    }
-    if (orderSignature != null) {
-      data['order_signature'] = orderSignature!;
-    }
-    if (orderTimestamp != null) {
-      data['order_timestamp'] = orderTimestamp!;
     }
     return data;
   }

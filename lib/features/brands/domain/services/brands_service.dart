@@ -14,8 +14,13 @@ class BrandsService implements BrandsServiceInterface {
   }
 
   @override
-  Future<ItemModel?> getBrandItemList({required int brandId, int? offset}) async {
-    return await brandsRepositoryInterface.getBrandItemList(brandId: brandId, offset: offset);
+  Future<ItemModel?> getBrandItemList({
+    required int brandId,
+    int? offset,
+  }) async {
+    return await brandsRepositoryInterface.getBrandItemList(
+      brandId: brandId,
+      offset: offset,
+    );
   }
-
 }

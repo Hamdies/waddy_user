@@ -2,6 +2,7 @@ import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flutter/material.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/util/money.dart';
 import 'package:waddy_app/util/styles.dart';
 
 class PriceConverter {
@@ -30,12 +31,12 @@ class PriceConverter {
       }
     }
     bool isRightSide =
-        Get.find<SplashController>().configModel!.currencySymbolDirection ==
+        Get.find<SplashController>().configModelOrNull?.currencySymbolDirection ==
         'right';
     String currencySymbol = _getCurrencySymbol();
 
     return '${isRightSide ? '' : '$currencySymbol '}'
-        '${formatedStringPrice ?? toFixed(price!).toStringAsFixed(forDM ? 0 : Get.find<SplashController>().configModel!.digitAfterDecimalPoint!).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'
+        '${formatedStringPrice ?? toFixed(price!).toStringAsFixed(forDM ? 0 : _digitsAfterDecimal).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}'
         '${isRightSide ? ' $currencySymbol' : ''}';
   }
 
@@ -54,20 +55,15 @@ class PriceConverter {
       }
     }
     bool isRightSide =
-        Get.find<SplashController>().configModel!.currencySymbolDirection ==
+        Get.find<SplashController>().configModelOrNull?.currencySymbolDirection ==
         'right';
     return Directionality(
       textDirection: TextDirection.ltr,
       child: AnimatedFlipCounter(
         duration: const Duration(milliseconds: 500),
         value: toFixed(price!),
-        textStyle: textStyle ?? robotoMedium,
-        fractionDigits:
-            forDM
-                ? 0
-                : Get.find<SplashController>()
-                    .configModel!
-                    .digitAfterDecimalPoint!,
+        textStyle: textStyle ?? waddyMedium,
+        fractionDigits: forDM ? 0 : _digitsAfterDecimal,
         prefix: isRightSide ? '' : '${_getCurrencySymbol()} ',
         suffix: isRightSide ? '${_getCurrencySymbol()} ' : '',
       ),
@@ -111,22 +107,25 @@ class PriceConverter {
     return '$discount${discountType == 'percent' ? '%' : _getCurrencySymbol()} OFF';
   }
 
+  /// Rounds a price the way the server does.
+  ///
+  /// This used to `.floor()`, which truncated: 10.999 displayed as 10.99 while
+  /// `PlaceNewOrder.php` rounded the same value to 11.00 and charged that. The
+  /// customer saw one total and paid another, on every order. The backend uses
+  /// PHP `round()` for `order_amount`, `delivery_charge`, `total_tax_amount`
+  /// and every per-item price, so the client must match it exactly — see
+  /// [roundLikeServer] and `test/contract/rounding_parity_test.dart`.
   static double toFixed(double val) {
-    num mod = power(
-      10,
-      Get.find<SplashController>().configModel!.digitAfterDecimalPoint!,
-    );
-    return (((val * mod).toPrecision(
-          Get.find<SplashController>().configModel!.digitAfterDecimalPoint!,
-        )).floor().toDouble() /
-        mod);
+    return roundLikeServer(val, _digitsAfterDecimal);
   }
 
-  static int power(int x, int n) {
-    int retval = 1;
-    for (int i = 0; i < n; i++) {
-      retval *= x;
-    }
-    return retval;
-  }
+  /// Digits the server is configured to round to.
+  ///
+  /// Both sides read the same business setting: the backend's
+  /// `round_up_to_digit` is served to the app as `digit_after_decimal_point`
+  /// (ConfigController). Falls back to 2 rather than throwing — a config that
+  /// has not loaded should not crash price formatting, which runs on nearly
+  /// every screen.
+  static int get _digitsAfterDecimal =>
+      Get.find<SplashController>().configModelOrNull?.digitAfterDecimalPoint ?? 2;
 }

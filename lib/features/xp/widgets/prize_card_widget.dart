@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class PrizeCardWidget extends StatelessWidget {
   final Prize prize;
@@ -19,7 +20,7 @@ class PrizeCardWidget extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -36,7 +37,7 @@ class PrizeCardWidget extends StatelessWidget {
                 : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,7 +49,9 @@ class PrizeCardWidget extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     color: _getPrizeColor(prize.type).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
                   child: Icon(
                     _getPrizeIcon(prize.type),
@@ -96,12 +99,12 @@ class PrizeCardWidget extends StatelessWidget {
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
+                  horizontal: Dimensions.paddingSizeSmall,
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: _getPrizeColor(prize.type).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 ),
                 child: Text(
                   _getValueText(prize),
@@ -174,10 +177,13 @@ class PrizeCardWidget extends StatelessWidget {
   Widget _buildActionButton(BuildContext context) {
     if (prize.isExpired) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         ),
         child: Text(
           'expired'.tr,
@@ -192,10 +198,13 @@ class PrizeCardWidget extends StatelessWidget {
 
     if (prize.isClaimed) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Colors.green.shade50,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -220,8 +229,13 @@ class PrizeCardWidget extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        ),
         elevation: 0,
       ),
       child:

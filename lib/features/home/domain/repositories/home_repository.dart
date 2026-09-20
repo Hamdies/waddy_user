@@ -28,8 +28,10 @@ class HomeRepository implements HomeRepositoryInterface {
   @override
   Future getList({int? offset}) async {
     List<CashBackModel>? cashBackModelList;
-    Response response = await apiClient.getData(AppConstants.cashBackOfferListUri);
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      AppConstants.cashBackOfferListUri,
+    );
+    if (response.statusCode == 200) {
       cashBackModelList = [];
       response.body.forEach((data) {
         cashBackModelList!.add(CashBackModel.fromJson(data));
@@ -47,8 +49,10 @@ class HomeRepository implements HomeRepositoryInterface {
   Future<CashBackModel?> getCashBackData(double amount) async {
     //double cashbackAmount = 0;
     CashBackModel? cashBackModel;
-    Response response = await apiClient.getData('${AppConstants.getCashBackAmountUri}?amount=$amount');
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      '${AppConstants.getCashBackAmountUri}?amount=$amount',
+    );
+    if (response.statusCode == 200) {
       //cashbackAmount = response.body['cashback_amount'] != null ? double.parse(response.body['cashback_amount'].toString()) : 0;
       cashBackModel = CashBackModel.fromJson(response.body);
     }
@@ -57,12 +61,18 @@ class HomeRepository implements HomeRepositoryInterface {
 
   @override
   Future<bool> saveRegistrationSuccessful(bool status) async {
-    return await sharedPreferences.setBool(AppConstants.dmRegisterSuccess, status);
+    return await sharedPreferences.setBool(
+      AppConstants.dmRegisterSuccess,
+      status,
+    );
   }
 
   @override
   Future<bool> saveIsRestaurantRegistration(bool status) async {
-    return await sharedPreferences.setBool(AppConstants.isRestaurantRegister, status);
+    return await sharedPreferences.setBool(
+      AppConstants.isRestaurantRegister,
+      status,
+    );
   }
 
   @override
@@ -72,7 +82,7 @@ class HomeRepository implements HomeRepositoryInterface {
 
   @override
   bool getIsRestaurantRegistration() {
-    return sharedPreferences.getBool(AppConstants.isRestaurantRegister) ?? false;
+    return sharedPreferences.getBool(AppConstants.isRestaurantRegister) ??
+        false;
   }
-
 }

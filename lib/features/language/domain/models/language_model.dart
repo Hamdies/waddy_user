@@ -4,5 +4,10 @@ class LanguageModel {
   String? languageCode;
   String? countryCode;
 
-  LanguageModel({this.imageUrl, this.languageName, this.countryCode, this.languageCode});
+  LanguageModel({
+    this.imageUrl,
+    this.languageName,
+    this.countryCode,
+    this.languageCode,
+  });
 }

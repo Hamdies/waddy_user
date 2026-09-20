@@ -35,7 +35,24 @@ class Spots {
   /// Was a private constant in place_details_screen; promoted here so the two
   /// surface whites are one decision rather than a per-file invention.
   static const Color paperWarm = Color(0xFFF4F3EE);
+
+  /// Cool sunken grey — a surface that reads as *recessed* rather than quiet.
+  /// [paperWarm] steps back; this one steps down, for wells and for elements
+  /// that have been spent: the claw draw's lost balls desaturate to it.
+  static const Color paperSunk = Color(0xFFE7ECEA);
+
   static const Color border = Color(0xFF134E4A); // neubrutalist border (teal)
+
+  // ── Mint tints ──
+  // [mint] at full strength is the neon accent and must stay rare to stay
+  // neon. These are the two steps down for surfaces that want to belong to it
+  // without competing: mint-on-white fills, lit glass, held states.
+  static const Color mint100 = Color(0xFFD6FCEC); // faintest mint wash
+  static const Color mint200 = Color(0xFFA7F8D4); // mint fill, still passive
+
+  /// Cool teal-grey glass. The claw cabinet's interior — a surface that is
+  /// visibly *behind* something, not a card in its own right.
+  static const Color teal100 = Color(0xFFD3E0DE);
 
   // ── Canvas — dot-grid off-white ──
   static const Color canvas = Color(0xFFDDE4E2);
@@ -183,7 +200,14 @@ class _SpotsPressableState extends State<SpotsPressable> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
+    // A disabled pressable used to return its child bare, which is correct for
+    // touch — there is no gesture detector to hit — but left assistive tech no
+    // signal at all: a greyed, unpressable control announced exactly like a
+    // live one. The node says "button, disabled" so the state that is obvious
+    // by sight is also available by ear.
+    if (!widget.enabled) {
+      return Semantics(button: true, enabled: false, child: widget.child);
+    }
     final Duration duration =
         MediaQuery.of(context).disableAnimations
             ? Duration.zero

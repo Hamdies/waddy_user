@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_app_bar.dart';
@@ -41,70 +40,125 @@ class _FlashSaleDetailsScreenState extends State<FlashSaleDetailsScreen> {
       appBar: CustomAppBar(title: 'flash_sale'.tr),
       body: Center(
         child: GetBuilder<FlashSaleController>(
-            builder: (flashSaleController) {
-              return Column(children: [
-                SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeDefault : 0),
+          builder: (flashSaleController) {
+            return Column(
+              children: [
+                SizedBox(height: 0),
                 Container(
-                  width: Dimensions.webMaxWidth,
+                  width: Dimensions.maxContentWidth,
                   padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(0),
                     border: Border.symmetric(
-                      horizontal: BorderSide(color: Theme.of(context).primaryColor.withValues(alpha: 0.2), width: 2),
-                      vertical: BorderSide(color: ResponsiveHelper.isDesktop(context) ? Theme.of(context).primaryColor.withValues(alpha: 0.2) : Theme.of(context).primaryColor.withValues(alpha: 0.2), width: 2),
+                      horizontal: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).primaryColor.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
+                      vertical: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).primaryColor.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
                     ),
                   ),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('flash_sale'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeLarge)),
-                      const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'flash_sale'.tr,
+                            style: waddyBold.copyWith(
+                              fontSize: Dimensions.fontSizeLarge,
+                            ),
+                          ),
+                          const SizedBox(
+                            height: Dimensions.paddingSizeExtraSmall,
+                          ),
 
-                      Text(
-                        'limited_time_offer'.tr,
-                        style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).disabledColor),
+                          Text(
+                            'limited_time_offer'.tr,
+                            style: waddyRegular.copyWith(
+                              fontSize: Dimensions.fontSizeSmall,
+                              color: Theme.of(context).disabledColor,
+                            ),
+                          ),
+                        ],
                       ),
-                    ]),
 
-                    FlashSaleTimerView(eventDuration: flashSaleController.duration),
-                  ]),
+                      FlashSaleTimerView(
+                        eventDuration: flashSaleController.duration,
+                      ),
+                    ],
+                  ),
                 ),
 
                 Expanded(
                   child: SingleChildScrollView(
                     child: FooterView(
                       child: SizedBox(
-                        width: Dimensions.webMaxWidth,
+                        width: Dimensions.maxContentWidth,
                         child: PaginatedListView(
                           scrollController: _scrollController,
-                          totalSize: flashSaleController.productFlashSale?.totalSize,
+                          totalSize:
+                              flashSaleController.productFlashSale?.totalSize,
                           offset: flashSaleController.productFlashSale?.offset,
-                          onPaginate: (int? offset) async => await flashSaleController.getFlashSaleWithId(offset!, false, widget.id),
-                          itemView: flashSaleController.productFlashSale != null ? GridView.builder(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: ResponsiveHelper.isDesktop(context) ? 5 : ResponsiveHelper.isTab(context) ? 3 : 2,
-                              crossAxisSpacing: Dimensions.paddingSizeSmall,
-                              mainAxisSpacing: Dimensions.paddingSizeSmall,
-                              mainAxisExtent: ResponsiveHelper.isDesktop(context) ? 340 : 240,
-                            ),
-                            physics: const BouncingScrollPhysics(),
-                            shrinkWrap: true,
-                            itemCount: flashSaleController.productFlashSale!.products!.length,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveHelper.isDesktop(context) ? 0 : Dimensions.paddingSizeDefault,
-                                vertical: Dimensions.paddingSizeDefault,
-                            ),
-                            itemBuilder: (context, index) {
-                              return FlashProductCardWidget(product: flashSaleController.productFlashSale!.products![index], index: index);
-                            },
-                          ) : const FlashProductCardShimmer(),
+                          onPaginate:
+                              (int? offset) async =>
+                                  await flashSaleController.getFlashSaleWithId(
+                                    offset!,
+                                    false,
+                                    widget.id,
+                                  ),
+                          itemView:
+                              flashSaleController.productFlashSale != null
+                                  ? GridView.builder(
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          crossAxisSpacing:
+                                              Dimensions.paddingSizeSmall,
+                                          mainAxisSpacing:
+                                              Dimensions.paddingSizeSmall,
+                                          mainAxisExtent: 240,
+                                        ),
+                                    physics: const BouncingScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount:
+                                        flashSaleController
+                                            .productFlashSale!
+                                            .products!
+                                            .length,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeDefault,
+                                      vertical: Dimensions.paddingSizeDefault,
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      return FlashProductCardWidget(
+                                        product:
+                                            flashSaleController
+                                                .productFlashSale!
+                                                .products![index],
+                                        index: index,
+                                      );
+                                    },
+                                  )
+                                  : const FlashProductCardShimmer(),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ]);
-            }
+              ],
+            );
+          },
         ),
       ),
     );
@@ -118,16 +172,16 @@ class FlashProductCardShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: ResponsiveHelper.isDesktop(context) ? 5 : ResponsiveHelper.isTab(context) ? 3 : 2,
+        crossAxisCount: 2,
         crossAxisSpacing: Dimensions.paddingSizeSmall,
         mainAxisSpacing: Dimensions.paddingSizeSmall,
-        mainAxisExtent: ResponsiveHelper.isDesktop(context) ? 340 : 240,
+        mainAxisExtent: 240,
       ),
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: 10,
       padding: EdgeInsets.symmetric(
-        horizontal: ResponsiveHelper.isDesktop(context) ? 0 : Dimensions.paddingSizeDefault,
+        horizontal: Dimensions.paddingSizeDefault,
         vertical: Dimensions.paddingSizeDefault,
       ),
       itemBuilder: (context, index) {
@@ -140,52 +194,60 @@ class FlashProductCardShimmer extends StatelessWidget {
               color: Colors.grey[300],
               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                flex: ResponsiveHelper.isDesktop(context) ? 5 : 1,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                  child: Container(
-                    width: double.infinity, height: double.infinity,
-                    color: Theme.of(context).cardColor,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Theme.of(context).cardColor,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: ResponsiveHelper.isDesktop(context) ? Dimensions.paddingSizeDefault : 0),
+                SizedBox(height: 0),
 
-              Expanded(
-                flex: ResponsiveHelper.isDesktop(context) ? 3 : 1,
-                child: Padding(
-                  padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center, mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
+                Expanded(
+                  flex: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(
+                      Dimensions.paddingSizeExtraSmall,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          height: 10,
+                          width: 100,
+                          color: Theme.of(context).cardColor,
+                        ),
 
-                      Container(
-                        height: 10, width: 100,
-                        color: Theme.of(context).cardColor,
-                      ),
+                        Container(
+                          height: 10,
+                          width: 200,
+                          color: Theme.of(context).cardColor,
+                        ),
 
-                      Container(
-                        height: 10, width: 200,
-                        color: Theme.of(context).cardColor,
-                      ),
-
-                      Container(
-                        height: 10, width: 100,
-                        color: Theme.of(context).cardColor,
-                      ),
-
-                    ],
+                        Container(
+                          height: 10,
+                          width: 100,
+                          color: Theme.of(context).cardColor,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
         );
       },
     );
   }
 }
-
-

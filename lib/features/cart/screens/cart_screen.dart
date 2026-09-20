@@ -1,8 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:lottie/lottie.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/cart/widgets/extra_packaging_widget.dart';
-import 'package:waddy_app/features/cart/widgets/not_available_bottom_sheet_widget.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
@@ -12,28 +11,23 @@ import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/helper/guest_gate_helper.dart';
+import 'package:waddy_app/helper/analytics_helper.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/features/location/controllers/location_controller.dart';
 import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
-import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/no_data_screen.dart';
-import 'package:waddy_app/common/widgets/web_page_title_widget.dart';
 import 'package:waddy_app/features/cart/widgets/cart_item_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/cart/widgets/web_cart_items_widget.dart';
-import 'package:waddy_app/features/cart/widgets/web_suggested_item_view_widget.dart';
-import 'package:waddy_app/features/cart/widgets/minimum_order_progress_widget.dart';
-import 'package:waddy_app/features/home/screens/home_screen.dart';
-import 'package:waddy_app/features/xp/widgets/xp_shopping_counter_widget.dart';
-import 'package:waddy_app/helper/address_helper.dart';
-import 'package:waddy_app/features/address/domain/models/address_model.dart';
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
 
 class CartScreen extends StatefulWidget {
@@ -46,7 +40,13 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final ScrollController scrollController = ScrollController();
-  bool _showSuggestions = false;
+
+  /// The note for the restaurant, read straight off the checkout controller so
+  /// the cart and the checkout screen edit one string, not two copies of it.
+  /// [CheckoutController.noteController] is what `order_note` is built from at
+  /// place-order time, so anything typed here does ship with the order.
+  String get _restaurantNote =>
+      Get.find<CheckoutController>().noteController.text;
 
   @override
   void initState() {
@@ -89,18 +89,22 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
-    bool isDesktop = ResponsiveHelper.isDesktop(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F0EB),
+      // Warm, not white: the basket's white sections then read as a card that
+      // ends, rather than dissolving into a same-coloured empty page below it.
+      backgroundColor: WaddyColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F0EB),
+        backgroundColor: WaddyColors.surface,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, size: 22, color: Color(0xFF1A1A1A)),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            size: 22,
+            color: WaddyColors.ink,
+          ),
           onPressed: () {
             if (widget.fromNav) {
               Get.offAllNamed(RouteHelper.getInitialRoute());
@@ -109,11 +113,10 @@ class _CartScreenState extends State<CartScreen> {
             }
           },
         ),
+        // No title: the body's "Your basket" header is the screen's one
+        // heading. Both together read as the same word twice.
         centerTitle: false,
-        title: Text(
-          'basket'.tr,
-          style: robotoBold.copyWith(fontSize: 18, color: const Color(0xFF1A1A1A)),
-        ),
+        toolbarHeight: 48,
       ),
       body: GetBuilder<StoreController>(
         builder: (storeController) {
@@ -122,18 +125,22 @@ class _CartScreenState extends State<CartScreen> {
               return cartController.cartList.isNotEmpty
                   ? Column(
                     children: [
+                      // XP earn banner — pinned above the scroll area, as in
+                      // the design, so the reward stays visible while scrolling.
+                      _buildXpEarnBanner(cartController),
+
                       Expanded(
                         child: SingleChildScrollView(
                           controller: scrollController,
-                          child: isDesktop
-                            ? _buildDesktopLayout(cartController, storeController)
-                            : _buildMobileLayout(cartController, storeController),
+                          child: _buildMobileLayout(
+                            cartController,
+                            storeController,
+                          ),
                         ),
                       ),
 
-                      // Bottom checkout button - Blinkit style
-                      if (!isDesktop)
-                        _buildBottomCheckoutButton(cartController),
+                      // Bottom checkout button
+                      _buildBottomCheckoutButton(cartController),
                     ],
                   )
                   : const NoDataScreen(
@@ -148,18 +155,156 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildMobileLayout(CartController cartController, StoreController storeController) {
-    final Color primaryColor = Theme.of(context).primaryColor;
+  /// "You'll earn N XP on this order" — the mint band under the app bar.
+  ///
+  /// The XP figure is the real estimate for the current subtotal, not a fixed
+  /// number, so it moves as the basket changes. Hidden entirely when leveling
+  /// is off, the user is a guest, or the estimate is zero — an empty reward
+  /// band is worse than no band.
+  Widget _buildXpEarnBanner(CartController cartController) {
+    if (!AuthHelper.isLoggedIn()) return const SizedBox.shrink();
 
+    int xp = 0;
+    String? rewardTitle;
+    int? rewardXpLeft;
+    try {
+      final xpController = Get.find<XpController>();
+      if (xpController.xpConfig == null ||
+          !xpController.xpConfig!.levelingEnabled) {
+        return const SizedBox.shrink();
+      }
+      xp = xpController.calculateEstimatedXp(
+        cartController.subTotal,
+        Get.find<SplashController>().module?.moduleType,
+      );
+      // The payoff line — the next unclaimed prize BY NAME ("Free delivery"),
+      // with the XP still to go. A bare number never told anyone what XP buys.
+      // Both are needed for the line to mean anything, so it renders only when
+      // the level call has landed AND there is a prize still outstanding.
+      final reward = xpController.nextReward;
+      final int remaining = xpController.xpToNextReward;
+      if (reward != null && reward.title.isNotEmpty && remaining > 0) {
+        rewardTitle = reward.title;
+        rewardXpLeft = remaining;
+      }
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+    if (xp <= 0) return const SizedBox.shrink();
+
+    return Material(
+      color: WaddyColors.mintSurface,
+      child: InkWell(
+        // "31 XP" means nothing on its own — the band is the most prominent
+        // thing under the app bar, so it has to lead somewhere that explains
+        // what XP buys.
+        onTap: () => Get.toNamed(RouteHelper.getXpLevelsRoute()),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+            vertical: Dimensions.paddingSizeMedium,
+          ),
+          child: Row(
+            children: [
+              Lottie.asset(
+                'assets/animation/waddi_coins.json',
+                width: 24,
+                height: 24,
+              ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              // Two stacked lines, left-aligned: the earn on top, the named
+              // prize under it. Centring these forced a wrap as soon as the
+              // reward had a name, which is exactly when the band matters most.
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'youll_earn_xp'.tr.replaceAll('@xp', '$xp'),
+                            style: waddyBold.copyWith(
+                              fontSize: 15,
+                              color: WaddyColors.mintInk,
+                            ),
+                          ),
+                          const TextSpan(text: ' '),
+                          TextSpan(
+                            text: 'on_this_order'.tr,
+                            style: waddyRegular.copyWith(
+                              fontSize: 15,
+                              color: WaddyColors.inkLightOnMint,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (rewardTitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: rewardTitle,
+                              style: waddyBold.copyWith(
+                                fontSize: 13,
+                                color: WaddyColors.mintInk,
+                              ),
+                            ),
+                            TextSpan(
+                              text:
+                                  ' ${'xp_left'.tr.replaceAll('@xp', '$rewardXpLeft')}',
+                              style: waddyRegular.copyWith(
+                                fontSize: 13,
+                                color: WaddyColors.inkLightOnMint,
+                              ),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: Dimensions.paddingSizeExtraSmall),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: WaddyColors.mintInk,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(
+    CartController cartController,
+    StoreController storeController,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // "Your basket" header
+        // "Your basket" header — title + item count on the left, a mint
+        // "+ Add more items" action on the right, then a hairline rule.
         Container(
-          color: const Color(0xFFF2F0EB),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          color: WaddyColors.surface,
+          padding: const EdgeInsets.fromLTRB(
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeSmall,
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeMedium,
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -167,46 +312,72 @@ class _CartScreenState extends State<CartScreen> {
                   children: [
                     Text(
                       'your_basket'.tr,
-                      style: robotoBold.copyWith(fontSize: 22, color: const Color(0xFF1A1A1A)),
+                      style: waddyBold.copyWith(
+                        fontSize: 22,
+                        letterSpacing: -0.4,
+                        color: WaddyColors.ink,
+                      ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      '${cartController.cartList.length} ${'items'.tr} · ${PriceConverter.convertPrice(cartController.subTotal)}',
-                      style: robotoRegular.copyWith(fontSize: 13, color: const Color(0xFF888888)),
+                      '${cartController.cartList.length} ${'items'.tr}',
+                      style: waddyRegular.copyWith(
+                        fontSize: 14,
+                        color: WaddyColors.inkLight,
+                      ),
                     ),
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  if (widget.fromNav) {
-                    Get.offAllNamed(RouteHelper.getInitialRoute());
-                  } else {
-                    Get.back();
-                  }
-                },
-                child: Text(
-                  '+ ${'add_more_items'.tr}',
-                  style: robotoMedium.copyWith(fontSize: 13, color: primaryColor),
+              const SizedBox(width: Dimensions.paddingSizeMedium),
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: Dimensions.paddingSizeExtraSmall,
+                ),
+                child: GestureDetector(
+                  onTap: () {
+                    if (widget.fromNav) {
+                      Get.offAllNamed(RouteHelper.getInitialRoute());
+                    } else {
+                      Get.back();
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.add_rounded,
+                        size: 15,
+                        color: WaddyColors.mintInk,
+                      ),
+                      const SizedBox(width: Dimensions.paddingSizeSmall),
+                      Text(
+                        'add_more_items'.tr,
+                        style: waddyBold.copyWith(
+                          fontSize: 16,
+                          color: WaddyColors.mintInk,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+        const Divider(height: 1, thickness: 1, color: WaddyColors.divider),
 
-        // Minimum order progress bar
-        MinimumOrderProgressWidget(
-          subTotal: cartController.subTotal,
-          store: storeController.store,
-        ),
+        // No minimum-order / reward strip here: the design gives this slot to
+        // the XP band alone. The strip still runs on the store and home cart
+        // bars, which is where the free-delivery progress is now surfaced.
 
-        // Cart items
+        // Cart items — full-bleed white with hairline rules between lines,
+        // per the design (no inset rounded card).
         Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+          color: WaddyColors.surface,
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
           ),
           child: ListView.builder(
             physics: const NeverScrollableScrollPhysics(),
@@ -224,906 +395,384 @@ class _CartScreenState extends State<CartScreen> {
             },
           ),
         ),
+        // Rule below the last item is inset 16px, matching the design.
+        Container(
+          color: WaddyColors.surface,
+          padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
+          child: const Divider(
+            height: 1,
+            thickness: 1,
+            color: WaddyColors.divider,
+          ),
+        ),
+
+        // "Add a note for the restaurant"
+        _buildRestaurantNoteRow(),
+
+        // 8px band separating the basket from what follows. The scaffold below
+        // is warm too, so when the sections that follow render nothing the
+        // basket simply ends on the warm ground instead of bleeding into an
+        // indistinguishable white void.
+        Container(height: 8, color: WaddyColors.surfaceWarm),
 
         // "Did you forget?" suggested items
         _buildDidYouForgetSection(cartController.cartList),
 
-        // XP Shopping Counter
-        const XpShoppingCounterWidget(),
-
         // Extra packaging
         ExtraPackagingWidget(cartController: cartController),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: Dimensions.paddingSizeLarge),
       ],
     );
   }
 
-  Widget _buildDesktopLayout(CartController cartController, StoreController storeController) {
-    return FooterView(
-      child: SizedBox(
-        width: Dimensions.webMaxWidth,
-        child: Column(
-          children: [
-            WebScreenTitleWidget(title: 'cart_list'.tr),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                WebCardItemsWidget(cartList: cartController.cartList),
-                const SizedBox(width: Dimensions.paddingSizeSmall),
-                Expanded(
-                  flex: 4,
-                  child: pricingView(cartController, cartController.cartList[0].item!),
-                ),
-              ],
-            ),
-            WebSuggestedItemViewWidget(cartList: cartController.cartList),
-            const SizedBox(height: Dimensions.paddingSizeExtraOverLarge),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDeliveryAddressPreview(StoreController storeController) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
-
-    if (address == null || address.address == null) return const SizedBox();
+  /// "Add a note for the restaurant" row.
+  ///
+  /// The sheet writes to [CheckoutController.noteController], which is the same
+  /// controller the checkout screen's note field binds to and the source of
+  /// `order_note` on the place-order body — so a note typed here survives the
+  /// hop to checkout and reaches the restaurant.
+  Widget _buildRestaurantNoteRow() {
+    final bool hasNote = _restaurantNote.trim().isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+      color: WaddyColors.surface,
+      child: InkWell(
+        onTap: _openRestaurantNoteSheet,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+            vertical: Dimensions.paddingSizeDefault,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
+          child: Row(
             children: [
-              Icon(Icons.location_on_rounded, size: 22, color: primaryColor),
-              const SizedBox(width: 10),
+              const Icon(
+                Icons.sticky_note_2_outlined,
+                size: 22,
+                color: WaddyColors.ink,
+              ),
+              const SizedBox(width: Dimensions.paddingSizeMedium),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'deliver_to'.tr,
-                      style: robotoBold.copyWith(fontSize: 14, color: Colors.black87),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      address.address!,
-                      style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                child: Text(
+                  hasNote
+                      ? _restaurantNote
+                      : 'add_a_note_for_the_restaurant'.tr,
+                  style: waddyRegular.copyWith(
+                    fontSize: 16,
+                    color: hasNote ? WaddyColors.ink : WaddyColors.inkMid,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () => Get.toNamed(RouteHelper.getAccessLocationRoute('cart')),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: primaryColor, width: 1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'change'.tr,
-                    style: robotoMedium.copyWith(fontSize: 12, color: primaryColor),
-                  ),
-                ),
+              const SizedBox(width: Dimensions.paddingSizeSmall),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: WaddyColors.inkMuted,
               ),
             ],
           ),
-
-          // Delivery time estimate
-          if (storeController.store?.deliveryTime != null) ...[            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.access_time_rounded, size: 16, color: primaryColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${'estimated_time'.tr}: ${storeController.store!.deliveryTime} ${'min'.tr}',
-                      style: robotoMedium.copyWith(fontSize: 12, color: primaryColor),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderSummary(CartController cartController, StoreController storeController) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final bool hasAddons = cartController.addOns > 0;
-    final bool hasVariations = cartController.variationPrice > 0;
-    final bool hasDiscount = cartController.itemDiscountPrice > 0;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).secondaryHeaderColor.withOpacity(0.25),
-          width: 1,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          children: [
-            // Decorative glow circle top-right
-            Positioned(
-              top: -18,
-              right: -18,
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Theme.of(context).secondaryHeaderColor.withOpacity(0.18),
-                      Theme.of(context).secondaryHeaderColor.withOpacity(0.0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 16,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).secondaryHeaderColor,
-                      primaryColor,
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.receipt_long_rounded, size: 16, color: primaryColor),
-              const SizedBox(width: 6),
-              Text(
-                'order_summary'.tr,
-                style: robotoBold.copyWith(fontSize: 14, color: Colors.black87),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Item breakdown section
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.03),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey.shade100, width: 1),
-            ),
-            child: Column(
-              children: [
-                // Item price
-                _buildSummaryRow(
-                  '${hasDiscount ? 'Original Price' : 'Item Price'} (${cartController.cartList.length} ${'items'.tr})',
-                  PriceConverter.convertPrice(cartController.itemPrice),
-                ),
-
-                // Variations
-                if (hasVariations) ...[
-                  const SizedBox(height: 6),
-                  _buildSummaryRow(
-                    'variations'.tr,
-                    '+ ${PriceConverter.convertPrice(cartController.variationPrice)}',
-                  ),
-                ],
-
-                // Addons
-                if (hasAddons) ...[
-                  const SizedBox(height: 6),
-                  _buildSummaryRow(
-                    'addons'.tr,
-                    '+ ${PriceConverter.convertPrice(cartController.addOns)}',
-                  ),
-                ],
-
-                // Discount with tappable breakdown
-                if (hasDiscount) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: () => _showDiscountBreakdown(context, cartController),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'discount'.tr,
-                                style: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade600),
-                                maxLines: 1, overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(Icons.help_outline_rounded, size: 14, color: Colors.grey.shade400),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '- ${PriceConverter.convertPrice(cartController.itemDiscountPrice)}',
-                        style: robotoMedium.copyWith(fontSize: 13, color: Colors.green.shade600),
-                        textDirection: TextDirection.ltr,
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // Subtotal
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).secondaryHeaderColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Theme.of(context).secondaryHeaderColor.withOpacity(0.2), width: 1),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'subtotal'.tr,
-                    style: robotoBold.copyWith(fontSize: 15, color: Colors.black87),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).secondaryHeaderColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      PriceConverter.convertPrice(cartController.subTotal),
-                      style: robotoBold.copyWith(fontSize: 16, color: primaryColor),
-                      textDirection: TextDirection.ltr,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Note: delivery & taxes at checkout
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline_rounded, size: 12, color: Colors.grey.shade400),
-                const SizedBox(width: 4),
-                Text(
-                  'delivery_taxes_calculated_at_checkout'.tr,
-                  style: robotoRegular.copyWith(fontSize: 10, color: Colors.grey.shade400),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  void _showDiscountBreakdown(BuildContext context, CartController cartController) {
-    final Color primaryColor = Theme.of(context).primaryColor;
+  void _openRestaurantNoteSheet() {
+    // The checkout controller's own field — edited in place, so Save needs no
+    // copy step and the checkout screen shows the same text when it opens.
+    final controller = Get.find<CheckoutController>().noteController;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        double runningTotal = 0;
-        final items = cartController.cartList.map((cart) {
-          double? discount = cart.item!.discount;
-          String? discountType = cart.item!.discountType;
-          double originalUnit = PriceConverter.convertWithDiscount(cart.item!.price!, 0, 'amount')!;
-          double discountedUnit = PriceConverter.convertWithDiscount(cart.item!.price!, discount, discountType)!;
-          double itemSaving = (originalUnit - discountedUnit) * cart.quantity!;
-          runningTotal += itemSaving;
-          return (name: cart.item!.name!, saving: itemSaving, qty: cart.quantity!);
-        }).where((e) => e.saving > 0).toList();
-
-        double displayedTotal = cartController.itemDiscountPrice;
-        double roundingDiff = (displayedTotal - runningTotal).abs();
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36, height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (con) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(con).viewInsets.bottom,
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: WaddyColors.surface,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(Dimensions.radiusExtraLarge),
                 ),
               ),
-              const SizedBox(height: 14),
-              Text('Discount Breakdown', style: robotoBold.copyWith(fontSize: 16, color: Colors.black87)),
-              const SizedBox(height: 12),
-              ...items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(child: Text(item.name, style: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade700), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                    Text('- ${PriceConverter.convertPrice(item.saving)}', style: robotoMedium.copyWith(fontSize: 13, color: Colors.green.shade600), textDirection: TextDirection.ltr),
-                  ],
-                ),
-              )),
-              if (roundingDiff >= 0.5) ...[
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Rounding adjustment', style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade400)),
-                      Text('~ ${PriceConverter.convertPrice(roundingDiff)}', style: robotoRegular.copyWith(fontSize: 12, color: Colors.grey.shade400), textDirection: TextDirection.ltr),
-                    ],
-                  ),
-                ),
-              ],
-              const Divider(height: 1),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Total Saved', style: robotoBold.copyWith(fontSize: 14, color: Colors.black87)),
-                  Text('- ${PriceConverter.convertPrice(displayedTotal)}', style: robotoBold.copyWith(fontSize: 14, color: primaryColor), textDirection: TextDirection.ltr),
+                  Text(
+                    'add_a_note_for_the_restaurant'.tr,
+                    style: waddyBold.copyWith(
+                      fontSize: 18,
+                      color: WaddyColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeDefault),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    maxLines: 3,
+                    maxLength: 200,
+                    style: waddyRegular.copyWith(
+                      fontSize: 15,
+                      color: WaddyColors.ink,
+                    ),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: WaddyColors.surfaceWarm,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusDefault,
+                        ),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Dimensions.paddingSizeSmall),
+                  SizedBox(
+                    width: double.infinity,
+                    child: CustomButton(
+                      buttonText: 'save'.tr,
+                      radius: Dimensions.radiusDefault,
+                      onPressed: () {
+                        // The text is already on the shared controller; setState is
+                        // only here to repaint the row with it.
+                        setState(() {});
+                        Get.back();
+                      },
+                    ),
+                  ),
                 ],
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String value, {Color? valueColor, bool isBold = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Flexible(
-          child: Text(
-            label,
-            style: (isBold ? robotoMedium : robotoRegular).copyWith(
-              fontSize: isBold ? 14 : 13,
-              color: isBold ? Colors.black87 : Colors.grey.shade600,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          value,
-          style: (isBold ? robotoBold : robotoMedium).copyWith(
-            fontSize: isBold ? 14 : 13,
-            color: valueColor ?? Colors.black87,
-          ),
-          textDirection: TextDirection.ltr,
-        ),
-      ],
     );
   }
 
   Widget _buildBottomCheckoutButton(CartController cartController) {
     double subTotal = cartController.subTotal;
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF2F0EB),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.paddingSizeDefault,
+        Dimensions.paddingSizeMedium,
+        Dimensions.paddingSizeDefault,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: WaddyColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 18,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Delivery address row
-            if (address != null && address.address != null)
-              GetBuilder<StoreController>(
-                builder: (storeController) {
-                  return GestureDetector(
-                    onTap: () => Get.toNamed(RouteHelper.getAccessLocationRoute('cart')),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: primaryColor.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(Icons.location_on_rounded, size: 20, color: primaryColor),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${'deliver_to'.tr} ${address.addressType ?? 'home'.tr} · ${address.address!.split(',').first}',
-                                  style: robotoMedium.copyWith(fontSize: 13.5, color: const Color(0xFF1A1A1A)),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (storeController.store?.deliveryTime != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Text(
-                                      '${'arriving_in'.tr} ${storeController.store!.deliveryTime} ${'min'.tr}',
-                                      style: robotoRegular.copyWith(fontSize: 12, color: const Color(0xFF888888)),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded, size: 22, color: Color(0xFF888888)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            // No delivery-address row: the design goes straight from the
+            // basket to the CTA. Address and ETA are confirmed on the
+            // checkout screen this button opens.
 
-            // Payment row
-            Row(
-              children: [
-                // Payment method chip (placeholder)
-                /*
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to payment selection
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
+            // Primary CTA — the app's shared CustomButton, so the cart gets the
+            // same fill, press animation and disabled/loading behaviour as
+            // every other primary action. `child` supplies the split
+            // label/total layout the design calls for.
+            // "Checkout · <subtotal>", NOT "Place delivery order". This button
+            // does not place anything — it opens checkout, where the delivery
+            // fee is added and the order is actually confirmed. The number
+            // beside it is the subtotal, so it is labelled as one: promising a
+            // placed order at a pre-fee price is the version users read as a
+            // bait-and-switch when the total jumps on the next screen.
+            CustomButton(
+              buttonText:
+                  '${'go_to_checkout'.tr} — ${'subtotal'.tr} ${PriceConverter.convertPrice(subTotal)}',
+              height: 52,
+              onPressed: () async {
+                // Zone gate before the user is sent any deeper, matching the
+                // guard on the other checkout entry point.
+                if (Get.find<LocationController>().outOfServingZone) {
+                  AnalyticsHelper.log('cart_proceed_blocked_out_of_zone', {
+                    'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
+                  });
+                  GuestGate.showNoDeliverySheet(source: 'cart_proceed');
+                  return;
+                }
+                Get.find<CheckoutController>().updateFirstTime();
+                if (!cartController.cartList.first.item!.scheduleOrder! &&
+                    cartController.availableList.contains(false)) {
+                  showCustomSnackBar('one_or_more_product_unavailable'.tr);
+                } else {
+                  if (Get.find<SplashController>().module == null) {
+                    // Checking out from the dashboard: adopt the cart's own
+                    // module. The hand-rolled scan this replaces ran off the
+                    // end of the list when the cart's module was not in it and
+                    // then activated `moduleList[length]` — a range error on
+                    // the checkout button.
+                    await Get.find<SplashController>().activateModuleFor(
+                      cartController.cartList[0].item!.moduleId,
+                    );
+                  }
+                  Get.find<CouponController>().removeCouponData(false);
+                  Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
+                }
+              },
+              // Mint fill with teal ink — CustomButton's default two-tone
+              // look, so the cart CTA matches every other primary action.
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'go_to_checkout'.tr,
+                      style: waddyBold.copyWith(
+                        color: WaddyColors.primary,
+                        fontSize: 17,
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                  const SizedBox(width: Dimensions.paddingSizeMedium),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeMedium,
+                      vertical: Dimensions.paddingSizeExtraSmall,
+                    ),
+                    decoration: BoxDecoration(
+                      // Teal wash rather than a black scrim: the chip sits on
+                      // mint, where black reads as a smudge.
+                      color: WaddyColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusExtraLarge,
+                      ),
+                    ),
+                    // The word "Subtotal" rides with the number so the figure
+                    // can never be mistaken for the final charge. Small and
+                    // lighter — it qualifies the price, it isn't the message.
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.credit_card_rounded, size: 18, color: primaryColor),
-                        const SizedBox(width: 8),
-                        Text('pay'.tr, style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF1A1A1A))),
-                        const SizedBox(width: 6),
-                        const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF888888)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                */
-                // Pay button
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Get.find<CheckoutController>().updateFirstTime();
-                      if (!cartController.cartList.first.item!.scheduleOrder! &&
-                          cartController.availableList.contains(false)) {
-                        showCustomSnackBar('one_or_more_product_unavailable'.tr);
-                      } else {
-                        if (Get.find<SplashController>().module == null) {
-                          int i = 0;
-                          for (i = 0; i < Get.find<SplashController>().moduleList!.length; i++) {
-                            if (cartController.cartList[0].item!.moduleId ==
-                                Get.find<SplashController>().moduleList![i].id) {
-                              break;
-                            }
-                          }
-                          Get.find<SplashController>().setModule(
-                            Get.find<SplashController>().moduleList![i],
-                          );
-                          HomeScreen.loadData(true);
-                        }
-                        Get.find<CouponController>().removeCouponData(false);
-                        Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
-                      }
-                    },
-                    child: Container(
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${'pay'.tr} ${PriceConverter.convertPrice(subTotal)}',
-                          style: robotoBold.copyWith(
-                            color: Colors.white,
-                            fontSize: 16,
-                            letterSpacing: 0.3,
+                        Text(
+                          'subtotal'.tr,
+                          style: waddyRegular.copyWith(
+                            color: WaddyColors.primary.withValues(alpha: 0.75),
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: Dimensions.paddingSizeExtraSmall),
+                        Text(
+                          PriceConverter.convertPrice(subTotal),
+                          style: waddyBold.copyWith(
+                            color: WaddyColors.primary,
+                            fontSize: 15,
                           ),
                           textDirection: TextDirection.ltr,
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget pricingView(CartController cartController, Item item) {
-    return Container(
-      decoration:
-          ResponsiveHelper.isDesktop(context)
-              ? BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(
-                  ResponsiveHelper.isDesktop(context)
-                      ? Dimensions.radiusDefault
-                      : Dimensions.radiusSmall,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 5,
-                    spreadRadius: 1,
                   ),
                 ],
-              )
-              : null,
-      child: GetBuilder<StoreController>(
-        builder: (storeController) {
-          return Column(
-            children: [
-              ResponsiveHelper.isDesktop(context)
-                  ? ExtraPackagingWidget(cartController: cartController)
-                  : const SizedBox(),
+              ),
+            ),
 
-              ResponsiveHelper.isDesktop(context)
-                  ? Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Dimensions.paddingSizeDefault,
-                        vertical: Dimensions.paddingSizeSmall,
+            // "Waddy! you're saving  [X saved]" — the same treatment the cart
+            // bar uses, so the savings story reads identically on both
+            // surfaces: coins animation, the pun, then the mint chip.
+            if (cartController.itemDiscountPrice > 0)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: Dimensions.paddingSizeMedium,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: WaddyColors.mintSurface,
+                        shape: BoxShape.circle,
                       ),
-                      child: Text('order_summary'.tr, style: robotoBold),
+                      padding: const EdgeInsets.all(
+                        Dimensions.paddingSizeExtraSmall,
+                      ),
+                      child: Lottie.asset(
+                        'assets/animation/off.json',
+                        // Clearing a discount is worth celebrating, so this one
+                        // loops — unlike the cart bar's static states.
+                        repeat: true,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  )
-                  : const SizedBox(),
-
-              !ResponsiveHelper.isDesktop(context) &&
-                      Get.find<SplashController>()
-                          .getModuleConfig(item.moduleType)
-                          .newVariation! &&
-                      (storeController.store != null &&
-                          storeController.store!.cutlery!)
-                  ? Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.shade50,
-                          blurRadius: 2,
-                          spreadRadius: 1,
+                    const SizedBox(width: Dimensions.paddingSizeMedium),
+                    Flexible(
+                      child: Text(
+                        'youre_saving'.tr,
+                        style: waddyBold.copyWith(
+                          fontSize: 14.5,
+                          color: WaddyColors.ink,
                         ),
-                      ],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Dimensions.paddingSizeDefault,
-                      vertical: Dimensions.paddingSizeSmall,
-                    ),
-                    margin: const EdgeInsets.only(
-                      bottom: Dimensions.paddingSizeSmall,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Image.asset(Images.cutlery, height: 18, width: 18),
-                        const SizedBox(width: Dimensions.paddingSizeDefault),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'add_cutlery'.tr,
-                                style: robotoMedium.copyWith(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: Dimensions.paddingSizeExtraSmall,
-                              ),
-
-                              Text(
-                                'do_not_have_cutlery'.tr,
-                                style: robotoRegular.copyWith(
-                                  color: Theme.of(context).disabledColor,
-                                  fontSize: Dimensions.fontSizeSmall,
-                                ),
-                              ),
-                            ],
-                          ),
+                    const SizedBox(width: Dimensions.paddingSizeSmall),
+                    // "X saved" — mint chip, teal ink, as on the cart bar.
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeSmall,
+                        vertical: Dimensions.paddingSizeExtraSmall,
+                      ),
+                      decoration: BoxDecoration(
+                        color: WaddyColors.mint,
+                        // Pill, matching the total chip inside the CTA — a
+                        // square corner here reads as an unfinished edge next
+                        // to the button and the circular coin badge.
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusExtraLarge,
                         ),
-
-                        Transform.scale(
-                          scale: 0.7,
-                          child: CupertinoSwitch(
-                            value: cartController.addCutlery,
-                            activeTrackColor: Theme.of(context).primaryColor,
-                            onChanged: (bool? value) {
-                              cartController.updateCutlery();
-                            },
-                            inactiveTrackColor: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                  : const SizedBox(),
-
-              ResponsiveHelper.isDesktop(context)
-                  ? const SizedBox()
-                  : Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.shade50,
-                          blurRadius: 2,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                      // border: Border.all(color: Theme.of(context).primaryColor, width: 0.5),
-                    ),
-                    padding: const EdgeInsets.all(
-                      Dimensions.paddingSizeDefault,
-                    ),
-                    margin:
-                        ResponsiveHelper.isDesktop(context)
-                            ? const EdgeInsets.symmetric(
-                              horizontal: Dimensions.paddingSizeDefault,
-                              vertical: Dimensions.paddingSizeSmall,
-                            )
-                            : EdgeInsets.zero,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            if (ResponsiveHelper.isDesktop(context)) {
-                              Get.dialog(
-                                const Dialog(
-                                  child: NotAvailableBottomSheetWidget(),
-                                ),
-                              );
-                            } else {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder:
-                                    (con) =>
-                                        const NotAvailableBottomSheetWidget(),
-                              );
-                            }
-                          },
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'if_any_product_is_not_available'.tr,
-                                  style: robotoMedium,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.arrow_forward_ios_sharp,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        cartController.notAvailableIndex != -1
-                            ? Row(
-                              children: [
-                                Text(
-                                  cartController
-                                      .notAvailableList[cartController
-                                          .notAvailableIndex]
-                                      .tr,
-                                  style: robotoMedium.copyWith(
-                                    fontSize: Dimensions.fontSizeSmall,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-
-                                IconButton(
-                                  onPressed:
-                                      () =>
-                                          cartController.setAvailableIndex(-1),
-                                  icon: const Icon(Icons.clear, size: 18),
-                                ),
-                              ],
-                            )
-                            : const SizedBox(),
-                      ],
-                    ),
-                  ),
-              ResponsiveHelper.isDesktop(context)
-                  ? const SizedBox()
-                  : const SizedBox(height: Dimensions.paddingSizeSmall),
-
-              // Total
-              ResponsiveHelper.isDesktop(context)
-                  ? Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Dimensions.paddingSizeDefault,
-                      vertical: Dimensions.paddingSizeSmall,
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      ),
+                      child: Text.rich(
+                        TextSpan(
                           children: [
-                            Text('item_price'.tr, style: robotoRegular),
-                            PriceConverter.convertAnimationPrice(
-                              cartController.itemPrice,
-                              textStyle: robotoRegular,
+                            TextSpan(
+                              text: PriceConverter.convertPrice(
+                                cartController.itemDiscountPrice,
+                              ),
+                              style: waddyBold.copyWith(
+                                fontSize: 12,
+                                color: WaddyColors.primary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' ${'saved'.tr}',
+                              style: waddyRegular.copyWith(
+                                fontSize: 12,
+                                color: WaddyColors.primary,
+                              ),
                             ),
                           ],
                         ),
-                        SizedBox(
-                          height:
-                              cartController.variationPrice > 0
-                                  ? Dimensions.paddingSizeSmall
-                                  : 0,
-                        ),
-
-                        Get.find<SplashController>()
-                                    .getModuleConfig(item.moduleType)
-                                    .newVariation! &&
-                                cartController.variationPrice > 0
-                            ? Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('variations'.tr, style: robotoRegular),
-                                Text(
-                                  '(+) ${PriceConverter.convertPrice(cartController.variationPrice)}',
-                                  style: robotoRegular,
-                                  textDirection: TextDirection.ltr,
-                                ),
-                              ],
-                            )
-                            : const SizedBox(),
-                        const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('discount'.tr, style: robotoRegular),
-                            storeController.store != null
-                                ? Row(
-                                  children: [
-                                    Text('(-)', style: robotoRegular),
-                                    PriceConverter.convertAnimationPrice(
-                                      cartController.itemDiscountPrice,
-                                      textStyle: robotoRegular,
-                                    ),
-                                  ],
-                                )
-                                : Text('calculating'.tr, style: robotoRegular),
-                            // Text('(-) ${PriceConverter.convertPrice(cartController.itemDiscountPrice)}', style: robotoRegular, textDirection: TextDirection.ltr),
-                          ],
-                        ),
-                        SizedBox(
-                          height:
-                              Get.find<SplashController>()
-                                      .configModel!
-                                      .moduleConfig!
-                                      .module!
-                                      .addOn!
-                                  ? 10
-                                  : 0,
-                        ),
-
-                        Get.find<SplashController>()
-                                .configModel!
-                                .moduleConfig!
-                                .module!
-                                .addOn!
-                            ? Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('addons'.tr, style: robotoRegular),
-                                Text(
-                                  '(+) ${PriceConverter.convertPrice(cartController.addOns)}',
-                                  style: robotoRegular,
-                                  textDirection: TextDirection.ltr,
-                                ),
-                              ],
-                            )
-                            : const SizedBox(),
-                      ],
+                        maxLines: 1,
+                        softWrap: false,
+                      ),
                     ),
-                  )
-                  : const SizedBox(),
+                  ],
+                ),
+              ),
 
-              ResponsiveHelper.isDesktop(context)
-                  ? CheckoutButton(
-                    cartController: cartController,
-                    availableList: cartController.availableList,
-                  )
-                  : const SizedBox.shrink(),
-            ],
-          );
-        },
+            const SizedBox(height: Dimensions.paddingSizeMedium),
+          ],
+        ),
       ),
     );
   }
@@ -1144,29 +793,40 @@ class _CartScreenState extends State<CartScreen> {
             }
           }
         }
-        if (storeController.cartSuggestItemModel == null || suggestedItems == null || suggestedItems.isEmpty) {
+        if (storeController.cartSuggestItemModel == null ||
+            suggestedItems == null ||
+            suggestedItems.isEmpty) {
           return const SizedBox();
         }
 
+        // Full-bleed white on the design's sheet, not an inset rounded card,
+        // so it reads as another section of the same page.
         return Container(
-          margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-          padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16), bottom: Radius.circular(16)),
+          padding: const EdgeInsets.fromLTRB(
+            0,
+            Dimensions.paddingSizeDefault,
+            0,
+            Dimensions.paddingSizeDefault,
           ),
+          color: WaddyColors.surface,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header: "Did you forget?" + "See all"
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeDefault,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'did_you_forget'.tr,
-                      style: robotoBold.copyWith(fontSize: 17, color: const Color(0xFF1A1A1A)),
+                      style: waddyBold.copyWith(
+                        fontSize: 17,
+                        letterSpacing: -0.2,
+                        color: WaddyColors.ink,
+                      ),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -1176,15 +836,20 @@ class _CartScreenState extends State<CartScreen> {
                             Store(id: cartList[0].item!.storeId, name: null),
                             false,
                           );
-                          Get.toNamed(RouteHelper.getStoreRoute(
-                            id: cartList[0].item!.storeId!,
-                            page: 'item',
-                          ));
+                          Get.toNamed(
+                            RouteHelper.getStoreRoute(
+                              id: cartList[0].item!.storeId!,
+                              page: 'item',
+                            ),
+                          );
                         }
                       },
                       child: Text(
                         'see_all'.tr,
-                        style: robotoRegular.copyWith(fontSize: 13, color: const Color(0xFF888888)),
+                        style: waddyBold.copyWith(
+                          fontSize: 15,
+                          color: WaddyColors.mintInk,
+                        ),
                       ),
                     ),
                   ],
@@ -1198,33 +863,33 @@ class _CartScreenState extends State<CartScreen> {
                   scrollDirection: Axis.horizontal,
                   itemCount: suggestedItems.length,
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault,
+                  ),
                   itemBuilder: (context, index) {
                     final item = suggestedItems![index];
                     double? discount = item.discount;
                     String? discountType = item.discountType;
-                    bool hasVariations = (item.foodVariations != null && item.foodVariations!.isNotEmpty) ||
-                        (item.choiceOptions != null && item.choiceOptions!.isNotEmpty);
+                    bool hasVariations =
+                        (item.foodVariations != null &&
+                            item.foodVariations!.isNotEmpty) ||
+                        (item.choiceOptions != null &&
+                            item.choiceOptions!.isNotEmpty);
 
                     return GestureDetector(
                       onTap: () {
-                        ResponsiveHelper.isMobile(context)
-                            ? showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (con) => ItemBottomSheet(itemId: item.id!),
-                              )
-                            : showDialog(
-                                context: context,
-                                builder: (con) => Dialog(
-                                  child: ItemBottomSheet(itemId: item.id!),
-                                ),
-                              );
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (con) => ItemBottomSheet(itemId: item.id!),
+                        );
                       },
                       child: Container(
                         width: 140,
-                        margin: const EdgeInsets.only(right: 12),
+                        margin: const EdgeInsets.only(
+                          right: Dimensions.paddingSizeMedium,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1235,11 +900,15 @@ class _CartScreenState extends State<CartScreen> {
                                   width: 140,
                                   height: 130,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF5F2EC),
-                                    borderRadius: BorderRadius.circular(14),
+                                    color: WaddyColors.surfaceWarm,
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault,
+                                    ),
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault,
+                                    ),
                                     child: CustomImage(
                                       image: item.imageFullUrl ?? '',
                                       height: 130,
@@ -1255,30 +924,64 @@ class _CartScreenState extends State<CartScreen> {
                                   child: GestureDetector(
                                     onTap: () async {
                                       if (hasVariations) {
-                                        ResponsiveHelper.isMobile(context)
-                                            ? showModalBottomSheet(
-                                                context: context,
-                                                isScrollControlled: true,
-                                                backgroundColor: Colors.transparent,
-                                                builder: (con) => ItemBottomSheet(itemId: item.id!),
-                                              )
-                                            : showDialog(
-                                                context: context,
-                                                builder: (con) => Dialog(
-                                                  child: ItemBottomSheet(itemId: item.id!),
-                                                ),
-                                              );
-                                      } else {
-                                        double price = PriceConverter.convertWithDiscount(item.price!, discount, discountType) ?? item.price!;
-                                        OnlineCart onlineCart = OnlineCart(
-                                          null, item.id, null,
-                                          price.toString(), '', null, null,
-                                          1, [], null, [], 'Item',
+                                        showModalBottomSheet(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder:
+                                              (con) => ItemBottomSheet(
+                                                itemId: item.id!,
+                                              ),
                                         );
-                                        bool success = await Get.find<CartController>().addToCartOnline(onlineCart);
-                                        if (success) {
-                                          showCustomSnackBar('added_to_cart'.tr, isError: false);
-                                        }
+                                      } else {
+                                        double price =
+                                            PriceConverter.convertWithDiscount(
+                                              item.price!,
+                                              discount,
+                                              discountType,
+                                            ) ??
+                                            item.price!;
+                                        OnlineCart onlineCart = OnlineCart(
+                                          null,
+                                          item.id,
+                                          null,
+                                          price.toString(),
+                                          '',
+                                          null,
+                                          null,
+                                          1,
+                                          [],
+                                          null,
+                                          [],
+                                          'Item',
+                                        );
+                                        // Guest fallback so this quick-add lands
+                                        // in the local cart instead of 401ing.
+                                        CartModel suggestedCartModel =
+                                            CartModel(
+                                              null,
+                                              item.price,
+                                              price,
+                                              [],
+                                              [],
+                                              (item.price! - price),
+                                              1,
+                                              [],
+                                              [],
+                                              item.availableDateStarts != null,
+                                              item.stock,
+                                              item,
+                                              item.quantityLimit,
+                                            );
+                                        // No toast: this quick-add fires from the
+                                        // suggestion strip ON the cart screen, so
+                                        // the new line lands in the list right
+                                        // behind it, in view.
+                                        await Get.find<CartController>()
+                                            .addToCartOnline(
+                                              onlineCart,
+                                              localFallback: suggestedCartModel,
+                                            );
                                       }
                                     },
                                     child: Container(
@@ -1289,14 +992,20 @@ class _CartScreenState extends State<CartScreen> {
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.1),
+                                            color: Colors.black.withValues(
+                                              alpha: 0.1,
+                                            ),
                                             blurRadius: 4,
                                             offset: const Offset(0, 1),
                                           ),
                                         ],
                                       ),
                                       child: const Center(
-                                        child: Icon(Icons.add_rounded, size: 18, color: Color(0xFF1A1A1A)),
+                                        child: Icon(
+                                          Icons.add_rounded,
+                                          size: 18,
+                                          color: WaddyColors.primary,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1307,7 +1016,11 @@ class _CartScreenState extends State<CartScreen> {
                             // Item name
                             Text(
                               item.name ?? '',
-                              style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF1A1A1A), height: 1.2),
+                              style: waddyBold.copyWith(
+                                fontSize: 15,
+                                color: WaddyColors.ink,
+                                height: 1.25,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1319,7 +1032,10 @@ class _CartScreenState extends State<CartScreen> {
                                 discount: discount,
                                 discountType: discountType,
                               ),
-                              style: robotoMedium.copyWith(fontSize: 13, color: const Color(0xFF555555)),
+                              style: waddyBold.copyWith(
+                                fontSize: 15,
+                                color: WaddyColors.ink,
+                              ),
                               textDirection: TextDirection.ltr,
                             ),
                           ],
@@ -1336,589 +1052,11 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget suggestedItemView(List<CartModel> cartList) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        List<Item>? suggestedItems;
-        if (storeController.cartSuggestItemModel != null) {
-          suggestedItems = [];
-          List<int> cartIds = [];
-          for (CartModel cartItem in cartList) {
-            cartIds.add(cartItem.item!.id!);
-          }
-          for (Item item in storeController.cartSuggestItemModel!.items!) {
-            if (!cartIds.contains(item.id)) {
-              suggestedItems.add(item);
-            }
-          }
-        }
-        return storeController.cartSuggestItemModel != null && suggestedItems!.isNotEmpty
-            ? Container(
-              margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Collapsible header
-                  InkWell(
-                    onTap: () => setState(() => _showSuggestions = !_showSuggestions),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.lightbulb_outline_rounded, size: 18, color: Colors.grey.shade500),
-                          const SizedBox(width: 8),
-                          Text(
-                            'you_may_also_like'.tr,
-                            style: robotoMedium.copyWith(fontSize: 14, color: Colors.grey.shade700),
-                          ),
-                          const Spacer(),
-                          AnimatedRotation(
-                            turns: _showSuggestions ? 0.5 : 0,
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: Colors.grey.shade500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Expandable product cards
-                  AnimatedCrossFade(
-                    firstChild: const SizedBox(width: double.infinity, height: 0),
-                    secondChild: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: SizedBox(
-                        height: 80,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: suggestedItems.length,
-                          physics: const BouncingScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          itemBuilder: (context, index) {
-                            final item = suggestedItems![index];
-                            double? discount = item.discount;
-                            String? discountType = item.discountType;
-                            bool hasVariations = (item.foodVariations != null && item.foodVariations!.isNotEmpty) ||
-                                (item.choiceOptions != null && item.choiceOptions!.isNotEmpty);
-
-                            return GestureDetector(
-                              onTap: () {
-                                ResponsiveHelper.isMobile(context)
-                                    ? showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        backgroundColor: Colors.transparent,
-                                        builder: (con) => ItemBottomSheet(itemId: item.id!),
-                                      )
-                                    : showDialog(
-                                        context: context,
-                                        builder: (con) => Dialog(
-                                          child: ItemBottomSheet(itemId: item.id!),
-                                        ),
-                                      );
-                              },
-                              child: Container(
-                                width: 220,
-                                margin: const EdgeInsets.only(right: 10),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.shade200, width: 1),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Product image
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: CustomImage(
-                                        image: item.imageFullUrl ?? '',
-                                        height: 60,
-                                        width: 60,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    // Name + price
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            item.name ?? '',
-                                            style: robotoMedium.copyWith(fontSize: 12, height: 1.2),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            PriceConverter.convertPrice(
-                                              item.price,
-                                              discount: discount,
-                                              discountType: discountType,
-                                            ),
-                                            style: robotoBold.copyWith(fontSize: 13, color: primaryColor),
-                                            textDirection: TextDirection.ltr,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    // ADD button
-                                    GestureDetector(
-                                      onTap: () async {
-                                        if (hasVariations) {
-                                          ResponsiveHelper.isMobile(context)
-                                              ? showModalBottomSheet(
-                                                  context: context,
-                                                  isScrollControlled: true,
-                                                  backgroundColor: Colors.transparent,
-                                                  builder: (con) => ItemBottomSheet(itemId: item.id!),
-                                                )
-                                              : showDialog(
-                                                  context: context,
-                                                  builder: (con) => Dialog(
-                                                    child: ItemBottomSheet(itemId: item.id!),
-                                                  ),
-                                                );
-                                        } else {
-                                          double price = PriceConverter.convertWithDiscount(item.price!, discount, discountType) ?? item.price!;
-                                          OnlineCart onlineCart = OnlineCart(
-                                            null, item.id, null,
-                                            price.toString(), '', null, null,
-                                            1, [], null, [], 'Item',
-                                          );
-                                          bool success = await Get.find<CartController>().addToCartOnline(onlineCart);
-                                          if (success) {
-                                            showCustomSnackBar('added_to_cart'.tr, isError: false);
-                                          }
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: primaryColor,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          'add'.tr,
-                                          style: robotoBold.copyWith(fontSize: 12, color: Colors.white),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    crossFadeState: _showSuggestions
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
-                    duration: const Duration(milliseconds: 250),
-                  ),
-                ],
-              ),
-            )
-            : const SizedBox();
-      },
-    );
-  }
-
   Future<void> showReferAndEarnSnackBar() async {
     String text = 'your_referral_discount_added_on_your_first_order'.tr;
     if (Get.find<ProfileController>().userInfoModel != null &&
         Get.find<ProfileController>().userInfoModel!.isValidForDiscount!) {
       showCustomSnackBar(text, isError: false);
     }
-  }
-}
-
-class CheckoutButton extends StatelessWidget {
-  final CartController cartController;
-  final List<bool> availableList;
-  const CheckoutButton({
-    super.key,
-    required this.cartController,
-    required this.availableList,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    double percentage = 0;
-
-    return Container(
-      width: Dimensions.webMaxWidth,
-      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(
-          ResponsiveHelper.isDesktop(context) ? Dimensions.radiusDefault : 0,
-        ),
-      ),
-      child: GetBuilder<StoreController>(
-        builder: (storeController) {
-          if (Get.find<StoreController>().store != null &&
-              !Get.find<StoreController>().store!.freeDelivery! &&
-              (Get.find<SplashController>()
-                          .configModel
-                          ?.adminFreeDelivery
-                          ?.status ==
-                      true &&
-                  (Get.find<SplashController>()
-                              .configModel
-                              ?.adminFreeDelivery
-                              ?.type !=
-                          null &&
-                      Get.find<SplashController>()
-                              .configModel
-                              ?.adminFreeDelivery
-                              ?.type ==
-                          'free_delivery_by_order_amount') &&
-                  (Get.find<SplashController>()
-                          .configModel!
-                          .adminFreeDelivery
-                          ?.freeDeliveryOver !=
-                      null))) {
-            percentage =
-                cartController.subTotal /
-                Get.find<SplashController>()
-                    .configModel!
-                    .adminFreeDelivery!
-                    .freeDeliveryOver!;
-          }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              (storeController.store != null &&
-                      !storeController.store!.freeDelivery! &&
-                      (Get.find<SplashController>()
-                                  .configModel
-                                  ?.adminFreeDelivery
-                                  ?.status ==
-                              true &&
-                          (Get.find<SplashController>()
-                                      .configModel
-                                      ?.adminFreeDelivery
-                                      ?.type !=
-                                  null &&
-                              Get.find<SplashController>()
-                                      .configModel
-                                      ?.adminFreeDelivery
-                                      ?.type ==
-                                  'free_delivery_by_order_amount') &&
-                          (Get.find<SplashController>()
-                                  .configModel!
-                                  .adminFreeDelivery
-                                  ?.freeDeliveryOver !=
-                              null)) &&
-                      percentage < 1)
-                  ? Column(
-                    children: [
-                      Row(
-                        children: [
-                          Image.asset(Images.percentTag, height: 20, width: 20),
-                          const SizedBox(
-                            width: Dimensions.paddingSizeExtraSmall,
-                          ),
-
-                          Text(
-                            PriceConverter.convertPrice(
-                              Get.find<SplashController>()
-                                      .configModel!
-                                      .adminFreeDelivery!
-                                      .freeDeliveryOver! -
-                                  cartController.subTotal,
-                            ),
-                            style: robotoMedium.copyWith(
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            textDirection: TextDirection.ltr,
-                          ),
-                          const SizedBox(
-                            width: Dimensions.paddingSizeExtraSmall,
-                          ),
-
-                          Text(
-                            'more_for_free_delivery'.tr,
-                            style: robotoMedium.copyWith(
-                              color: Theme.of(context).disabledColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-                      LinearProgressIndicator(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).primaryColor.withValues(alpha: 0.2),
-                        value: percentage,
-                      ),
-                    ],
-                  )
-                  : const SizedBox(),
-
-              ResponsiveHelper.isDesktop(context)
-                  ? const Divider(height: 1)
-                  : const SizedBox(),
-              const SizedBox(height: Dimensions.paddingSizeExtraSmall),
-
-              Padding(
-                padding: const EdgeInsets.only(
-                  bottom: Dimensions.paddingSizeSmall,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'subtotal'.tr,
-                      style: robotoMedium.copyWith(
-                        color:
-                            ResponsiveHelper.isDesktop(context)
-                                ? Theme.of(context).textTheme.bodyLarge!.color
-                                : Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    PriceConverter.convertAnimationPrice(
-                      cartController.subTotal,
-                      textStyle: robotoRegular.copyWith(
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              ResponsiveHelper.isDesktop(context) &&
-                      Get.find<SplashController>()
-                          .getModuleConfig(
-                            cartController.cartList[0].item!.moduleType,
-                          )
-                          .newVariation! &&
-                      (storeController.store != null &&
-                          storeController.store!.cutlery!)
-                  ? Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 0,
-                      vertical: 0,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Image.asset(Images.cutlery, height: 18, width: 18),
-                        const SizedBox(width: Dimensions.paddingSizeDefault),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'add_cutlery'.tr,
-                                style: robotoMedium.copyWith(
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: Dimensions.paddingSizeExtraSmall,
-                              ),
-
-                              Text(
-                                'do_not_have_cutlery'.tr,
-                                style: robotoRegular.copyWith(
-                                  color: Theme.of(context).disabledColor,
-                                  fontSize: Dimensions.fontSizeSmall,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        Transform.scale(
-                          scale: 0.7,
-                          child: CupertinoSwitch(
-                            value: cartController.addCutlery,
-                            activeTrackColor: Theme.of(context).primaryColor,
-                            onChanged: (bool? value) {
-                              cartController.updateCutlery();
-                            },
-                            inactiveTrackColor: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                  : const SizedBox(),
-              ResponsiveHelper.isDesktop(context)
-                  ? const SizedBox(height: Dimensions.paddingSizeSmall)
-                  : const SizedBox(),
-
-              !ResponsiveHelper.isDesktop(context)
-                  ? const SizedBox()
-                  : Container(
-                    width: Dimensions.webMaxWidth,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        Dimensions.radiusSmall,
-                      ),
-                      color: Theme.of(context).cardColor,
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).disabledColor.withValues(alpha: 0.2),
-                        width: 0.5,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(
-                      Dimensions.paddingSizeDefault,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            if (ResponsiveHelper.isDesktop(context)) {
-                              Get.dialog(
-                                const Dialog(
-                                  child: NotAvailableBottomSheetWidget(),
-                                ),
-                              );
-                            } else {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder:
-                                    (con) =>
-                                        const NotAvailableBottomSheetWidget(),
-                              );
-                            }
-                          },
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'if_any_product_is_not_available'.tr,
-                                  style: robotoMedium.copyWith(
-                                    fontSize: Dimensions.fontSizeSmall,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const Icon(Icons.keyboard_arrow_down, size: 18),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          height: Dimensions.paddingSizeExtraSmall,
-                        ),
-
-                        Container(
-                          padding: const EdgeInsets.only(
-                            left: Dimensions.paddingSizeSmall,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              Dimensions.radiusSmall,
-                            ),
-                            color: Theme.of(
-                              context,
-                            ).disabledColor.withValues(alpha: 0.1),
-                          ),
-                          child:
-                              cartController.notAvailableIndex != -1
-                                  ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        cartController
-                                            .notAvailableList[cartController
-                                                .notAvailableIndex]
-                                            .tr,
-                                        style: robotoRegular.copyWith(
-                                          fontSize:
-                                              Dimensions.fontSizeExtraSmall,
-                                          color: Theme.of(context).hintColor,
-                                        ),
-                                      ),
-
-                                      IconButton(
-                                        onPressed:
-                                            () => cartController
-                                                .setAvailableIndex(-1),
-                                        icon: const Icon(
-                                          Icons.clear,
-                                          size: 18,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                  : const SizedBox(),
-                        ),
-                      ],
-                    ),
-                  ),
-              ResponsiveHelper.isDesktop(context)
-                  ? const SizedBox(height: Dimensions.paddingSizeSmall)
-                  : const SizedBox(),
-
-              SafeArea(
-                child: CustomButton(
-                  buttonText: 'confirm_delivery_details'.tr,
-                  fontSize:
-                      ResponsiveHelper.isDesktop(context)
-                          ? Dimensions.fontSizeSmall
-                          : Dimensions.fontSizeLarge,
-                  isBold: ResponsiveHelper.isDesktop(context) ? false : true,
-                  radius:
-                      ResponsiveHelper.isDesktop(context)
-                          ? Dimensions.radiusSmall
-                          : Dimensions.radiusDefault,
-                  onPressed: () {
-                    Get.find<CheckoutController>().updateFirstTime();
-                    if (!cartController.cartList.first.item!.scheduleOrder! &&
-                        availableList.contains(false)) {
-                      showCustomSnackBar('one_or_more_product_unavailable'.tr);
-                    } else {
-                      if (Get.find<SplashController>().module == null) {
-                        int i = 0;
-                        for (
-                          i = 0;
-                          i < Get.find<SplashController>().moduleList!.length;
-                          i++
-                        ) {
-                          if (cartController.cartList[0].item!.moduleId ==
-                              Get.find<SplashController>().moduleList![i].id) {
-                            break;
-                          }
-                        }
-                        Get.find<SplashController>().setModule(
-                          Get.find<SplashController>().moduleList![i],
-                        );
-                        HomeScreen.loadData(true);
-                      }
-                      Get.find<CouponController>().removeCouponData(false);
-
-                      Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
-                    }
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
   }
 }

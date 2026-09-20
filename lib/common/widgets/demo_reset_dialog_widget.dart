@@ -18,8 +18,10 @@ class _DemoResetDialogWidgetState extends State<DemoResetDialogWidget> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge)),
-      insetPadding: const EdgeInsets.all(30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
+      ),
+      insetPadding: const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge),
       clipBehavior: Clip.antiAliasWithSaveLayer,
       child: Container(
         decoration: BoxDecoration(
@@ -28,31 +30,49 @@ class _DemoResetDialogWidgetState extends State<DemoResetDialogWidget> {
         ),
         width: 500,
         padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.error_outline, color: Theme.of(context).primaryColor, size: 55),
-          const SizedBox(height: Dimensions.paddingSizeLarge),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context).primaryColor,
+              size: 55,
+            ),
+            const SizedBox(height: Dimensions.paddingSizeLarge),
 
-          Text('session_time_out'.tr, style: robotoBold.copyWith(fontSize: Dimensions.fontSizeExtraLarge)),
-          const SizedBox(height: Dimensions.paddingSizeLarge),
+            Text(
+              'session_time_out'.tr,
+              style: waddyBold.copyWith(
+                fontSize: Dimensions.fontSizeExtraLarge,
+              ),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeLarge),
 
-          Text(
-            'though_it_is_demo_text'.tr,
-            textAlign: TextAlign.center,
-            style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault),
-          ),
-          const SizedBox(height: Dimensions.paddingSizeExtraOverLarge),
+            Text(
+              'though_it_is_demo_text'.tr,
+              textAlign: TextAlign.center,
+              style: waddyMedium.copyWith(fontSize: Dimensions.fontSizeDefault),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeExtraOverLarge),
 
-          CustomButton(isLoading: _isLoading, buttonText: 'okay'.tr, onPressed: () async {
-            setState(() {
-              _isLoading = true;
-            });
-            await Get.find<SplashController>().getConfigData(fromDemoReset: true);
+            CustomButton(
+              isLoading: _isLoading,
+              buttonText: 'okay'.tr,
+              onPressed: () async {
+                setState(() {
+                  _isLoading = true;
+                });
+                await Get.find<SplashController>().getConfigData(
+                  fromDemoReset: true,
+                );
 
-            setState(() {
-              _isLoading = false;
-            });
-          }),
-        ]),
+                setState(() {
+                  _isLoading = false;
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

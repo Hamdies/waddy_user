@@ -7,6 +7,7 @@ import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 /// Store-specific Ramadan stall — real tent awning design with Islamic arch cards.
 /// Shows a **mix** of discounted (offers) + recommended (popular) items.
@@ -49,13 +50,17 @@ class _StoreRamadanStallViewState extends State<StoreRamadanStallView> {
         final nextScroll = currentScroll + 160;
 
         if (nextScroll >= maxScroll) {
-          _scrollController.animateTo(0,
+          _scrollController.animateTo(
+            0,
             duration: const Duration(milliseconds: 1500),
-            curve: Curves.easeInOutQuart);
+            curve: Curves.easeInOutQuart,
+          );
         } else {
-          _scrollController.animateTo(nextScroll,
+          _scrollController.animateTo(
+            nextScroll,
             duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOutCubic);
+            curve: Curves.easeInOutCubic,
+          );
         }
         _startAutoScroll();
       }
@@ -75,18 +80,19 @@ class _StoreRamadanStallViewState extends State<StoreRamadanStallView> {
 
     // Merge: offers first, then recommended (deduplicated)
     final offerIds = widget.discountedItems.map((e) => e.id).toSet();
-    final nonDuplicateRecommended = widget.recommendedItems
-        .where((i) => !offerIds.contains(i.id)).toList();
+    final nonDuplicateRecommended =
+        widget.recommendedItems.where((i) => !offerIds.contains(i.id)).toList();
     final mergedItems = [...widget.discountedItems, ...nonDuplicateRecommended];
 
     if (mergedItems.isEmpty) return const SizedBox.shrink();
 
-    final displayItems = mergedItems.length > 16 ? mergedItems.sublist(0, 16) : mergedItems;
+    final displayItems =
+        mergedItems.length > 16 ? mergedItems.sublist(0, 16) : mergedItems;
 
     return Container(
       height: 350,
       margin: EdgeInsets.symmetric(
-        vertical: 16,
+        vertical: Dimensions.paddingSizeDefault,
         horizontal: isSmallScreen ? 4 : 8,
       ),
       child: Stack(
@@ -105,13 +111,22 @@ class _StoreRamadanStallViewState extends State<StoreRamadanStallView> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF9E8).withValues(alpha: 0.3),
                     borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(8),
-                      bottomRight: Radius.circular(8),
+                      bottomLeft: Radius.circular(Dimensions.radiusSmall),
+                      bottomRight: Radius.circular(Dimensions.radiusSmall),
                     ),
                     border: Border(
-                      left: BorderSide(color: _ramadanGold.withValues(alpha: 0.5), width: 1.5),
-                      right: BorderSide(color: _ramadanGold.withValues(alpha: 0.5), width: 1.5),
-                      bottom: BorderSide(color: _ramadanGold.withValues(alpha: 0.5), width: 1.5),
+                      left: BorderSide(
+                        color: _ramadanGold.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      right: BorderSide(
+                        color: _ramadanGold.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      bottom: BorderSide(
+                        color: _ramadanGold.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -161,21 +176,34 @@ class _StoreRamadanStallViewState extends State<StoreRamadanStallView> {
       height: 45,
       width: double.infinity,
       child: CustomPaint(
-        painter: _TentAwningPainter(color1: _brandTeal, color2: const Color(0xFF0A3F3A)),
+        painter: _TentAwningPainter(
+          color1: _brandTeal,
+          color2: const Color(0xFF0A3F3A),
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(width: 8),
             Text(
               "Ramadan Offers & Picks",
-              style: robotoBold.copyWith(
+              style: waddyBold.copyWith(
                 fontSize: isSmallScreen ? 13 : 15,
                 color: Colors.white,
-                shadows: [const Shadow(color: Colors.black45, blurRadius: 2, offset: Offset(1, 1))],
+                shadows: [
+                  const Shadow(
+                    color: Colors.black45,
+                    blurRadius: 2,
+                    offset: Offset(1, 1),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
-            HugeIcon(icon: HugeIcons.strokeRoundedRamadhan01, color: _brandNeon, size: 22),
+            HugeIcon(
+              icon: HugeIcons.strokeRoundedRamadhan01,
+              color: _brandNeon,
+              size: 22,
+            ),
           ],
         ),
       ),
@@ -195,12 +223,13 @@ class _TentAwningPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [color1, color2],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    final paint =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color1, color2],
+          ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     final path = Path();
     path.moveTo(0, 8);
@@ -216,10 +245,11 @@ class _TentAwningPainter extends CustomPainter {
     canvas.drawShadow(path, Colors.black, 4, true);
     canvas.drawPath(path, paint);
 
-    final borderPaint = Paint()
-      ..color = const Color(0xFFD4AF37)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+    final borderPaint =
+        Paint()
+          ..color = const Color(0xFFD4AF37)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
     canvas.drawPath(path, borderPaint);
   }
 
@@ -251,7 +281,10 @@ class _StoreRamadanItemCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Get.find<ItemController>().navigateToItemPage(item, context),
       child: Container(
-        margin: const EdgeInsets.only(right: 12, bottom: 4),
+        margin: const EdgeInsets.only(
+          right: Dimensions.paddingSizeMedium,
+          bottom: Dimensions.paddingSizeExtraSmall,
+        ),
         decoration: ShapeDecoration(
           color: Colors.white,
           shape: _IslamicCardShape(
@@ -287,18 +320,27 @@ class _StoreRamadanItemCard extends StatelessWidget {
                   ),
 
                   CustomPaint(
-                    painter: _RamadanOverlayPainter(color: ramadanGold, accent: brandTeal),
+                    painter: _RamadanOverlayPainter(
+                      color: ramadanGold,
+                      accent: brandTeal,
+                    ),
                   ),
 
                   // Discount badge
                   if (item.discount != null && item.discount! > 0)
                     Positioned(
-                      top: 18, left: 8,
+                      top: 18,
+                      left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeExtraSmall,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: brandTeal,
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusExtraSmall,
+                          ),
                           border: Border.all(color: brandNeon, width: 1),
                         ),
                         child: Text(
@@ -307,7 +349,10 @@ class _StoreRamadanItemCard extends StatelessWidget {
                             item.discount.toString(),
                             item.discountType ?? '',
                           ),
-                          style: robotoBold.copyWith(fontSize: 9, color: Colors.white),
+                          style: waddyBold.copyWith(
+                            fontSize: 9,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -326,25 +371,42 @@ class _StoreRamadanItemCard extends StatelessWidget {
                     // Badge — "Offer" or "Popular"
                     Container(
                       margin: const EdgeInsets.only(bottom: 3),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeSmall,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: isOffer
-                              ? [const Color(0xFFE84D4F).withValues(alpha: 0.15), const Color(0xFFE84D4F).withValues(alpha: 0.05)]
-                              : [ramadanGold.withValues(alpha: 0.15), ramadanGold.withValues(alpha: 0.05)],
+                          colors:
+                              isOffer
+                                  ? [
+                                    const Color(
+                                      0xFFE84D4F,
+                                    ).withValues(alpha: 0.15),
+                                    const Color(
+                                      0xFFE84D4F,
+                                    ).withValues(alpha: 0.05),
+                                  ]
+                                  : [
+                                    ramadanGold.withValues(alpha: 0.15),
+                                    ramadanGold.withValues(alpha: 0.05),
+                                  ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
+                          topLeft: Radius.circular(Dimensions.radiusSmall),
+                          bottomRight: Radius.circular(Dimensions.radiusSmall),
                           topRight: Radius.circular(2),
                           bottomLeft: Radius.circular(2),
                         ),
                         border: Border.all(
-                          color: isOffer
-                              ? const Color(0xFFE84D4F).withValues(alpha: 0.6)
-                              : ramadanGold.withValues(alpha: 0.6),
+                          color:
+                              isOffer
+                                  ? const Color(
+                                    0xFFE84D4F,
+                                  ).withValues(alpha: 0.6)
+                                  : ramadanGold.withValues(alpha: 0.6),
                           width: 0.5,
                         ),
                       ),
@@ -354,14 +416,18 @@ class _StoreRamadanItemCard extends StatelessWidget {
                           Icon(
                             isOffer ? Icons.local_offer : Icons.star,
                             size: 8,
-                            color: isOffer ? const Color(0xFFE84D4F) : ramadanGold,
+                            color:
+                                isOffer ? const Color(0xFFE84D4F) : ramadanGold,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             isOffer ? "Offer" : "Popular",
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 9,
-                              color: isOffer ? const Color(0xFFB71C1C) : const Color(0xFF996515),
+                              color:
+                                  isOffer
+                                      ? const Color(0xFFB71C1C)
+                                      : const Color(0xFF996515),
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -372,7 +438,10 @@ class _StoreRamadanItemCard extends StatelessWidget {
                     // Title
                     Text(
                       item.name ?? '',
-                      style: robotoMedium.copyWith(fontSize: 12, color: Colors.black87),
+                      style: waddyMedium.copyWith(
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -387,7 +456,7 @@ class _StoreRamadanItemCard extends StatelessWidget {
                             padding: const EdgeInsets.only(right: 6),
                             child: Text(
                               PriceConverter.convertPrice(item.price),
-                              style: robotoRegular.copyWith(
+                              style: waddyRegular.copyWith(
                                 fontSize: 10,
                                 color: Colors.grey,
                                 decoration: TextDecoration.lineThrough,
@@ -396,9 +465,16 @@ class _StoreRamadanItemCard extends StatelessWidget {
                           ),
                         Text(
                           PriceConverter.convertPrice(
-                            PriceConverter.convertWithDiscount(item.price, item.discount, item.discountType),
+                            PriceConverter.convertWithDiscount(
+                              item.price,
+                              item.discount,
+                              item.discountType,
+                            ),
                           ),
-                          style: robotoBold.copyWith(fontSize: 13, color: brandTeal),
+                          style: waddyBold.copyWith(
+                            fontSize: 13,
+                            color: brandTeal,
+                          ),
                         ),
                       ],
                     ),
@@ -407,14 +483,18 @@ class _StoreRamadanItemCard extends StatelessWidget {
 
                     // ADD button — geometric beveled shape
                     InkWell(
-                      onTap: () => Get.find<ItemController>().itemDirectlyAddToCart(item, context),
+                      onTap:
+                          () => Get.find<ItemController>()
+                              .itemDirectlyAddToCart(item, context),
                       child: Container(
                         width: double.infinity,
                         height: 28,
                         decoration: ShapeDecoration(
                           color: Colors.white,
                           shape: RoundedSuperellipseBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusSmall,
+                            ),
                             side: BorderSide(color: brandTeal, width: 1.2),
                           ),
                         ),
@@ -423,7 +503,7 @@ class _StoreRamadanItemCard extends StatelessWidget {
                           children: [
                             Text(
                               "ADD",
-                              style: robotoBold.copyWith(
+                              style: waddyBold.copyWith(
                                 fontSize: 11,
                                 color: brandTeal,
                                 letterSpacing: 1.2,
@@ -460,7 +540,8 @@ class _IslamicCardShape extends ShapeBorder {
   EdgeInsetsGeometry get dimensions => EdgeInsets.all(width);
 
   @override
-  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => getOuterPath(rect);
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect);
 
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
@@ -468,16 +549,25 @@ class _IslamicCardShape extends ShapeBorder {
     path.moveTo(rect.left, rect.bottom - 12);
     path.quadraticBezierTo(rect.left, rect.bottom, rect.left + 12, rect.bottom);
     path.lineTo(rect.right - 12, rect.bottom);
-    path.quadraticBezierTo(rect.right, rect.bottom, rect.right, rect.bottom - 12);
+    path.quadraticBezierTo(
+      rect.right,
+      rect.bottom,
+      rect.right,
+      rect.bottom - 12,
+    );
     path.lineTo(rect.right, rect.top + 15);
 
     path.quadraticBezierTo(
-      rect.left + rect.width * 0.75, rect.top + 15,
-      rect.left + rect.width / 2, rect.top,
+      rect.left + rect.width * 0.75,
+      rect.top + 15,
+      rect.left + rect.width / 2,
+      rect.top,
     );
     path.quadraticBezierTo(
-      rect.left + rect.width * 0.25, rect.top + 15,
-      rect.left, rect.top + 15,
+      rect.left + rect.width * 0.25,
+      rect.top + 15,
+      rect.left,
+      rect.top + 15,
     );
     path.close();
     return path;
@@ -485,10 +575,11 @@ class _IslamicCardShape extends ShapeBorder {
 
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
-    final paint = Paint()
-      ..color = borderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width;
+    final paint =
+        Paint()
+          ..color = borderColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = width;
     canvas.drawPath(getOuterPath(rect), paint);
   }
 
@@ -523,7 +614,10 @@ class _RamadanOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final lanternX = size.width - 20;
-    final stringPaint = Paint()..color = color.withValues(alpha: 0.5)..strokeWidth = 1;
+    final stringPaint =
+        Paint()
+          ..color = color.withValues(alpha: 0.5)
+          ..strokeWidth = 1;
     canvas.drawLine(Offset(lanternX, 0), Offset(lanternX, 15), stringPaint);
 
     final lanternPaint = Paint()..color = accent;
@@ -536,7 +630,11 @@ class _RamadanOverlayPainter extends CustomPainter {
     lanternPath.close();
     canvas.drawPath(lanternPath, lanternPaint);
 
-    canvas.drawCircle(Offset(lanternX, 22), 1.5, Paint()..color = const Color(0xFFFFD700));
+    canvas.drawCircle(
+      Offset(lanternX, 22),
+      1.5,
+      Paint()..color = const Color(0xFFFFD700),
+    );
   }
 
   @override

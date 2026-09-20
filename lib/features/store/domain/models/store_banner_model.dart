@@ -1,4 +1,3 @@
-
 class StoreBannerModel {
   int? id;
   String? title;

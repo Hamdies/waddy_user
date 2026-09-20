@@ -1,18 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/business/domain/models/business_plan_body.dart';
 import 'package:waddy_app/features/business/domain/models/package_model.dart';
 import 'package:waddy_app/features/business/domain/repositories/business_repo_interface.dart';
-import 'package:waddy_app/features/business/widgets/business_payment_method_bottom_sheet_widget.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'business_service_interface.dart';
-import 'package:universal_html/html.dart' as html;
 
-class BusinessService implements BusinessServiceInterface{
+class BusinessService implements BusinessServiceInterface {
   final BusinessRepoInterface businessRepoInterface;
   BusinessService({required this.businessRepoInterface});
 
@@ -22,7 +17,13 @@ class BusinessService implements BusinessServiceInterface{
   }
 
   @override
-  Future<String> processesBusinessPlan(String businessPlanStatus, int paymentIndex, int storeId, String? digitalPaymentName, int? selectedPackageId) async {
+  Future<String> processesBusinessPlan(
+    String businessPlanStatus,
+    int paymentIndex,
+    int storeId,
+    String? digitalPaymentName,
+    int? selectedPackageId,
+  ) async {
     // if (packageModel!.packages!.isNotEmpty) {
     //
     //
@@ -35,15 +36,9 @@ class BusinessService implements BusinessServiceInterface{
     String businessPlan = 'subscription';
     int? packageId = selectedPackageId;
     String? payment = paymentIndex == 0 ? 'free_trial' : digitalPaymentName;
-    String? hostname = html.window.location.hostname;
-    String protocol = html.window.location.protocol;
 
-    if(paymentIndex == 1 && digitalPaymentName == null) {
-      if(ResponsiveHelper.isDesktop(Get.context)) {
-        Get.dialog(const Dialog(backgroundColor: Colors.transparent, child: BusinessPaymentMethodBottomSheetWidget()));
-      } else {
-        showCustomSnackBar('please_select_payment_method'.tr);
-      }
+    if (paymentIndex == 1 && digitalPaymentName == null) {
+      showCustomSnackBar('please_select_payment_method'.tr);
     } else {
       businessPlanStatus = await setUpBusinessPlan(
         BusinessPlanBody(
@@ -52,42 +47,68 @@ class BusinessService implements BusinessServiceInterface{
           storeId: storeId.toString(),
           payment: payment,
           paymentGateway: payment,
-          callBack: paymentIndex == 0 ? '' : ResponsiveHelper.isDesktop(Get.context) ? '$protocol//$hostname${RouteHelper.subscriptionSuccess}' : RouteHelper.subscriptionSuccess,
-          paymentPlatform: GetPlatform.isWeb ? 'web' : 'app',
+          callBack: paymentIndex == 0 ? '' : RouteHelper.subscriptionSuccess,
+          paymentPlatform: 'app',
           type: 'new_join',
         ),
-        digitalPaymentName, businessPlanStatus, storeId,
+        digitalPaymentName,
+        businessPlanStatus,
+        storeId,
       );
     }
     return businessPlanStatus;
   }
 
   @override
-  Future<String> setUpBusinessPlan(BusinessPlanBody businessPlanBody, String? digitalPaymentName, String businessPlanStatus, int storeId) async {
-    Response response = await businessRepoInterface.setUpBusinessPlan(businessPlanBody);
+  Future<String> setUpBusinessPlan(
+    BusinessPlanBody businessPlanBody,
+    String? digitalPaymentName,
+    String businessPlanStatus,
+    int storeId,
+  ) async {
+    Response response = await businessRepoInterface.setUpBusinessPlan(
+      businessPlanBody,
+    );
     if (response.statusCode == 200) {
-      if(response.body['redirect_link'] != null) {
-        _subscriptionPayment(response.body['redirect_link'], digitalPaymentName, storeId);
+      if (response.body['redirect_link'] != null) {
+        _subscriptionPayment(
+          response.body['redirect_link'],
+          digitalPaymentName,
+          storeId,
+        );
       } else {
         businessPlanStatus = 'complete';
         Get.find<HomeController>().saveRegistrationSuccessfulSharedPref(true);
         Get.find<HomeController>().saveIsStoreRegistrationSharedPref(true);
-        Get.offAllNamed(RouteHelper.getSubscriptionSuccessRoute(status: 'success', fromSubscription: true, storeId: storeId));
+        Get.offAllNamed(
+          RouteHelper.getSubscriptionSuccessRoute(
+            status: 'success',
+            fromSubscription: true,
+            storeId: storeId,
+          ),
+        );
       }
     }
     return businessPlanStatus;
   }
 
-  Future<void> _subscriptionPayment(String redirectUrl, String? digitalPaymentName, int storeId) async {
-    // Get.back();
-    if(GetPlatform.isWeb) {
-      html.window.open(redirectUrl,"_self");
-    } else{
-      // Get.toNamed(RouteHelper.getPaymentRoute(OrderModel(), digitalPaymentName, subscriptionUrl: redirectUrl, guestId: Get.find<AuthController>().getGuestId(), storeId: storeId));
-      Get.toNamed(RouteHelper.getPaymentRoute('0', 0, '', 0, false, digitalPaymentName, subscriptionUrl: redirectUrl, guestId: '', storeId: storeId));
-
-    }
-
+  Future<void> _subscriptionPayment(
+    String redirectUrl,
+    String? digitalPaymentName,
+    int storeId,
+  ) async {
+    Get.toNamed(
+      RouteHelper.getPaymentRoute(
+        '0',
+        0,
+        '',
+        0,
+        false,
+        digitalPaymentName,
+        subscriptionUrl: redirectUrl,
+        guestId: '',
+        storeId: storeId,
+      ),
+    );
   }
-
 }

@@ -34,30 +34,38 @@ class PaymentRepository implements PaymentRepositoryInterface {
 
   Future<List<OfflineMethodModel>?> _getOfflineMethodList() async {
     List<OfflineMethodModel>? offlineMethodList;
-    Response response = await apiClient.getData(AppConstants.offlineMethodListUri);
+    Response response = await apiClient.getData(
+      AppConstants.offlineMethodListUri,
+    );
     if (response.statusCode == 200) {
       offlineMethodList = [];
-      response.body.forEach((method) => offlineMethodList!.add(OfflineMethodModel.fromJson(method)));
+      response.body.forEach(
+        (method) => offlineMethodList!.add(OfflineMethodModel.fromJson(method)),
+      );
     }
     return offlineMethodList;
   }
 
   @override
   Future<bool> saveOfflineInfo(String data) async {
-    Response response = await apiClient.postData(AppConstants.offlinePaymentSaveInfoUri, jsonDecode(data));
+    Response response = await apiClient.postData(
+      AppConstants.offlinePaymentSaveInfoUri,
+      jsonDecode(data),
+    );
     return (response.statusCode == 200);
   }
 
   @override
   Future<bool> updateOfflineInfo(String data) async {
-    Response response = await apiClient.postData(AppConstants.offlinePaymentUpdateInfoUri, jsonDecode(data));
+    Response response = await apiClient.postData(
+      AppConstants.offlinePaymentUpdateInfoUri,
+      jsonDecode(data),
+    );
     return (response.statusCode == 200);
   }
-
 
   @override
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

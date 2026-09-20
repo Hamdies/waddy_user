@@ -32,19 +32,33 @@ class HistoryItemWidget extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: isDebit
-                ? Colors.red.withValues(alpha: 0.08)
-                : const Color(0xFF0D9F6E).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+            color:
+                isDebit
+                    ? Colors.red.withValues(alpha: 0.08)
+                    : const Color(0xFF0D9F6E).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           ),
           child: Center(
-            child: fromWallet
-                ? (isDebit
-                    ? Image.asset(Images.walletDebitIcon, height: 18, width: 18)
-                    : Image.asset(Images.walletCreditIcon, height: 18, width: 18))
-                : (transaction.transactionType == 'point_to_wallet'
-                    ? Image.asset(Images.debitIcon, height: 16, width: 16)
-                    : Image.asset(Images.creditIcon, height: 16, width: 16)),
+            child:
+                fromWallet
+                    ? (isDebit
+                        ? Image.asset(
+                          Images.walletDebitIcon,
+                          height: 18,
+                          width: 18,
+                        )
+                        : Image.asset(
+                          Images.walletCreditIcon,
+                          height: 18,
+                          width: 18,
+                        ))
+                    : (transaction.transactionType == 'point_to_wallet'
+                        ? Image.asset(Images.debitIcon, height: 16, width: 16)
+                        : Image.asset(
+                          Images.creditIcon,
+                          height: 16,
+                          width: 16,
+                        )),
           ),
         ),
 
@@ -58,7 +72,7 @@ class HistoryItemWidget extends StatelessWidget {
             children: [
               Text(
                 _getDescription(transaction),
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: 13,
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
@@ -68,7 +82,7 @@ class HistoryItemWidget extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 DateConverter.dateToDateAndTimeAm(transaction.createdAt!),
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   fontSize: 11,
                   color: Theme.of(context).hintColor,
                 ),
@@ -85,7 +99,7 @@ class HistoryItemWidget extends StatelessWidget {
             isDebit
                 ? '- ${PriceConverter.convertPrice(transaction.debit! + transaction.adminBonus!)}'
                 : '+ ${PriceConverter.convertPrice(transaction.credit! + transaction.adminBonus!)}',
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: 14,
               color: isDebit ? Colors.red : const Color(0xFF0D9F6E),
             ),
@@ -99,17 +113,18 @@ class HistoryItemWidget extends StatelessWidget {
                 transaction.transactionType == 'point_to_wallet'
                     ? '-${transaction.debit!.toStringAsFixed(0)}'
                     : '+${transaction.credit!.toStringAsFixed(0)}',
-                style: robotoBold.copyWith(
+                style: waddyBold.copyWith(
                   fontSize: 14,
-                  color: transaction.transactionType == 'point_to_wallet'
-                      ? Colors.red
-                      : const Color(0xFF0D9F6E),
+                  color:
+                      transaction.transactionType == 'point_to_wallet'
+                          ? Colors.red
+                          : const Color(0xFF0D9F6E),
                 ),
               ),
               const SizedBox(width: 2),
               Text(
                 'points'.tr,
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   fontSize: 11,
                   color: Theme.of(context).disabledColor,
                 ),

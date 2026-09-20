@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'package:waddy_app/util/swallow.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:waddy_app/common/widgets/demo_reset_dialog_widget.dart';
 import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
 import 'package:waddy_app/features/chat/enums/user_type_enum.dart';
@@ -16,7 +16,6 @@ import 'package:waddy_app/util/app_constants.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:waddy_app/features/notification/widgets/notifiation_popup_dialog_widget.dart';
 import 'package:waddy_app/helper/live_activity_helper.dart';
 import 'package:waddy_app/services/live_activity_service.dart';
 
@@ -88,6 +87,12 @@ class NotificationHelper {
                   () => Get.toNamed(
                     RouteHelper.getLoyaltyRoute(fromNotification: true),
                   ),
+              NotificationType.spots_prize:
+                  () => Get.toNamed(
+                    (payload.index ?? 0) > 0
+                        ? RouteHelper.getSpotsPrizeDetailsRoute(payload.index!)
+                        : RouteHelper.getSpotsPrizesRoute(),
+                  ),
               NotificationType.general:
                   () => Get.toNamed(
                     RouteHelper.getNotificationRoute(fromNotification: true),
@@ -96,7 +101,9 @@ class NotificationHelper {
 
             notificationActions[payload.notificationType]?.call();
           }
-        } catch (_) {}
+        } catch (e, s) {
+          swallow('notification tap routing', e, s, true);
+        }
         return;
       },
     );
@@ -180,15 +187,6 @@ class NotificationHelper {
       };
 
       PayloadModel payload = PayloadModel.fromJson(payloadData);
-
-      if (kIsWeb) {
-        showDialog(
-          context: Get.context!,
-          builder:
-              (context) =>
-                  Center(child: NotificationPopUpDialogWidget(payload)),
-        );
-      }
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -242,6 +240,14 @@ class NotificationHelper {
                 () => Get.toNamed(
                   RouteHelper.getLoyaltyRoute(fromNotification: true),
                 ),
+            NotificationType.spots_prize:
+                () => Get.toNamed(
+                  (notificationBody.index ?? 0) > 0
+                      ? RouteHelper.getSpotsPrizeDetailsRoute(
+                        notificationBody.index!,
+                      )
+                      : RouteHelper.getSpotsPrizesRoute(),
+                ),
             NotificationType.general:
                 () => Get.toNamed(
                   RouteHelper.getNotificationRoute(fromNotification: true),
@@ -250,7 +256,9 @@ class NotificationHelper {
 
           notificationActions[notificationBody.notificationType]?.call();
         }
-      } catch (_) {}
+      } catch (e, s) {
+        swallow('notification tap routing', e, s, true);
+      }
     });
   }
 
@@ -274,7 +282,11 @@ class NotificationHelper {
         if (trackModel?.id == orderId) {
           status = trackModel?.orderStatus;
         }
-      } catch (_) {}
+      } catch (e, s) {
+        // Opportunistic read of an already-open tracking screen. Absent
+        // controller just means we fall back to the payload's own status.
+        swallow('read order status from open tracker', e, s);
+      }
     }
 
     if (status == null) return;
@@ -498,6 +510,13 @@ class NotificationHelper {
       case 'loyalty_point':
         return NotificationBodyModel(
           notificationType: NotificationType.loyalty_point,
+        );
+      case 'spots_prize_won':
+        return NotificationBodyModel(
+          notificationType: NotificationType.spots_prize,
+          // The backend sends the prize id as data_id (the FCM helper only
+          // forwards a fixed key list — a prize_id key would be dropped).
+          index: int.tryParse('${data['data_id']}'),
         );
       case 'otp':
         return NotificationBodyModel(notificationType: NotificationType.otp);

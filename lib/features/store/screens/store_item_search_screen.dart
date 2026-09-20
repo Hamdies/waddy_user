@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/store/controllers/store_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
@@ -36,91 +35,158 @@ class _StoreItemSearchScreenState extends State<StoreItemSearchScreen> {
       builder: (storeController) {
         return Scaffold(
           appBar: PreferredSize(
-            preferredSize: const Size(Dimensions.webMaxWidth, 60),
+            preferredSize: const Size(Dimensions.maxContentWidth, 60),
             child: Container(
-              height: 60 + context.mediaQueryPadding.top, width: Dimensions.webMaxWidth,
+              height: 60 + context.mediaQueryPadding.top,
+              width: Dimensions.maxContentWidth,
               padding: EdgeInsets.only(top: context.mediaQueryPadding.top),
               color: Theme.of(context).cardColor,
               alignment: Alignment.center,
-              child: SizedBox(width: Dimensions.webMaxWidth, child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeSmall),
-                child: Row(children: [
-
-                  IconButton(
-                    onPressed: () => Get.back(),
-                    icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).primaryColor),
+              child: SizedBox(
+                width: Dimensions.maxContentWidth,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: Dimensions.paddingSizeSmall,
                   ),
-
-                  Expanded(child: TextField(
-                    controller: _searchController,
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge),
-                    textInputAction: TextInputAction.search,
-                    cursorColor: Theme.of(context).primaryColor,
-                    textAlignVertical: TextAlignVertical.center,
-                    decoration: InputDecoration(
-                      hintText: 'search_item_in_store'.tr,
-                      hintStyle: robotoRegular.copyWith(fontSize: Dimensions.fontSizeLarge, color: Theme.of(context).hintColor),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                        borderSide: BorderSide(color: Theme.of(context).primaryColor.withValues(alpha: 0.3), width: 1),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                        borderSide: BorderSide(color: Theme.of(context).primaryColor.withValues(alpha: 0.3), width: 1),
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.search, color: Theme.of(context).hintColor, size: 25),
-                        onPressed: () => Get.find<StoreController>().getStoreSearchItemList(
-                          _searchController.text.trim(), widget.storeID, 1, Get.find<StoreController>().searchType,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Get.back(),
+                        icon: Icon(
+                          Icons.arrow_back_ios,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
-                    ),
-                    onSubmitted: (text) => Get.find<StoreController>().getStoreSearchItemList(
-                      _searchController.text.trim(), widget.storeID, 1, Get.find<StoreController>().searchType,
-                    ),
-                  )),
-                  const SizedBox(width: Dimensions.paddingSizeSmall),
 
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          style: waddyRegular.copyWith(
+                            fontSize: Dimensions.fontSizeLarge,
+                          ),
+                          textInputAction: TextInputAction.search,
+                          cursorColor: Theme.of(context).primaryColor,
+                          textAlignVertical: TextAlignVertical.center,
+                          decoration: InputDecoration(
+                            hintText: 'search_item_in_store'.tr,
+                            hintStyle: waddyRegular.copyWith(
+                              fontSize: Dimensions.fontSizeLarge,
+                              color: Theme.of(context).hintColor,
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.all(
+                              Dimensions.paddingSizeSmall,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusSmall,
+                              ),
+                              borderSide: BorderSide(
+                                color: Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusSmall,
+                              ),
+                              borderSide: BorderSide(
+                                color: Theme.of(
+                                  context,
+                                ).primaryColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                Icons.search,
+                                color: Theme.of(context).hintColor,
+                                size: 25,
+                              ),
+                              onPressed:
+                                  () => Get.find<StoreController>()
+                                      .getStoreSearchItemList(
+                                        _searchController.text.trim(),
+                                        widget.storeID,
+                                        1,
+                                        Get.find<StoreController>().searchType,
+                                      ),
+                            ),
+                          ),
+                          onSubmitted:
+                              (text) => Get.find<StoreController>()
+                                  .getStoreSearchItemList(
+                                    _searchController.text.trim(),
+                                    widget.storeID,
+                                    1,
+                                    Get.find<StoreController>().searchType,
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(width: Dimensions.paddingSizeSmall),
 
-                  VegFilterWidget(
-                    type: storeController.searchText.isNotEmpty ? storeController.searchType : null,
-                    onSelected: (String type) {
-                      storeController.getStoreSearchItemList(storeController.searchText, widget.storeID, 1, type);
-                    },
-                    fromAppBar: true,
-                  )
-
-                ]),
-              )),
+                      VegFilterWidget(
+                        type:
+                            storeController.searchText.isNotEmpty
+                                ? storeController.searchType
+                                : null,
+                        onSelected: (String type) {
+                          storeController.getStoreSearchItemList(
+                            storeController.searchText,
+                            widget.storeID,
+                            1,
+                            type,
+                          );
+                        },
+                        fromAppBar: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
 
           body: SingleChildScrollView(
             controller: _scrollController,
-            padding: ResponsiveHelper.isDesktop(context) ? null : const EdgeInsets.all(Dimensions.paddingSizeSmall),
-            child: FooterView(child: SizedBox(width: Dimensions.webMaxWidth, child: PaginatedListView(
-              scrollController: _scrollController,
-              onPaginate: (int? offset) => storeController.getStoreSearchItemList(
-                storeController.searchText, widget.storeID, offset!, storeController.searchType,
+            padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+            child: FooterView(
+              child: SizedBox(
+                width: Dimensions.maxContentWidth,
+                child: PaginatedListView(
+                  scrollController: _scrollController,
+                  onPaginate:
+                      (int? offset) => storeController.getStoreSearchItemList(
+                        storeController.searchText,
+                        widget.storeID,
+                        offset!,
+                        storeController.searchType,
+                      ),
+                  totalSize: storeController.storeSearchItemModel?.totalSize,
+                  offset: storeController.storeSearchItemModel?.offset,
+                  itemView: ItemsView(
+                    isStore: false,
+                    stores: null,
+                    items: storeController.storeSearchItemModel?.items,
+                    inStorePage: true,
+                  ),
+                ),
               ),
-              totalSize: storeController.storeSearchItemModel?.totalSize,
-              offset: storeController.storeSearchItemModel?.offset,
-              itemView: ItemsView(
-                  isStore: false, stores: null,
-                  items: storeController.storeSearchItemModel?.items,
-                  inStorePage: true,
-              ),
-            ))),
+            ),
           ),
 
-          bottomNavigationBar: GetBuilder<CartController>(builder: (cartController) {
-            return cartController.cartList.isNotEmpty && !ResponsiveHelper.isDesktop(context) ? const BottomCartWidget() : const SizedBox();
-          })
-
+          bottomNavigationBar: GetBuilder<CartController>(
+            builder: (cartController) {
+              return cartController.cartList.isNotEmpty
+                  ? const BottomCartWidget()
+                  : const SizedBox();
+            },
+          ),
         );
-      }
+      },
     );
   }
 }

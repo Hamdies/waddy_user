@@ -6,18 +6,14 @@ import 'package:waddy_app/features/wallet/controllers/wallet_controller.dart';
 import 'package:waddy_app/features/wallet/screens/add_fund_screen.dart';
 import 'package:waddy_app/features/wallet/widgets/bonus_banner_widget.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
-import 'package:waddy_app/common/widgets/web_menu_bar.dart';
-import 'package:waddy_app/common/widgets/web_page_title_widget.dart';
 import 'package:waddy_app/features/wallet/widgets/wallet_card_widget.dart';
 import 'package:waddy_app/features/wallet/widgets/wallet_history_widget.dart';
-import 'package:waddy_app/features/wallet/widgets/web_bonus_banner_widget.dart';
 
 class WalletScreen extends StatefulWidget {
   final String? fundStatus;
@@ -144,13 +140,7 @@ class _WalletScreenState extends State<WalletScreen> {
         backgroundColor: Theme.of(context).cardColor,
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
-        appBar:
-            ResponsiveHelper.isDesktop(context)
-                ? const PreferredSize(
-                  preferredSize: Size.fromHeight(100),
-                  child: WebMenuBar(),
-                )
-                : _buildCustomAppBar(context),
+        appBar: _buildCustomAppBar(context),
         body: GetBuilder<ProfileController>(
           builder: (profileController) {
             return isLoggedIn
@@ -164,11 +154,8 @@ class _WalletScreenState extends State<WalletScreen> {
                               Get.find<WalletController>().setWalletFilerType(
                                 'all',
                               );
-                              Get.find<WalletController>().getWalletTransactionList(
-                                '1',
-                                true,
-                                'all',
-                              );
+                              Get.find<WalletController>()
+                                  .getWalletTransactionList('1', true, 'all');
                               Get.find<ProfileController>().getUserInfo();
                             },
                             child: SingleChildScrollView(
@@ -176,86 +163,33 @@ class _WalletScreenState extends State<WalletScreen> {
                               padding: const EdgeInsets.only(bottom: 90),
                               child: Column(
                                 children: [
-                                  WebScreenTitleWidget(title: 'wallet'.tr),
                                   FooterView(
                                     child: SizedBox(
-                                      width: Dimensions.webMaxWidth,
+                                      width: Dimensions.maxContentWidth,
                                       child: GetBuilder<WalletController>(
                                         builder: (walletController) {
-                                          return ResponsiveHelper.isDesktop(context)
-                                              ? Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: Dimensions.paddingSizeDefault,
+                                          return Column(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal:
+                                                          Dimensions
+                                                              .paddingSizeLarge,
+                                                    ),
+                                                child: const WalletCardWidget(),
+                                              ),
+                                              const BonusBannerWidget(),
+                                              const Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal:
+                                                      Dimensions
+                                                          .paddingSizeLarge,
                                                 ),
-                                                child: Row(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Expanded(
-                                                      flex: 4,
-                                                      child: Column(
-                                                        children: [
-                                                          Container(
-                                                            decoration: BoxDecoration(
-                                                              color: Theme.of(context).cardColor,
-                                                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                                                              boxShadow: const [
-                                                                BoxShadow(
-                                                                  color: Colors.black12,
-                                                                  blurRadius: 5,
-                                                                  spreadRadius: 1,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-                                                            child: const WalletCardWidget(),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: Dimensions.paddingSizeDefault),
-                                                    Expanded(
-                                                      flex: 6,
-                                                      child: Column(
-                                                        children: [
-                                                          const WebBonusBannerWidget(),
-                                                          Container(
-                                                            decoration: BoxDecoration(
-                                                              color: Theme.of(context).cardColor,
-                                                              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                                                              boxShadow: const [
-                                                                BoxShadow(
-                                                                  color: Colors.black12,
-                                                                  blurRadius: 5,
-                                                                  spreadRadius: 1,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
-                                                            child: const WalletHistoryWidget(),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              )
-                                              : Column(
-                                                children: [
-                                                  Padding(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: Dimensions.paddingSizeLarge,
-                                                    ),
-                                                    child: const WalletCardWidget(),
-                                                  ),
-                                                  const BonusBannerWidget(),
-                                                  const Padding(
-                                                    padding: EdgeInsets.symmetric(
-                                                      horizontal: Dimensions.paddingSizeLarge,
-                                                    ),
-                                                    child: WalletHistoryWidget(),
-                                                  ),
-                                                ],
-                                              );
+                                                child: WalletHistoryWidget(),
+                                              ),
+                                            ],
+                                          );
                                         },
                                       ),
                                     ),
@@ -276,10 +210,14 @@ class _WalletScreenState extends State<WalletScreen> {
                                 height: 52,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF134E4A),
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.2),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
@@ -288,7 +226,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 child: Center(
                                   child: Text(
                                     'add_fund'.tr,
-                                    style: robotoBold.copyWith(
+                                    style: waddyBold.copyWith(
                                       color: Colors.white,
                                       fontSize: 15,
                                     ),
@@ -329,7 +267,10 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeSmall,
+              vertical: Dimensions.paddingSizeSmall,
+            ),
             child: Row(
               children: [
                 // Back button with neo-pop style
@@ -358,7 +299,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Center(
                     child: Text(
                       'wallet'.tr,
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: Dimensions.fontSizeExtraLarge,
                         color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),

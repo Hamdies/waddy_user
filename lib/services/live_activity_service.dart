@@ -6,11 +6,15 @@ import 'package:waddy_app/helper/live_activity_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
 class LiveActivityService {
-  static const _channel = MethodChannel('com.hamdiesolutions.waddi/live_activity');
+  static const _channel = MethodChannel(
+    'com.hamdiesolutions.waddi/live_activity',
+  );
 
   static Future<bool> isSupported() async {
     try {
-      final result = await _channel.invokeMethod<bool>('isLiveActivitySupported');
+      final result = await _channel.invokeMethod<bool>(
+        'isLiveActivitySupported',
+      );
       return result ?? false;
     } on PlatformException {
       return false;
@@ -52,7 +56,9 @@ class LiveActivityService {
 
       // On iOS, result is the push token — send it to backend for APNs updates
       if (result != null && result.isNotEmpty) {
-        debugPrint('LiveActivityService: push token received (${result.length} chars), sending to backend...');
+        debugPrint(
+          'LiveActivityService: push token received (${result.length} chars), sending to backend...',
+        );
         _sendPushTokenToBackend(orderId, result);
       } else {
         debugPrint('LiveActivityService: no push token returned');
@@ -98,12 +104,15 @@ class LiveActivityService {
     }
   }
 
-  static Future<void> _sendPushTokenToBackend(int orderId, String pushToken) async {
+  static Future<void> _sendPushTokenToBackend(
+    int orderId,
+    String pushToken,
+  ) async {
     try {
-      await Get.find<ApiClient>().postData(
-        AppConstants.liveActivityTokenUri,
-        {'order_id': orderId, 'push_token': pushToken},
-      );
+      await Get.find<ApiClient>().postData(AppConstants.liveActivityTokenUri, {
+        'order_id': orderId,
+        'push_token': pushToken,
+      });
     } catch (e) {
       debugPrint('LiveActivityService: Failed to send push token - $e');
     }
@@ -111,9 +120,7 @@ class LiveActivityService {
 
   static Future<void> endActivity(int orderId) async {
     try {
-      await _channel.invokeMethod('endLiveActivity', {
-        'orderId': orderId,
-      });
+      await _channel.invokeMethod('endLiveActivity', {'orderId': orderId});
     } on PlatformException catch (e) {
       debugPrint('LiveActivityService.endActivity error: $e');
     }

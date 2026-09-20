@@ -11,19 +11,29 @@ class LanguageCardWidget extends StatelessWidget {
   final int index;
   final bool fromBottomSheet;
   final bool fromWeb;
-  const LanguageCardWidget({super.key, required this.languageModel, required this.localizationController, required this.index, this.fromBottomSheet = false, this.fromWeb = false});
+  const LanguageCardWidget({
+    super.key,
+    required this.languageModel,
+    required this.localizationController,
+    required this.index,
+    this.fromBottomSheet = false,
+    this.fromWeb = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     bool isSelected = localizationController.selectedLanguageIndex == index;
-    
+
     return InkWell(
       onTap: () {
-        if(fromBottomSheet){
-          localizationController.setLanguage(Locale(
-            AppConstants.languages[index].languageCode!,
-            AppConstants.languages[index].countryCode,
-          ), fromBottomSheet: fromBottomSheet);
+        if (fromBottomSheet) {
+          localizationController.setLanguage(
+            Locale(
+              AppConstants.languages[index].languageCode!,
+              AppConstants.languages[index].countryCode,
+            ),
+            fromBottomSheet: fromBottomSheet,
+          );
         }
         localizationController.setSelectLanguageIndex(index);
       },
@@ -35,14 +45,16 @@ class LanguageCardWidget extends StatelessWidget {
           vertical: Dimensions.paddingSizeDefault,
         ),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? Theme.of(context).primaryColor 
-              : Theme.of(context).cardColor,
+          color:
+              isSelected
+                  ? Theme.of(context).primaryColor
+                  : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
-            color: isSelected 
-                ? Theme.of(context).primaryColor 
-                : Theme.of(context).disabledColor.withValues(alpha: 0.2),
+            color:
+                isSelected
+                    ? Theme.of(context).primaryColor
+                    : Theme.of(context).disabledColor.withValues(alpha: 0.2),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -51,20 +63,17 @@ class LanguageCardWidget extends StatelessWidget {
             Expanded(
               child: Text(
                 languageModel.languageName!,
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: Dimensions.fontSizeLarge,
-                  color: isSelected 
-                      ? Colors.white 
-                      : Theme.of(context).textTheme.bodyLarge?.color,
+                  color:
+                      isSelected
+                          ? Colors.white
+                          : Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: Colors.white,
-                size: 24,
-              ),
+              Icon(Icons.check_circle, color: Colors.white, size: 24),
           ],
         ),
       ),

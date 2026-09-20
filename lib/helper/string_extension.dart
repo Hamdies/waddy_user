@@ -15,8 +15,6 @@ extension StringExtension on String {
       return this;
     }
     // Split string into words and capitalize each word
-    return split('_')
-        .map((word) => word.toCapitalized())
-        .join(' ');
+    return split('_').map((word) => word.toCapitalized()).join(' ');
   }
 }

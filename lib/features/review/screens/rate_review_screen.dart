@@ -14,64 +14,115 @@ class RateReviewScreen extends StatefulWidget {
   final List<OrderDetailsModel> orderDetailsList;
   final DeliveryMan? deliveryMan;
   final int? orderID;
-  const RateReviewScreen({super.key, required this.orderDetailsList, required this.deliveryMan, required this.orderID});
+  const RateReviewScreen({
+    super.key,
+    required this.orderDetailsList,
+    required this.deliveryMan,
+    required this.orderID,
+  });
 
   @override
   RateReviewScreenState createState() => RateReviewScreenState();
 }
 
-class RateReviewScreenState extends State<RateReviewScreen> with TickerProviderStateMixin {
+class RateReviewScreenState extends State<RateReviewScreen>
+    with TickerProviderStateMixin {
   TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: (widget.deliveryMan == null || widget.orderDetailsList.isEmpty) ? 1 : 2, initialIndex: 0, vsync: this);
+    _tabController = TabController(
+      length:
+          (widget.deliveryMan == null || widget.orderDetailsList.isEmpty)
+              ? 1
+              : 2,
+      initialIndex: 0,
+      vsync: this,
+    );
     Get.find<ReviewController>().initRatingData(widget.orderDetailsList);
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: CustomAppBar(title: 'rate_review'.tr),
-      endDrawer: const MenuDrawer(),endDrawerEnableOpenDragGesture: false,
-      body: Column(children: [
-        Center(
-          child: Container(
-            width: Dimensions.webMaxWidth,
-            color: Theme.of(context).cardColor,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Theme.of(context).textTheme.bodyLarge!.color,
-              indicatorColor: Theme.of(context).primaryColor,
-              indicatorWeight: 3,
-              unselectedLabelStyle: robotoRegular.copyWith(color: Theme.of(context).disabledColor, fontSize: Dimensions.fontSizeSmall),
-              labelStyle: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
-              tabs: widget.orderDetailsList.isNotEmpty ? widget.deliveryMan != null ? [
-                Tab(text: widget.orderDetailsList.length > 1 ? 'items'.tr : 'item'.tr),
-                Tab(text: 'delivery_man'.tr),
-              ] : [
-                Tab(text: widget.orderDetailsList.length > 1 ? 'items'.tr : 'item'.tr),
-              ] : [
-                Tab(text: 'delivery_man'.tr),
-              ],
+      endDrawer: const MenuDrawer(),
+      endDrawerEnableOpenDragGesture: false,
+      body: Column(
+        children: [
+          Center(
+            child: Container(
+              width: Dimensions.maxContentWidth,
+              color: Theme.of(context).cardColor,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: Theme.of(context).textTheme.bodyLarge!.color,
+                indicatorColor: Theme.of(context).primaryColor,
+                indicatorWeight: 3,
+                unselectedLabelStyle: waddyRegular.copyWith(
+                  color: Theme.of(context).disabledColor,
+                  fontSize: Dimensions.fontSizeSmall,
+                ),
+                labelStyle: waddyMedium.copyWith(
+                  fontSize: Dimensions.fontSizeSmall,
+                ),
+                tabs:
+                    widget.orderDetailsList.isNotEmpty
+                        ? widget.deliveryMan != null
+                            ? [
+                              Tab(
+                                text:
+                                    widget.orderDetailsList.length > 1
+                                        ? 'items'.tr
+                                        : 'item'.tr,
+                              ),
+                              Tab(text: 'delivery_man'.tr),
+                            ]
+                            : [
+                              Tab(
+                                text:
+                                    widget.orderDetailsList.length > 1
+                                        ? 'items'.tr
+                                        : 'item'.tr,
+                              ),
+                            ]
+                        : [Tab(text: 'delivery_man'.tr)],
+              ),
             ),
           ),
-        ),
 
-        Expanded(child: TabBarView(
-          controller: _tabController,
-          children: widget.orderDetailsList.isNotEmpty ? widget.deliveryMan != null ? [
-            ItemReviewWidget(orderDetailsList: widget.orderDetailsList),
-            DeliveryManReviewWidget(deliveryMan: widget.deliveryMan, orderID: widget.orderID.toString()),
-          ] : [
-            ItemReviewWidget(orderDetailsList: widget.orderDetailsList),
-          ] : [
-            DeliveryManReviewWidget(deliveryMan: widget.deliveryMan, orderID: widget.orderID.toString()),
-          ],
-        )),
-
-      ]),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children:
+                  widget.orderDetailsList.isNotEmpty
+                      ? widget.deliveryMan != null
+                          ? [
+                            ItemReviewWidget(
+                              orderDetailsList: widget.orderDetailsList,
+                            ),
+                            DeliveryManReviewWidget(
+                              deliveryMan: widget.deliveryMan,
+                              orderID: widget.orderID.toString(),
+                            ),
+                          ]
+                          : [
+                            ItemReviewWidget(
+                              orderDetailsList: widget.orderDetailsList,
+                            ),
+                          ]
+                      : [
+                        DeliveryManReviewWidget(
+                          deliveryMan: widget.deliveryMan,
+                          orderID: widget.orderID.toString(),
+                        ),
+                      ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -11,9 +11,13 @@ import 'package:waddy_app/features/auth/domain/services/store_registration_servi
 
 class StoreRegistrationService implements StoreRegistrationServiceInterface {
   final StoreRegistrationRepositoryInterface storeRegistrationRepoInterface;
-  final DeliverymanRegistrationRepositoryInterface deliverymanRegistrationRepositoryInterface;
+  final DeliverymanRegistrationRepositoryInterface
+  deliverymanRegistrationRepositoryInterface;
 
-  StoreRegistrationService({required this.deliverymanRegistrationRepositoryInterface, required this.storeRegistrationRepoInterface});
+  StoreRegistrationService({
+    required this.deliverymanRegistrationRepositoryInterface,
+    required this.storeRegistrationRepoInterface,
+  });
 
   @override
   Future<List<ZoneDataModel>?> getZoneList() async {
@@ -21,10 +25,13 @@ class StoreRegistrationService implements StoreRegistrationServiceInterface {
   }
 
   @override
-  int? prepareSelectedZoneIndex(List<int>? zoneIds, List<ZoneDataModel>? zoneList) {
+  int? prepareSelectedZoneIndex(
+    List<int>? zoneIds,
+    List<ZoneDataModel>? zoneList,
+  ) {
     int? selectedZoneIndex = 0;
-    for(int index=0; index<zoneList!.length; index++) {
-      if(zoneIds!.contains(zoneList[index].id)) {
+    for (int index = 0; index < zoneList!.length; index++) {
+      if (zoneIds!.contains(zoneList[index].id)) {
         selectedZoneIndex = index;
         break;
       }
@@ -34,12 +41,25 @@ class StoreRegistrationService implements StoreRegistrationServiceInterface {
 
   @override
   Future<List<ModuleModel>?> getModules(int? zoneId) async {
-    return await deliverymanRegistrationRepositoryInterface.getList(isZone: false, zoneId: zoneId);
+    return await deliverymanRegistrationRepositoryInterface.getList(
+      isZone: false,
+      zoneId: zoneId,
+    );
   }
 
   @override
-  Future<Response> registerStore(StoreBodyModel store, XFile? logo, XFile? cover, List<MultipartDocument> tinFiles) async {
-    return await storeRegistrationRepoInterface.registerStore(store, logo, cover, tinFiles);
+  Future<Response> registerStore(
+    StoreBodyModel store,
+    XFile? logo,
+    XFile? cover,
+    List<MultipartDocument> tinFiles,
+  ) async {
+    return await storeRegistrationRepoInterface.registerStore(
+      store,
+      logo,
+      cover,
+      tinFiles,
+    );
   }
 
   @override
@@ -49,7 +69,8 @@ class StoreRegistrationService implements StoreRegistrationServiceInterface {
 
   @override
   Future<PackageModel?> getPackageList({int? moduleId}) async {
-    return await storeRegistrationRepoInterface.getPackageList(moduleId: moduleId);
+    return await storeRegistrationRepoInterface.getPackageList(
+      moduleId: moduleId,
+    );
   }
-
 }

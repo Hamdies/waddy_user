@@ -51,38 +51,43 @@ class PlacesToVisitSection extends StatelessWidget {
                 if (categories.length < 2)
                   const SizedBox(height: Spots.s4)
                 else ...[
-                const SizedBox(height: Spots.s16),
-                SizedBox(
-                  height: 48,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    // End padding keeps the last chip's hard shadow from
-                    // clipping at the viewport edge.
-                    padding: const EdgeInsetsDirectional.only(end: Spots.s4),
-                    children: [
-                      _Chip(
-                        label: displayCaps('spots_all_chip'.tr),
-                        mark: SpotsMark.flame,
-                        selected: controller.selectedCategoryId == null,
-                        onTap: () => controller.setSelectedCategory(null),
-                      ),
-                      ...categories.map(
-                        (c) => Padding(
-                          padding: const EdgeInsetsDirectional.only(
-                            start: Spots.s8,
-                          ),
-                          child: _Chip(
-                            label: displayCaps(c.name),
-                            selected: controller.selectedCategoryId == c.id,
-                            onTap: () => controller.setSelectedCategory(c.id),
+                  const SizedBox(height: Spots.s16),
+                  SizedBox(
+                    height: 48,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      // End padding keeps the last chip's hard shadow from
+                      // clipping at the viewport edge.
+                      padding: const EdgeInsetsDirectional.only(end: Spots.s4),
+                      children: [
+                        _Chip(
+                          label: displayCaps('spots_all_chip'.tr),
+                          mark: SpotsMark.flame,
+                          selected: controller.selectedCategoryId == null,
+                          onTap: () => controller.setSelectedCategory(null),
+                        ),
+                        ...categories.map(
+                          (c) => Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                              start: Spots.s8,
+                            ),
+                            child: _Chip(
+                              label: displayCaps(c.name),
+                              selected: controller.selectedCategoryId == c.id,
+                              onTap: () => controller.setSelectedCategory(c.id),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 ],
+                // Sort sits outside the category rail on purpose: that rail
+                // is hidden when there are fewer than two categories, and
+                // sorting is useful either way.
+                const SizedBox(height: Spots.s12),
+                const _SortRow(),
               ],
             );
           },
@@ -106,11 +111,133 @@ class PlacesToVisitSection extends StatelessWidget {
                     padding: const EdgeInsets.only(top: Spots.s12),
                     child: RepaintBoundary(child: _PlaceCard(place: p)),
                   ),
+                // The append spinner. Without a visible row the list simply
+                // stops at the bottom for the length of a round trip, which
+                // reads as the end of the catalogue rather than as loading.
+                if (controller.isLoadingMorePlaces)
+                  const Padding(
+                    padding: EdgeInsets.only(top: Spots.s16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Spots.teal,
+                          strokeWidth: 2.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                // End of the rail: the user has seen what we have, so this is
+                // where asking for a spot we don't have makes sense (`S-02`).
+                // Only once there is no more to load, or it sits mid-list.
+                if (!controller.hasMorePlaces)
+                  const Padding(
+                    padding: EdgeInsets.only(top: Spots.s16),
+                    child: SubmitSpotCta(),
+                  ),
               ],
             );
           },
         ),
       ],
+    );
+  }
+}
+
+/// Sort control for the venue list.
+///
+/// `setSortBy` and the whole `sort` → `sort_by` query path were already built
+/// and wired end to end — the backend accepts `votes`, `rating`, `featured`,
+/// `distance` and `newest` — but nothing in the app called it, so `_sortBy`
+/// sat on its `'rating'` default forever. On a screen whose premise is a
+/// weekly vote race, "most voted" was the one order you could not ask for.
+/// See `S-06`.
+///
+/// Three options, not five: `featured` duplicates the board above, and
+/// `distance` needs a location the Spots home does not ask for.
+class _SortRow extends StatelessWidget {
+  const _SortRow();
+
+  static const List<({String key, String label})> _options = [
+    (key: 'votes', label: 'spots_sort_votes'),
+    (key: 'rating', label: 'spots_sort_rating'),
+    (key: 'newest', label: 'spots_sort_newest'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<PlacesController>(
+      id: PlacesController.idFilters,
+      builder: (controller) {
+        return SizedBox(
+          height: 34,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsetsDirectional.only(end: Spots.s4),
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: Spots.s8),
+                child: Center(
+                  child: Text(
+                    displayCaps('spots_sort_label'.tr),
+                    style: Spots.kicker(10, color: Spots.ink3, tracking: 0.08),
+                  ),
+                ),
+              ),
+              for (final option in _options)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: Spots.s8),
+                  child: _SortChip(
+                    label: displayCaps(option.label.tr),
+                    selected: controller.sortBy == option.key,
+                    onTap: () => controller.setSortBy(option.key),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Quieter than [_Chip] — sorting reorders what is already there, so it should
+/// not compete with the category filter that changes what is there at all.
+class _SortChip extends StatelessWidget {
+  const _SortChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: Spots.s12),
+        decoration: BoxDecoration(
+          color: selected ? Spots.mint : Spots.paper,
+          border: Border.all(color: Spots.border, width: Spots.borderThin),
+          borderRadius: BorderRadius.circular(Spots.radiusPill),
+        ),
+        child: Text(
+          label,
+          style: waddyBold.copyWith(
+            fontSize: 11,
+            color: Spots.teal,
+            letterSpacing: displayTracking(0.04 * 11),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -313,7 +440,23 @@ class _PlaceCard extends StatelessWidget {
                       // Reserved slot: the badge is optional per spot, but without a
                       // fixed-height row the title of a badge-less card rides up and
                       // the list loses its shared baseline (see Dunkin vs Starbucks).
-
+                      //
+                      // The badge itself went missing: `_badge(place)` was still
+                      // computed on every card and dropped on the floor, so
+                      // "CURRENT CHAMPION" / "TOP 3" / "FIRST APPEARANCE" were
+                      // classified per spot and never drawn. Same shape as `S-01`
+                      // — a comment describing a control, and an empty slot where
+                      // it should be. See `S-13`.
+                      SizedBox(
+                        height: 18,
+                        child:
+                            badge == null
+                                ? null
+                                : Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: _BadgeChip(badge: badge),
+                                ),
+                      ),
                       const SizedBox(height: Spots.s8),
                       Text(
                         place.title,
@@ -462,8 +605,52 @@ class _Badge {
   final Color color;
   final Color fg;
   final SpotsMark? mark;
-  final Widget? markWidget;
-  _Badge(this.label, this.color, this.fg, this.mark, {this.markWidget});
+  const _Badge(this.label, this.color, this.fg, this.mark);
+}
+
+/// The per-spot status chip — champion / top 3 / first appearance.
+///
+/// Small and flat on purpose: it sits above the spot's own name inside a card
+/// that already carries a border and a hard shadow, so giving it a shadow of
+/// its own would put three stacked frames in one 80px row.
+class _BadgeChip extends StatelessWidget {
+  const _BadgeChip({required this.badge});
+
+  final _Badge badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Spots.s8,
+        vertical: Spots.s4 - 2,
+      ),
+      decoration: BoxDecoration(
+        color: badge.color,
+        borderRadius: BorderRadius.circular(Spots.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (badge.mark != null) ...[
+            SpotsGlyph(badge.mark!, size: 10, color: badge.fg),
+            const SizedBox(width: Spots.s4 - 1),
+          ],
+          Text(
+            badge.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: waddyBlack.copyWith(
+              fontSize: 9,
+              color: badge.fg,
+              letterSpacing: displayTracking(0.06 * 9),
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The "N× weekly crown" count, as a compact corner chip on the photo
@@ -537,7 +724,70 @@ class _PlacesEmpty extends StatelessWidget {
             'spots_no_spots_in_category'.tr,
             style: waddyBlack.copyWith(fontSize: 13, color: Spots.ink),
           ),
+          // An empty board is the strongest possible moment to ask for a
+          // submission, and until now it was a dead end: the form exists and
+          // nothing in the app navigated to it. See `S-02`.
+          const SizedBox(height: Spots.s16),
+          const SubmitSpotCta(),
         ],
+      ),
+    );
+  }
+}
+
+/// "Know a spot we're missing?" — the entry point to [PlaceSubmissionScreen].
+///
+/// The submission flow is 492 lines of working form behind a registered route
+/// that nothing navigated to: `getPlaceSubmitRoute()` had no callers, so the
+/// user-generated half of a hidden-gems board was switched off. This is the
+/// way in. See `S-02` in `docs/spots_module_plan.md`.
+///
+/// Quiet on purpose. It sits below the venue list and inside the empty state,
+/// where a user has just failed to find what they wanted — it should read as
+/// an offer, not as the screen's main action (that is the vote CTA above).
+class SubmitSpotCta extends StatelessWidget {
+  const SubmitSpotCta({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SpotsPressable(
+      onTap: () => Get.toNamed(RouteHelper.getPlaceSubmitRoute()),
+      dx: 3,
+      dy: 3,
+      radius: Spots.radiusMd,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          vertical: Spots.s12,
+          horizontal: Spots.s16,
+        ),
+        decoration: Spots.card(
+          fill: Spots.paperWarm,
+          radius: Spots.radiusMd,
+          borderWidth: Spots.borderThin,
+          dx: 3,
+          dy: 3,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SpotsGlyph(SpotsMark.pin, size: 16, color: Spots.teal),
+            const SizedBox(width: Spots.s8),
+            Flexible(
+              child: Text(
+                displayCaps('submit_hidden_gem'.tr),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: waddyBlack.copyWith(
+                  fontSize: 12,
+                  color: Spots.teal,
+                  letterSpacing: displayTracking(0.05 * 12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

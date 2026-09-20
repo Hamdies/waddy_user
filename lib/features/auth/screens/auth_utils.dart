@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -137,14 +138,7 @@ class _ScaleButtonState extends State<ScaleButton>
 
       if (widget.tooltip != null) {
         ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.tooltip!),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.grey[800],
-          ),
-        );
+        showCustomSnackBar(widget.tooltip!, showDuration: 2);
       }
       HapticFeedback.selectionClick();
     }

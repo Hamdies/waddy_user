@@ -8,35 +8,41 @@ import 'package:waddy_app/common/widgets/custom_text_field.dart';
 class NoteAndPrescriptionSection extends StatelessWidget {
   final CheckoutController checkoutController;
   final int? storeId;
-  const NoteAndPrescriptionSection({super.key, required this.checkoutController, this.storeId, });
+  const NoteAndPrescriptionSection({
+    super.key,
+    required this.checkoutController,
+    this.storeId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('additional_note'.tr, style: robotoMedium),
-      const SizedBox(height: Dimensions.paddingSizeSmall),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('additional_note'.tr, style: waddyMedium),
+        const SizedBox(height: Dimensions.paddingSizeSmall),
 
-      CustomTextField(
-        controller: checkoutController.noteController,
-        titleText: 'please_provide_extra_napkin'.tr,
-        showLabelText: false,
-        maxLines: 3,
-        inputType: TextInputType.multiline,
-        inputAction: TextInputAction.done,
-        capitalization: TextCapitalization.sentences,
-      ),
-      const SizedBox(height: Dimensions.paddingSizeLarge),
+        CustomTextField(
+          controller: checkoutController.noteController,
+          titleText: 'please_provide_extra_napkin'.tr,
+          showLabelText: false,
+          maxLines: 3,
+          inputType: TextInputType.multiline,
+          inputAction: TextInputAction.done,
+          capitalization: TextCapitalization.sentences,
+        ),
+        const SizedBox(height: Dimensions.paddingSizeLarge),
 
-      /*storeId == null && Get.find<SplashController>().configModel!.moduleConfig!.module!.orderAttachment! ? Column(
+        /*storeId == null && Get.find<SplashController>().configModel!.moduleConfig!.module!.orderAttachment! ? Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text('prescription'.tr, style: robotoMedium),
+            Text('prescription'.tr, style: waddyMedium),
             const SizedBox(width: Dimensions.paddingSizeExtraSmall),
 
             Text(
               '(${'max_size_2_mb'.tr})',
-              style: robotoRegular.copyWith(
+              style: waddyRegular.copyWith(
                 fontSize: Dimensions.fontSizeExtraSmall,
                 color: Theme.of(context).colorScheme.error,
               ),
@@ -50,6 +56,7 @@ class NoteAndPrescriptionSection extends StatelessWidget {
           ),
         ],
       ) : const SizedBox(),*/
-    ]);
+      ],
+    );
   }
 }

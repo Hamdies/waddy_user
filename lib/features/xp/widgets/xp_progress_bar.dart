@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class XpProgressBar extends StatelessWidget {
   final double? width;
@@ -19,6 +20,7 @@ class XpProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<XpController>(
+      id: XpController.idLevel,
       builder: (xpController) {
         if (xpController.isLevelLoading) {
           return _buildSkeleton(context);
@@ -36,11 +38,9 @@ class XpProgressBar extends StatelessWidget {
         final nextLevelData = levels.firstWhereOrNull(
           (l) => l.level == nextLevel,
         );
-        final xpTarget = nextLevelData?.xpRequired
-            ?? level.xpForNextLevel;
-        final progress = xpTarget > 0
-            ? (level.currentXp / xpTarget).clamp(0.0, 1.0)
-            : 0.0;
+        final xpTarget = nextLevelData?.xpRequired ?? level.xpForNextLevel;
+        final progress =
+            xpTarget > 0 ? (level.currentXp / xpTarget).clamp(0.0, 1.0) : 0.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,8 +54,8 @@ class XpProgressBar extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: Dimensions.paddingSizeSmall,
+                          vertical: Dimensions.paddingSizeExtraSmall,
                         ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -64,7 +64,9 @@ class XpProgressBar extends StatelessWidget {
                               Theme.of(context).primaryColor.withOpacity(0.7),
                             ],
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusDefault,
+                          ),
                         ),
                         child: Text(
                           'Lv.${level.currentLevel}',
@@ -100,7 +102,9 @@ class XpProgressBar extends StatelessWidget {
             ],
             if (compact && showLevelInfo)
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.only(
+                  bottom: Dimensions.paddingSizeExtraSmall,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -202,7 +206,7 @@ class XpProgressBar extends StatelessWidget {
             height: 16,
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
             ),
           ),
           const SizedBox(height: 8),

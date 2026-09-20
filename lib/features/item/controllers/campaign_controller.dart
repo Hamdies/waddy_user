@@ -23,28 +23,39 @@ class CampaignController extends GetxController implements GetxService {
 
   void setCurrentIndex(int index, bool notify) {
     _currentIndex = index;
-    if(notify) {
+    if (notify) {
       update();
     }
   }
 
-  void itemAndBasicCampaignNull(){
+  void itemAndBasicCampaignNull() {
     _itemCampaignList = null;
     _basicCampaignList = null;
   }
 
-  Future<void> getBasicCampaignList(bool reload, {DataSourceEnum dataSource = DataSourceEnum.local, bool fromRecall = false}) async {
-    if(_basicCampaignList == null || reload || fromRecall) {
+  Future<void> getBasicCampaignList(
+    bool reload, {
+    DataSourceEnum dataSource = DataSourceEnum.local,
+    bool fromRecall = false,
+  }) async {
+    if (_basicCampaignList == null || reload || fromRecall) {
       List<BasicCampaignModel>? basicCampaignList;
-      if(dataSource == DataSourceEnum.local) {
-        basicCampaignList = await campaignServiceInterface.getBasicCampaignList(DataSourceEnum.local);
+      if (dataSource == DataSourceEnum.local) {
+        basicCampaignList = await campaignServiceInterface.getBasicCampaignList(
+          DataSourceEnum.local,
+        );
         _prepareBasicCampaign(basicCampaignList);
-        getBasicCampaignList(false, dataSource: DataSourceEnum.client, fromRecall: true);
+        getBasicCampaignList(
+          false,
+          dataSource: DataSourceEnum.client,
+          fromRecall: true,
+        );
       } else {
-        basicCampaignList = await campaignServiceInterface.getBasicCampaignList(DataSourceEnum.client);
+        basicCampaignList = await campaignServiceInterface.getBasicCampaignList(
+          DataSourceEnum.client,
+        );
         _prepareBasicCampaign(basicCampaignList);
       }
-
     }
   }
 
@@ -58,25 +69,37 @@ class CampaignController extends GetxController implements GetxService {
 
   Future<void> getBasicCampaignDetails(int? campaignID) async {
     _basicCampaign = null;
-    BasicCampaignModel? basicCampaign = await campaignServiceInterface.getCampaignDetails(campaignID.toString());
+    BasicCampaignModel? basicCampaign = await campaignServiceInterface
+        .getCampaignDetails(campaignID.toString());
     if (basicCampaign != null) {
       _basicCampaign = basicCampaign;
     }
     update();
   }
 
-  Future<void> getItemCampaignList(bool reload, {DataSourceEnum dataSource = DataSourceEnum.local, bool fromRecall = false}) async {
-    if(_itemCampaignList == null || reload || fromRecall) {
+  Future<void> getItemCampaignList(
+    bool reload, {
+    DataSourceEnum dataSource = DataSourceEnum.local,
+    bool fromRecall = false,
+  }) async {
+    if (_itemCampaignList == null || reload || fromRecall) {
       List<Item>? itemCampaignList;
-      if(dataSource == DataSourceEnum.local) {
-        itemCampaignList = await campaignServiceInterface.getItemCampaignList(DataSourceEnum.local);
+      if (dataSource == DataSourceEnum.local) {
+        itemCampaignList = await campaignServiceInterface.getItemCampaignList(
+          DataSourceEnum.local,
+        );
         _prepareItemCampaign(itemCampaignList);
-        getItemCampaignList(false, dataSource: DataSourceEnum.client, fromRecall: true);
+        getItemCampaignList(
+          false,
+          dataSource: DataSourceEnum.client,
+          fromRecall: true,
+        );
       } else {
-        itemCampaignList = await campaignServiceInterface.getItemCampaignList(DataSourceEnum.client);
+        itemCampaignList = await campaignServiceInterface.getItemCampaignList(
+          DataSourceEnum.client,
+        );
         _prepareItemCampaign(itemCampaignList);
       }
-
     }
   }
 
@@ -86,12 +109,15 @@ class CampaignController extends GetxController implements GetxService {
       List<Item> campaign = [];
       campaign.addAll(itemCampaignList);
       for (var c in campaign) {
-        if(!Get.find<SplashController>().getModuleConfig(c.moduleType).newVariation! || c.variations!.isEmpty || c.foodVariations!.isNotEmpty) {
+        if (!Get.find<SplashController>()
+                .getModuleConfig(c.moduleType)
+                .newVariation! ||
+            c.variations!.isEmpty ||
+            c.foodVariations!.isNotEmpty) {
           _itemCampaignList!.add(c);
         }
       }
     }
     update();
   }
-
 }

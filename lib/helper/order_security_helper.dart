@@ -6,16 +6,23 @@ import 'package:uuid/uuid.dart';
 /// Provides security measures to protect against fake/fraudulent orders.
 ///
 /// - Rate limiting: prevents rapid-fire order submissions
-/// - Idempotency key: prevents duplicate order submissions
-/// - Device fingerprint: ties orders to a specific device
-/// - Order signature: HMAC signature to detect tampering
+/// - Idempotency key: prevents duplicate order submissions (server-enforced)
+/// - Device fingerprint: fraud telemetry, not a control
+///
+/// There is deliberately no client-generated order signature. A client cannot
+/// hold a signing secret — whatever the app can use to sign, an attacker who
+/// unpacks the APK can use to forge. The previous HMAC also only produced a
+/// log line server-side and never blocked an order, so it advertised a
+/// protection that did not exist. Tamper-resistance for order amounts comes
+/// from the server recomputing `order_amount` itself; a future tamper-evidence
+/// scheme would have to be server-issued (server signs a short-lived quote
+/// token, client echoes it back).
 class OrderSecurityHelper {
   static final OrderSecurityHelper _instance = OrderSecurityHelper._internal();
   factory OrderSecurityHelper() => _instance;
   OrderSecurityHelper._internal();
 
   static const _minOrderIntervalSeconds = 30;
-  static const _orderSignatureSecret = 'waddi_order_sec_2026';
 
   DateTime? _lastOrderTime;
   String? _lastIdempotencyKey;
@@ -50,18 +57,6 @@ class OrderSecurityHelper {
   /// Get the last generated idempotency key.
   String? get lastIdempotencyKey => _lastIdempotencyKey;
 
-  /// Generate HMAC-SHA256 signature for order data to detect tampering.
-  String generateOrderSignature(Map<String, dynamic> orderData) {
-    final sortedKeys = orderData.keys.toList()..sort();
-    final dataString = sortedKeys
-        .where((k) => orderData[k] != null)
-        .map((k) => '$k=${orderData[k]}')
-        .join('&');
-    final hmac = Hmac(sha256, utf8.encode(_orderSignatureSecret));
-    final digest = hmac.convert(utf8.encode(dataString));
-    return digest.toString();
-  }
-
   /// Get or compute a device fingerprint for fraud detection.
   String getDeviceFingerprint() {
     if (_cachedDeviceFingerprint != null) return _cachedDeviceFingerprint!;
@@ -69,11 +64,14 @@ class OrderSecurityHelper {
     String rawFingerprint;
     try {
       if (Platform.isAndroid) {
-        rawFingerprint = 'android_${Platform.operatingSystemVersion}_${Platform.localHostname}';
+        rawFingerprint =
+            'android_${Platform.operatingSystemVersion}_${Platform.localHostname}';
       } else if (Platform.isIOS) {
-        rawFingerprint = 'ios_${Platform.operatingSystemVersion}_${Platform.localHostname}';
+        rawFingerprint =
+            'ios_${Platform.operatingSystemVersion}_${Platform.localHostname}';
       } else {
-        rawFingerprint = '${Platform.operatingSystem}_${Platform.operatingSystemVersion}';
+        rawFingerprint =
+            '${Platform.operatingSystem}_${Platform.operatingSystemVersion}';
       }
     } catch (e) {
       rawFingerprint = 'fallback_${DateTime.now().millisecondsSinceEpoch}';

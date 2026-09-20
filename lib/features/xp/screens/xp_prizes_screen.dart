@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_app_bar.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/widgets/prize_card_widget.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class XpPrizesScreen extends StatefulWidget {
   const XpPrizesScreen({super.key});
@@ -27,6 +28,7 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: 'prizes'.tr),
       body: GetBuilder<XpController>(
+        id: XpController.idPrizes,
         builder: (xpController) {
           return Column(
             children: [
@@ -51,7 +53,7 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
 
   Widget _buildFilterTabs(BuildContext context, XpController xpController) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       height: 40,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -61,14 +63,18 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
           return GestureDetector(
             onTap: () => xpController.changePrizeFilter(index),
             child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
               decoration: BoxDecoration(
                 color:
                     isSelected
                         ? Theme.of(context).primaryColor
                         : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.radiusExtraLarge,
+                ),
               ),
               child: Center(
                 child: Text(
@@ -92,8 +98,10 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
     if (prizeModel == null) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -101,7 +109,7 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
             Theme.of(context).primaryColor.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -192,12 +200,14 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
     return RefreshIndicator(
       onRefresh: () => xpController.getPrizes(reload: true),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
         itemCount: prizes.length,
         itemBuilder: (context, index) {
           final prize = prizes[index];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(
+              bottom: Dimensions.paddingSizeMedium,
+            ),
             child: PrizeCardWidget(
               prize: prize,
               isLoading: xpController.isClaimingPrizeId(prize.id),

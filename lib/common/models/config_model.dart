@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 
 class ConfigModel {
@@ -69,6 +70,8 @@ class ConfigModel {
   bool? addFundStatus;
   bool? offlinePaymentStatus;
   bool? guestCheckoutStatus;
+  bool? guestBrowseStatus;
+  bool? checkoutAuthSheetStatus;
   double? adminCommission;
   int? subscriptionFreeTrialDays;
   bool? subscriptionFreeTrialStatus;
@@ -155,6 +158,8 @@ class ConfigModel {
     this.addFundStatus,
     this.offlinePaymentStatus,
     this.guestCheckoutStatus,
+    this.guestBrowseStatus,
+    this.checkoutAuthSheetStatus,
     this.subscriptionFreeTrialDays,
     this.subscriptionFreeTrialStatus,
     this.subscriptionBusinessModel,
@@ -289,6 +294,15 @@ class ConfigModel {
     addFundStatus = json['add_fund_status'] == 1;
     offlinePaymentStatus = json['offline_payment_status'] == 1;
     guestCheckoutStatus = json['guest_checkout_status'] == 1;
+    // Remote kill-switches for the browse-first flow. When the backend
+    // doesn't send them yet they default OFF in release; debug builds default
+    // ON so the flow is testable before the backend deploy.
+    guestBrowseStatus =
+        json['guest_browse_status'] == 1 ||
+        (json['guest_browse_status'] == null && kDebugMode);
+    checkoutAuthSheetStatus =
+        json['checkout_auth_sheet_status'] == 1 ||
+        (json['checkout_auth_sheet_status'] == null && kDebugMode);
     adminCommission = json['admin_commission']?.toDouble();
     subscriptionFreeTrialDays = json['subscription_free_trial_days'];
     subscriptionFreeTrialStatus =
@@ -403,6 +417,8 @@ class ConfigModel {
     data['add_fund_status'] = addFundStatus;
     data['offline_payment_status'] = offlinePaymentStatus;
     data['guest_checkout_status'] = guestCheckoutStatus;
+    data['guest_browse_status'] = guestBrowseStatus;
+    data['checkout_auth_sheet_status'] = checkoutAuthSheetStatus;
     data['admin_commission'] = adminCommission;
     data['subscription_free_trial_days'] = subscriptionFreeTrialDays;
     data['subscription_free_trial_status'] = subscriptionFreeTrialStatus;
@@ -616,16 +632,26 @@ class Module {
     this.description,
   });
 
+  /// Absent flags read as false rather than null.
+  ///
+  /// Every one of these is dereferenced with `!` at the 43 places that read a
+  /// module config — `.addOn!`, `.newVariation!`, `.orderAttachment!` — most of
+  /// them inside `build`. A module whose config the backend has not sent yet,
+  /// or has sent with a key missing, therefore crashed the widget rather than
+  /// rendering the feature as off. "Not configured" and "off" are the same
+  /// thing to every one of those call sites, so say so here once instead of
+  /// hoping 43 call sites each guard it.
   Module.fromJson(Map<String, dynamic> json) {
-    orderPlaceToScheduleInterval = json['order_place_to_schedule_interval'];
-    addOn = json['add_on'];
-    stock = json['stock'];
-    vegNonVeg = json['veg_non_veg'];
-    unit = json['unit'];
-    orderAttachment = json['order_attachment'];
-    showRestaurantText = json['show_restaurant_text'];
-    isParcel = json['is_parcel'];
-    newVariation = json['new_variation'];
+    orderPlaceToScheduleInterval =
+        json['order_place_to_schedule_interval'] ?? false;
+    addOn = json['add_on'] ?? false;
+    stock = json['stock'] ?? false;
+    vegNonVeg = json['veg_non_veg'] ?? false;
+    unit = json['unit'] ?? false;
+    orderAttachment = json['order_attachment'] ?? false;
+    showRestaurantText = json['show_restaurant_text'] ?? false;
+    isParcel = json['is_parcel'] ?? false;
+    newVariation = json['new_variation'] ?? false;
     description = json['description'];
   }
 

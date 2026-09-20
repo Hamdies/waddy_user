@@ -8,7 +8,14 @@ class PaymentButton extends StatelessWidget {
   final String subtitle;
   final bool isSelected;
   final Function onTap;
-  const PaymentButton({super.key, required this.isSelected, required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const PaymentButton({
+    super.key,
+    required this.isSelected,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,34 +29,57 @@ class PaymentButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5, spreadRadius: 1)],
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 5,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeExtraSmall),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeExtraSmall,
+                ),
                 leading: Image.asset(
-                  icon, width: 30, height: 30,
-                  color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor,
+                  icon,
+                  width: 30,
+                  height: 30,
+                  color:
+                      isSelected
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).disabledColor,
                 ),
                 title: Text(
                   title,
-                  style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                  style: waddyMedium.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                  ),
                 ),
                 subtitle: Text(
                   subtitle,
-                  style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeExtraSmall, color: Theme.of(context).disabledColor),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: waddyRegular.copyWith(
+                    fontSize: Dimensions.fontSizeExtraSmall,
+                    color: Theme.of(context).disabledColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
 
             Positioned(
-              top: 0, bottom: 0, right: 5,
-              child: isSelected ? Icon(
-                Icons.check_circle,
-                color: Theme.of(context).primaryColor,
-              ) : const SizedBox(),
+              top: 0,
+              bottom: 0,
+              right: 5,
+              child:
+                  isSelected
+                      ? Icon(
+                        Icons.check_circle,
+                        color: Theme.of(context).primaryColor,
+                      )
+                      : const SizedBox(),
             ),
-
           ],
         ),
       ),

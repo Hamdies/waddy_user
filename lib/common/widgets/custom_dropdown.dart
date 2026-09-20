@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class CustomDropdown<T> extends StatefulWidget {
   /// the child widget for the button, this will be ignored if text is supplied
@@ -57,15 +58,17 @@ class CustomDropdownState<T> extends State<CustomDropdown<T?>>
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
     _expandAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
     );
-    _rotateAnimation = Tween(begin: 0.0, end: 0.5).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _rotateAnimation = Tween(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -80,12 +83,12 @@ class CustomDropdownState<T> extends State<CustomDropdown<T?>>
         child: InkWell(
           onTap: _toggleDropdown,
           child: Padding(
-            padding: const EdgeInsets.all(5),
+            padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
             child: Row(
               mainAxisAlignment:
-              style.mainAxisAlignment ?? MainAxisAlignment.center,
+                  style.mainAxisAlignment ?? MainAxisAlignment.center,
               textDirection:
-              widget.leadingIcon ? TextDirection.rtl : TextDirection.ltr,
+                  widget.leadingIcon ? TextDirection.rtl : TextDirection.ltr,
               mainAxisSize: MainAxisSize.max,
               children: [
                 if (_currentIndex == -1) ...[
@@ -96,7 +99,9 @@ class CustomDropdownState<T> extends State<CustomDropdown<T?>>
                 if (!widget.hideIcon)
                   RotationTransition(
                     turns: _rotateAnimation,
-                    child: widget.icon ?? Icon(Icons.expand_more, color: widget.iconColor),
+                    child:
+                        widget.icon ??
+                        Icon(Icons.expand_more, color: widget.iconColor),
                   ),
               ],
             ),
@@ -116,72 +121,90 @@ class CustomDropdownState<T> extends State<CustomDropdown<T?>>
     return OverlayEntry(
       // full screen GestureDetector to register when a
       // user has clicked away from the dropdown
-      builder: (context) => GestureDetector(
-        onTap: () => _toggleDropdown(close: true),
-        behavior: HitTestBehavior.translucent,
-        // full screen container to register taps anywhere and close drop down
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: Stack(
-            children: [
-              Positioned(
-                left: offset.dx,
-                top: topOffset,
-                width: widget.dropdownStyle.width ?? size.width,
-                child: CompositedTransformFollower(
-                  offset:
-                  widget.dropdownStyle.offset ?? Offset(0, size.height + 5),
-                  link: this._layerLink,
-                  showWhenUnlinked: false,
-                  child: Material(
-                    elevation: widget.dropdownStyle.elevation ?? 0,
-                    borderRadius: widget.dropdownStyle.borderRadius ?? BorderRadius.zero,
-                    color: widget.dropdownStyle.color,
-                    child: SizeTransition(
-                      axisAlignment: 1,
-                      sizeFactor: _expandAnimation,
-                      child: ConstrainedBox(
-                        constraints: widget.dropdownStyle.constraints ??
-                            BoxConstraints(
-                              maxHeight: MediaQuery.of(context).size.height -
-                                  topOffset -
-                                  15,
+      builder:
+          (context) => GestureDetector(
+            onTap: () => _toggleDropdown(close: true),
+            behavior: HitTestBehavior.translucent,
+            // full screen container to register taps anywhere and close drop down
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height,
+              width: MediaQuery.of(context).size.width,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: offset.dx,
+                    top: topOffset,
+                    width: widget.dropdownStyle.width ?? size.width,
+                    child: CompositedTransformFollower(
+                      offset:
+                          widget.dropdownStyle.offset ??
+                          Offset(0, size.height + 5),
+                      link: this._layerLink,
+                      showWhenUnlinked: false,
+                      child: Material(
+                        elevation: widget.dropdownStyle.elevation ?? 0,
+                        borderRadius:
+                            widget.dropdownStyle.borderRadius ??
+                            BorderRadius.zero,
+                        color: widget.dropdownStyle.color,
+                        child: SizeTransition(
+                          axisAlignment: 1,
+                          sizeFactor: _expandAnimation,
+                          child: ConstrainedBox(
+                            constraints:
+                                widget.dropdownStyle.constraints ??
+                                BoxConstraints(
+                                  maxHeight:
+                                      MediaQuery.of(context).size.height -
+                                      topOffset -
+                                      15,
+                                ),
+                            child: ListView(
+                              padding:
+                                  widget.dropdownStyle.padding ??
+                                  EdgeInsets.zero,
+                              shrinkWrap: true,
+                              children:
+                                  widget.items.asMap().entries.map((item) {
+                                    return InkWell(
+                                      onTap: () {
+                                        if (widget.indexZeroNotSelected) {
+                                          if (item.key != 0) {
+                                            setState(
+                                              () => _currentIndex = item.key,
+                                            );
+                                            widget.onChange!(
+                                              item.value.value,
+                                              item.key,
+                                            );
+                                            _toggleDropdown();
+                                          }
+                                        } else {
+                                          if (widget.canAddValue) {
+                                            setState(
+                                              () => _currentIndex = item.key,
+                                            );
+                                          }
+                                          widget.onChange!(
+                                            item.value.value,
+                                            item.key,
+                                          );
+                                          _toggleDropdown();
+                                        }
+                                      },
+                                      child: item.value,
+                                    );
+                                  }).toList(),
                             ),
-                        child: ListView(
-                          padding:
-                          widget.dropdownStyle.padding ?? EdgeInsets.zero,
-                          shrinkWrap: true,
-                          children: widget.items.asMap().entries.map((item) {
-                            return InkWell(
-                              onTap: () {
-                                if(widget.indexZeroNotSelected) {
-                                  if(item.key != 0) {
-                                  setState(() => _currentIndex = item.key);
-                                  widget.onChange!(item.value.value, item.key);
-                                  _toggleDropdown();
-                                  }
-                                } else {
-                                  if(widget.canAddValue) {
-                                    setState(() => _currentIndex = item.key);
-                                  }
-                                  widget.onChange!(item.value.value, item.key);
-                                  _toggleDropdown();
-                                }
-                              },
-                              child: item.value,
-                            );
-                          }).toList(),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 

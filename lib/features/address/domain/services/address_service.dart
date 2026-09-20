@@ -3,7 +3,7 @@ import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/address/domain/repositories/address_repository_interface.dart';
 import 'package:waddy_app/features/address/domain/services/address_service_interface.dart';
 
-class AddressService implements AddressServiceInterface{
+class AddressService implements AddressServiceInterface {
   final AddressRepositoryInterface addressRepoInterface;
   AddressService({required this.addressRepoInterface});
 
@@ -23,8 +23,10 @@ class AddressService implements AddressServiceInterface{
   }
 
   @override
-  Future<ResponseModel> updateAddress(AddressModel addressModel, int? addressId) async {
+  Future<ResponseModel> updateAddress(
+    AddressModel addressModel,
+    int? addressId,
+  ) async {
     return await addressRepoInterface.update(addressModel.toJson(), addressId);
   }
-
 }

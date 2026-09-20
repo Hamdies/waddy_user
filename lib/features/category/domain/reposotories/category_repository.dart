@@ -8,6 +8,7 @@ import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/helper/header_helper.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/features/category/domain/reposotories/category_repository_interface.dart';
@@ -17,10 +18,22 @@ class CategoryRepository implements CategoryRepositoryInterface {
   CategoryRepository({required this.apiClient});
 
   @override
-  Future getList({int? offset, bool categoryList = false, bool subCategoryList = false, bool categoryItemList = false, bool categoryStoreList = false,
-    bool? allCategory, String? id, String? type, DataSourceEnum? source}) async {
+  Future getList({
+    int? offset,
+    bool categoryList = false,
+    bool subCategoryList = false,
+    bool categoryItemList = false,
+    bool categoryStoreList = false,
+    bool? allCategory,
+    String? id,
+    String? type,
+    DataSourceEnum? source,
+  }) async {
     if (categoryList) {
-      return await _getCategoryList(allCategory!, source ?? DataSourceEnum.client);
+      return await _getCategoryList(
+        allCategory!,
+        source ?? DataSourceEnum.client,
+      );
     } else if (subCategoryList) {
       return await _getSubCategoryList(id);
     } else if (categoryItemList) {
@@ -30,32 +43,53 @@ class CategoryRepository implements CategoryRepositoryInterface {
     }
   }
 
-  Future<List<CategoryModel>?> _getCategoryList(bool allCategory, DataSourceEnum source) async {
+  Future<List<CategoryModel>?> _getCategoryList(
+    bool allCategory,
+    DataSourceEnum source,
+  ) async {
     List<CategoryModel>? categoryList;
-    Map<String, String>? header = allCategory ? {
-      'Content-Type': 'application/json; charset=UTF-8',
-      AppConstants.localizationKey: Get.find<LocalizationController>().locale.languageCode,
-    } : null;
+    Map<String, String>? header =
+        allCategory
+            ? {
+              'Content-Type': 'application/json; charset=UTF-8',
+              AppConstants.localizationKey:
+                  Get.find<LocalizationController>().locale.languageCode,
+            }
+            : null;
 
     Map<String, String>? cacheHeader = header ?? apiClient.getHeader();
 
-    String cacheId = AppConstants.categoryUri + (Get.find<SplashController>().module?.id?.toString() ?? '');
+    String cacheId =
+        AppConstants.categoryUri +
+        (Get.find<SplashController>().module?.id?.toString() ?? '');
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
-        Response response = await apiClient.getData(AppConstants.categoryUri, headers: header);
+        Response response = await apiClient.getData(
+          AppConstants.categoryUri,
+          headers: header,
+        );
         if (response.statusCode == 200) {
           categoryList = [];
           response.body.forEach((category) {
             categoryList!.add(CategoryModel.fromJson(category));
           });
-          LocalClient.organize(DataSourceEnum.client, cacheId, jsonEncode(response.body), cacheHeader);
-
+          LocalClient.organize(
+            DataSourceEnum.client,
+            cacheId,
+            jsonEncode(response.body),
+            cacheHeader,
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(DataSourceEnum.local, cacheId, null, null);
-        if(cacheResponseData != null) {
+        String? cacheResponseData = await LocalClient.organize(
+          DataSourceEnum.local,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
           categoryList = [];
           jsonDecode(cacheResponseData).forEach((category) {
             categoryList!.add(CategoryModel.fromJson(category));
@@ -66,28 +100,73 @@ class CategoryRepository implements CategoryRepositoryInterface {
     return categoryList;
   }
 
+  /// Categories for one named module, with the module id pinned in the header.
+  ///
+  /// The plain category list rides on ApiClient's default header, which
+  /// carries whatever module is *currently* selected — on the dashboard,
+  /// none. That is why the home's grocery shelf used to show the aisles of
+  /// the last module the user visited: nothing on that screen ever fetched
+  /// grocery categories, it just rendered whatever CategoryController happened
+  /// to be holding, which after a trip into Food is Food's menu.
+  ///
+  /// Network-only on purpose: the local cache is keyed on the selected module,
+  /// so writing this payload there would let a module-pinned list be read back
+  /// as the selected module's own.
+  @override
+  Future<List<CategoryModel>?> getModuleCategoryList(int moduleId) async {
+    List<CategoryModel>? categoryList;
+    Response response = await apiClient.getData(
+      AppConstants.categoryUri,
+      headers: HeaderHelper.featuredHeader(moduleId: moduleId),
+      handleError: false,
+    );
+    if (response.statusCode == 200) {
+      categoryList = [];
+      response.body.forEach((category) {
+        categoryList!.add(CategoryModel.fromJson(category));
+      });
+    }
+    return categoryList;
+  }
+
   Future<List<CategoryModel>?> _getSubCategoryList(String? parentID) async {
     List<CategoryModel>? subCategoryList;
-    Response response = await apiClient.getData('${AppConstants.subCategoryUri}$parentID');
+    Response response = await apiClient.getData(
+      '${AppConstants.subCategoryUri}$parentID',
+    );
     if (response.statusCode == 200) {
-      subCategoryList= [];
-      response.body.forEach((category) => subCategoryList!.add(CategoryModel.fromJson(category)));
+      subCategoryList = [];
+      response.body.forEach(
+        (category) => subCategoryList!.add(CategoryModel.fromJson(category)),
+      );
     }
     return subCategoryList;
   }
 
-  Future<ItemModel?> _getCategoryItemList(String? categoryID, int offset, String type) async {
+  Future<ItemModel?> _getCategoryItemList(
+    String? categoryID,
+    int offset,
+    String type,
+  ) async {
     ItemModel? categoryItem;
-    Response response = await apiClient.getData('${AppConstants.categoryItemUri}$categoryID?limit=10&offset=$offset&type=$type');
+    Response response = await apiClient.getData(
+      '${AppConstants.categoryItemUri}$categoryID?limit=10&offset=$offset&type=$type',
+    );
     if (response.statusCode == 200) {
       categoryItem = ItemModel.fromJson(response.body);
     }
     return categoryItem;
   }
 
-  Future<StoreModel?> _getCategoryStoreList(String? categoryID, int offset, String type) async {
+  Future<StoreModel?> _getCategoryStoreList(
+    String? categoryID,
+    int offset,
+    String type,
+  ) async {
     StoreModel? categoryStore;
-    Response response = await apiClient.getData('${AppConstants.categoryStoreUri}$categoryID?limit=10&offset=$offset&type=$type');
+    Response response = await apiClient.getData(
+      '${AppConstants.categoryStoreUri}$categoryID?limit=10&offset=$offset&type=$type',
+    );
     if (response.statusCode == 200) {
       categoryStore = StoreModel.fromJson(response.body);
     }
@@ -95,7 +174,12 @@ class CategoryRepository implements CategoryRepositoryInterface {
   }
 
   @override
-  Future<Response> getSearchData(String? query, String? categoryID, bool isStore, String type) async {
+  Future<Response> getSearchData(
+    String? query,
+    String? categoryID,
+    bool isStore,
+    String type,
+  ) async {
     return await apiClient.getData(
       '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&category_id=$categoryID&type=$type&offset=1&limit=50',
     );
@@ -103,7 +187,9 @@ class CategoryRepository implements CategoryRepositoryInterface {
 
   @override
   Future<bool> saveUserInterests(List<int?> interests) async {
-    Response response = await apiClient.postData(AppConstants.interestUri, {"interest": interests});
+    Response response = await apiClient.postData(AppConstants.interestUri, {
+      "interest": interests,
+    });
     return (response.statusCode == 200);
   }
 
@@ -126,5 +212,4 @@ class CategoryRepository implements CategoryRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

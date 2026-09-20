@@ -9,6 +9,7 @@ import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 void showScratchCardDialog(BuildContext context, CouponModel coupon) {
   showGeneralDialog(
@@ -82,22 +83,25 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeExtraLarge,
+        vertical: 60,
+      ),
       child: Transform.translate(
         offset: const Offset(3, 3),
         child: Container(
           decoration: BoxDecoration(
             color: primaryColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
           ),
           child: Transform.translate(
             offset: const Offset(-3, -3),
             child: Container(
               width: size.width,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 border: Border.all(color: primaryColor, width: 2.5),
               ),
               child: Column(
@@ -110,7 +114,9 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          padding: const EdgeInsets.all(5),
+                          padding: const EdgeInsets.all(
+                            Dimensions.paddingSizeExtraSmall,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
                             shape: BoxShape.circle,
@@ -136,12 +142,14 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                   // Title badge
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
+                      horizontal: Dimensions.paddingSizeMedium,
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
                       color: accentColor,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusSmall,
+                      ),
                       border: Border.all(color: primaryColor, width: 2),
                       boxShadow: [
                         BoxShadow(
@@ -152,7 +160,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                     ),
                     child: Text(
                       _isRevealed ? '🎉 YOU WON!' : '🎁 SCRATCH TO WIN',
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: 14,
                         color: primaryColor,
                       ),
@@ -164,7 +172,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                     _isRevealed
                         ? 'Your discount is ready'
                         : 'Reveal your discount',
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: 12,
                       color: Colors.black54,
                     ),
@@ -201,12 +209,12 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
       width: cardWidth,
       height: cardHeight,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: primaryColor, width: 2.5),
         boxShadow: [BoxShadow(color: primaryColor, offset: const Offset(4, 4))],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         child: Stack(
           children: [
             // Scratcher layer
@@ -237,7 +245,9 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                       // Background grid of icons
                       GridView.builder(
                         physics: const NeverScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeSmall,
+                        ),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 6,
@@ -267,7 +277,9 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                       // Center logo
                       Center(
                         child: Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(
+                            Dimensions.paddingSizeMedium,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryColor,
                             shape: BoxShape.circle,
@@ -297,7 +309,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
     Color accentColor,
   ) {
     final currency =
-        Get.find<SplashController>().configModel?.currencySymbol ?? '\$';
+        Get.find<SplashController>().configModelOrNull?.currencySymbol ?? '\$';
     final discount =
         widget.coupon.discountType == 'percent'
             ? '${widget.coupon.discount?.toStringAsFixed(0)}%'
@@ -320,7 +332,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
         children: [
           // Icon
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
             decoration: BoxDecoration(
               color: accentColor,
               shape: BoxShape.circle,
@@ -335,14 +347,17 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
 
           // Type badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeMedium,
+              vertical: Dimensions.paddingSizeExtraSmall,
+            ),
             decoration: BoxDecoration(
               color: primaryColor,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
             ),
             child: Text(
               type,
-              style: robotoBold.copyWith(
+              style: waddyBold.copyWith(
                 fontSize: 10,
                 color: Colors.white,
                 letterSpacing: 1,
@@ -354,7 +369,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
           // Discount value
           Text(
             discount,
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: 44,
               color: primaryColor,
               height: 1,
@@ -364,7 +379,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
 
           Text(
             'OFF',
-            style: robotoMedium.copyWith(
+            style: waddyMedium.copyWith(
               fontSize: 14,
               color: accentColor,
               letterSpacing: 2,
@@ -374,11 +389,16 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
 
           // Details
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeMedium,
+              vertical: Dimensions.paddingSizeSmall,
+            ),
             decoration: BoxDecoration(
               color: primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
               border: Border.all(
                 color: primaryColor.withOpacity(0.3),
                 width: 1,
@@ -388,7 +408,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
               children: [
                 Text(
                   'Min. ${PriceConverter.convertPrice(widget.coupon.minPurchase)}',
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 11,
                     color: primaryColor,
                   ),
@@ -396,7 +416,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                 const SizedBox(height: 2),
                 Text(
                   'Expires: $expiry',
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: 10,
                     color: Colors.black54,
                   ),
@@ -423,7 +443,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
                 const SizedBox(width: 6),
                 Text(
                   'Swipe to reveal',
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 12,
                     color: Colors.black54,
                   ),
@@ -439,7 +459,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
       children: [
         Text(
           '${_progress.toInt()}%',
-          style: robotoBold.copyWith(fontSize: 14, color: primaryColor),
+          style: waddyBold.copyWith(fontSize: 14, color: primaryColor),
         ),
         const SizedBox(height: 6),
         Container(
@@ -468,10 +488,13 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
     return GestureDetector(
       onTap: _copyCode,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeLarge,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: accentColor,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
           border: Border.all(color: primaryColor, width: 2),
           boxShadow: [
             BoxShadow(color: primaryColor, offset: const Offset(3, 3)),
@@ -484,7 +507,7 @@ class _ScratchCardDialogState extends State<ScratchCardDialog>
             const SizedBox(width: 8),
             Text(
               'Copy: ${widget.coupon.code}',
-              style: robotoBold.copyWith(fontSize: 13, color: primaryColor),
+              style: waddyBold.copyWith(fontSize: 13, color: primaryColor),
             ),
           ],
         ),

@@ -18,20 +18,36 @@ class AddressController extends GetxController implements GetxService {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  Future<ResponseModel> addAddress(AddressModel addressModel, bool fromCheckout, int? storeZoneId) async {
+  Future<ResponseModel> addAddress(
+    AddressModel addressModel,
+    bool fromCheckout,
+    int? storeZoneId,
+  ) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await addressServiceInterface.addAddress(addressModel);
-    responseModel = await _processSuccessResponse(responseModel, fromCheckout, storeZoneId);
+    ResponseModel responseModel = await addressServiceInterface.addAddress(
+      addressModel,
+    );
+    responseModel = await _processSuccessResponse(
+      responseModel,
+      fromCheckout,
+      storeZoneId,
+    );
     _isLoading = false;
     update();
     return responseModel;
   }
 
-  Future<ResponseModel> updateAddress(AddressModel addressModel, int? addressId) async {
+  Future<ResponseModel> updateAddress(
+    AddressModel addressModel,
+    int? addressId,
+  ) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await addressServiceInterface.updateAddress(addressModel, addressId);
+    ResponseModel responseModel = await addressServiceInterface.updateAddress(
+      addressModel,
+      addressId,
+    );
     if (responseModel.isSuccess) {
       getAddressList();
     }
@@ -41,7 +57,8 @@ class AddressController extends GetxController implements GetxService {
   }
 
   Future<void> getAddressList() async {
-    List<AddressModel>? addressList = await addressServiceInterface.getAllAddress();
+    List<AddressModel>? addressList =
+        await addressServiceInterface.getAllAddress();
     if (addressList != null) {
       _addressList = [];
       _allAddressList = [];
@@ -54,8 +71,9 @@ class AddressController extends GetxController implements GetxService {
   Future<ResponseModel> deleteUserAddressByID(int? id, int index) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await addressServiceInterface.removeAddressByID(id);
-    if(responseModel.isSuccess) {
+    ResponseModel responseModel = await addressServiceInterface
+        .removeAddressByID(id);
+    if (responseModel.isSuccess) {
       _addressList!.removeAt(index);
     }
     _isLoading = false;
@@ -63,11 +81,25 @@ class AddressController extends GetxController implements GetxService {
     return responseModel;
   }
 
-  Future<ResponseModel> _processSuccessResponse(ResponseModel responseModel, bool fromCheckout, int? storeZoneId) async {
+  Future<ResponseModel> _processSuccessResponse(
+    ResponseModel responseModel,
+    bool fromCheckout,
+    int? storeZoneId,
+  ) async {
     if (responseModel.isSuccess) {
-      if(fromCheckout && !responseModel.zoneIds!.contains(storeZoneId)) {
-        responseModel = ResponseModel(false, (Get.find<SplashController>().configModel!.moduleConfig!.module!.showRestaurantText! ? 'your_selected_location_is_from_different_zone'.tr : 'your_selected_location_is_from_different_zone_store'.tr));
-      }else {
+      if (fromCheckout && !responseModel.zoneIds!.contains(storeZoneId)) {
+        responseModel = ResponseModel(
+          false,
+          (Get.find<SplashController>()
+                  .configModel
+                  .moduleConfig!
+                  .module!
+                  .showRestaurantText ??
+                      false
+              ? 'your_selected_location_is_from_different_zone'.tr
+              : 'your_selected_location_is_from_different_zone_store'.tr),
+        );
+      } else {
         await getAddressList();
         Get.find<CheckoutController>().setAddressIndex(1);
         responseModel = ResponseModel(true, responseModel.message);
@@ -75,5 +107,4 @@ class AddressController extends GetxController implements GetxService {
     }
     return responseModel;
   }
-
 }

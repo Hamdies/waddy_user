@@ -28,7 +28,9 @@ class SubcategoryListWidget extends StatelessWidget {
         height: 40,
         width: width,
         color: Theme.of(context).cardColor,
-        padding: const EdgeInsets.symmetric(vertical: Dimensions.paddingSizeExtraSmall),
+        padding: const EdgeInsets.symmetric(
+          vertical: Dimensions.paddingSizeExtraSmall,
+        ),
         child: ListView.builder(
           key: scaffoldKey,
           scrollDirection: Axis.horizontal,
@@ -43,24 +45,32 @@ class SubcategoryListWidget extends StatelessWidget {
                   horizontal: Dimensions.paddingSizeSmall,
                   vertical: Dimensions.paddingSizeExtraSmall,
                 ),
-                margin: const EdgeInsets.only(right: Dimensions.paddingSizeSmall),
+                margin: const EdgeInsets.only(
+                  right: Dimensions.paddingSizeSmall,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  color: index == catController.subCategoryIndex
-                      ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-                      : Colors.transparent,
+                  color:
+                      index == catController.subCategoryIndex
+                          ? Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.1)
+                          : Colors.transparent,
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       catController.subCategoryList![index].name!,
-                      style: index == catController.subCategoryIndex
-                          ? robotoMedium.copyWith(
-                              fontSize: Dimensions.fontSizeSmall,
-                              color: Theme.of(context).primaryColor,
-                            )
-                          : robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall),
+                      style:
+                          index == catController.subCategoryIndex
+                              ? waddyMedium.copyWith(
+                                fontSize: Dimensions.fontSizeSmall,
+                                color: Theme.of(context).primaryColor,
+                              )
+                              : waddyRegular.copyWith(
+                                fontSize: Dimensions.fontSizeSmall,
+                              ),
                     ),
                   ],
                 ),

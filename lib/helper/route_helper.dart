@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:waddy_app/common/widgets/auth_guard_middleware.dart';
-import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/auth/screens/new_user_setup_screen.dart';
 import 'package:waddy_app/features/brands/screens/brands_product_screen.dart';
 import 'package:waddy_app/features/brands/screens/brands_screen.dart';
@@ -28,15 +27,12 @@ import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/address/screens/add_address_screen.dart';
 import 'package:waddy_app/features/address/screens/address_screen.dart';
 import 'package:waddy_app/features/auth/screens/delivery_man_registration_screen.dart';
-import 'package:waddy_app/features/auth/screens/sign_in_screen.dart';
-import 'package:waddy_app/features/auth/screens/sign_up_screen.dart';
 import 'package:waddy_app/features/auth/screens/store_registration_screen.dart';
 import 'package:waddy_app/features/auth/screens/unified_auth_screen.dart';
 import 'package:waddy_app/features/category/screens/category_screen.dart';
 import 'package:waddy_app/features/location/screens/map_screen.dart';
 import 'package:waddy_app/features/store/screens/campaign_screen.dart';
 import 'package:waddy_app/helper/address_helper.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/html_type.dart';
 import 'package:waddy_app/common/widgets/image_viewer_screen.dart';
@@ -66,6 +62,7 @@ import 'package:waddy_app/features/language/screens/language_screen.dart';
 import 'package:waddy_app/features/location/screens/access_location_screen.dart';
 import 'package:waddy_app/features/location/screens/pick_map_screen.dart';
 import 'package:waddy_app/features/notification/screens/notification_screen.dart';
+import 'package:waddy_app/features/location/screens/serving_zones_screen.dart';
 import 'package:waddy_app/features/onboard/screens/onboarding_screen.dart';
 import 'package:waddy_app/features/order/screens/order_details_screen.dart';
 import 'package:waddy_app/features/order/screens/order_screen.dart';
@@ -89,8 +86,58 @@ import 'package:get/get.dart';
 import 'package:waddy_app/features/wallet/screens/wallet_screen.dart';
 import 'package:waddy_app/features/places/screens/place_details_screen.dart';
 import 'package:waddy_app/features/places/screens/place_submission_screen.dart';
+import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
+import 'package:waddy_app/features/places/domain/spots_draw.dart';
+import 'package:waddy_app/features/places/screens/spots_claw_draw_screen.dart';
+import 'package:waddy_app/features/places/screens/spots_prize_details_screen.dart';
+import 'package:waddy_app/features/places/screens/spots_prizes_screen.dart';
+import 'package:waddy_app/features/places/domain/models/place_model.dart';
 
 class RouteHelper {
+  /// Reads an int out of `Get.parameters`, never throwing.
+  ///
+  /// Route parameters come from URLs, and `app_links` deep linking means a
+  /// URL can be anything anyone types. `_paramInt('id')`
+  /// throws twice over on a malformed link — once on the `!` if the key is
+  /// absent, once on the parse if it is not a number — and a throw inside a
+  /// `GetPage` builder takes the app down as it opens. That is a crash any
+  /// stranger can trigger with a link.
+  ///
+  /// [fallback] is what the screen should use when the parameter is missing or
+  /// junk. Screens already treat 0 / null as "nothing to show", which is the
+  /// right outcome for a link that does not name a real record — far better
+  /// than a crash, and the server would reject the id anyway.
+  static int _paramInt(String key, {int fallback = 0}) {
+    final String? raw = Get.parameters[key];
+    if (raw == null || raw.isEmpty || raw == 'null') return fallback;
+    return int.tryParse(raw) ?? fallback;
+  }
+
+  /// Nullable variant, for parameters that are genuinely optional.
+  static int? _paramIntOrNull(String key) {
+    final String? raw = Get.parameters[key];
+    if (raw == null || raw.isEmpty || raw == 'null') return null;
+    return int.tryParse(raw);
+  }
+
+  /// Reads a double out of `Get.parameters`, never throwing.
+  ///
+  /// Money arrives here as a string. A junk value must not crash the route;
+  /// the server recomputes every amount anyway (`PlaceNewOrder.php`), so the
+  /// client figure is a display prediction, not an authority.
+  static double _paramDouble(String key, {double fallback = 0}) {
+    final String? raw = Get.parameters[key];
+    if (raw == null || raw.isEmpty || raw == 'null') return fallback;
+    return double.tryParse(raw) ?? fallback;
+  }
+
+  /// Nullable variant, for optional monetary parameters.
+  static double? _paramDoubleOrNull(String key) {
+    final String? raw = Get.parameters[key];
+    if (raw == null || raw.isEmpty || raw == 'null') return null;
+    return double.tryParse(raw);
+  }
+
   static const String initial = '/';
   static const String splash = '/splash';
   static const String language = '/language';
@@ -159,6 +206,7 @@ class RouteHelper {
   static const String newUserSetupScreen = '/new-user-setup-screen';
   static const String itemViewAllScreen = '/item-view-all-screen';
   static const String unifiedAuth = '/unified-auth';
+  static const String servingZones = '/serving-zones';
 
   /// XP & Leveling System
   static const String xpLevels = '/xp/levels';
@@ -169,6 +217,9 @@ class RouteHelper {
   /// Places / Hidden Gems
   static const String placeDetails = '/places/details';
   static const String placeSubmit = '/places/submit';
+  static const String spotsPrizes = '/spots/prizes';
+  static const String spotsPrizeDetails = '/spots/prize-details';
+  static const String spotsClawDraw = '/spots/draw';
 
   static String getInitialRoute({bool fromSplash = false}) =>
       '$initial?from-splash=$fromSplash';
@@ -184,6 +235,7 @@ class RouteHelper {
   static String getLanguageRoute(String page) => '$language?page=$page';
   static String getOnBoardingRoute() => onBoarding;
   static String getUnifiedAuthRoute() => unifiedAuth;
+  static String getServingZonesRoute() => servingZones;
   static String getSignInRoute(String page) => '$signIn?page=$page';
   static String getSignUpRoute() => signUp;
   static String getVerificationRoute(
@@ -210,10 +262,53 @@ class RouteHelper {
 
   static String getAccessLocationRoute(String page) =>
       '$accessLocation?page=$page';
-  static String getPickMapRoute(String? page, bool canRoute) =>
-      '$pickMap?page=$page&route=${canRoute.toString()}';
+
+  /// [mandatory] locks the screen: no back button, no back gesture. Used when
+  /// the picker IS the app-entry gate and there is nowhere valid to go back to.
+  static String getPickMapRoute(
+    String? page,
+    bool canRoute, {
+    bool mandatory = false,
+  }) =>
+      '$pickMap?page=$page&route=${canRoute.toString()}'
+      '${mandatory ? '&mandatory=true' : ''}';
   static String getInterestRoute() => interest;
   static String getMainRoute(String page) => '$main?page=$page';
+
+  /// Dashboard tab indices, as mapped by the `main` route below.
+  static const int tabHome = 0;
+  static const int tabRewards = 1;
+  static const int tabExplore = 2;
+  static const int tabOrders = 3;
+  static const int tabAccount = 4;
+
+  /// Switches the dashboard to [tabIndex] without stacking a second one.
+  ///
+  /// `Get.toNamed(getMainRoute(...))` from inside the dashboard pushes a whole
+  /// new `DashboardScreen` over the live one, so the back button pops to a
+  /// second copy of the app. When a dashboard is mounted this drives it
+  /// directly; otherwise it falls back to replacing the stack, which is the
+  /// right behaviour from a detail screen pushed over the dashboard.
+  static void goToTab(int tabIndex, {String? page}) {
+    if (DashboardScreenState.switchToTab(tabIndex)) return;
+    Get.offAllNamed(getMainRoute(page ?? _pageForTab(tabIndex)));
+  }
+
+  static String _pageForTab(int tabIndex) {
+    switch (tabIndex) {
+      case tabRewards:
+        return 'levels';
+      case tabExplore:
+        return 'cart'; // legacy alias — the `main` route maps 'cart' to index 2
+      case tabOrders:
+        return 'order';
+      case tabAccount:
+        return 'menu';
+      default:
+        return 'home';
+    }
+  }
+
   static String getForgotPassRoute() => forgotPassword;
   static String getResetPasswordRoute({
     String? phone,
@@ -462,8 +557,17 @@ class RouteHelper {
   static String getXpLeaderboardRoute() => xpLeaderboard;
 
   /// Places / Hidden Gems Routes
-  static String getPlaceDetailsRoute(int placeId) => '$placeDetails?id=$placeId';
+  static String getPlaceDetailsRoute(int placeId) =>
+      '$placeDetails?id=$placeId';
   static String getPlaceSubmitRoute() => placeSubmit;
+  static String getSpotsPrizesRoute() => spotsPrizes;
+  static String getSpotsPrizeDetailsRoute(int prizeId) =>
+      '$spotsPrizeDetails?id=$prizeId';
+
+  /// The claw draw replay. [period] is the draw to show ("2026-W27"); omitted
+  /// means the last closed period.
+  static String getSpotsClawDrawRoute({String? period}) =>
+      period == null ? spotsClawDraw : '$spotsClawDraw?period=$period';
 
   static List<GetPage> routes = [
     GetPage(
@@ -499,22 +603,9 @@ class RouteHelper {
     ),
     GetPage(name: onBoarding, page: () => const OnBoardingScreen()),
     GetPage(name: unifiedAuth, page: () => const UnifiedAuthScreen()),
-    GetPage(
-      name: signIn,
-      page:
-          () => SignInScreen(
-            exitFromApp:
-                Get.parameters['page'] == signUp ||
-                Get.parameters['page'] == splash ||
-                Get.parameters['page'] == onBoarding,
-            backFromThis:
-                Get.parameters['page'] != splash &&
-                Get.parameters['page'] != onBoarding,
-            fromNotification: Get.parameters['page'] == notification,
-            fromResetPassword: Get.parameters['page'] == resetPassword,
-          ),
-    ),
-    GetPage(name: signUp, page: () => const SignUpScreen()),
+    GetPage(name: servingZones, page: () => const ServingZonesScreen()),
+    GetPage(name: signIn, page: () => const UnifiedAuthScreen()),
+    GetPage(name: signUp, page: () => const UnifiedAuthScreen()),
     GetPage(
       name: verification,
       page: () {
@@ -586,6 +677,7 @@ class RouteHelper {
                   fromAddAddress: fromAddress,
                   route: Get.parameters['page'],
                   canRoute: Get.parameters['route'] == 'true',
+                  isMandatory: Get.parameters['mandatory'] == 'true',
                 );
       },
     ),
@@ -639,7 +731,7 @@ class RouteHelper {
                   id:
                       Get.parameters['id'] != 'null' &&
                               Get.parameters['id'] != null
-                          ? int.parse(Get.parameters['id']!)
+                          ? _paramIntOrNull('id')
                           : null,
                 ),
                 fromModule:
@@ -657,7 +749,7 @@ class RouteHelper {
         return getRoute(
           Get.arguments ??
               OrderDetailsScreen(
-                orderId: int.parse(Get.parameters['id'] ?? '0'),
+                orderId: _paramInt('id', fallback: 0),
                 orderModel: null,
                 fromNotification: Get.parameters['from'] == 'true',
                 fromOfflinePayment: Get.parameters['from_offline'] == 'true',
@@ -667,12 +759,19 @@ class RouteHelper {
       },
       middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: profile, page: () => getRoute(const ProfileScreen()), middlewares: [AuthGuardMiddleware()]),
+    GetPage(
+      name: profile,
+      page: () => getRoute(const ProfileScreen()),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(
       name: updateProfile,
       page: () => getRoute(const UpdateProfileScreen()),
+      middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: coupon, page: () => getRoute(const CouponScreen())),
+    GetPage(name: coupon, page: () => getRoute(const CouponScreen()),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(
       name: notification,
       page:
@@ -681,6 +780,7 @@ class RouteHelper {
               fromNotification: Get.parameters['from'] == 'true',
             ),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: map,
@@ -701,7 +801,11 @@ class RouteHelper {
         );
       },
     ),
-    GetPage(name: address, page: () => getRoute(const AddressScreen()), middlewares: [AuthGuardMiddleware()]),
+    GetPage(
+      name: address,
+      page: () => getRoute(const AddressScreen()),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(
       name: orderSuccess,
       page:
@@ -722,10 +826,10 @@ class RouteHelper {
       name: payment,
       page: () {
         OrderModel order = OrderModel(
-          id: int.parse(Get.parameters['id']!),
+          id: _paramInt('id'),
           orderType: Get.parameters['type'],
-          userId: int.parse(Get.parameters['user']!),
-          orderAmount: double.parse(Get.parameters['amount']!),
+          userId: _paramInt('user'),
+          orderAmount: _paramDouble('amount'),
         );
         bool isCodActive = Get.parameters['cod-delivery'] == 'true';
         String addFundUrl = '';
@@ -744,13 +848,13 @@ class RouteHelper {
         int? storeId =
             (Get.parameters['store_id'] != null &&
                     Get.parameters['store_id'] != 'null')
-                ? int.parse(Get.parameters['store_id']!)
+                ? _paramIntOrNull('store_id')
                 : null;
         bool createAccount = Get.parameters['create_account'] == 'true';
         int? createUserId =
             Get.parameters['create_user_id'] != null &&
                     Get.parameters['create_user_id'] != 'null'
-                ? int.parse(Get.parameters['create_user_id']!)
+                ? _paramIntOrNull('create_user_id')
                 : null;
         return getRoute(
           AppConstants.payInWevView
@@ -791,7 +895,7 @@ class RouteHelper {
                 fromCart: Get.parameters['page'] == 'cart',
                 storeId:
                     Get.parameters['store-id'] != 'null'
-                        ? int.parse(Get.parameters['store-id']!)
+                        ? _paramIntOrNull('store-id')
                         : null,
               ),
         );
@@ -807,6 +911,7 @@ class RouteHelper {
               contactNumber: Get.parameters['number'],
             ),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: basicCampaign,
@@ -879,7 +984,9 @@ class RouteHelper {
       name: update,
       page: () => UpdateScreen(isUpdate: Get.parameters['update'] == 'true'),
     ),
-    GetPage(name: cart, page: () => getRoute(const CartScreen(fromNav: false)), middlewares: [AuthGuardMiddleware()]),
+    // Cart is open to guests (build it; the account wall fires at checkout) —
+    // no AuthGuardMiddleware here. See docs/guest_mode_plan.md (auth-wall matrix).
+    GetPage(name: cart, page: () => getRoute(const CartScreen(fromNav: false))),
     GetPage(
       name: addAddress,
       page:
@@ -887,10 +994,11 @@ class RouteHelper {
             AddAddressScreen(
               fromCheckout: Get.parameters['page'] == 'checkout',
               fromRide: Get.parameters['ride'] == 'true',
-              zoneId: int.parse(Get.parameters['zone_id']!),
+              zoneId: _paramInt('zone_id'),
               fromNavBar: Get.parameters['navbar'] == 'true',
             ),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: editAddress,
@@ -914,10 +1022,12 @@ class RouteHelper {
           ),
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: rateReview,
       page: () => getRoute(Get.arguments ?? const NotFound()),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: storeReview,
@@ -937,6 +1047,7 @@ class RouteHelper {
               ),
             ),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: allStores,
@@ -1029,14 +1140,16 @@ class RouteHelper {
       page:
           () => getRoute(StoreItemSearchScreen(storeID: Get.parameters['id'])),
     ),
-    GetPage(name: order, page: () => getRoute(const OrderScreen())),
+    GetPage(name: order, page: () => getRoute(const OrderScreen()),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(
       name: itemDetails,
       page:
           () => getRoute(
             Get.arguments ??
                 ItemDetailsScreen(
-                  itemId: int.parse(Get.parameters['id']!),
+                  itemId: _paramInt('id'),
                   inStorePage: Get.parameters['page'] == 'restaurant',
                 ),
           ),
@@ -1063,10 +1176,12 @@ class RouteHelper {
               fromNotification: Get.parameters['from_notification'] == 'true',
             ),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: referAndEarn,
       page: () => getRoute(const ReferAndEarnScreen()),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: messages,
@@ -1111,20 +1226,23 @@ class RouteHelper {
             user: user,
             index:
                 Get.parameters['index'] != 'null'
-                    ? int.parse(Get.parameters['index']!)
+                    ? _paramIntOrNull('index')
                     : null,
             fromNotification: Get.parameters['from'] == 'true',
             conversationID:
                 (Get.parameters['conversation_id'] != null &&
                         Get.parameters['conversation_id'] != 'null')
-                    ? int.parse(Get.parameters['conversation_id']!)
+                    ? _paramIntOrNull('conversation_id')
                     : null,
             orderChatModel: orderChat,
           ),
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: conversation, page: () => const ConversationScreen()),
+    GetPage(name: conversation, page: () => const ConversationScreen(),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(
       name: restaurantRegistration,
       page: () => const StoreRegistrationScreen(),
@@ -1136,6 +1254,7 @@ class RouteHelper {
     GetPage(
       name: refund,
       page: () => RefundRequestScreen(orderId: Get.parameters['id']),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: offlinePaymentScreen,
@@ -1149,30 +1268,35 @@ class RouteHelper {
 
         return OfflinePaymentScreen(
           placeOrderBody: orderBody,
-          zoneId: int.parse(Get.parameters['zone_id']!),
-          total: double.parse(Get.parameters['total']!),
+          zoneId: _paramInt('zone_id'),
+          total: _paramDouble('total'),
           maxCodOrderAmount:
               (Get.parameters['max_cod_amount'] != null &&
                       Get.parameters['max_cod_amount'] != 'null')
-                  ? double.parse(Get.parameters['max_cod_amount']!)
+                  ? _paramDoubleOrNull('max_cod_amount')
                   : null,
           fromCart: Get.parameters['from_cart'] == 'true',
           isCashOnDeliveryActive: Get.parameters['cod_active'] == 'true',
           forParcel: Get.parameters['for_parcel'] == 'true',
         );
       },
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: flashSaleDetailsScreen,
-      page: () => FlashSaleDetailsScreen(id: int.parse(Get.parameters['id']!)),
+      page: () => FlashSaleDetailsScreen(id: _paramInt('id')),
     ),
-GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [AuthGuardMiddleware()]),
+    GetPage(
+      name: favourite,
+      page: () => const FavouriteScreen(),
+      middlewares: [AuthGuardMiddleware()],
+    ),
     GetPage(name: brands, page: () => const BrandsScreen()),
     GetPage(
       name: brandsItemScreen,
       page:
           () => BrandsItemScreen(
-            brandId: int.parse(Get.parameters['brandId']!),
+            brandId: _paramInt('brandId'),
             brandName: Get.parameters['brandName']!,
           ),
     ),
@@ -1186,7 +1310,7 @@ GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [Auth
             storeId:
                 (Get.parameters['store_id'] != null &&
                         Get.parameters['store_id'] != 'null')
-                    ? int.parse(Get.parameters['store_id']!)
+                    ? _paramIntOrNull('store_id')
                     : null,
           ),
     ),
@@ -1194,9 +1318,10 @@ GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [Auth
       name: subscriptionPayment,
       page:
           () => SubscriptionPaymentScreen(
-            storeId: int.parse(Get.parameters['store-id']!),
-            packageId: int.parse(Get.parameters['package-id']!),
+            storeId: _paramInt('store-id'),
+            packageId: _paramInt('package-id'),
           ),
+      middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
       name: newUserSetupScreen,
@@ -1234,18 +1359,64 @@ GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [Auth
       page: () => getRoute(const XpChallengesScreen()),
     ),
     GetPage(name: xpPrizes, page: () => getRoute(const XpPrizesScreen())),
-    GetPage(name: xpLeaderboard, page: () => getRoute(const XpLeaderboardScreen())),
+    GetPage(
+      name: xpLeaderboard,
+      page: () => getRoute(const XpLeaderboardScreen()),
+    ),
 
     // Places / Hidden Gems
     GetPage(
       name: placeDetails,
-      page: () => getRoute(PlaceDetailsScreen(
-        placeId: int.parse(Get.parameters['id'] ?? '0'),
-      )),
+      page:
+          () => getRoute(
+            PlaceDetailsScreen(
+              placeId: _paramInt('id', fallback: 0),
+              // Handed over by the list that was tapped, so the screen can
+              // draw the spot immediately and treat the fetch as a top-up.
+              // Null on a deep link or a push open — those still fetch first.
+              initialPlace:
+                  Get.arguments is Place ? Get.arguments as Place : null,
+            ),
+          ),
     ),
     GetPage(
       name: placeSubmit,
       page: () => getRoute(const PlaceSubmissionScreen()),
+    ),
+    GetPage(name: spotsPrizes, page: () => getRoute(const SpotsPrizesScreen())),
+    GetPage(
+      name: spotsPrizeDetails,
+      // `prize` rides in Get.arguments when pushed from the list so the screen
+      // paints instantly; a deep link has none and falls back to a fetch.
+      page:
+          () => getRoute(
+            SpotsPrizeDetailsScreen(
+              prizeId: int.tryParse(Get.parameters['id'] ?? '0') ?? 0,
+              prize:
+                  Get.arguments is PlacePrize
+                      ? Get.arguments as PlacePrize
+                      : null,
+            ),
+          ),
+    ),
+    GetPage(
+      name: spotsClawDraw,
+      // The draw rides in Get.arguments. Until `CLAW-Z2` lands there is no
+      // endpoint to fetch one from, so a push with no argument shows the empty
+      // state rather than a spinner that never resolves — see
+      // docs/spots_claw_draw_plan.md §9.
+      page:
+          () => getRoute(
+            SpotsClawDrawScreen(
+              draw:
+                  Get.arguments is SpotsDraw
+                      ? Get.arguments as SpotsDraw
+                      : SpotsDraw.fromServer(
+                        entrants: const [],
+                        winnerIds: const [],
+                      ),
+            ),
+          ),
     ),
   ];
 
@@ -1257,14 +1428,14 @@ GetPage(name: favourite, page: () => const FavouriteScreen(), middlewares: [Auth
     double? minimumVersion = 0;
     if (GetPlatform.isAndroid) {
       minimumVersion =
-          Get.find<SplashController>().configModel!.appMinimumVersionAndroid;
+          Get.find<SplashController>().configModel.appMinimumVersionAndroid;
     } else if (GetPlatform.isIOS) {
       minimumVersion =
-          Get.find<SplashController>().configModel!.appMinimumVersionIos;
+          Get.find<SplashController>().configModel.appMinimumVersionIos;
     }
-    return (AppConstants.appVersion < minimumVersion! && !GetPlatform.isWeb)
+    return (AppConstants.appVersion < minimumVersion!)
         ? const UpdateScreen(isUpdate: true)
-        : Get.find<SplashController>().configModel!.maintenanceMode!
+        : Get.find<SplashController>().configModel.maintenanceMode!
         ? const UpdateScreen(isUpdate: false)
         : (AddressHelper.getUserAddressFromSharedPref() == null && !byPuss)
         ? AccessLocationScreen(

@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/helper/location_gate_helper.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
@@ -11,12 +12,10 @@ import 'package:waddy_app/common/widgets/custom_text_field.dart';
 import 'package:waddy_app/features/auth/widgets/zone_selection_widget.dart';
 import 'package:waddy_app/features/location/controllers/location_controller.dart';
 import 'package:waddy_app/features/location/domain/models/zone_data_model.dart';
-import 'package:waddy_app/features/location/widgets/permission_dialog_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/auth/controllers/store_registration_controller.dart';
 import 'package:waddy_app/features/auth/widgets/module_view_widget.dart';
 import 'package:waddy_app/features/location/widgets/location_search_dialog_widget.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/validate_check.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
@@ -59,8 +58,6 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
   Widget build(BuildContext context) {
     return GetBuilder<StoreRegistrationController>(
       builder: (storeRegController) {
-        bool isDesktop = ResponsiveHelper.isDesktop(context);
-
         List<int> zoneIndexList = [];
         List<DropdownItem<int>> zoneList = [];
         if (storeRegController.zoneList != null &&
@@ -76,7 +73,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                 value: index,
                 child: SizedBox(
                   child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
                     child: Text('${storeRegController.zoneList![index].name}'),
                   ),
                 ),
@@ -87,7 +84,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
 
         return Container(
           decoration:
-              widget.fromView && !isDesktop
+              widget.fromView
                   ? BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(
@@ -105,144 +102,126 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
           alignment: Alignment.center,
           height: widget.fromView ? null : context.height,
           padding:
-              widget.fromView && !isDesktop
+              widget.fromView
                   ? const EdgeInsets.symmetric(
                     horizontal: Dimensions.paddingSizeSmall,
                     vertical: Dimensions.paddingSizeDefault,
                   )
                   : EdgeInsets.zero,
           child: SizedBox(
-            width: Dimensions.webMaxWidth,
+            width: Dimensions.maxContentWidth,
             child: Padding(
               padding: EdgeInsets.all(widget.fromView ? 0 : 0),
               child: SingleChildScrollView(
-                child:
-                    isDesktop && widget.fromView
-                        ? webView(storeRegController, zoneList)
-                        : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: Dimensions.paddingSizeSmall),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
 
-                            widget.fromView
-                                ? ZoneSelectionWidget(
-                                  storeRegController: storeRegController,
-                                  zoneList: zoneList,
-                                  callBack: () {
-                                    _setPolygon(
-                                      storeRegController
-                                          .zoneList![storeRegController
-                                          .selectedZoneIndex!],
-                                    );
-                                  },
-                                )
-                                : const SizedBox(),
-                            widget.fromView
-                                ? const SizedBox(
-                                  height: Dimensions.paddingSizeExtraOverLarge,
-                                )
-                                : const SizedBox(),
+                    widget.fromView
+                        ? ZoneSelectionWidget(
+                          storeRegController: storeRegController,
+                          zoneList: zoneList,
+                          callBack: () {
+                            _setPolygon(
+                              storeRegController.zoneList![storeRegController
+                                  .selectedZoneIndex!],
+                            );
+                          },
+                        )
+                        : const SizedBox(),
+                    widget.fromView
+                        ? const SizedBox(
+                          height: Dimensions.paddingSizeExtraOverLarge,
+                        )
+                        : const SizedBox(),
 
-                            widget.fromView
-                                ? const ModuleViewWidget()
-                                : const SizedBox(),
-                            widget.fromView
-                                ? const SizedBox(
-                                  height: Dimensions.paddingSizeExtremeLarge,
-                                )
-                                : const SizedBox(),
+                    widget.fromView
+                        ? const ModuleViewWidget()
+                        : const SizedBox(),
+                    widget.fromView
+                        ? const SizedBox(
+                          height: Dimensions.paddingSizeExtremeLarge,
+                        )
+                        : const SizedBox(),
 
-                            mapView(storeRegController),
-                            SizedBox(
-                              height:
-                                  !widget.fromView
-                                      ? Dimensions.paddingSizeSmall
-                                      : 0,
-                            ),
+                    mapView(storeRegController),
+                    SizedBox(
+                      height:
+                          !widget.fromView ? Dimensions.paddingSizeSmall : 0,
+                    ),
 
-                            !widget.fromView && !widget.inDialog
-                                ? CustomButton(
-                                  buttonText: 'set_location'.tr,
-                                  onPressed: () {
-                                    try {
-                                      widget.mapController!.moveCamera(
-                                        CameraUpdate.newCameraPosition(
-                                          _cameraPosition,
-                                        ),
-                                      );
-                                      Get.back();
-                                    } catch (_) {
-                                      Get.back();
-                                    }
-                                  },
-                                )
-                                : const SizedBox(),
+                    !widget.fromView && !widget.inDialog
+                        ? CustomButton(
+                          buttonText: 'set_location'.tr,
+                          onPressed: () {
+                            try {
+                              widget.mapController!.moveCamera(
+                                CameraUpdate.newCameraPosition(_cameraPosition),
+                              );
+                              Get.back();
+                            } catch (_) {
+                              Get.back();
+                            }
+                          },
+                        )
+                        : const SizedBox(),
 
-                            !storeRegController.inZone
-                                ? Padding(
-                                  padding: const EdgeInsets.only(top: 5.0),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        '* ',
-                                        style: robotoBold.copyWith(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                      Text(
-                                        'please_place_the_marker_inside_the_zone'
-                                            .tr,
-                                        style: robotoRegular.copyWith(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.error,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                : const SizedBox(),
+                    !storeRegController.inZone
+                        ? Padding(
+                          padding: const EdgeInsets.only(
+                            top: Dimensions.paddingSizeExtraSmall,
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                '* ',
+                                style: waddyBold.copyWith(color: Colors.red),
+                              ),
+                              Text(
+                                'please_place_the_marker_inside_the_zone'.tr,
+                                style: waddyRegular.copyWith(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : const SizedBox(),
 
-                            !isDesktop
-                                ? SizedBox(
-                                  height:
-                                      !widget.fromView
-                                          ? Dimensions.paddingSizeSmall
-                                          : 0,
-                                )
-                                : const SizedBox(),
+                    SizedBox(
+                      height:
+                          !widget.fromView ? Dimensions.paddingSizeSmall : 0,
+                    ),
 
-                            SizedBox(
-                              height:
-                                  widget.fromView
-                                      ? Dimensions.paddingSizeExtremeLarge
-                                      : 0,
-                            ),
+                    SizedBox(
+                      height:
+                          widget.fromView
+                              ? Dimensions.paddingSizeExtremeLarge
+                              : 0,
+                    ),
 
-                            widget.fromView && !isDesktop
-                                ? CustomTextField(
-                                  titleText: 'write_store_address'.tr,
-                                  labelText: 'address'.tr,
-                                  controller: widget.addressController,
-                                  focusNode: widget.addressFocus,
-                                  inputAction: TextInputAction.done,
-                                  inputType: TextInputType.text,
-                                  capitalization: TextCapitalization.sentences,
-                                  maxLines: 3,
-                                  showTitle: isDesktop,
-                                  required: true,
-                                  validator:
-                                      (value) =>
-                                          ValidateCheck.validateEmptyText(
-                                            value,
-                                            "store_address_field_is_required"
-                                                .tr,
-                                          ),
-                                )
-                                : const SizedBox(),
-                          ],
-                        ),
+                    widget.fromView
+                        ? CustomTextField(
+                          titleText: 'write_store_address'.tr,
+                          labelText: 'address'.tr,
+                          controller: widget.addressController,
+                          focusNode: widget.addressFocus,
+                          inputAction: TextInputAction.done,
+                          inputType: TextInputType.text,
+                          capitalization: TextCapitalization.sentences,
+                          maxLines: 3,
+                          showTitle: false,
+                          required: true,
+                          validator:
+                              (value) => ValidateCheck.validateEmptyText(
+                                value,
+                                "store_address_field_is_required".tr,
+                              ),
+                        )
+                        : const SizedBox(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -291,14 +270,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
     return storeRegController.zoneList!.isNotEmpty
         ? Center(
           child: Container(
-            height:
-                ResponsiveHelper.isDesktop(context)
-                    ? widget.fromView
-                        ? 190
-                        : MediaQuery.of(context).size.height * 0.8
-                    : widget.fromView
-                    ? 150
-                    : (context.height * 0.87),
+            height: widget.fromView ? 150 : (context.height * 0.87),
             width:
                 widget.inDialog
                     ? MediaQuery.of(context).size.width * 0.7
@@ -325,16 +297,16 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                       target: LatLng(
                         double.parse(
                           Get.find<SplashController>()
-                                  .configModel!
-                                  .defaultLocation!
-                                  .lat ??
+                                  .configModel
+                                  .defaultLocation
+                                  ?.lat ??
                               '0',
                         ),
                         double.parse(
                           Get.find<SplashController>()
-                                  .configModel!
-                                  .defaultLocation!
-                                  .lng ??
+                                  .configModel
+                                  .defaultLocation
+                                  ?.lng ??
                               '0',
                         ),
                       ),
@@ -451,11 +423,13 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                             ),
                           ],
                         ),
-                        padding: const EdgeInsets.only(left: 10),
+                        padding: const EdgeInsets.only(
+                          left: Dimensions.paddingSizeSmall,
+                        ),
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'search'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             color: Theme.of(context).hintColor,
                           ),
                         ),
@@ -483,32 +457,17 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                             if (storeRegController.selectedZoneIndex == -1) {
                               showCustomSnackBar('please_select_zone'.tr);
                             } else {
-                              if (ResponsiveHelper.isDesktop(context)) {
-                                showGeneralDialog(
-                                  context: context,
-                                  pageBuilder: (_, __, ___) {
-                                    return Center(
-                                      child: SelectLocationViewWidget(
-                                        fromView: false,
-                                        mapController: _mapController,
-                                        inDialog: true,
-                                      ),
-                                    );
-                                  },
-                                );
-                              } else {
-                                Get.to(
-                                  Scaffold(
-                                    appBar: CustomAppBar(
-                                      title: 'set_your_store_location'.tr,
-                                    ),
-                                    body: SelectLocationViewWidget(
-                                      fromView: false,
-                                      mapController: _mapController,
-                                    ),
+                              Get.to(
+                                Scaffold(
+                                  appBar: CustomAppBar(
+                                    title: 'set_your_store_location'.tr,
                                   ),
-                                );
-                              }
+                                  body: SelectLocationViewWidget(
+                                    fromView: false,
+                                    mapController: _mapController,
+                                  ),
+                                ),
+                              );
                             }
                           },
                           child: Container(
@@ -536,7 +495,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                     right: 0,
                     child: InkWell(
                       onTap:
-                          () => _checkPermission(() {
+                          () => LocationGate.ensureForAction(() {
                             Get.find<LocationController>().getCurrentLocation(
                               false,
                               mapController: _mapController,
@@ -628,7 +587,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
                       ? Positioned(
                         left: 20,
                         right: 20,
-                        bottom: ResponsiveHelper.isDesktop(context) ? 40 : 20,
+                        bottom: 20,
                         child: CustomButton(
                           buttonText:
                               storeRegController.inZone
@@ -687,7 +646,7 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLngBounds(
           boundsFromLatLngList(zoneLatLongList),
-          ResponsiveHelper.isDesktop(Get.context) ? 30 : 100.5,
+          100.5,
         ),
       );
     });
@@ -712,19 +671,5 @@ class _SelectLocationViewWidgetState extends State<SelectLocationViewWidget> {
       northeast: LatLng(x1 ?? 0, y1 ?? 0),
       southwest: LatLng(x0 ?? 0, y0 ?? 0),
     );
-  }
-
-  void _checkPermission(Function onTap) async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied) {
-      showCustomSnackBar('you_have_to_allow'.tr);
-    } else if (permission == LocationPermission.deniedForever) {
-      Get.dialog(const PermissionDialogWidget());
-    } else {
-      onTap();
-    }
   }
 }

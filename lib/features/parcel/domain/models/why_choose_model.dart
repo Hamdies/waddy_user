@@ -1,14 +1,9 @@
-
 class WhyChooseModel {
   String? whyChooseUrl;
   String? whyChooses3Url;
   List<Banners>? banners;
 
-  WhyChooseModel({
-    this.whyChooseUrl,
-    this.whyChooses3Url,
-    this.banners,
-  });
+  WhyChooseModel({this.whyChooseUrl, this.whyChooses3Url, this.banners});
 
   WhyChooseModel.fromJson(Map<String, dynamic> json) {
     whyChooseUrl = json['why_choose_url'];

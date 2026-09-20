@@ -12,14 +12,22 @@ class HtmlRepository implements HtmlRepositoryInterface {
   @override
   Future<Response> getHtmlText(HtmlType htmlType) async {
     return await apiClient.getData(
-      htmlType == HtmlType.termsAndCondition ? AppConstants.termsAndConditionUri
-          : htmlType == HtmlType.privacyPolicy ? AppConstants.privacyPolicyUri : htmlType == HtmlType.aboutUs
-          ? AppConstants.aboutUsUri : htmlType == HtmlType.shippingPolicy ? AppConstants.shippingPolicyUri
-          : htmlType == HtmlType.cancellation ? AppConstants.cancellationUri : AppConstants.refundUri,
+      htmlType == HtmlType.termsAndCondition
+          ? AppConstants.termsAndConditionUri
+          : htmlType == HtmlType.privacyPolicy
+          ? AppConstants.privacyPolicyUri
+          : htmlType == HtmlType.aboutUs
+          ? AppConstants.aboutUsUri
+          : htmlType == HtmlType.shippingPolicy
+          ? AppConstants.shippingPolicyUri
+          : htmlType == HtmlType.cancellation
+          ? AppConstants.cancellationUri
+          : AppConstants.refundUri,
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
         'Accept': 'application/json',
-        AppConstants.localizationKey: Get.find<LocalizationController>().locale.languageCode,
+        AppConstants.localizationKey:
+            Get.find<LocalizationController>().locale.languageCode,
       },
     );
   }
@@ -48,5 +56,4 @@ class HtmlRepository implements HtmlRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

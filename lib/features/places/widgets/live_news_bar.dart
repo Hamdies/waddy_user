@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/common/widgets/spots/spots_l10n.dart';
+import 'package:waddy_app/common/widgets/spots/spots_marquee.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -59,8 +60,14 @@ class _LiveNewsBarState extends State<LiveNewsBar>
     final standings = c.liveStandings;
     // While the board is warming up, a marquee of "X — 1 VOTE" reads as empty;
     // skip the thin per-place counts and lead with an invitation instead.
-    final totalVotes = standings.fold<int>(0, (sum, p) => sum + p.votesCount);
-    final warmingUp = totalVotes < 5;
+    //
+    // This used to be a local `totalVotes < 5`, sitting beside
+    // `SpotsStage.warmThreshold = 5` on the controller — two copies of one
+    // threshold that agreed by coincidence, on exactly the value the enum was
+    // written to centralise. The ticker and the hero could still reach
+    // opposite conclusions about one board the moment either number moved.
+    // See `S-03`.
+    final warmingUp = c.stage.isCold;
 
     if (warmingUp) {
       lines.add(displayCaps('spots_ticker_warming_up'.tr));
@@ -105,7 +112,22 @@ class _LiveNewsBarState extends State<LiveNewsBar>
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<PlacesController>();
+    // Subscribed, not just read. This used to be a bare
+    // `Get.find<PlacesController>()` with no builder around it, so the ticker
+    // repainted only when its *parent* did — the podium's
+    // `GetBuilder(id: idTopVoters)`. It rendered standings and ▲/▼ movement
+    // and updated when the voters list changed instead. It was correct by
+    // accident: `refreshRankDeltas`, whose whole job is recomputing the
+    // movement shown here, happens to notify `idTopVoters` alongside
+    // `idLeaderboard`. Drop that and the arrows freeze silently. This is
+    // standings data, so it says so. See `S-07`.
+    return GetBuilder<PlacesController>(
+      id: PlacesController.idLeaderboard,
+      builder: (c) => _buildBar(context, c),
+    );
+  }
+
+  Widget _buildBar(BuildContext context, PlacesController c) {
     final lines = _lines(c);
     final run = lines.join('   •   ');
     final reduce = MediaQuery.of(context).disableAnimations;
@@ -171,141 +193,13 @@ class _LiveNewsBarState extends State<LiveNewsBar>
                       overflow: TextOverflow.ellipsis,
                       style: textStyle,
                     )
-                    : _Marquee(
+                    : SpotsMarquee(
                       controller: _marquee,
                       text: run,
                       style: textStyle,
                     ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Seamlessly-looping text marquee. Measures the run once per text/style/scale
-/// change with a [TextPainter], lays out two copies inside an [OverflowBox] so
-/// it never overflows its slot, and slides in the reading direction by
-/// `t * (width + gap)` so the second copy takes over exactly as the first exits.
-class _Marquee extends StatefulWidget {
-  final AnimationController controller;
-  final String text;
-  final TextStyle style;
-
-  const _Marquee({
-    required this.controller,
-    required this.text,
-    required this.style,
-  });
-
-  @override
-  State<_Marquee> createState() => _MarqueeState();
-}
-
-class _MarqueeState extends State<_Marquee> {
-  static const double _gap = 40;
-  double _width = 0;
-  double _height = 16;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _measure();
-  }
-
-  @override
-  void didUpdateWidget(_Marquee oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.text != widget.text || oldWidget.style != widget.style) {
-      _measure();
-    }
-  }
-
-  void _measure() {
-    final tp = TextPainter(
-      text: TextSpan(text: widget.text, style: widget.style),
-      maxLines: 1,
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-    )..layout();
-    _width = tp.width;
-    _height = tp.height;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    final label = Text(
-      widget.text,
-      maxLines: 1,
-      softWrap: false,
-      style: widget.style,
-    );
-
-    // A run that already fits its slot must not scroll. Two copies separated by
-    // `_gap` are laid out unconditionally, so on a short run (one warming-up
-    // line, say) the second copy is inside the visible slot from the first
-    // frame — it reads as text bleeding under the LIVE pill, not as motion.
-    // Motion here is meant to carry overflow; with nothing to overflow there is
-    // nothing for it to carry.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_width <= constraints.maxWidth) {
-          return Text(
-            widget.text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: widget.style,
-          );
-        }
-        return _buildMarquee(rtl, label);
-      },
-    );
-  }
-
-  Widget _buildMarquee(bool rtl, Widget label) {
-
-    // A marquee cut dead-flat at the panel edge reads as a text-overflow bug,
-    // not as motion. Fading the trailing edge (leading too, in RTL) makes the
-    // run visibly *pass through* the slot instead of being sliced by it.
-    return ShaderMask(
-      shaderCallback:
-          (rect) => LinearGradient(
-            begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
-            end: rtl ? Alignment.centerLeft : Alignment.centerRight,
-            stops: const [0.0, 0.04, 0.88, 1.0],
-            colors: const [
-              Colors.transparent,
-              Colors.white,
-              Colors.white,
-              Colors.transparent,
-            ],
-          ).createShader(rect),
-      blendMode: BlendMode.dstIn,
-      child: ClipRect(
-        child: SizedBox(
-          height: _height,
-          child: OverflowBox(
-            alignment: AlignmentDirectional.centerStart,
-            maxWidth: double.infinity,
-            child: AnimatedBuilder(
-              animation: widget.controller,
-              builder:
-                  (context, _) => Transform.translate(
-                    offset: Offset(
-                      (rtl ? 1 : -1) *
-                          widget.controller.value *
-                          (_width + _gap),
-                      0,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [label, const SizedBox(width: _gap), label],
-                    ),
-                  ),
-            ),
-          ),
-        ),
       ),
     );
   }

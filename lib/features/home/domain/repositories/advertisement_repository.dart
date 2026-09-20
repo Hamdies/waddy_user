@@ -14,32 +14,50 @@ class AdvertisementRepository implements AdvertisementRepositoryInterface {
   AdvertisementRepository({required this.apiClient});
 
   @override
-  Future<List<AdvertisementModel>?> getList({int? offset, DataSourceEnum source = DataSourceEnum.client}) async {
+  Future<List<AdvertisementModel>?> getList({
+    int? offset,
+    DataSourceEnum source = DataSourceEnum.client,
+  }) async {
     List<AdvertisementModel>? advertisementList;
-    String cacheId = '${AppConstants.advertisementListUri}-${Get.find<SplashController>().module?.id??0}';
+    String cacheId =
+        '${AppConstants.advertisementListUri}-${Get.find<SplashController>().module?.id ?? 0}';
 
-    switch(source) {
+    switch (source) {
       case DataSourceEnum.client:
-        Response response = await apiClient.getData(AppConstants.advertisementListUri);
-        if(response.statusCode == 200) {
+        Response response = await apiClient.getData(
+          AppConstants.advertisementListUri,
+        );
+        if (response.statusCode == 200) {
           advertisementList = [];
           response.body.forEach((data) {
             advertisementList?.add(AdvertisementModel.fromJson(data));
           });
-          LocalClient.organize(source, cacheId, jsonEncode(response.body), apiClient.getHeader());
+          LocalClient.organize(
+            source,
+            cacheId,
+            jsonEncode(response.body),
+            apiClient.getHeader(),
+          );
         }
 
       case DataSourceEnum.local:
-        String? cacheResponseData = await LocalClient.organize(source, cacheId, null, null);
-        if(cacheResponseData != null) {
+        String? cacheResponseData = await LocalClient.organize(
+          source,
+          cacheId,
+          null,
+          null,
+        );
+        if (cacheResponseData != null) {
           advertisementList = [];
           jsonDecode(cacheResponseData).forEach((data) {
             advertisementList?.add(AdvertisementModel.fromJson(data));
           });
         }
     }
-    Response response = await apiClient.getData(AppConstants.advertisementListUri);
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      AppConstants.advertisementListUri,
+    );
+    if (response.statusCode == 200) {
       advertisementList = [];
       response.body.forEach((data) {
         advertisementList?.add(AdvertisementModel.fromJson(data));
@@ -67,5 +85,4 @@ class AdvertisementRepository implements AdvertisementRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-
 }

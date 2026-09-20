@@ -1,6 +1,5 @@
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/common/widgets/custom_app_bar.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
@@ -9,7 +8,6 @@ import 'package:waddy_app/common/widgets/no_data_screen.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/common/widgets/web_page_title_widget.dart';
 import 'package:waddy_app/features/coupon/widgets/coupon_card_widget.dart';
 
 class CouponScreen extends StatefulWidget {
@@ -57,34 +55,19 @@ class _CouponScreenState extends State<CouponScreen> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               child: Column(
                                 children: [
-                                  WebScreenTitleWidget(title: 'coupon'.tr),
                                   Center(
                                     child: FooterView(
                                       child: SizedBox(
-                                        width: Dimensions.webMaxWidth,
+                                        width: Dimensions.maxContentWidth,
                                         child: GridView.builder(
                                           gridDelegate:
                                               SliverGridDelegateWithFixedCrossAxisCount(
-                                                crossAxisCount:
-                                                    ResponsiveHelper.isDesktop(
-                                                          context,
-                                                        )
-                                                        ? 3
-                                                        : ResponsiveHelper.isTab(
-                                                          context,
-                                                        )
-                                                        ? 2
-                                                        : 1,
+                                                crossAxisCount: 1,
                                                 mainAxisSpacing:
                                                     Dimensions.paddingSizeSmall,
                                                 crossAxisSpacing:
                                                     Dimensions.paddingSizeSmall,
-                                                childAspectRatio:
-                                                    ResponsiveHelper.isMobile(
-                                                          context,
-                                                        )
-                                                        ? 2.8
-                                                        : 2.8,
+                                                childAspectRatio: 2.8,
                                               ),
                                           itemCount:
                                               couponController

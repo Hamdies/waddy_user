@@ -5,7 +5,13 @@ class NotificationModel {
   String? updatedAt;
   String? imageFullUrl;
 
-  NotificationModel({this.id, this.data, this.createdAt, this.updatedAt, this.imageFullUrl});
+  NotificationModel({
+    this.id,
+    this.data,
+    this.createdAt,
+    this.updatedAt,
+    this.imageFullUrl,
+  });
 
   NotificationModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];

@@ -6,13 +6,14 @@ class ReviewBodyModel {
   List<String>? _fileUpload;
   String? _orderId;
 
-  ReviewBodyModel(
-      {String? productId,
-        String? deliveryManId,
-        String? comment,
-        String? rating,
-        String? orderId,
-        List<String>? fileUpload}) {
+  ReviewBodyModel({
+    String? productId,
+    String? deliveryManId,
+    String? comment,
+    String? rating,
+    String? orderId,
+    List<String>? fileUpload,
+  }) {
     _productId = productId;
     _deliveryManId = deliveryManId;
     _comment = comment;

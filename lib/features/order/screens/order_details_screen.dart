@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:waddy_app/util/swallow.dart';
 import 'dart:collection';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:photo_view/photo_view.dart';
@@ -14,19 +15,14 @@ import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/eta_calculator.dart';
 import 'package:waddy_app/helper/marker_animator.dart';
 import 'package:waddy_app/helper/marker_helper.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_dialog.dart';
-import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/features/checkout/widgets/offline_success_dialog.dart';
-import 'package:waddy_app/features/order/widgets/order_calcuation_widget.dart';
-import 'package:waddy_app/features/order/widgets/order_info_widget.dart';
 // order_steps_card, order_map_section, delivery_man_card removed from mobile layout
-import 'package:waddy_app/features/order/widgets/order_action_buttons.dart';
 import 'package:waddy_app/features/order/widgets/zomato/zomato_order_info_card.dart';
 import 'package:waddy_app/features/order/widgets/zomato/zomato_delivery_partner_card.dart';
 import 'package:waddy_app/theme/light_theme.dart';
@@ -369,7 +365,9 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
           return int.tryParse(dt.split('-')[0].trim());
         }
         return int.tryParse(dt.trim());
-      } catch (_) {}
+      } catch (e, s) {
+        swallow('parse store delivery time', e, s);
+      }
     }
     return null;
   }
@@ -654,42 +652,15 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                     child: SingleChildScrollView(
                       controller: scrollController,
                       physics: const BouncingScrollPhysics(),
-                      child:
-                          ResponsiveHelper.isDesktop(context)
-                              ? FooterView(
-                                child: SizedBox(
-                                  width: Dimensions.webMaxWidth,
-                                  child: _desktopLayout(
-                                    orderController,
-                                    order,
-                                    ongoing,
-                                    parcel,
-                                    prescriptionOrder,
-                                    showChatPermission,
-                                    deliveryCharge,
-                                    itemsPrice,
-                                    discount,
-                                    couponDiscount,
-                                    tax,
-                                    addOns,
-                                    dmTips,
-                                    taxIncluded,
-                                    subTotal,
-                                    total,
-                                    extraPackagingCharge,
-                                    referrerBonusAmount,
-                                  ),
-                                ),
-                              )
-                              : _buildMobileLayout(
-                                context,
-                                order,
-                                orderController,
-                                ongoing,
-                                showChatPermission,
-                                liveEtaMinutes,
-                                prepMinutes,
-                              ),
+                      child: _buildMobileLayout(
+                        context,
+                        order,
+                        orderController,
+                        ongoing,
+                        showChatPermission,
+                        liveEtaMinutes,
+                        prepMinutes,
+                      ),
                     ),
                   ),
                 ],
@@ -842,90 +813,6 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   }
 
   // ─── Desktop Layout ───────────────────────────────────────────────────
-  Widget _desktopLayout(
-    OrderController orderController,
-    OrderModel order,
-    bool ongoing,
-    bool parcel,
-    bool prescriptionOrder,
-    bool showChatPermission,
-    double deliveryCharge,
-    double itemsPrice,
-    double discount,
-    double couponDiscount,
-    double tax,
-    double addOns,
-    double dmTips,
-    bool taxIncluded,
-    double subTotal,
-    double total,
-    double extraPackagingCharge,
-    double referrerBonusAmount,
-  ) {
-    return Column(
-      children: [
-        Container(
-          height: 64,
-          color: Theme.of(context).primaryColor.withValues(alpha: 0.10),
-          child: Center(child: Text('order_details'.tr, style: robotoMedium)),
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 6,
-              child: OrderInfoWidget(
-                order: order,
-                ongoing: ongoing,
-                parcel: parcel,
-                prescriptionOrder: prescriptionOrder,
-                timerCancel: () => _timer?.cancel(),
-                startApiCall: _startPolling,
-                orderController: orderController,
-                showChatPermission: showChatPermission,
-              ),
-            ),
-            const SizedBox(width: Dimensions.paddingSizeLarge),
-            Expanded(
-              flex: 4,
-              child: OrderCalculationWidget(
-                orderController: orderController,
-                order: order,
-                ongoing: ongoing,
-                parcel: parcel,
-                prescriptionOrder: prescriptionOrder,
-                deliveryCharge: deliveryCharge,
-                itemsPrice: itemsPrice,
-                discount: discount,
-                couponDiscount: couponDiscount,
-                tax: tax,
-                addOns: addOns,
-                dmTips: dmTips,
-                taxIncluded: taxIncluded,
-                subTotal: subTotal,
-                total: total,
-                bottomView: OrderActionButtons(
-                  orderController: orderController,
-                  order: order,
-                  parcel: parcel,
-                  totalPrice: total,
-                  contactNumber: widget.contactNumber,
-                  isCashOnDeliveryActive: _isCashOnDeliveryActive ?? false,
-                  maxCodOrderAmount: _maxCodOrderAmount,
-                  onTimerCancel: () => _timer?.cancel(),
-                  onStartTracking: _startPolling,
-                ),
-                extraPackagingAmount: extraPackagingCharge,
-                referrerBonusAmount: referrerBonusAmount,
-                timerCancel: () => _timer?.cancel(),
-                startApiCall: _startPolling,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   void openDialog(BuildContext context, String imageUrl) => showDialog(
     context: context,
@@ -981,9 +868,9 @@ class _AppBar extends StatelessWidget {
           // ── Back button ─────────────────────────────────────────────
           Material(
             color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             child: InkWell(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
               splashColor: Colors.white.withValues(alpha: 0.14),
               highlightColor: Colors.white.withValues(alpha: 0.08),
               onTap: onBack,
@@ -1241,7 +1128,9 @@ class _PrePickupHero extends StatelessWidget {
           final hi = eta.add(const Duration(minutes: 5));
           return '${ETAResult.fmtTime(lo)} \u2013 ${ETAResult.fmtTime(hi)}';
         }
-      } catch (_) {}
+      } catch (e, s) {
+        swallow('format ETA window', e, s);
+      }
     }
 
     final minutes = liveEtaMinutes ?? prepMinutes;
@@ -1334,10 +1223,13 @@ class _StatusPill extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         border: Border.all(color: borderColor),
       ),
       child: Row(
@@ -1449,12 +1341,17 @@ class _MapHero extends StatelessWidget {
             top: 12,
             left: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeMedium,
+                vertical: 9,
+              ),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [WaddyColors.primary, Color(0xFF1D706A)],
                 ),
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.radiusExtraLarge,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: WaddyColors.primary.withValues(alpha: 0.40),
@@ -1491,10 +1388,13 @@ class _MapHero extends StatelessWidget {
             bottom: 12,
             right: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeMedium,
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               decoration: BoxDecoration(
                 color: WaddyColors.surface,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 border: Border.all(color: WaddyColors.divider),
                 boxShadow: [
                   BoxShadow(
@@ -1698,7 +1598,7 @@ class _EtaShimmerDarkState extends State<_EtaShimmerDark>
             width: 220,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
             ),
           ),
           const SizedBox(height: 6),
@@ -1707,7 +1607,7 @@ class _EtaShimmerDarkState extends State<_EtaShimmerDark>
             width: 140,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
             ),
           ),
         ],
@@ -1791,7 +1691,9 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                   height: 38,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1804,7 +1706,9 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                       width: 140,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusSmall,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -1813,7 +1717,9 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                       width: 78,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(5),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusExtraSmall,
+                        ),
                       ),
                     ),
                   ],
@@ -1834,7 +1740,7 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                   width: 180,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1843,7 +1749,7 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                   width: 232,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                 ),
                 const Spacer(),
@@ -1852,7 +1758,7 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                   width: 130,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                   ),
                 ),
               ],
@@ -1873,10 +1779,12 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
               children: [
                 // Order card skeleton
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                   decoration: BoxDecoration(
                     color: WaddyColors.surface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.06),
@@ -1895,7 +1803,9 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                             height: 54,
                             decoration: BoxDecoration(
                               color: WaddyColors.divider,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -1921,10 +1831,12 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
                 const SizedBox(height: 12),
                 // Rider card skeleton
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
                   decoration: BoxDecoration(
                     color: WaddyColors.surface,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.06),
@@ -2089,7 +2001,7 @@ class _EtaShimmerState extends State<_EtaShimmer>
               height: 16,
               decoration: BoxDecoration(
                 color: WaddyColors.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
               ),
             ),
             const SizedBox(height: 8),
@@ -2098,7 +2010,7 @@ class _EtaShimmerState extends State<_EtaShimmer>
               height: 12,
               decoration: BoxDecoration(
                 color: WaddyColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
               ),
             ),
           ],

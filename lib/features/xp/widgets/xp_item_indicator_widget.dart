@@ -11,7 +11,7 @@ import 'package:waddy_app/util/styles.dart';
 class XpItemIndicatorWidget extends StatelessWidget {
   final double itemPrice;
   final int quantity;
-  
+
   const XpItemIndicatorWidget({
     super.key,
     required this.itemPrice,
@@ -26,6 +26,7 @@ class XpItemIndicatorWidget extends StatelessWidget {
     }
 
     return GetBuilder<XpController>(
+      id: XpController.idConfig,
       builder: (xpController) {
         // Fetch config if not loaded
         if (xpController.xpConfig == null && !xpController.isXpConfigLoading) {
@@ -34,16 +35,20 @@ class XpItemIndicatorWidget extends StatelessWidget {
           });
           return const SizedBox.shrink();
         }
-        
-        if (xpController.xpConfig == null || !xpController.xpConfig!.levelingEnabled) {
+
+        if (xpController.xpConfig == null ||
+            !xpController.xpConfig!.levelingEnabled) {
           return const SizedBox.shrink();
         }
 
         final splashController = Get.find<SplashController>();
         final moduleType = splashController.module?.moduleType;
         final totalPrice = itemPrice * quantity;
-        final estimatedXp = xpController.calculateEstimatedXp(totalPrice, moduleType);
-        
+        final estimatedXp = xpController.calculateEstimatedXp(
+          totalPrice,
+          moduleType,
+        );
+
         if (estimatedXp <= 0) {
           return const SizedBox.shrink();
         }
@@ -75,7 +80,7 @@ class XpItemIndicatorWidget extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '+$estimatedXp XP',
-                style: robotoBold.copyWith(
+                style: waddyBold.copyWith(
                   fontSize: Dimensions.fontSizeSmall,
                   color: const Color(0xFF1EF2A0),
                 ),

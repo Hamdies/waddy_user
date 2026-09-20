@@ -19,7 +19,10 @@ class PackageCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: Dimensions.paddingSizeSmall,
+      ),
       child: Stack(
         children: [
           Builder(
@@ -73,7 +76,7 @@ class PackageCardWidget extends StatelessWidget {
                 Text(
                   '${packages.packageName}',
                   textAlign: TextAlign.center,
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: Dimensions.fontSizeLarge,
                     color:
                         canSelect
@@ -85,7 +88,7 @@ class PackageCardWidget extends StatelessWidget {
 
                 Text(
                   PriceConverter.convertPrice(packages.price),
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: 35,
                     color:
                         canSelect
@@ -98,7 +101,7 @@ class PackageCardWidget extends StatelessWidget {
                   '${packages.validity}'
                           'days'
                       .tr,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
                     color:
                         canSelect

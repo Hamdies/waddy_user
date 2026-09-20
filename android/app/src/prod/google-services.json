@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "345656646156",
+    "project_id": "waddi-51062",
+    "storage_bucket": "waddi-51062.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:345656646156:android:f17568099ff49a73b72c29",
+        "android_client_info": {
+          "package_name": "com.hamdiesolutions.waddi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRcROEiqQ0P8X0kqlTO1RmINlK9derFpA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

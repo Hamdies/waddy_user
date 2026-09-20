@@ -22,7 +22,7 @@ class ProfileRepository implements ProfileRepositoryInterface {
     return userInfoModel;
   }
 
-/*  @override
+  /*  @override
   Future<ResponseModel> updateProfile(UserInfoModel userInfoModel, XFile? data, String token) async {
     ResponseModel responseModel;
     Map<String, String> body = {
@@ -41,22 +41,41 @@ class ProfileRepository implements ProfileRepositoryInterface {
   }*/
 
   @override
-  Future<ResponseModel> updateProfile(UpdateUserModel userInfoModel, XFile? data, String token) async {
+  Future<ResponseModel> updateProfile(
+    UpdateUserModel userInfoModel,
+    XFile? data,
+    String token,
+  ) async {
     ResponseModel responseModel;
-    Response response = await apiClient.postMultipartData(AppConstants.updateProfileUri, userInfoModel.toJson(), [MultipartBody('image', data)], handleError: false);
+    Response response = await apiClient.postMultipartData(
+      AppConstants.updateProfileUri,
+      userInfoModel.toJson(),
+      [MultipartBody('image', data)],
+      handleError: false,
+    );
     if (response.statusCode == 200) {
-      responseModel = ResponseModel(true, response.body['message'],
-        updateProfileResponseModel: response.body['verification_on'] != null ? UpdateProfileResponseModel.fromJson(response.body) : null,
+      responseModel = ResponseModel(
+        true,
+        response.body['message'],
+        updateProfileResponseModel:
+            response.body['verification_on'] != null
+                ? UpdateProfileResponseModel.fromJson(response.body)
+                : null,
       );
     } else {
-      responseModel = ResponseModel(false, response.statusText,
-        updateProfileResponseModel: response.body['verification_on'] != null ? UpdateProfileResponseModel.fromJson(response.body) : null,
+      responseModel = ResponseModel(
+        false,
+        response.statusText,
+        updateProfileResponseModel:
+            response.body['verification_on'] != null
+                ? UpdateProfileResponseModel.fromJson(response.body)
+                : null,
       );
     }
     return responseModel;
   }
 
-/*  @override
+  /*  @override
   Future<ResponseModel> changePassword(UserInfoModel userInfoModel) async {
     ResponseModel responseModel;
     Map<String, dynamic> body = {
@@ -82,9 +101,13 @@ class ProfileRepository implements ProfileRepositoryInterface {
       'email': userInfoModel.email,
       'password': userInfoModel.password,
       'phone': userInfoModel.phone,
-      'button_type': 'change_password'
+      'button_type': 'change_password',
     };
-    Response response = await apiClient.postData(AppConstants.updateProfileUri, data, handleError: false);
+    Response response = await apiClient.postData(
+      AppConstants.updateProfileUri,
+      data,
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       String? message = response.body["message"];
       responseModel = ResponseModel(true, message);
@@ -94,7 +117,7 @@ class ProfileRepository implements ProfileRepositoryInterface {
     return responseModel;
   }
 
-/*  @override
+  /*  @override
   Future<ResponseModel> delete(int? id) async {
     ResponseModel responseModel;
     Response response = await apiClient.deleteData(AppConstants.customerRemoveUri, handleError: false);
@@ -108,7 +131,9 @@ class ProfileRepository implements ProfileRepositoryInterface {
 
   @override
   Future<Response> delete(int? id) async {
-    return await apiClient.postData(AppConstants.customerRemoveUri, {"_method": "delete"});
+    return await apiClient.postData(AppConstants.customerRemoveUri, {
+      "_method": "delete",
+    });
   }
 
   @override
@@ -125,5 +150,4 @@ class ProfileRepository implements ProfileRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-  
 }

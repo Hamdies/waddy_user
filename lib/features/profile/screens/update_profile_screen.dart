@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:waddy_app/util/swallow.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -6,14 +7,12 @@ import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_text_field.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
-import 'package:waddy_app/common/widgets/web_menu_bar.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/profile/domain/models/update_user_model.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/custom_validator.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/validate_check.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
@@ -58,7 +57,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         authController.getUserCountryCode().isNotEmpty
             ? authController.getUserCountryCode()
             : CountryCode.fromCountryCode(
-              Get.find<SplashController>().configModel!.country!,
+              Get.find<SplashController>().configModel.country!,
             ).dialCode;
 
     if (Get.find<AuthController>().isLoggedIn() &&
@@ -87,7 +86,9 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         '',
       );
       _countryDialCode = '+${phoneNumber.countryCode}';
-    } catch (_) {}
+    } catch (e, s) {
+      swallow('split stored phone into country code', e, s);
+    }
     setState(() {
       _isPhoneLoading = false;
     });
@@ -101,7 +102,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     final accentColor = theme.colorScheme.secondary;
 
     return Scaffold(
-      appBar: ResponsiveHelper.isDesktop(context) ? const WebMenuBar() : null,
+      appBar: null,
       endDrawer: const MenuDrawer(),
       endDrawerEnableOpenDragGesture: false,
       backgroundColor: theme.colorScheme.background,
@@ -131,9 +132,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
           return isLoggedIn
               ? profileController.userInfoModel != null
-                  ? ResponsiveHelper.isDesktop(context)
-                      ? webView(profileController, isLoggedIn)
-                      : _mobileView(profileController, primaryColor, accentColor)
+                  ? _mobileView(profileController, primaryColor, accentColor)
                   : Center(
                     child: CircularProgressIndicator(
                       color: accentColor,
@@ -164,14 +163,17 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
           children: [
             // Top bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               child: Row(
                 children: [
                   _backButton(primaryColor, accentColor),
                   const Spacer(),
                   Text(
                     'edit_profile'.tr,
-                    style: robotoBold.copyWith(fontSize: 18, color: accentColor),
+                    style: waddyBold.copyWith(fontSize: 18, color: accentColor),
                   ),
                   const Spacer(),
                   const SizedBox(width: 40),
@@ -192,16 +194,25 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 ),
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeDefault,
+                  ),
                   child: Column(
                     children: [
                       const SizedBox(height: 24),
-                      _buildAvatar(profileController, primaryColor, accentColor),
+                      _buildAvatar(
+                        profileController,
+                        primaryColor,
+                        accentColor,
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         '${profileController.userInfoModel?.fName ?? ''} ${profileController.userInfoModel?.lName ?? ''}'
                             .trim(),
-                        style: robotoBold.copyWith(fontSize: 16, color: primaryColor),
+                        style: waddyBold.copyWith(
+                          fontSize: 16,
+                          color: primaryColor,
+                        ),
                       ),
                       if (profileController.userInfoModel?.email != null &&
                           profileController.userInfoModel!.email!.isNotEmpty)
@@ -209,7 +220,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
                             profileController.userInfoModel!.email!,
-                            style: robotoRegular.copyWith(
+                            style: waddyRegular.copyWith(
                               fontSize: 12,
                               color: Colors.grey.shade500,
                             ),
@@ -218,11 +229,18 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       const SizedBox(height: 18),
                       // Form card
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault,
+                          vertical: 18,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: primaryColor.withOpacity(0.06)),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusLarge,
+                          ),
+                          border: Border.all(
+                            color: primaryColor.withOpacity(0.06),
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: primaryColor.withOpacity(0.04),
@@ -256,8 +274,12 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                               primaryColor: primaryColor,
                               accentColor: accentColor,
                               suffix:
-                                  profileController.userInfoModel!.isEmailVerified! &&
-                                          profileController.userInfoModel!.email ==
+                                  profileController
+                                              .userInfoModel!
+                                              .isEmailVerified! &&
+                                          profileController
+                                                  .userInfoModel!
+                                                  .email ==
                                               _emailController.text
                                       ? Container(
                                         padding: const EdgeInsets.all(2),
@@ -265,7 +287,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                           color: accentColor.withOpacity(0.15),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: Icon(Icons.check_rounded, color: primaryColor, size: 14),
+                                        child: Icon(
+                                          Icons.check_rounded,
+                                          color: primaryColor,
+                                          size: 14,
+                                        ),
                                       )
                                       : null,
                             ),
@@ -275,17 +301,30 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                               focusNode: _phoneFocus,
                               label: 'phone'.tr,
                               isEnabled:
-                                  !profileController.userInfoModel!.isPhoneVerified! ||
-                                  profileController.userInfoModel!.phone == null,
+                                  !profileController
+                                      .userInfoModel!
+                                      .isPhoneVerified! ||
+                                  profileController.userInfoModel!.phone ==
+                                      null,
                               countryDialCode:
                                   _countryDialCode ??
-                                  Get.find<LocalizationController>().locale.countryCode,
+                                  Get.find<LocalizationController>()
+                                      .locale
+                                      .countryCode,
                               onCountryChanged:
                                   (CountryCode countryCode) =>
                                       _countryDialCode = countryCode.dialCode,
                               primaryColor: primaryColor,
                               accentColor: accentColor,
-                              isVerified: profileController.userInfoModel!.isPhoneVerified!,
+                              isVerified:
+                                  profileController
+                                      .userInfoModel!
+                                      .isPhoneVerified!,
+                            ),
+                            const SizedBox(height: 14),
+                            _buildHidePhoneToggle(
+                              profileController: profileController,
+                              primaryColor: primaryColor,
                             ),
                           ],
                         ),
@@ -295,20 +334,28 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: profileController.isLoading
-                              ? null
-                              : () => _updateProfile(
-                                  profileController: profileController,
-                                  fromButton: true,
-                                  fromPhone: false,
-                                ),
-                          borderRadius: BorderRadius.circular(14),
+                          onTap:
+                              profileController.isLoading
+                                  ? null
+                                  : () => _updateProfile(
+                                    profileController: profileController,
+                                    fromButton: true,
+                                    fromPhone: false,
+                                  ),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusLarge,
+                          ),
                           child: Ink(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [primaryColor, primaryColor.withOpacity(0.85)],
+                                colors: [
+                                  primaryColor,
+                                  primaryColor.withOpacity(0.85),
+                                ],
                               ),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusLarge,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: primaryColor.withOpacity(0.25),
@@ -319,35 +366,40 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                             ),
                             child: Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: Dimensions.paddingSizeMedium,
+                              ),
                               child: Center(
-                                child: profileController.isLoading
-                                    ? SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: accentColor,
-                                        strokeWidth: 2.5,
-                                      ),
-                                    )
-                                    : Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        HugeIcon(
-                                          icon: HugeIcons.strokeRoundedCheckmarkCircle02,
-                                          color: accentColor,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'update'.tr,
-                                          style: robotoBold.copyWith(
-                                            fontSize: 15,
-                                            color: Colors.white,
+                                child:
+                                    profileController.isLoading
+                                        ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: accentColor,
+                                            strokeWidth: 2.5,
                                           ),
+                                        )
+                                        : Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            HugeIcon(
+                                              icon:
+                                                  HugeIcons
+                                                      .strokeRoundedCheckmarkCircle02,
+                                              color: accentColor,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'update'.tr,
+                                              style: waddyBold.copyWith(
+                                                fontSize: 15,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
                               ),
                             ),
                           ),
@@ -369,10 +421,10 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     return GestureDetector(
       onTap: () => Get.back(),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
         decoration: BoxDecoration(
           color: accentColor.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         ),
         child: const Icon(
           Icons.arrow_back_ios_new_rounded,
@@ -404,37 +456,33 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF134E4A), Color(0xFF1A7A6E)],
               ),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: profileController.pickedFile != null
-                  ? GetPlatform.isWeb
-                      ? Image.network(
-                        profileController.pickedFile!.path,
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.cover,
-                      )
-                      : Image.file(
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
+              child:
+                  profileController.pickedFile != null
+                      ? Image.file(
                         File(profileController.pickedFile!.path),
                         width: 90,
                         height: 90,
                         fit: BoxFit.cover,
                       )
-                  : FadeInImage.assetNetwork(
-                    placeholder: Images.placeholder,
-                    image: '${profileController.userInfoModel!.imageFullUrl}',
-                    height: 90,
-                    width: 90,
-                    fit: BoxFit.cover,
-                    imageErrorBuilder: (c, o, s) => Image.asset(
-                      Images.placeholder,
-                      height: 90,
-                      width: 90,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                      : FadeInImage.assetNetwork(
+                        placeholder: Images.placeholder,
+                        image:
+                            '${profileController.userInfoModel!.imageFullUrl}',
+                        height: 90,
+                        width: 90,
+                        fit: BoxFit.cover,
+                        imageErrorBuilder:
+                            (c, o, s) => Image.asset(
+                              Images.placeholder,
+                              height: 90,
+                              width: 90,
+                              fit: BoxFit.cover,
+                            ),
+                      ),
             ),
           ),
           // Camera badge
@@ -445,7 +493,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: accentColor,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 border: Border.all(color: Colors.white, width: 2),
               ),
               child: HugeIcon(
@@ -458,6 +506,116 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         ],
       ),
     );
+  }
+
+  /// Privacy setting relocated here from the old signup wizard: whether the
+  /// delivery partner sees the customer's real phone number.
+  Widget _buildHidePhoneToggle({
+    required ProfileController profileController,
+    required Color primaryColor,
+  }) {
+    final bool hidePhone = profileController.userInfoModel?.hidePhone ?? false;
+
+    return Row(
+      children: [
+        Icon(
+          Icons.visibility_off_outlined,
+          size: 20,
+          color: primaryColor.withOpacity(0.6),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'hide_phone_from_delivery_partner'.tr,
+            style: waddyRegular.copyWith(
+              fontSize: Dimensions.fontSizeSmall,
+              color: primaryColor,
+            ),
+          ),
+        ),
+        Switch(
+          value: hidePhone,
+          activeColor: primaryColor,
+          onChanged: (value) {
+            if (value) {
+              _showHidePhoneWarningDialog();
+            } else {
+              _setHidePhone(false);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showHidePhoneWarningDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+          ),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 28,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'important_notice'.tr,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'hide_phone_warning_message'.tr,
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.6),
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            CustomButton(
+              buttonText: 'cancel'.tr,
+              onPressed: () => Navigator.of(context).pop(),
+              transparent: true,
+              height: 40,
+              radius: 8,
+            ),
+            CustomButton(
+              buttonText: 'i_understand'.tr,
+              onPressed: () {
+                Navigator.of(context).pop();
+                _setHidePhone(true);
+              },
+              height: 40,
+              radius: 8,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _setHidePhone(bool hidePhone) async {
+    final response = await Get.find<AuthController>().toggleHidePhone(
+      hidePhone: hidePhone,
+    );
+    if (response.isSuccess) {
+      await Get.find<ProfileController>().getUserInfo();
+      if (mounted) setState(() {});
+    } else {
+      showCustomSnackBar(response.message);
+    }
   }
 
   Widget _buildField({
@@ -482,14 +640,20 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             const SizedBox(width: 5),
             Text(
               label,
-              style: robotoMedium.copyWith(fontSize: 12, color: primaryColor),
+              style: waddyMedium.copyWith(fontSize: 12, color: primaryColor),
             ),
             if (isRequired)
-              Text(' *', style: robotoMedium.copyWith(color: Colors.red, fontSize: 12)),
+              Text(
+                ' *',
+                style: waddyMedium.copyWith(color: Colors.red, fontSize: 12),
+              ),
             if (!isRequired)
               Text(
                 ' (${'optional'.tr})',
-                style: robotoRegular.copyWith(color: Colors.grey.shade400, fontSize: 10),
+                style: waddyRegular.copyWith(
+                  color: Colors.grey.shade400,
+                  fontSize: 10,
+                ),
               ),
           ],
         ),
@@ -497,26 +661,42 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         Container(
           decoration: BoxDecoration(
             color: primaryColor.withOpacity(0.03),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             border: Border.all(color: primaryColor.withOpacity(0.1)),
           ),
           child: TextField(
             controller: controller,
             focusNode: focusNode,
             keyboardType: keyboardType,
-            textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
+            textInputAction:
+                nextFocus != null ? TextInputAction.next : TextInputAction.done,
             onSubmitted: (_) => nextFocus?.requestFocus(),
-            style: robotoRegular.copyWith(fontSize: 14, color: primaryColor),
+            style: waddyRegular.copyWith(fontSize: 14, color: primaryColor),
             cursorColor: accentColor,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade400),
-              suffixIcon: suffix != null
-                  ? Padding(padding: const EdgeInsets.only(right: 10), child: suffix)
-                  : null,
-              suffixIconConstraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+              hintStyle: waddyRegular.copyWith(
+                fontSize: 13,
+                color: Colors.grey.shade400,
+              ),
+              suffixIcon:
+                  suffix != null
+                      ? Padding(
+                        padding: const EdgeInsets.only(
+                          right: Dimensions.paddingSizeSmall,
+                        ),
+                        child: suffix,
+                      )
+                      : null,
+              suffixIconConstraints: const BoxConstraints(
+                minWidth: 20,
+                minHeight: 20,
+              ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeMedium,
+                vertical: Dimensions.paddingSizeMedium,
+              ),
             ),
           ),
         ),
@@ -540,21 +720,36 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       children: [
         Row(
           children: [
-            HugeIcon(icon: HugeIcons.strokeRoundedSmartPhone01, color: primaryColor, size: 16),
+            HugeIcon(
+              icon: HugeIcons.strokeRoundedSmartPhone01,
+              color: primaryColor,
+              size: 16,
+            ),
             const SizedBox(width: 5),
-            Text(label, style: robotoMedium.copyWith(fontSize: 12, color: primaryColor)),
-            Text(' *', style: robotoMedium.copyWith(color: Colors.red, fontSize: 12)),
+            Text(
+              label,
+              style: waddyMedium.copyWith(fontSize: 12, color: primaryColor),
+            ),
+            Text(
+              ' *',
+              style: waddyMedium.copyWith(color: Colors.red, fontSize: 12),
+            ),
             if (!isEnabled)
               Container(
                 margin: const EdgeInsets.only(left: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: primaryColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusExtraSmall,
+                  ),
                 ),
                 child: Text(
                   'non_changeable'.tr,
-                  style: robotoRegular.copyWith(color: primaryColor.withOpacity(0.6), fontSize: 9),
+                  style: waddyRegular.copyWith(
+                    color: primaryColor.withOpacity(0.6),
+                    fontSize: 9,
+                  ),
                 ),
               ),
           ],
@@ -562,8 +757,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: isEnabled ? primaryColor.withOpacity(0.03) : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
+            color:
+                isEnabled
+                    ? primaryColor.withOpacity(0.03)
+                    : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             border: Border.all(color: primaryColor.withOpacity(0.1)),
           ),
           child: Row(
@@ -578,7 +776,10 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   showOnlyCountryWhenClosed: false,
                   alignLeft: false,
                   padding: EdgeInsets.zero,
-                  textStyle: robotoMedium.copyWith(fontSize: 13, color: primaryColor),
+                  textStyle: waddyMedium.copyWith(
+                    fontSize: 13,
+                    color: primaryColor,
+                  ),
                   flagWidth: 22,
                   enabled: isEnabled,
                 ),
@@ -595,28 +796,40 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   keyboardType: TextInputType.phone,
                   enabled: isEnabled,
                   cursorColor: accentColor,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: 14,
                     color: isEnabled ? primaryColor : Colors.grey,
                   ),
                   decoration: InputDecoration(
                     hintText: 'write_phone_number'.tr,
-                    hintStyle: robotoRegular.copyWith(fontSize: 13, color: Colors.grey.shade400),
+                    hintStyle: waddyRegular.copyWith(
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                    ),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeSmall,
+                      vertical: Dimensions.paddingSizeMedium,
+                    ),
                   ),
                 ),
               ),
               if (isVerified)
                 Padding(
-                  padding: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.only(
+                    right: Dimensions.paddingSizeSmall,
+                  ),
                   child: Container(
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       color: accentColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.check_rounded, color: primaryColor, size: 14),
+                    child: Icon(
+                      Icons.check_rounded,
+                      color: primaryColor,
+                      size: 14,
+                    ),
                   ),
                 ),
             ],
@@ -637,7 +850,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             Center(
               child: Container(
                 height: 300,
-                width: Dimensions.webMaxWidth,
+                width: Dimensions.maxContentWidth,
                 decoration: BoxDecoration(
                   color: Theme.of(context).primaryColor,
                   image: const DecorationImage(
@@ -653,7 +866,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     ),
                     child: Text(
                       'profile'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                         color: Theme.of(context).cardColor,
                       ),
@@ -674,7 +887,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                     Container(
                       alignment: Alignment.topCenter,
                       height: 400,
-                      width: Dimensions.webMaxWidth,
+                      width: Dimensions.maxContentWidth,
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
                         borderRadius: const BorderRadius.vertical(
@@ -703,23 +916,14 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                             ClipOval(
                               child:
                                   profileController.pickedFile != null
-                                      ? GetPlatform.isWeb
-                                          ? Image.network(
-                                            profileController.pickedFile!.path,
-                                            width: 100,
-                                            height: 100,
-                                            fit: BoxFit.cover,
-                                          )
-                                          : Image.file(
-                                            File(
-                                              profileController
-                                                  .pickedFile!
-                                                  .path,
-                                            ),
-                                            width: 100,
-                                            height: 100,
-                                            fit: BoxFit.cover,
-                                          )
+                                      ? Image.file(
+                                        File(
+                                          profileController.pickedFile!.path,
+                                        ),
+                                        width: 100,
+                                        height: 100,
+                                        fit: BoxFit.cover,
+                                      )
                                       : CustomImage(
                                         image:
                                             '${profileController.userInfoModel!.imageFullUrl}',
@@ -742,7 +946,9 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                     shape: BoxShape.circle,
                                   ),
                                   child: Container(
-                                    margin: const EdgeInsets.all(25),
+                                    margin: const EdgeInsets.all(
+                                      Dimensions.paddingSizeExtraLarge,
+                                    ),
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         width: 2,
@@ -820,7 +1026,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                                   _emailController.text
                                           ? Images.verifiedIcon
                                           : Get.find<SplashController>()
-                                              .configModel!
+                                              .configModel
                                               .centralizeLoginSetup!
                                               .emailVerificationStatus!
                                           ? Images.unverifiedIcon
@@ -889,7 +1095,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                                       .userInfoModel!
                                                       .isPhoneVerified! &&
                                                   Get.find<SplashController>()
-                                                      .configModel!
+                                                      .configModel
                                                       .centralizeLoginSetup!
                                                       .phoneVerificationStatus!
                                               ? InkWell(
@@ -900,7 +1106,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                                       Get.find<
                                                             SplashController
                                                           >()
-                                                          .configModel!
+                                                          .configModel
                                                           .centralizeLoginSetup!
                                                           .phoneVerificationStatus!) {
                                                     _updateProfile(

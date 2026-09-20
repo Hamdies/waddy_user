@@ -37,7 +37,7 @@ class ExtraDiscountViewWidget extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: 'you_got'.tr,
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium!.color,
                       ),
                     ),
@@ -45,7 +45,7 @@ class ExtraDiscountViewWidget extends StatelessWidget {
 
                     TextSpan(
                       text: PriceConverter.convertPrice(extraDiscount),
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium!.color,
                       ),
                     ),
@@ -53,7 +53,7 @@ class ExtraDiscountViewWidget extends StatelessWidget {
 
                     TextSpan(
                       text: 'additional_discount'.tr,
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         color: Theme.of(context).textTheme.bodyMedium!.color,
                       ),
                     ),

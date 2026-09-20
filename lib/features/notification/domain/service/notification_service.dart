@@ -30,5 +30,4 @@ class NotificationService implements NotificationServiceInterface {
   void addSeenNotificationIdList(List<int> notificationList) {
     notificationRepositoryInterface.addSeenNotificationIdList(notificationList);
   }
-
 }

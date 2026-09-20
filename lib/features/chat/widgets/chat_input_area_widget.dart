@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/widgets/support_reason_bottom_sheet.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
@@ -44,10 +43,7 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
       duration: const Duration(milliseconds: 200),
     );
     _sendButtonScale = Tween<double>(begin: 1.0, end: 0.85).animate(
-      CurvedAnimation(
-        parent: _sendButtonController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _sendButtonController, curve: Curves.easeInOut),
     );
   }
 
@@ -74,7 +70,8 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
             left: Dimensions.paddingSizeDefault,
             right: Dimensions.paddingSizeDefault,
             top: Dimensions.paddingSizeSmall,
-            bottom: Dimensions.paddingSizeSmall +
+            bottom:
+                Dimensions.paddingSizeSmall +
                 MediaQuery.of(context).viewInsets.bottom,
           ),
           decoration: BoxDecoration(
@@ -151,7 +148,7 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
                             const SizedBox(width: 4),
                             Text(
                               'replying_to'.tr,
-                              style: robotoMedium.copyWith(
+                              style: waddyMedium.copyWith(
                                 fontSize: Dimensions.fontSizeExtraSmall,
                                 color: Theme.of(context).primaryColor,
                               ),
@@ -163,7 +160,7 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
                           chatController.replyToMessage!.message ?? '',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
                             color: Theme.of(context).hintColor,
                           ),
@@ -174,11 +171,17 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
                   const SizedBox(width: Dimensions.paddingSizeSmall),
                   InkWell(
                     onTap: () => chatController.clearReplyToMessage(),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(
+                        Dimensions.paddingSizeExtraSmall,
+                      ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).hintColor.withValues(alpha: 0.1),
+                        color: Theme.of(
+                          context,
+                        ).hintColor.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -233,9 +236,9 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
                             Dimensions.radiusDefault,
                           ),
                           border: Border.all(
-                            color: Theme.of(context)
-                                .primaryColor
-                                .withValues(alpha: 0.2),
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -255,12 +258,15 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
                         top: -6,
                         right: -6,
                         child: InkWell(
-                          onTap: () => chatController.removeImage(
-                            index,
-                            widget.inputMessageController.text.trim(),
-                          ),
+                          onTap:
+                              () => chatController.removeImage(
+                                index,
+                                widget.inputMessageController.text.trim(),
+                              ),
                           child: Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(
+                              Dimensions.paddingSizeExtraSmall,
+                            ),
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.error,
                               shape: BoxShape.circle,
@@ -291,11 +297,12 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
   }
 
   Widget _buildInputRow(ChatController chatController) {
-    bool showMessageSuggestion = (widget.orderChatModel != null &&
-        widget.inputMessageController.text.isEmpty &&
-        chatController.chatImage.isEmpty &&
-        Get.find<OrderController>().supportReasons != null &&
-        Get.find<OrderController>().supportReasons!.isNotEmpty);
+    bool showMessageSuggestion =
+        (widget.orderChatModel != null &&
+            widget.inputMessageController.text.isEmpty &&
+            chatController.chatImage.isEmpty &&
+            Get.find<OrderController>().supportReasons != null &&
+            Get.find<OrderController>().supportReasons!.isNotEmpty);
 
     return Container(
       decoration: BoxDecoration(
@@ -319,13 +326,11 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
           Expanded(
             child: TextField(
               inputFormatters: [
-                LengthLimitingTextInputFormatter(
-                  Dimensions.messageInputLength,
-                ),
+                LengthLimitingTextInputFormatter(Dimensions.messageInputLength),
               ],
               controller: widget.inputMessageController,
               textCapitalization: TextCapitalization.sentences,
-              style: robotoRegular.copyWith(
+              style: waddyRegular.copyWith(
                 fontSize: Dimensions.fontSizeDefault,
               ),
               keyboardType: TextInputType.multiline,
@@ -334,7 +339,7 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: 'type_message'.tr,
-                hintStyle: robotoRegular.copyWith(
+                hintStyle: waddyRegular.copyWith(
                   color: Theme.of(context).hintColor,
                   fontSize: Dimensions.fontSizeDefault,
                 ),
@@ -369,16 +374,19 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
             ScaleTransition(
               scale: _sendButtonScale,
               child: _buildIconButton(
-                icon: showMessageSuggestion
-                    ? Icons.lightbulb_outline
-                    : Icons.send_rounded,
-                onTap: () => _handleSendOrSuggestion(
-                  chatController,
-                  showMessageSuggestion,
-                ),
-                color: chatController.isSendButtonActive || showMessageSuggestion
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).hintColor,
+                icon:
+                    showMessageSuggestion
+                        ? Icons.lightbulb_outline
+                        : Icons.send_rounded,
+                onTap:
+                    () => _handleSendOrSuggestion(
+                      chatController,
+                      showMessageSuggestion,
+                    ),
+                color:
+                    chatController.isSendButtonActive || showMessageSuggestion
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).hintColor,
                 isActive:
                     chatController.isSendButtonActive || showMessageSuggestion,
               ),
@@ -401,11 +409,7 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
         borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-          child: Icon(
-            icon,
-            size: 24,
-            color: color,
-          ),
+          child: Icon(icon, size: 24, color: color),
         ),
       ),
     );
@@ -434,22 +438,9 @@ class _ChatInputAreaWidgetState extends State<ChatInputAreaWidget>
   }
 
   void _showMessageSuggestions() {
-    if (ResponsiveHelper.isDesktop(context)) {
-      Get.dialog(
-        const MessageSuggestionWidget(),
-        barrierColor: Colors.transparent,
-      ).then((value) {
-        if (value != null) {
-          widget.inputMessageController.text = value;
-          Get.find<ChatController>().toggleSendButtonActivity();
-        }
-      });
-    } else {
+    {
       Get.bottomSheet(
-        const SupportReasonBottomSheet(
-          orderId: null,
-          fromChatPage: true,
-        ),
+        const SupportReasonBottomSheet(orderId: null, fromChatPage: true),
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
       ).then((value) {
@@ -469,10 +460,8 @@ class MessageSuggestionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<OrderController>(
       builder: (orderController) {
-        bool isDesktop = ResponsiveHelper.isDesktop(context);
-
         return Container(
-          width: Dimensions.webMaxWidth,
+          width: Dimensions.maxContentWidth,
           padding: const EdgeInsets.symmetric(
             horizontal: Dimensions.paddingSizeLarge,
             vertical: 50,
@@ -495,7 +484,7 @@ class MessageSuggestionWidget extends StatelessWidget {
                           maxHeight: context.height * 0.5,
                           minHeight: 30,
                         ),
-                        width: isDesktop ? 600 : context.width * 0.8,
+                        width: context.width * 0.8,
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(
@@ -505,9 +494,7 @@ class MessageSuggestionWidget extends StatelessWidget {
                             BoxShadow(color: Colors.black26, blurRadius: 10),
                           ],
                         ),
-                        margin: EdgeInsets.only(
-                          right: isDesktop ? context.width * 0.1 : 0,
-                        ),
+                        margin: EdgeInsets.only(right: 0),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -521,7 +508,7 @@ class MessageSuggestionWidget extends StatelessWidget {
                                   ),
                                   child: Text(
                                     'choose_the_reason_for_support'.tr,
-                                    style: robotoBold.copyWith(
+                                    style: waddyBold.copyWith(
                                       fontSize: Dimensions.fontSizeDefault,
                                     ),
                                   ),
@@ -538,7 +525,8 @@ class MessageSuggestionWidget extends StatelessWidget {
                                 minHeight: 30,
                               ),
                               child: ListView.builder(
-                                itemCount: orderController.supportReasons!.length,
+                                itemCount:
+                                    orderController.supportReasons!.length,
                                 shrinkWrap: true,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: Dimensions.paddingSizeSmall,
@@ -547,8 +535,9 @@ class MessageSuggestionWidget extends StatelessWidget {
                                   return InkWell(
                                     onTap: () {
                                       Get.back(
-                                        result: orderController
-                                            .supportReasons![index],
+                                        result:
+                                            orderController
+                                                .supportReasons![index],
                                       );
                                     },
                                     child: Container(
@@ -558,8 +547,7 @@ class MessageSuggestionWidget extends StatelessWidget {
                                           Dimensions.radiusSmall,
                                         ),
                                         border: Border.all(
-                                          color: Theme.of(context)
-                                              .disabledColor
+                                          color: Theme.of(context).disabledColor
                                               .withValues(alpha: 0.5),
                                           width: 0.3,
                                         ),
@@ -571,9 +559,10 @@ class MessageSuggestionWidget extends StatelessWidget {
                                         Dimensions.paddingSizeExtraSmall,
                                       ),
                                       child: Text(
-                                        orderController.supportReasons![index] ??
+                                        orderController
+                                                .supportReasons![index] ??
                                             '',
-                                        style: robotoRegular,
+                                        style: waddyRegular,
                                       ),
                                     ),
                                   );

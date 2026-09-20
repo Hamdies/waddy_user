@@ -32,6 +32,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "com.hamdiesolutions.waddi"
     compileSdk 36
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -46,13 +47,47 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.hamdiesolutions.waddi"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
+    }
+
+    // Dev, staging and prod install side by side.
+    //
+    // Before this, there was one applicationId and one hardcoded backend URL,
+    // so testing against anything but live customer data meant editing a
+    // constant — and a developer build replaced the real app on the device.
+    // Distinct ids mean a tester can hold all three at once and never wonder
+    // which one they are looking at.
+    //
+    // The Dart side is selected separately, with
+    // `--dart-define-from-file=env/<flavor>.json`; `flutter build --flavor` only
+    // picks the Gradle variant. Both are required, and `release-guard` in CI
+    // checks the pair matches so a prod-signed build cannot carry staging
+    // defines.
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            applicationIdSuffix ".dev"
+            versionNameSuffix "-dev"
+            resValue "string", "app_name", "Waddy Dev"
+        }
+        staging {
+            dimension "environment"
+            applicationIdSuffix ".staging"
+            versionNameSuffix "-staging"
+            resValue "string", "app_name", "Waddy Staging"
+        }
+        prod {
+            dimension "environment"
+            // No suffix: this is the id the Play listing and every existing
+            // install already use. Changing it would orphan every user.
+            resValue "string", "app_name", "Waddy"
+        }
     }
 
     signingConfigs {
@@ -68,8 +103,34 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled true
-            shrinkResources false
+            // Strips unused entries from the ANDROID resource table (drawables,
+            // layouts, and everything the Firebase/Maps/plugin AARs bring in).
+            // It does not touch flutter_assets — that payload is governed by
+            // the `assets:` block in pubspec.yaml.
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Fails a dev/staging build early, with an explanation, instead of letting the
+// google-services plugin die on "No matching client found for package name".
+// Those flavors carry an applicationId suffix, so they need their own Firebase
+// app registered — see android/app/src/prod/README.md.
+tasks.configureEach { task ->
+    if (task.name ==~ /process(Dev|Staging)\w*GoogleServices/) {
+        task.doFirst {
+            def flavor = task.name.contains('Dev') ? 'dev' : 'staging'
+            def cfg = file("src/${flavor}/google-services.json")
+            if (!cfg.exists()) {
+                throw new GradleException(
+                    "Missing android/app/src/${flavor}/google-services.json.\n" +
+                    "The ${flavor} flavor builds com.hamdiesolutions.waddi.${flavor}, " +
+                    "which needs its own Firebase Android app.\n" +
+                    "See android/app/src/prod/README.md for the three steps.\n" +
+                    "Until then, build with --flavor prod."
+                )
+            }
         }
     }
 }
@@ -81,5 +142,4 @@ flutter {
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
     implementation "com.google.firebase:firebase-messaging:23.4.1"
-    implementation 'com.facebook.android:facebook-android-sdk:latest.release'
 }

@@ -10,7 +10,8 @@ class DeliveryInstructionView extends StatefulWidget {
   const DeliveryInstructionView({super.key});
 
   @override
-  State<DeliveryInstructionView> createState() => _DeliveryInstructionViewState();
+  State<DeliveryInstructionView> createState() =>
+      _DeliveryInstructionViewState();
 }
 
 class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
@@ -28,13 +29,12 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-      ),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor),
       child: GetBuilder<CheckoutController>(
         builder: (checkoutController) {
           final bool hasVoice = checkoutController.voiceInstructionPath != null;
-          final bool hasTextInstructions = checkoutController.selectedInstructions.isNotEmpty;
+          final bool hasTextInstructions =
+              checkoutController.selectedInstructions.isNotEmpty;
           final bool hasAnyInstruction = hasVoice || hasTextInstructions;
 
           return Theme(
@@ -46,24 +46,31 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                 vertical: 0,
               ),
               childrenPadding: const EdgeInsets.fromLTRB(
-                Dimensions.paddingSizeLarge, 0,
-                Dimensions.paddingSizeLarge, Dimensions.paddingSizeDefault,
+                Dimensions.paddingSizeLarge,
+                0,
+                Dimensions.paddingSizeLarge,
+                Dimensions.paddingSizeDefault,
               ),
-              onExpansionChanged: (value) => checkoutController.expandedUpdate(value),
+              onExpansionChanged:
+                  (value) => checkoutController.expandedUpdate(value),
               leading: Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: hasAnyInstruction
-                      ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-                      : Colors.grey.shade100,
+                  color:
+                      hasAnyInstruction
+                          ? Theme.of(
+                            context,
+                          ).primaryColor.withValues(alpha: 0.1)
+                          : Colors.grey.shade100,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.mic_rounded,
-                  color: hasAnyInstruction
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey.shade600,
+                  color:
+                      hasAnyInstruction
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey.shade600,
                   size: 20,
                 ),
               ),
@@ -72,18 +79,21 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                 children: [
                   Text(
                     'add_delivery_instructions'.tr,
-                    style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeDefault),
+                    style: waddyMedium.copyWith(
+                      fontSize: Dimensions.fontSizeDefault,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     hasAnyInstruction
                         ? _buildSummaryText(checkoutController)
                         : 'help_delivery_partner_reach_faster'.tr,
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeExtraSmall,
-                      color: hasAnyInstruction
-                          ? Theme.of(context).primaryColor
-                          : Theme.of(context).hintColor,
+                      color:
+                          hasAnyInstruction
+                              ? Theme.of(context).primaryColor
+                              : Theme.of(context).hintColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -100,11 +110,14 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                 /// Voice Recorder
                 Text(
                   'voice_instruction'.tr,
-                  style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                  style: waddyMedium.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                  ),
                 ),
                 const SizedBox(height: Dimensions.paddingSizeSmall),
                 VoiceRecorderWidget(
-                  existingRecordingPath: checkoutController.voiceInstructionPath,
+                  existingRecordingPath:
+                      checkoutController.voiceInstructionPath,
                   onRecordingChanged: (path) {
                     checkoutController.setVoiceInstructionPath(path);
                   },
@@ -115,7 +128,9 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                 /// Quick Instruction Chips
                 Text(
                   'quick_options'.tr,
-                  style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeSmall),
+                  style: waddyMedium.copyWith(
+                    fontSize: Dimensions.fontSizeSmall,
+                  ),
                 ),
                 const SizedBox(height: Dimensions.paddingSizeSmall),
 
@@ -130,10 +145,14 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                   ),
                   itemCount: AppConstants.deliveryInstructionList.length,
                   itemBuilder: (context, index) {
-                    final bool isSelected =
-                        checkoutController.selectedInstructions.contains(index);
+                    final bool isSelected = checkoutController
+                        .selectedInstructions
+                        .contains(index);
                     return _buildInstructionChip(
-                      context, index, isSelected, checkoutController,
+                      context,
+                      index,
+                      isSelected,
+                      checkoutController,
                     );
                   },
                 ),
@@ -142,8 +161,10 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
 
                 /// Save for address toggle
                 InkWell(
-                  onTap: () => checkoutController.toggleSaveInstructionForAddress(),
-                  borderRadius: BorderRadius.circular(8),
+                  onTap:
+                      () =>
+                          checkoutController.toggleSaveInstructionForAddress(),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   child: Row(
                     children: [
                       SizedBox(
@@ -151,13 +172,18 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                         height: 22,
                         child: Checkbox(
                           value: checkoutController.saveInstructionForAddress,
-                          onChanged: (_) =>
-                              checkoutController.toggleSaveInstructionForAddress(),
+                          onChanged:
+                              (_) =>
+                                  checkoutController
+                                      .toggleSaveInstructionForAddress(),
                           activeColor: Theme.of(context).primaryColor,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusExtraSmall,
+                            ),
                           ),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                           visualDensity: VisualDensity.compact,
                         ),
                       ),
@@ -165,9 +191,10 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
                       Expanded(
                         child: Text(
                           'save_for_all_orders_at_this_address'.tr,
-                          style: robotoRegular.copyWith(
+                          style: waddyRegular.copyWith(
                             fontSize: Dimensions.fontSizeSmall,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                            color:
+                                Theme.of(context).textTheme.bodyMedium?.color,
                           ),
                         ),
                       ),
@@ -188,23 +215,26 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
     bool isSelected,
     CheckoutController controller,
   ) {
-    final IconData icon = index < _instructionIcons.length
-        ? _instructionIcons[index]
-        : Icons.info_outline_rounded;
+    final IconData icon =
+        index < _instructionIcons.length
+            ? _instructionIcons[index]
+            : Icons.info_outline_rounded;
 
     return InkWell(
       onTap: () => controller.toggleInstruction(index),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
-              : Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(12),
+          color:
+              isSelected
+                  ? Theme.of(context).primaryColor.withValues(alpha: 0.08)
+                  : Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
-            color: isSelected
-                ? Theme.of(context).primaryColor
-                : Colors.grey.shade300,
+            color:
+                isSelected
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey.shade300,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -216,9 +246,10 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
               children: [
                 Icon(
                   icon,
-                  color: isSelected
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey.shade600,
+                  color:
+                      isSelected
+                          ? Theme.of(context).primaryColor
+                          : Colors.grey.shade600,
                   size: 26,
                 ),
                 if (isSelected)
@@ -239,14 +270,17 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
             ),
             const SizedBox(height: 6),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeExtraSmall,
+              ),
               child: Text(
                 AppConstants.deliveryInstructionList[index].tr,
-                style: robotoRegular.copyWith(
+                style: waddyRegular.copyWith(
                   fontSize: Dimensions.fontSizeExtraSmall,
-                  color: isSelected
-                      ? Theme.of(context).primaryColor
-                      : Theme.of(context).textTheme.bodyMedium?.color,
+                  color:
+                      isSelected
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).textTheme.bodyMedium?.color,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
@@ -265,7 +299,9 @@ class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
       parts.add('voice_note'.tr);
     }
     if (controller.selectedInstructions.isNotEmpty) {
-      parts.add('${controller.selectedInstructions.length} ${'options_selected'.tr}');
+      parts.add(
+        '${controller.selectedInstructions.length} ${'options_selected'.tr}',
+      );
     }
     return parts.join(' + ');
   }

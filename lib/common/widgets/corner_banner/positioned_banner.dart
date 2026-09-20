@@ -26,7 +26,7 @@ class PositionedCornerBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-     double? left, right, top, bottom;
+    double? left, right, top, bottom;
     if (bannerPosition == CornerBannerPosition.topLeft) {
       left = 0;
       top = 0;

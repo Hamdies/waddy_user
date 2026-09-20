@@ -5,6 +5,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class LetterDialogWidget extends StatefulWidget {
   const LetterDialogWidget({super.key});
@@ -61,14 +62,19 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
       TweenSequenceItem(tween: Tween(begin: 0.032, end: -0.032), weight: 2),
       TweenSequenceItem(tween: Tween(begin: -0.032, end: 0.018), weight: 2),
       TweenSequenceItem(tween: Tween(begin: 0.018, end: 0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+    ]).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
+    );
 
     // Hint fade-in (appears after 2nd shake)
     _hintController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _hintOpacity = CurvedAnimation(parent: _hintController, curve: Curves.easeIn);
+    _hintOpacity = CurvedAnimation(
+      parent: _hintController,
+      curve: Curves.easeIn,
+    );
 
     // Seal pulse
     _pulseController = AnimationController(
@@ -88,13 +94,25 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
       vsync: this,
     );
     _envelopeFade = Tween(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _openController, curve: const Interval(0.0, 0.55, curve: Curves.easeIn)),
+      CurvedAnimation(
+        parent: _openController,
+        curve: const Interval(0.0, 0.55, curve: Curves.easeIn),
+      ),
     );
     _letterAppear = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _openController, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: _openController,
+        curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+      ),
     );
-    _letterSlide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
-      CurvedAnimation(parent: _openController, curve: const Interval(0.4, 1.0, curve: Curves.easeOut)),
+    _letterSlide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _openController,
+        curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+      ),
     );
 
     _openController.addStatusListener((s) {
@@ -155,41 +173,42 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
         // Tap background to dismiss at any stage
         onTap: _dismiss,
         child: Center(
-          child: _showFullLetter
-              ? _buildLetterWithConfetti(context)
-              : AnimatedBuilder(
-                  animation: Listenable.merge([
-                    _shakeController,
-                    _openController,
-                    _pulseController,
-                    _hintOpacity,
-                  ]),
-                  builder: (context, _) {
-                    if (!_isOpening) {
-                      final sw = MediaQuery.of(context).size.width;
-                      final envW = (sw - 48).clamp(0.0, 340.0);
-                      final envH = envW * 0.59;
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Transform.rotate(
-                            angle: _shakeAnimation.value,
-                            child: GestureDetector(
-                              onTap: _openEnvelope,
-                              child: _buildEnvelopeCore(context, envW, envH),
+          child:
+              _showFullLetter
+                  ? _buildLetterWithConfetti(context)
+                  : AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _shakeController,
+                      _openController,
+                      _pulseController,
+                      _hintOpacity,
+                    ]),
+                    builder: (context, _) {
+                      if (!_isOpening) {
+                        final sw = MediaQuery.of(context).size.width;
+                        final envW = (sw - 48).clamp(0.0, 340.0);
+                        final envH = envW * 0.59;
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Transform.rotate(
+                              angle: _shakeAnimation.value,
+                              child: GestureDetector(
+                                onTap: _openEnvelope,
+                                child: _buildEnvelopeCore(context, envW, envH),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          FadeTransition(
-                            opacity: _hintOpacity,
-                            child: _buildTapHint(context),
-                          ),
-                        ],
-                      );
-                    }
-                    return _buildOpeningSequence(context);
-                  },
-                ),
+                            const SizedBox(height: 16),
+                            FadeTransition(
+                              opacity: _hintOpacity,
+                              child: _buildTapHint(context),
+                            ),
+                          ],
+                        );
+                      }
+                      return _buildOpeningSequence(context);
+                    },
+                  ),
         ),
       ),
     );
@@ -200,16 +219,26 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
   Widget _buildTapHint(BuildContext context) {
     final primary = Theme.of(context).primaryColor;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeSmall,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.25),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.touch_app_rounded, color: Colors.white.withValues(alpha: 0.85), size: 16),
+          Icon(
+            Icons.touch_app_rounded,
+            color: Colors.white.withValues(alpha: 0.85),
+            size: 16,
+          ),
           const SizedBox(width: 6),
           Text(
             'letter_tap_to_open'.tr,
@@ -261,7 +290,11 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
   // ── Envelope core ──
 
-  Widget _buildEnvelopeCore(BuildContext context, [double? envW, double? envH]) {
+  Widget _buildEnvelopeCore(
+    BuildContext context, [
+    double? envW,
+    double? envH,
+  ]) {
     final primaryColor = Theme.of(context).primaryColor;
     final dateStr = DateFormat('dd.MM.yy').format(DateTime.now());
     final sw = MediaQuery.of(context).size.width;
@@ -276,16 +309,24 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
         children: [
           // Flap
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: CustomPaint(
               size: Size(envelopeWidth, _flapHeight),
-              painter: _FlapPainter(color: _paperColor, borderColor: _borderColor, shadowColor: _paperDarker),
+              painter: _FlapPainter(
+                color: _paperColor,
+                borderColor: _borderColor,
+                shadowColor: _paperDarker,
+              ),
             ),
           ),
 
           // Body
           Positioned(
-            top: _flapHeight - 2, left: 0, right: 0,
+            top: _flapHeight - 2,
+            left: 0,
+            right: 0,
             child: Container(
               height: bodyHeight,
               decoration: BoxDecoration(
@@ -295,8 +336,8 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                   colors: [_paperColor, _paperDarker],
                 ),
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(6),
-                  bottomRight: Radius.circular(6),
+                  bottomLeft: Radius.circular(Dimensions.radiusSmall),
+                  bottomRight: Radius.circular(Dimensions.radiusSmall),
                 ),
                 border: Border.all(color: _borderColor, width: 1),
                 boxShadow: [
@@ -312,11 +353,13 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
           // Airmail stripes
           Positioned(
-            top: _flapHeight - 1, left: 0, right: 0,
+            top: _flapHeight - 1,
+            left: 0,
+            right: 0,
             child: ClipRRect(
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(6),
-                bottomRight: Radius.circular(6),
+                bottomLeft: Radius.circular(Dimensions.radiusSmall),
+                bottomRight: Radius.circular(Dimensions.radiusSmall),
               ),
               child: SizedBox(
                 height: bodyHeight,
@@ -328,7 +371,9 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
           // V-fold
           Positioned(
-            top: _flapHeight - 1, left: 0, right: 0,
+            top: _flapHeight - 1,
+            left: 0,
+            right: 0,
             child: SizedBox(
               height: bodyHeight,
               child: CustomPaint(painter: _VFoldPainter(color: _borderColor)),
@@ -337,7 +382,9 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
           // To: Name
           Positioned(
-            top: _flapHeight + 24, left: 18, right: 86,
+            top: _flapHeight + 24,
+            left: 18,
+            right: 86,
             child: GetBuilder<ProfileController>(
               builder: (pc) {
                 final name = pc.userInfoModel?.fName ?? 'friend'.tr;
@@ -372,7 +419,8 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
           // Stamps
           Positioned(
-            bottom: _flapHeight + 20, right: 14,
+            bottom: _flapHeight + 20,
+            right: 14,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -385,20 +433,27 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
 
           // Date + From
           Positioned(
-            bottom: 18, left: 22,
+            bottom: 18,
+            left: 22,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   dateStr,
-                  style: TextStyle(fontSize: 9, color: primaryColor, letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: primaryColor,
+                    letterSpacing: 0.5,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${'From'.tr}: ${'letter_love_team'.tr}',
                   style: TextStyle(
                     fontSize: 9,
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                     fontStyle: FontStyle.italic,
                   ),
@@ -420,20 +475,21 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                   // Glow ring
                   AnimatedBuilder(
                     animation: _pulseController,
-                    builder: (_, __) => Opacity(
-                      opacity: _isOpening ? 0 : _pulseOpacity.value,
-                      child: Transform.scale(
-                        scale: _isOpening ? 1.0 : _pulseScale.value,
-                        child: Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: primaryColor.withValues(alpha: 0.22),
+                    builder:
+                        (_, __) => Opacity(
+                          opacity: _isOpening ? 0 : _pulseOpacity.value,
+                          child: Transform.scale(
+                            scale: _isOpening ? 1.0 : _pulseScale.value,
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: primaryColor.withValues(alpha: 0.22),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
                   ),
                   // Seal
                   Container(
@@ -502,7 +558,8 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
           child: AnimatedBuilder(
             animation: _confettiController,
             builder: (_, __) {
-              if (_confettiController.value == 0) return const SizedBox.shrink();
+              if (_confettiController.value == 0)
+                return const SizedBox.shrink();
               return CustomPaint(
                 size: MediaQuery.of(context).size,
                 painter: _ConfettiPainter(
@@ -525,7 +582,10 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
     final screenH = mq.size.height;
     final screenW = mq.size.width;
     // Fluid spacing: shrinks on short screens (iPhone SE ~667px), full on tall
-    final sp = (screenH / 812).clamp(0.65, 1.0); // scale factor vs iPhone 14 Pro
+    final sp = (screenH / 812).clamp(
+      0.65,
+      1.0,
+    ); // scale factor vs iPhone 14 Pro
 
     return GetBuilder<ProfileController>(
       builder: (pc) {
@@ -547,7 +607,7 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                 end: Alignment.bottomCenter,
                 colors: [Color(0xFFFCF8F3), Color(0xFFF5EDE0)],
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
               border: Border.all(color: _borderColor, width: 1),
               boxShadow: [
                 BoxShadow(
@@ -564,7 +624,7 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
               child: Stack(
                 children: [
                   // Ruled lines
@@ -573,7 +633,9 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                   ),
                   // Airmail band — 7px stripe + close button row, total 44px
                   Positioned(
-                    top: 0, left: 0, right: 0,
+                    top: 0,
+                    left: 0,
+                    right: 0,
                     child: SizedBox(
                       height: 44,
                       child: CustomPaint(painter: _AirmailTopBandPainter()),
@@ -634,12 +696,27 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                               // Divider
                               const Row(
                                 children: [
-                                  Expanded(child: Divider(color: _borderColor, thickness: 0.8)),
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text('✉️', style: TextStyle(fontSize: 13)),
+                                  Expanded(
+                                    child: Divider(
+                                      color: _borderColor,
+                                      thickness: 0.8,
+                                    ),
                                   ),
-                                  Expanded(child: Divider(color: _borderColor, thickness: 0.8)),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: Dimensions.paddingSizeSmall,
+                                    ),
+                                    child: Text(
+                                      '✉️',
+                                      style: TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Divider(
+                                      color: _borderColor,
+                                      thickness: 0.8,
+                                    ),
+                                  ),
                                 ],
                               ),
                               SizedBox(height: 14 * sp),
@@ -681,17 +758,48 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                               ),
                               SizedBox(height: 10 * sp),
 
+                              // Body 4
+                              Text(
+                                'letter_body_4'.tr,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.55,
+                                  color: Color(0xFF3D3D3D),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 10 * sp),
+
+                              // Body 5 — thanks
+                              Text(
+                                'letter_body_5'.tr,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  height: 1.55,
+                                  color: Color(0xFF3D3D3D),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 10 * sp),
+
                               // Highlight callout
                               Container(
                                 padding: EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10 * sp,
+                                  horizontal: Dimensions.paddingSizeMedium,
+                                  vertical: Dimensions.paddingSizeSmall * sp,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF134E4A).withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(10),
+                                  color: const Color(
+                                    0xFF134E4A,
+                                  ).withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(
+                                    Dimensions.radiusDefault,
+                                  ),
                                   border: Border.all(
-                                    color: const Color(0xFF134E4A).withValues(alpha: 0.12),
+                                    color: const Color(
+                                      0xFF134E4A,
+                                    ).withValues(alpha: 0.12),
                                     width: 1,
                                   ),
                                 ),
@@ -741,9 +849,13 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
                                   style: FilledButton.styleFrom(
                                     backgroundColor: const Color(0xFF134E4A),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: Dimensions.paddingSizeMedium,
+                                    ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault,
+                                      ),
                                     ),
                                     textStyle: const TextStyle(
                                       fontSize: 14,
@@ -779,17 +891,22 @@ class _FlapPainter extends CustomPainter {
   final Color color;
   final Color borderColor;
   final Color shadowColor;
-  _FlapPainter({required this.color, required this.borderColor, required this.shadowColor});
+  _FlapPainter({
+    required this.color,
+    required this.borderColor,
+    required this.shadowColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(w, 0)
-      ..lineTo(w / 2, h + 12)
-      ..close();
+    final path =
+        Path()
+          ..moveTo(0, 0)
+          ..lineTo(w, 0)
+          ..lineTo(w / 2, h + 12)
+          ..close();
     canvas.drawPath(
       path,
       Paint()
@@ -822,7 +939,8 @@ class _AirmailStripePainter extends CustomPainter {
     const sw = 6.0;
     const gap = 6.0;
     final red = Paint()..color = const Color(0xFFD94B4B).withValues(alpha: 0.5);
-    final blue = Paint()..color = const Color(0xFF3B6BA5).withValues(alpha: 0.5);
+    final blue =
+        Paint()..color = const Color(0xFF3B6BA5).withValues(alpha: 0.5);
 
     void drawEdge(Rect clip, bool horizontal) {
       canvas.save();
@@ -874,8 +992,10 @@ class _AirmailTopBandPainter extends CustomPainter {
     const h = 7.0;
     const sw = 8.0;
     const gap = 8.0;
-    final red = Paint()..color = const Color(0xFFD94B4B).withValues(alpha: 0.55);
-    final blue = Paint()..color = const Color(0xFF3B6BA5).withValues(alpha: 0.55);
+    final red =
+        Paint()..color = const Color(0xFFD94B4B).withValues(alpha: 0.55);
+    final blue =
+        Paint()..color = const Color(0xFF3B6BA5).withValues(alpha: 0.55);
 
     final clip = Rect.fromLTWH(0, 0, w, h);
     canvas.save();
@@ -919,10 +1039,11 @@ class _VFoldPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5;
+    final paint =
+        Paint()
+          ..color = color.withValues(alpha: 0.15)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5;
     canvas.drawLine(Offset(6, h - 6), Offset(w / 2, h * 0.20), paint);
     canvas.drawLine(Offset(w - 6, h - 6), Offset(w / 2, h * 0.20), paint);
   }
@@ -935,9 +1056,10 @@ class _VFoldPainter extends CustomPainter {
 class _RuledLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFDDD4C8).withValues(alpha: 0.35)
-      ..strokeWidth = 0.5;
+    final paint =
+        Paint()
+          ..color = const Color(0xFFDDD4C8).withValues(alpha: 0.35)
+          ..strokeWidth = 0.5;
     const lineSpacing = 28.0;
     const startY = 120.0; // below header band
     var y = startY;
@@ -961,19 +1083,20 @@ class _ConfettiParticle {
   final double rotationSpeed;
 
   _ConfettiParticle()
-      : x = math.Random().nextDouble(),
-        angle = (math.Random().nextDouble() - 0.5) * math.pi * 0.9,
-        speed = 0.5 + math.Random().nextDouble() * 0.5,
-        size = 5 + math.Random().nextDouble() * 5,
-        color = [
-          const Color(0xFF1EF2A0),
-          const Color(0xFF134E4A),
-          const Color(0xFFFFBE0B),
-          const Color(0xFFFF6B6B),
-          const Color(0xFF3B6BA5),
-          Colors.white,
-        ][math.Random().nextInt(6)],
-        rotationSpeed = (math.Random().nextDouble() - 0.5) * 10;
+    : x = math.Random().nextDouble(),
+      angle = (math.Random().nextDouble() - 0.5) * math.pi * 0.9,
+      speed = 0.5 + math.Random().nextDouble() * 0.5,
+      size = 5 + math.Random().nextDouble() * 5,
+      color =
+          [
+            const Color(0xFF1EF2A0),
+            const Color(0xFF134E4A),
+            const Color(0xFFFFBE0B),
+            const Color(0xFFFF6B6B),
+            const Color(0xFF3B6BA5),
+            Colors.white,
+          ][math.Random().nextInt(6)],
+      rotationSpeed = (math.Random().nextDouble() - 0.5) * 10;
 }
 
 class _ConfettiPainter extends CustomPainter {
@@ -997,7 +1120,11 @@ class _ConfettiPainter extends CustomPainter {
       canvas.rotate(p.rotationSpeed * eased);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.5),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.size,
+            height: p.size * 0.5,
+          ),
           const Radius.circular(1),
         ),
         paint,
@@ -1007,5 +1134,6 @@ class _ConfettiPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ConfettiPainter old) => old.progress != progress;
+  bool shouldRepaint(covariant _ConfettiPainter old) =>
+      old.progress != progress;
 }

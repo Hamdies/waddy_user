@@ -15,8 +15,7 @@ class RefundModel {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
     if (refundReasons != null) {
-      data['refund_reasons'] =
-          refundReasons!.map((v) => v.toJson()).toList();
+      data['refund_reasons'] = refundReasons!.map((v) => v.toJson()).toList();
     }
     return data;
   }
@@ -29,8 +28,13 @@ class RefundReasons {
   String? createdAt;
   String? updatedAt;
 
-  RefundReasons(
-      {this.id, this.reason, this.status, this.createdAt, this.updatedAt});
+  RefundReasons({
+    this.id,
+    this.reason,
+    this.status,
+    this.createdAt,
+    this.updatedAt,
+  });
 
   RefundReasons.fromJson(Map<String, dynamic> json) {
     id = json['id'];

@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
+/// ─── WADDI XP — Leaderboard ───────────────────────────────────────────────────
+/// Native port of Leaderboard.dc.html: a dark deep-teal board with WEEKLY /
+/// MONTHLY / LIFETIME season segments, a 2-1-3 podium for the top three, and a
+/// ranked standings list (rank · avatar · name · XP · level) with the signed-in
+/// user's row highlighted in mint. If the user isn't in the visible top list, a
+/// sticky "you" pin shows their real rank at the bottom. All data is live from
+/// [XpController.getLeaderboard] — no fabricated rank-movement deltas.
 class XpLeaderboardScreen extends StatefulWidget {
   const XpLeaderboardScreen({super.key});
 
@@ -13,11 +21,6 @@ class XpLeaderboardScreen extends StatefulWidget {
 }
 
 class _XpLeaderboardScreenState extends State<XpLeaderboardScreen> {
-  static const Color _brandDarkTeal = Color(0xFF134E4A);
-  static const Color _brandNeonGreen = Color(0xFF1EF2A0);
-  static const Color _neoBlack = Color(0xFF121212);
-  static const Color _tealText = Color(0xFF0D7377);
-
   @override
   void initState() {
     super.initState();
@@ -29,112 +32,89 @@ class _XpLeaderboardScreenState extends State<XpLeaderboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _brandDarkTeal,
+      backgroundColor: _Lb.panel,
       body: SafeArea(
+        bottom: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _brandNeonGreen,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _neoBlack, width: 2),
-                      ),
-                      child: Icon(Icons.arrow_back_rounded, size: 20, color: _neoBlack),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text(
-                    'leaderboard'.tr,
-                    style: robotoBold.copyWith(
-                      fontSize: 22,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.emoji_events_rounded, color: _brandNeonGreen, size: 28),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Content
+            const _Header(),
             Expanded(
               child: GetBuilder<XpController>(
-                builder: (xpController) {
-                  if (xpController.isLeaderboardLoading) {
+                id: XpController.idLeaderboard,
+                builder: (xp) {
+                  final model = xp.leaderboardModel;
+                  if (xp.isLeaderboardLoading && model == null) {
                     return const Center(
-                      child: CircularProgressIndicator(color: _brandNeonGreen),
+                      child: CircularProgressIndicator(color: _Lb.mint),
                     );
                   }
 
-                  final leaderboard = xpController.leaderboardModel;
-                  if (leaderboard == null || leaderboard.entries.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'no_data_available'.tr,
-                        style: robotoMedium.copyWith(color: Colors.white70),
-                      ),
-                    );
-                  }
+                  final entries = model?.entries ?? [];
+                  final me = model?.currentUser;
+                  final meInList = entries.any((e) => e.isMe);
+                  final top3 = entries.take(3).toList();
+                  final rest = entries.skip(3).toList();
 
                   return RefreshIndicator(
-                    color: _brandNeonGreen,
-                    backgroundColor: _brandDarkTeal,
-                    onRefresh: () => xpController.getLeaderboard(reload: true),
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    color: _Lb.mint,
+                    backgroundColor: _Lb.panel,
+                    onRefresh: () => xp.getLeaderboard(reload: true),
+                    child: Column(
                       children: [
-                        // Top 3 podium
-                        if (leaderboard.entries.length >= 3)
-                          _buildPodium(leaderboard.entries.take(3).toList()),
-
-                        const SizedBox(height: 16),
-
-                        // Current user card
-                        if (leaderboard.currentUser != null)
-                          _buildCurrentUserCard(leaderboard.currentUser!),
-
-                        const SizedBox(height: 16),
-
-                        // Full list
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _neoBlack, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _neoBlack,
-                                offset: const Offset(3, 3),
-                                blurRadius: 0,
-                              ),
-                            ],
-                          ),
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.zero,
-                            itemCount: leaderboard.entries.length,
-                            separatorBuilder: (_, __) => Divider(
-                              height: 1,
-                              color: _neoBlack.withValues(alpha: 0.1),
-                            ),
-                            itemBuilder: (context, index) {
-                              return _buildEntryTile(leaderboard.entries[index]);
-                            },
-                          ),
+                        Expanded(
+                          child:
+                              entries.isEmpty
+                                  ? _EmptyBoard(
+                                    onRefresh:
+                                        () => xp.getLeaderboard(reload: true),
+                                  )
+                                  : ListView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(
+                                          parent: ClampingScrollPhysics(),
+                                        ),
+                                    padding: EdgeInsets.fromLTRB(
+                                      16,
+                                      4,
+                                      16,
+                                      MediaQuery.of(context).padding.bottom +
+                                          24,
+                                    ),
+                                    children: [
+                                      if (top3.isNotEmpty) ...[
+                                        const SizedBox(height: 16),
+                                        _Podium(top3: top3),
+                                      ],
+                                      if (rest.isNotEmpty) ...[
+                                        const SizedBox(height: 22),
+                                        Text(
+                                          'STANDINGS',
+                                          style: waddyBlack.copyWith(
+                                            fontSize: 10,
+                                            color: _Lb.onMed,
+                                            letterSpacing: 0.1 * 10,
+                                            height: 1.2,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        ...rest.map(
+                                          (e) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom:
+                                                  Dimensions.paddingSizeSmall,
+                                            ),
+                                            child: _StandingRow(entry: e),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                         ),
-
-                        const SizedBox(height: 30),
+                        // Sticky "you" pin — only when the user has a rank and
+                        // isn't already visible in the list above.
+                        if (me != null && me.rank > 0 && !meInList)
+                          _MePin(user: me),
                       ],
                     ),
                   );
@@ -146,234 +126,634 @@ class _XpLeaderboardScreenState extends State<XpLeaderboardScreen> {
       ),
     );
   }
+}
 
-  Widget _buildPodium(List<LeaderboardEntry> top3) {
-    // Reorder: [2nd, 1st, 3rd]
-    final ordered = [
-      if (top3.length > 1) top3[1],
-      top3[0],
-      if (top3.length > 2) top3[2],
-    ];
-    final heights = [100.0, 130.0, 80.0];
-    final colors = [Colors.grey.shade300, _brandNeonGreen, Colors.orange.shade200];
+// ─────────────────────────────────────────────────────────────────────────────
+// THEME (matches the XP design tokens)
+// ─────────────────────────────────────────────────────────────────────────────
+class _Lb {
+  _Lb._();
+  static const Color mint = Color(0xFF1EF2A0);
+  static const Color teal = Color(0xFF134E4A);
+  static const Color panel = Color(0xFF0E3532);
+  static const Color border = Color(0xFF134E4A);
+  static const Color green = Color(0xFF22C55E);
+  static const Color red = Color(0xFFFF3B30);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: List.generate(ordered.length, (i) {
-        final entry = ordered[i];
-        return Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  static Color get onMed => Colors.white.withValues(alpha: 0.5);
+  static Color get faint => Colors.white.withValues(alpha: 0.4);
+  static Color get tileFill => Colors.white.withValues(alpha: 0.06);
+  static Color get tileBorder => Colors.white.withValues(alpha: 0.28);
+}
+
+String _fmtXp(int n) {
+  final s = n.toString();
+  final buf = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+    buf.write(s[i]);
+  }
+  return '${buf.toString()} XP';
+}
+
+/// Handle form: "@NAME" — a multi-word display name is shown as-is (uppercased),
+/// a single token is prefixed with '@' to read as a handle.
+String _handle(String name) {
+  final s = name.trim();
+  if (s.isEmpty) return '@USER';
+  if (s.startsWith('@')) return s.toUpperCase();
+  return s.contains(' ') ? s.toUpperCase() : '@${s.toUpperCase()}';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEADER — kicker/title + season segments + reset note
+// ─────────────────────────────────────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar
-              Container(
-                width: i == 1 ? 56 : 44,
-                height: i == 1 ? 56 : 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors[i],
-                  border: Border.all(color: _neoBlack, width: 2),
-                ),
-                child: ClipOval(
-                  child: entry.image != null && entry.image!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: entry.image!,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Icon(
-                            Icons.person,
-                            size: i == 1 ? 28 : 22,
-                            color: _neoBlack,
-                          ),
-                        )
-                      : Icon(
-                          Icons.person,
-                          size: i == 1 ? 28 : 22,
-                          color: _neoBlack,
-                        ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                entry.name,
-                style: robotoBold.copyWith(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                '${entry.totalXp} XP',
-                style: robotoMedium.copyWith(
-                  fontSize: 10,
-                  color: _brandNeonGreen,
-                ),
-              ),
-              const SizedBox(height: 6),
-              // Podium bar
-              Container(
-                height: heights[i],
-                margin: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: colors[i],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                  border: Border.all(color: _neoBlack, width: 2),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  entry.rankDisplay,
-                  style: robotoBold.copyWith(
-                    fontSize: i == 1 ? 24 : 18,
-                    color: _neoBlack,
+              GestureDetector(
+                onTap: () => Get.back(),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  margin: const EdgeInsets.only(
+                    top: 2,
+                    right: Dimensions.paddingSizeMedium,
                   ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'THE RACE',
+                      style: waddyBlack.copyWith(
+                        fontSize: 10,
+                        color: _Lb.onMed,
+                        letterSpacing: 0.1 * 10,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'LEADERBOARD',
+                      style: waddyBlack.copyWith(
+                        fontSize: 22,
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildCurrentUserCard(LeaderboardEntry user) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _brandNeonGreen,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _neoBlack, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: _neoBlack,
-            offset: const Offset(3, 3),
-            blurRadius: 0,
+          const SizedBox(height: 12),
+          const _SeasonSegments(),
+          const SizedBox(height: 8),
+          GetBuilder<XpController>(
+            id: XpController.idLeaderboard,
+            builder:
+                (xp) => Text(
+                  _resetNote(xp.leaderboardPeriod),
+                  style: waddyBold.copyWith(
+                    fontSize: 9.5,
+                    color: _Lb.faint,
+                    height: 1.2,
+                  ),
+                ),
           ),
         ],
       ),
+    );
+  }
+
+  String _resetNote(String period) {
+    switch (period) {
+      case 'weekly':
+        return 'Season resets Monday · lifetime XP never resets';
+      case 'monthly':
+        return 'Season resets on the 1st · lifetime XP never resets';
+      default:
+        return 'Lifetime XP never resets';
+    }
+  }
+}
+
+class _SeasonSegments extends StatelessWidget {
+  const _SeasonSegments();
+
+  // UI label → controller period key.
+  static const _segments = [
+    ('WEEKLY', 'weekly'),
+    ('MONTHLY', 'monthly'),
+    ('LIFETIME', 'alltime'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GetBuilder<XpController>(
+      id: XpController.idLeaderboard,
+      builder: (xp) {
+        final selected = xp.leaderboardPeriod;
+        return Row(
+          children: [
+            for (var i = 0; i < _segments.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _SegmentButton(
+                  label: _segments[i].$1,
+                  active: _segments[i].$2 == selected,
+                  onTap: () => xp.changeLeaderboardPeriod(_segments[i].$2),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _SegmentButton({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? _Lb.mint : Colors.white.withValues(alpha: 0.06),
+          border: Border.all(
+            color: active ? _Lb.border : _Lb.tileBorder,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+        ),
+        child: Text(
+          label,
+          style: waddyBlack.copyWith(
+            fontSize: 10.5,
+            color: active ? _Lb.teal : Colors.white.withValues(alpha: 0.6),
+            letterSpacing: 0.04 * 10.5,
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PODIUM — 2 · 1 · 3 with graduated stand heights
+// ─────────────────────────────────────────────────────────────────────────────
+class _Podium extends StatelessWidget {
+  final List<LeaderboardEntry> top3;
+  const _Podium({required this.top3});
+
+  @override
+  Widget build(BuildContext context) {
+    LeaderboardEntry? at(int i) => i < top3.length ? top3[i] : null;
+    final first = at(0);
+    final second = at(1);
+    final third = at(2);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(child: _PodiumCol(entry: second, place: 2)),
+        const SizedBox(width: 8),
+        Expanded(child: _PodiumCol(entry: first, place: 1)),
+        const SizedBox(width: 8),
+        Expanded(child: _PodiumCol(entry: third, place: 3)),
+      ],
+    );
+  }
+}
+
+class _PodiumCol extends StatelessWidget {
+  final LeaderboardEntry? entry;
+  final int place;
+  const _PodiumCol({required this.entry, required this.place});
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry == null) return const SizedBox.shrink();
+    final e = entry!;
+    final first = place == 1;
+    final standHeight =
+        first
+            ? 56.0
+            : place == 2
+            ? 40.0
+            : 30.0;
+    final avatarSize = first ? 52.0 : 44.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Avatar(
+          image: e.image,
+          name: e.name,
+          size: avatarSize,
+          radius: 9,
+          borderColor: first ? _Lb.mint : Colors.white.withValues(alpha: 0.3),
+          borderWidth: first ? 2.5 : 2.5,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _handle(e.name),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: waddyBlack.copyWith(
+            fontSize: 10,
+            color: Colors.white,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _fmtXp(e.totalXp),
+          style: waddyBold.copyWith(fontSize: 9, color: _Lb.mint, height: 1),
+        ),
+        const SizedBox(height: 8),
+        // Stand
+        Container(
+          width: double.infinity,
+          height: standHeight,
+          decoration: BoxDecoration(
+            color:
+                first
+                    ? _Lb.mint.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.08),
+            border: Border(
+              top: BorderSide(
+                color: first ? _Lb.mint : Colors.white.withValues(alpha: 0.25),
+                width: 2,
+              ),
+              left: BorderSide(
+                color: first ? _Lb.mint : Colors.white.withValues(alpha: 0.25),
+                width: 2,
+              ),
+              right: BorderSide(
+                color: first ? _Lb.mint : Colors.white.withValues(alpha: 0.25),
+                width: 2,
+              ),
+            ),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(Dimensions.radiusSmall),
+            ),
+          ),
+          alignment: Alignment.topCenter,
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            '$place',
+            style: waddyBlack.copyWith(
+              fontSize: 16,
+              color: first ? _Lb.mint : Colors.white.withValues(alpha: 0.6),
+              height: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STANDING ROW — rank · avatar · name · XP · level
+// ─────────────────────────────────────────────────────────────────────────────
+class _StandingRow extends StatelessWidget {
+  final LeaderboardEntry entry;
+  const _StandingRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final me = entry.isMe;
+    return Container(
+      decoration: BoxDecoration(
+        color: me ? _Lb.mint.withValues(alpha: 0.1) : _Lb.tileFill,
+        border: Border.all(color: me ? _Lb.mint : _Lb.tileBorder, width: 2.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+        vertical: 11,
+      ),
       child: Row(
         children: [
-          Text(
-            'your_rank'.tr,
-            style: robotoMedium.copyWith(fontSize: 13, color: _neoBlack),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _brandDarkTeal,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _neoBlack, width: 1.5),
-            ),
+          SizedBox(
+            width: 26,
             child: Text(
-              user.rankDisplay,
-              style: robotoBold.copyWith(fontSize: 16, color: Colors.white),
+              '#${entry.rank}',
+              style: waddyBlack.copyWith(
+                fontSize: 13,
+                color: me ? _Lb.mint : Colors.white.withValues(alpha: 0.55),
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _Avatar(
+            image: entry.image,
+            name: entry.name,
+            size: 30,
+            radius: 7,
+            borderColor: Colors.white.withValues(alpha: 0.2),
+            borderWidth: 1.5,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              me ? '${_handle(entry.name)}  ·  YOU' : _handle(entry.name),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: waddyBlack.copyWith(
+                fontSize: 12,
+                color: Colors.white,
+                height: 1,
+              ),
             ),
           ),
           const SizedBox(width: 10),
           Text(
-            '${user.totalXp} XP',
-            style: robotoBold.copyWith(fontSize: 14, color: _neoBlack),
+            _fmtXp(entry.totalXp),
+            style: waddyBlack.copyWith(
+              fontSize: 11.5,
+              color: Colors.white,
+              height: 1,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Real rank movement since the user last viewed this board.
+          SizedBox(
+            width: 36,
+            child: _Delta(movement: entry.movement, delta: entry.delta),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildEntryTile(LeaderboardEntry entry) {
-    final isTop3 = entry.rank <= 3;
+/// The ▲/▼/HELD/NEW movement chip — mirrors the design's delta column, driven
+/// by the server's real per-period rank snapshot.
+class _Delta extends StatelessWidget {
+  final String movement;
+  final int delta;
+  const _Delta({required this.movement, required this.delta});
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          // Rank
-          SizedBox(
-            width: 36,
-            child: Text(
-              entry.rankDisplay,
-              style: robotoBold.copyWith(
-                fontSize: isTop3 ? 18 : 14,
-                color: isTop3 ? _tealText : _neoBlack.withValues(alpha: 0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 12),
+  @override
+  Widget build(BuildContext context) {
+    late final String label;
+    late final Color color;
+    switch (movement) {
+      case 'up':
+        label = '▲${delta.abs()}';
+        color = _Lb.green;
+        break;
+      case 'down':
+        label = '▼${delta.abs()}';
+        color = _Lb.red;
+        break;
+      case 'held':
+        label = 'HELD';
+        color = Colors.white.withValues(alpha: 0.35);
+        break;
+      case 'new':
+        label = 'NEW';
+        color = _Lb.mint;
+        break;
+      default:
+        label = '';
+        color = Colors.transparent;
+    }
+    return Text(
+      label,
+      textAlign: TextAlign.right,
+      style: waddyBlack.copyWith(fontSize: 10, color: color, height: 1),
+    );
+  }
+}
 
-          // Avatar
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _neoBlack.withValues(alpha: 0.05),
-              border: Border.all(
-                color: isTop3 ? _brandNeonGreen : _neoBlack.withValues(alpha: 0.15),
-                width: 1.5,
-              ),
-            ),
-            child: ClipOval(
-              child: entry.image != null && entry.image!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: entry.image!,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Icon(
-                        Icons.person,
-                        size: 18,
-                        color: _neoBlack.withValues(alpha: 0.4),
-                      ),
-                    )
-                  : Icon(
-                      Icons.person,
-                      size: 18,
-                      color: _neoBlack.withValues(alpha: 0.4),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
+// ─────────────────────────────────────────────────────────────────────────────
+// ME PIN — sticky bottom card with the user's own rank when off-list
+// ─────────────────────────────────────────────────────────────────────────────
+class _MePin extends StatelessWidget {
+  final LeaderboardEntry user;
+  const _MePin({required this.user});
 
-          // Name + level
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  entry.name,
-                  style: robotoMedium.copyWith(fontSize: 14, color: _neoBlack),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (entry.levelName != null)
-                  Text(
-                    '${'level'.tr} ${entry.level} · ${entry.levelName}',
-                    style: robotoRegular.copyWith(
-                      fontSize: 11,
-                      color: _neoBlack.withValues(alpha: 0.5),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // XP
-          Text(
-            '${entry.totalXp}',
-            style: robotoBold.copyWith(
-              fontSize: 14,
-              color: _tealText,
-            ),
-          ),
-          Text(
-            ' XP',
-            style: robotoRegular.copyWith(
-              fontSize: 11,
-              color: _neoBlack.withValues(alpha: 0.5),
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
+      decoration: BoxDecoration(
+        color: _Lb.mint.withValues(alpha: 0.12),
+        border: Border.all(color: _Lb.mint, width: 2.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            offset: const Offset(0, -2),
+            blurRadius: 8,
           ),
         ],
       ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+        vertical: 11,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text(
+              '#${user.rank}',
+              style: waddyBlack.copyWith(
+                fontSize: 13,
+                color: _Lb.mint,
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _Avatar(
+            image: user.image,
+            name: user.name,
+            size: 30,
+            radius: 7,
+            borderColor: _Lb.mint,
+            borderWidth: 1.5,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${_handle(user.name)}  ·  YOU',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: waddyBlack.copyWith(
+                fontSize: 12,
+                color: Colors.white,
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            _fmtXp(user.totalXp),
+            style: waddyBlack.copyWith(
+              fontSize: 11.5,
+              color: Colors.white,
+              height: 1,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 36,
+            child: _Delta(movement: user.movement, delta: user.delta),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR — rounded-square, real image or monogram
+// ─────────────────────────────────────────────────────────────────────────────
+class _Avatar extends StatelessWidget {
+  final String? image;
+  final String name;
+  final double size;
+  final double radius;
+  final Color borderColor;
+  final double borderWidth;
+  const _Avatar({
+    required this.image,
+    required this.name,
+    required this.size,
+    required this.radius,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = () {
+      final s = name.replaceAll('@', '').trim();
+      return s.isNotEmpty ? s[0].toUpperCase() : '?';
+    }();
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: _Lb.teal,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: borderColor, width: borderWidth),
+      ),
+      clipBehavior: Clip.antiAlias,
+      alignment: Alignment.center,
+      child:
+          (image != null && image!.isNotEmpty)
+              ? CustomImage(
+                image: image!,
+                fit: BoxFit.cover,
+                width: size,
+                height: size,
+              )
+              : Text(
+                initial,
+                style: waddyBlack.copyWith(
+                  fontSize: size * 0.42,
+                  color: Colors.white,
+                  height: 1,
+                ),
+              ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPTY STATE
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmptyBoard extends StatelessWidget {
+  final Future<void> Function() onRefresh;
+  const _EmptyBoard({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.25),
+        const Center(child: Text('🏆', style: TextStyle(fontSize: 44))),
+        const SizedBox(height: 14),
+        Center(
+          child: Text(
+            'NO RANKINGS YET',
+            style: waddyBlack.copyWith(
+              fontSize: 15,
+              color: Colors.white,
+              letterSpacing: 0.06 * 15,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            'Earn XP to claim your spot on the board.',
+            style: waddyBold.copyWith(
+              fontSize: 12,
+              color: _Lb.onMed,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

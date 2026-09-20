@@ -4,7 +4,6 @@ import 'package:country_code_picker/country_code_picker.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
@@ -181,11 +180,11 @@ class CustomTextFieldState extends State<CustomTextField>
             duration: const Duration(milliseconds: 200),
             child: Text(
               widget.titleText,
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: Dimensions.fontSizeDefault,
                 color: Theme.of(
                   context,
-                ).textTheme.bodyLarge?.color?.withValues(alpha:0.9),
+                ).textTheme.bodyLarge?.color?.withValues(alpha: 0.9),
                 letterSpacing: 0.2,
               ),
             ),
@@ -195,268 +194,271 @@ class CustomTextFieldState extends State<CustomTextField>
 
         // Main text field container with modern design and shake animation
         AnimatedBuilder(
-            animation: Listenable.merge([_animation, _shakeAnimation]),
-            builder: (context, child) {
-              // Calculate shake offset
-              double shakeOffset = 0;
-              if (_shakeAnimation.value > 0) {
-                shakeOffset =
-                    math.sin(_shakeAnimation.value * math.pi * 8) *
-                    (1 - _shakeAnimation.value) *
-                    3;
-              }
+          animation: Listenable.merge([_animation, _shakeAnimation]),
+          builder: (context, child) {
+            // Calculate shake offset
+            double shakeOffset = 0;
+            if (_shakeAnimation.value > 0) {
+              shakeOffset =
+                  math.sin(_shakeAnimation.value * math.pi * 8) *
+                  (1 - _shakeAnimation.value) *
+                  3;
+            }
 
-              return Transform.translate(
-                offset: Offset(shakeOffset, 0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+            return Transform.translate(
+              offset: Offset(shakeOffset, 0),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+                ),
+                child: TextFormField(
+                  maxLines: widget.maxLines,
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  textAlign: widget.textAlign,
+                  validator: widget.validator,
+                  style: waddyMedium.copyWith(
+                    fontSize: Dimensions.fontSizeLarge,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    letterSpacing: 0.1,
                   ),
-                  child: TextFormField(
-                    maxLines: widget.maxLines,
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    textAlign: widget.textAlign,
-                    validator: widget.validator,
-                    style: robotoMedium.copyWith(
+                  textInputAction: widget.inputAction,
+                  keyboardType:
+                      widget.isAmount ? TextInputType.number : widget.inputType,
+                  cursorColor: Theme.of(context).primaryColor,
+                  cursorWidth: 2.5,
+                  cursorHeight: 24,
+                  textCapitalization: widget.capitalization,
+                  enabled: widget.isEnabled,
+                  autofocus: false,
+                  obscureText: widget.isPassword ? _obscureText : false,
+                  inputFormatters:
+                      widget.inputType == TextInputType.phone
+                          ? <TextInputFormatter>[
+                            FilteringTextInputFormatter.allow(RegExp('[0-9]')),
+                          ]
+                          : widget.isAmount
+                          ? [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d*'),
+                            ),
+                          ]
+                          : widget.isNumber
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'\d'))]
+                          : null,
+                  decoration: InputDecoration(
+                    // Modern border design
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
+                      borderSide: BorderSide(
+                        style:
+                            widget.showBorder
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                        width: 1.5,
+                        color:
+                            isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
+                      borderSide: BorderSide(
+                        style:
+                            widget.showBorder
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                        width: 2.5,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
+                      borderSide: BorderSide(
+                        style:
+                            widget.showBorder
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                        width: 1.5,
+                        color:
+                            isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
+                      borderSide: BorderSide(
+                        style:
+                            widget.showBorder
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                        width: 2,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.error.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
+                      borderSide: BorderSide(
+                        style:
+                            widget.showBorder
+                                ? BorderStyle.solid
+                                : BorderStyle.none,
+                        width: 2.5,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: widget.isPhone ? 4 : 20,
+                      vertical: 18,
+                    ),
+                    hintText:
+                        widget.hintText.isEmpty || true
+                            ? widget.titleText
+                            : widget.hintText,
+
+                    fillColor: Theme.of(context).cardColor,
+
+                    hintStyle: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeLarge,
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      color: Theme.of(context).hintColor.withValues(alpha: 0.5),
                       letterSpacing: 0.1,
                     ),
-                    textInputAction: widget.inputAction,
-                    keyboardType:
-                        widget.isAmount
-                            ? TextInputType.number
-                            : widget.inputType,
-                    cursorColor: Theme.of(context).primaryColor,
-                    cursorWidth: 2.5,
-                    cursorHeight: 24,
-                    textCapitalization: widget.capitalization,
-                    enabled: widget.isEnabled,
-                    autofocus: false,
-                    obscureText: widget.isPassword ? _obscureText : false,
-                    inputFormatters:
-                        widget.inputType == TextInputType.phone
-                            ? <TextInputFormatter>[
-                              FilteringTextInputFormatter.allow(
-                                RegExp('[0-9]'),
-                              ),
-                            ]
-                            : widget.isAmount
-                            ? [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d*'),
-                              ),
-                            ]
-                            : widget.isNumber
-                            ? [FilteringTextInputFormatter.allow(RegExp(r'\d'))]
+                    filled: true,
+
+                    // Modern label styling
+                    labelStyle:
+                        widget.showLabelText
+                            ? waddyMedium.copyWith(
+                              fontSize: Dimensions.fontSizeDefault,
+                              color: Theme.of(
+                                context,
+                              ).hintColor.withValues(alpha: 0.8),
+                              letterSpacing: 0.2,
+                            )
                             : null,
-                    decoration: InputDecoration(
-                      // Modern border design
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          style:
-                              widget.showBorder
-                                  ? BorderStyle.solid
-                                  : BorderStyle.none,
-                          width: 1.5,
-                          color:
-                              isDark
-                                  ? Colors.white.withValues(alpha:0.08)
-                                  : Colors.black.withValues(alpha:0.06),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          style:
-                              widget.showBorder
-                                  ? BorderStyle.solid
-                                  : BorderStyle.none,
-                          width: 2.5,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          style:
-                              widget.showBorder
-                                  ? BorderStyle.solid
-                                  : BorderStyle.none,
-                          width: 1.5,
-                          color:
-                              isDark
-                                  ? Colors.white.withValues(alpha:0.08)
-                                  : Colors.black.withValues(alpha:0.06),
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          style:
-                              widget.showBorder
-                                  ? BorderStyle.solid
-                                  : BorderStyle.none,
-                          width: 2,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.error.withValues(alpha:0.8),
-                        ),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          style:
-                              widget.showBorder
-                                  ? BorderStyle.solid
-                                  : BorderStyle.none,
-                          width: 2.5,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: widget.isPhone ? 4 : 20,
-                        vertical: 18,
-                      ),
-                      hintText:
-                          widget.hintText.isEmpty ||
-                                  !ResponsiveHelper.isDesktop(context)
-                              ? widget.titleText
-                              : widget.hintText,
+                    errorStyle: waddyRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      letterSpacing: 0.1,
+                    ),
 
-                      fillColor: Theme.of(context).cardColor,
-
-                      hintStyle: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeLarge,
-                        color: Theme.of(context).hintColor.withValues(alpha:0.5),
-                        letterSpacing: 0.1,
-                      ),
-                      filled: true,
-
-                      // Modern label styling
-                      labelStyle:
-                          widget.showLabelText
-                              ? robotoMedium.copyWith(
-                                fontSize: Dimensions.fontSizeDefault,
-                                color: Theme.of(
-                                  context,
-                                ).hintColor.withValues(alpha:0.8),
-                                letterSpacing: 0.2,
-                              )
-                              : null,
-                      errorStyle: robotoRegular.copyWith(
-                        fontSize: Dimensions.fontSizeSmall,
-                        letterSpacing: 0.1,
-                      ),
-
-                      // Enhanced label with modern styling
-                      label:
-                          widget.showLabelText
-                              ? Text.rich(
-                                TextSpan(
-                                  children: [
+                    // Enhanced label with modern styling
+                    label:
+                        widget.showLabelText
+                            ? Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: widget.labelText ?? '',
+                                    style: waddyMedium.copyWith(
+                                      fontSize:
+                                          widget.labelTextSize ??
+                                          Dimensions.fontSizeLarge,
+                                      color:
+                                          ((widget.focusNode?.hasFocus ==
+                                                          true ||
+                                                      widget
+                                                          .controller!
+                                                          .text
+                                                          .isNotEmpty) &&
+                                                  widget.isEnabled)
+                                              ? Theme.of(context).primaryColor
+                                              : Theme.of(context).hintColor
+                                                  .withValues(alpha: 0.7),
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                  if (widget.required &&
+                                      widget.labelText != null)
                                     TextSpan(
-                                      text: widget.labelText ?? '',
-                                      style: robotoMedium.copyWith(
-                                        fontSize:
-                                            widget.labelTextSize ??
-                                            Dimensions.fontSizeLarge,
+                                      text: ' *',
+                                      style: waddyMedium.copyWith(
                                         color:
-                                            ((widget.focusNode?.hasFocus ==
-                                                            true ||
-                                                        widget
-                                                            .controller!
-                                                            .text
-                                                            .isNotEmpty) &&
-                                                    widget.isEnabled)
-                                                ? Theme.of(context).primaryColor
-                                                : Theme.of(
-                                                  context,
-                                                ).hintColor.withValues(alpha:0.7),
-                                        letterSpacing: 0.2,
+                                            Theme.of(context).colorScheme.error,
+                                        fontSize: Dimensions.fontSizeLarge,
                                       ),
                                     ),
-                                    if (widget.required &&
-                                        widget.labelText != null)
-                                      TextSpan(
-                                        text: ' *',
-                                        style: robotoMedium.copyWith(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.error,
-                                          fontSize: Dimensions.fontSizeLarge,
-                                        ),
+                                  if (widget.isEnabled == false)
+                                    TextSpan(
+                                      text:
+                                          widget.fromUpdateProfile
+                                              ? ' (${'non_changeable'.tr})'
+                                              : ' (${'non_changeable'.tr})',
+                                      style: waddyRegular.copyWith(
+                                        fontSize: Dimensions.fontSizeSmall,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error
+                                            .withValues(alpha: 0.8),
                                       ),
-                                    if (widget.isEnabled == false)
-                                      TextSpan(
-                                        text:
-                                            widget.fromUpdateProfile
-                                                ? ' (${'non_changeable'.tr})'
-                                                : ' (${'non_changeable'.tr})',
-                                        style: robotoRegular.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.error.withValues(alpha:0.8),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              )
-                              : null,
+                                    ),
+                                ],
+                              ),
+                            )
+                            : null,
 
-                      // Modern prefix icon design
-                      prefixIcon:
-                          (widget.isPhone || widget.countryDialCode != null)
-                              ? _buildModernPhonePrefix(context, isDark)
-                              : widget.prefixImage != null &&
-                                  widget.prefixIcon == null
-                              ? _buildModernPrefixImage(context)
-                              : widget.prefixImage == null &&
-                                  widget.prefixIcon != null
-                              ? _buildModernPrefixIcon(context)
-                              : null,
+                    // Modern prefix icon design
+                    prefixIcon:
+                        (widget.isPhone || widget.countryDialCode != null)
+                            ? _buildModernPhonePrefix(context, isDark)
+                            : widget.prefixImage != null &&
+                                widget.prefixIcon == null
+                            ? _buildModernPrefixImage(context)
+                            : widget.prefixImage == null &&
+                                widget.prefixIcon != null
+                            ? _buildModernPrefixIcon(context)
+                            : null,
 
-                      // Modern suffix icon design
-                      suffixIcon:
-                          widget.isPassword
-                              ? _buildModernPasswordToggle(context, isDark)
-                              : widget.suffixImage != null
-                              ? _buildModernSuffixImage(context, isDark)
-                              : widget.suffixChild,
-                    ),
-                    onFieldSubmitted:
-                        (text) =>
-                            widget.nextFocus != null
-                                ? FocusScope.of(
-                                  context,
-                                ).requestFocus(widget.nextFocus)
-                                : widget.onSubmit != null
-                                ? widget.onSubmit!(text)
-                                : null,
-                    onChanged: (text) {
-                      // Reset timer when user starts typing
-                      if (text.isNotEmpty) {
-                        _stopEmptyTimer();
-                      } else if (widget.focusNode?.hasFocus == true) {
-                        _startEmptyTimer();
-                      }
-                      widget.onChanged?.call(text);
-                    },
+                    // Modern suffix icon design
+                    suffixIcon:
+                        widget.isPassword
+                            ? _buildModernPasswordToggle(context, isDark)
+                            : widget.suffixImage != null
+                            ? _buildModernSuffixImage(context, isDark)
+                            : widget.suffixChild,
                   ),
+                  onFieldSubmitted:
+                      (text) =>
+                          widget.nextFocus != null
+                              ? FocusScope.of(
+                                context,
+                              ).requestFocus(widget.nextFocus)
+                              : widget.onSubmit != null
+                              ? widget.onSubmit!(text)
+                              : null,
+                  onChanged: (text) {
+                    // Reset timer when user starts typing
+                    if (text.isNotEmpty) {
+                      _stopEmptyTimer();
+                    } else if (widget.focusNode?.hasFocus == true) {
+                      _startEmptyTimer();
+                    }
+                    widget.onChanged?.call(text);
+                  },
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
+        ),
 
         // Modern divider
         if (widget.divider)
           Container(
-            margin: const EdgeInsets.only(top: 16),
+            margin: const EdgeInsets.only(top: Dimensions.paddingSizeDefault),
             height: 1,
             color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
           ),
@@ -467,7 +469,10 @@ class CustomTextFieldState extends State<CustomTextField>
   Widget _buildModernPhonePrefix(BuildContext context, bool isDark) {
     return Container(
       width: 120,
-      padding: const EdgeInsets.only(left: 8, right: 4),
+      padding: const EdgeInsets.only(
+        left: Dimensions.paddingSizeSmall,
+        right: Dimensions.paddingSizeExtraSmall,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -475,10 +480,10 @@ class CustomTextFieldState extends State<CustomTextField>
             width: 88,
             height: 44,
             decoration: BoxDecoration(
-              color: Theme.of(context).hintColor.withValues(alpha:0.06),
-              borderRadius: BorderRadius.circular(10),
+              color: Theme.of(context).hintColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             ),
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
             child: Center(
               child: CodePickerWidget(
                 flagWidth: 28,
@@ -489,10 +494,10 @@ class CustomTextFieldState extends State<CustomTextField>
                 enabled:
                     Get.find<SplashController>()
                         .configModel
-                        ?.countryPickerStatus,
+                        .countryPickerStatus,
                 dialogBackgroundColor: Theme.of(context).cardColor,
                 hideMainText: true,
-                textStyle: robotoMedium.copyWith(
+                textStyle: waddyMedium.copyWith(
                   fontSize: Dimensions.fontSizeDefault,
                   color: Theme.of(context).textTheme.bodyMedium!.color,
                   letterSpacing: 0.1,
@@ -503,7 +508,7 @@ class CustomTextFieldState extends State<CustomTextField>
           Container(
             height: 24,
             width: 1,
-            color: Theme.of(context).dividerColor.withValues(alpha:0.3),
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -512,14 +517,17 @@ class CustomTextFieldState extends State<CustomTextField>
 
   Widget _buildModernPrefixImage(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 16, right: 12),
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(
+        left: Dimensions.paddingSizeDefault,
+        right: Dimensions.paddingSizeMedium,
+      ),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
         color:
             widget.focusNode?.hasFocus == true
-                ? Theme.of(context).primaryColor.withValues(alpha:0.1)
-                : Theme.of(context).hintColor.withValues(alpha:0.05),
-        borderRadius: BorderRadius.circular(12),
+                ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                : Theme.of(context).hintColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: CustomAssetImageWidget(
         widget.prefixImage!,
@@ -529,21 +537,24 @@ class CustomTextFieldState extends State<CustomTextField>
         color:
             widget.focusNode?.hasFocus == true
                 ? Theme.of(context).primaryColor
-                : Theme.of(context).hintColor.withValues(alpha:0.7),
+                : Theme.of(context).hintColor.withValues(alpha: 0.7),
       ),
     );
   }
 
   Widget _buildModernPrefixIcon(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 16, right: 12),
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(
+        left: Dimensions.paddingSizeDefault,
+        right: Dimensions.paddingSizeMedium,
+      ),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
         color:
             widget.focusNode?.hasFocus == true
-                ? Theme.of(context).primaryColor.withValues(alpha:0.1)
-                : Theme.of(context).hintColor.withValues(alpha:0.05),
-        borderRadius: BorderRadius.circular(12),
+                ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                : Theme.of(context).hintColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       child: Icon(
         widget.prefixIcon,
@@ -551,25 +562,25 @@ class CustomTextFieldState extends State<CustomTextField>
         color:
             widget.focusNode?.hasFocus == true
                 ? Theme.of(context).primaryColor
-                : Theme.of(context).hintColor.withValues(alpha:0.7),
+                : Theme.of(context).hintColor.withValues(alpha: 0.7),
       ),
     );
   }
 
   Widget _buildModernPasswordToggle(BuildContext context, bool isDark) {
     return Container(
-      margin: const EdgeInsets.only(right: 12),
+      margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           onTap: _toggle,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
             decoration: BoxDecoration(
               color: Theme.of(context).hintColor.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             ),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -590,17 +601,17 @@ class CustomTextFieldState extends State<CustomTextField>
 
   Widget _buildModernSuffixImage(BuildContext context, bool isDark) {
     return Container(
-      margin: const EdgeInsets.only(right: 12),
+      margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: widget.suffixOnPressed,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
             decoration: BoxDecoration(
               color: Theme.of(context).hintColor.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             ),
             child: Image.asset(
               widget.suffixImage!,

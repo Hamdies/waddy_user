@@ -8,6 +8,7 @@ import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 /// Live cart widget - floating green pill with stacked item images,
 /// "View cart" text, item count, and chevron arrow.
@@ -67,14 +68,23 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
         // Calculate total price
         final double totalPrice = cartController.calculationCart();
 
-        // Calculate estimated XP
-        final String? moduleType = cartItems.isNotEmpty
-            ? cartItems.first.item?.moduleType
-            : null;
+        // Calculate estimated XP from line items so it matches the backend's
+        // per-item floor (a whole-total estimate reads a few XP high).
+        final String? moduleType =
+            cartItems.isNotEmpty ? cartItems.first.item?.moduleType : null;
         int estimatedXp = 0;
         if (Get.isRegistered<XpController>()) {
-          estimatedXp = Get.find<XpController>().calculateEstimatedXp(
-            totalPrice,
+          final lines =
+              cartItems
+                  .map(
+                    (item) => (
+                      price: item.discountedPrice ?? item.price ?? 0,
+                      quantity: item.quantity ?? 1,
+                    ),
+                  )
+                  .toList();
+          estimatedXp = Get.find<XpController>().calculateEstimatedXpForItems(
+            lines,
             moduleType,
           );
         }
@@ -83,7 +93,9 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
         final Color accentColor = Theme.of(context).secondaryHeaderColor;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
           child: ScaleTransition(
             scale: _pulseAnimation,
             child: GestureDetector(
@@ -92,14 +104,11 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
                 height: 60,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      primaryColor,
-                      primaryColor.withValues(alpha: 0.9),
-                    ],
+                    colors: [primaryColor, primaryColor.withValues(alpha: 0.9)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                   boxShadow: [
                     BoxShadow(
                       color: primaryColor.withValues(alpha: 0.35),
@@ -141,11 +150,17 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
                     // Arrow badge with total
                     Container(
                       height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeMedium,
+                      ),
+                      margin: const EdgeInsets.only(
+                        right: Dimensions.paddingSizeSmall,
+                      ),
                       decoration: BoxDecoration(
                         color: accentColor,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusDefault,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: accentColor.withValues(alpha: 0.3),
@@ -159,7 +174,7 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
                         children: [
                           Text(
                             PriceConverter.convertPrice(totalPrice),
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               color: primaryColor,
                               fontSize: 14,
                             ),
@@ -189,35 +204,30 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
     required Color accentColor,
   }) {
     // First line: estimated XP from this order
-    final xpRow = estimatedXp > 0
-        ? Row(
-            children: [
-              const Text('⚡', style: TextStyle(fontSize: 11)),
-              const SizedBox(width: 3),
-              Text(
-                '+$estimatedXp XP',
-                style: robotoBold.copyWith(
-                  color: Colors.white,
-                  fontSize: 13,
+    final xpRow =
+        estimatedXp > 0
+            ? Row(
+              children: [
+                const Text('⚡', style: TextStyle(fontSize: 11)),
+                const SizedBox(width: 3),
+                Text(
+                  '+$estimatedXp XP',
+                  style: waddyBold.copyWith(color: Colors.white, fontSize: 13),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '$totalItems ${'items'.tr}',
-                style: robotoRegular.copyWith(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 11,
+                const SizedBox(width: 6),
+                Text(
+                  '$totalItems ${'items'.tr}',
+                  style: waddyRegular.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 11,
+                  ),
                 ),
-              ),
-            ],
-          )
-        : Text(
-            '$totalItems ${'items'.tr}',
-            style: robotoBold.copyWith(
-              color: Colors.white,
-              fontSize: 14,
-            ),
-          );
+              ],
+            )
+            : Text(
+              '$totalItems ${'items'.tr}',
+              style: waddyBold.copyWith(color: Colors.white, fontSize: 14),
+            );
 
     // Second line: next reward info
     Widget? rewardRow;
@@ -226,16 +236,14 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
       final nextReward = xpController.nextReward;
 
       if (nextReward != null) {
-        final rewardTitle = nextReward.title.isNotEmpty
-            ? nextReward.title
-            : xpController.getRewardName(nextReward.type);
+        final rewardTitle =
+            nextReward.title.isNotEmpty
+                ? nextReward.title
+                : xpController.getRewardName(nextReward.type);
 
         rewardRow = Text(
           '${'next'.tr} Prize: $rewardTitle',
-          style: robotoMedium.copyWith(
-            color: accentColor,
-            fontSize: 11,
-          ),
+          style: waddyMedium.copyWith(color: accentColor, fontSize: 11),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         );
@@ -247,10 +255,7 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         xpRow,
-        if (rewardRow != null) ...[
-          const SizedBox(height: 2),
-          rewardRow,
-        ],
+        if (rewardRow != null) ...[const SizedBox(height: 2), rewardRow],
       ],
     );
   }
@@ -282,7 +287,7 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
               height: 44,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 border: Border.all(color: Colors.white, width: 2.5),
                 boxShadow: [
                   BoxShadow(
@@ -293,7 +298,7 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                 child: CustomImage(
                   image: displayItems[i].item?.imageFullUrl ?? '',
                   fit: BoxFit.cover,

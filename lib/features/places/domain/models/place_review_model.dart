@@ -1,3 +1,5 @@
+import 'package:waddy_app/util/image_url.dart';
+
 class PlaceReview {
   final int id;
   final int placeId;
@@ -29,13 +31,17 @@ class PlaceReview {
       placeId: json['place_id'] ?? 0,
       userId: json['user_id'],
       userName: json['user_name'] ?? json['user']?['f_name'],
-      userImage: json['user_image'] ?? json['user']?['image_full_url'],
+      userImage: pickImageUrl([
+        json['user']?['image_full_url'],
+        json['user_image'],
+      ]),
       rating: json['rating'] ?? 0,
-      comment: json['comment'],
-      imageUrl: json['image_url'] ?? json['image'],
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'])
-          : null,
+      comment: json['review'] ?? json['comment'],
+      imageUrl: pickImageUrl([json['image_url'], json['image']]),
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.tryParse(json['created_at'])
+              : null,
       reportsCount: json['reports_count'] ?? 0,
     );
   }
@@ -58,13 +64,14 @@ class PlaceReviewList {
 
   factory PlaceReviewList.fromJson(Map<String, dynamic> json) {
     return PlaceReviewList(
-      reviews: json['data'] != null
-          ? (json['data'] as List)
-              .map((item) => PlaceReview.fromJson(item))
-              .toList()
-          : [],
-      totalSize: json['total_size'] ?? json['total'],
-      offset: json['offset'],
+      reviews:
+          json['data'] != null
+              ? (json['data'] as List)
+                  .map((item) => PlaceReview.fromJson(item))
+                  .toList()
+              : [],
+      totalSize: json['total_size'] ?? json['total'] ?? json['meta']?['total'],
+      offset: json['offset'] ?? json['meta']?['current_page'],
     );
   }
 }

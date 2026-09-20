@@ -2,7 +2,7 @@ import 'package:waddy_app/features/home/domain/models/cashback_model.dart';
 import 'package:waddy_app/features/home/domain/repositories/home_repository_interface.dart';
 import 'package:waddy_app/features/home/domain/services/home_service_interface.dart';
 
-class HomeService implements HomeServiceInterface{
+class HomeService implements HomeServiceInterface {
   final HomeRepositoryInterface homeRepositoryInterface;
   HomeService({required this.homeRepositoryInterface});
 
@@ -35,5 +35,4 @@ class HomeService implements HomeServiceInterface{
   bool getIsRestaurantRegistration() {
     return homeRepositoryInterface.getIsRestaurantRegistration();
   }
-
 }

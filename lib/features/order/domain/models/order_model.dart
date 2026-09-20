@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:waddy_app/util/parse.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/parcel/domain/models/parcel_category_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -16,7 +17,7 @@ class PaginatedOrderModel {
     limit = json['limit'].toString();
     offset =
         (json['offset'] != null && json['offset'].toString().trim().isNotEmpty)
-            ? int.parse(json['offset'].toString())
+            ? Parse.lenientInt(json['offset'])
             : null;
     if (json['orders'] != null) {
       orders = [];
@@ -107,7 +108,8 @@ class OrderModel {
   /// Computed human-readable estimated delivery range (e.g. "25–35 min")
   /// Shows a range (±5 min) instead of a fixed number to set realistic expectations.
   String? get estimatedDelivery {
-    if (estimatedDeliveryAt == null || estimatedDeliveryAt!.isEmpty) return null;
+    if (estimatedDeliveryAt == null || estimatedDeliveryAt!.isEmpty)
+      return null;
     try {
       DateTime? eta = DateTime.tryParse(estimatedDeliveryAt!);
       if (eta == null) {
@@ -124,8 +126,10 @@ class OrderModel {
       final hi = diff + 5;
       if (hi <= 60) return '$lo\u2013$hi ${'min'.tr}';
       if (lo >= 60) {
-        final loH = lo ~/ 60; final loM = lo % 60;
-        final hiH = hi ~/ 60; final hiM = hi % 60;
+        final loH = lo ~/ 60;
+        final loM = lo % 60;
+        final hiH = hi ~/ 60;
+        final hiM = hi % 60;
         if (loH == hiH) return '$loH ${'hour'.tr} $loM\u2013$hiM ${'min'.tr}';
         return '$loH:${loM.toString().padLeft(2, '0')}\u2013$hiH:${hiM.toString().padLeft(2, '0')} ${'hour'.tr}';
       }

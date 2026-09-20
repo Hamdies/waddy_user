@@ -28,7 +28,7 @@ class ItemThatYouLoveView extends StatefulWidget {
 class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  
+
   // Yandex Plus style colors
   static const Color deepPurple = Color(0xFF2D1B4E);
   static const Color midPurple = Color(0xFF4A2C7A);
@@ -76,14 +76,14 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
   Widget _buildMainContent(List<Item> items) {
     final title = widget.forShop ? 'top_picks'.tr : 'items_you_love'.tr;
     final subtitle = widget.forShop ? 'best_for_you'.tr : 'your_favorites'.tr;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeSmall,
         vertical: Dimensions.paddingSizeDefault,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         child: Stack(
           children: [
             // Main gradient background
@@ -100,13 +100,13 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                 children: [
                   // Header with lights
                   _buildHeaderWithLights(title, subtitle),
-                  
+
                   // Three cards section
                   _buildThreeCardsSection(items),
-                  
+
                   // Bottom action buttons
                   _buildBottomActions(),
-                  
+
                   // Snowy bottom edge
                   _buildSnowyEdge(),
                 ],
@@ -133,10 +133,10 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
               painter: _LightStringPainter(),
             ),
           ),
-          
+
           // Hanging ornaments/lights
           ..._buildHangingLights(),
-          
+
           // Title section
           Positioned(
             bottom: 20,
@@ -146,7 +146,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
               children: [
                 Text(
                   title,
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: 32,
                     color: Colors.white,
                     letterSpacing: 1,
@@ -163,7 +163,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 16,
                     color: Colors.white.withValues(alpha: 0.8),
                     letterSpacing: 1,
@@ -270,7 +270,10 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
               decoration: BoxDecoration(
                 color: color,
                 shape: isStarShape ? BoxShape.rectangle : BoxShape.circle,
-                borderRadius: isStarShape ? BorderRadius.circular(8) : null,
+                borderRadius:
+                    isStarShape
+                        ? BorderRadius.circular(Dimensions.radiusSmall)
+                        : null,
                 boxShadow: [
                   BoxShadow(
                     color: color.withValues(alpha: 0.5),
@@ -279,12 +282,16 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                   ),
                 ],
               ),
-              child: icon != null
-                  ? Icon(icon, color: Colors.white, size: size * 0.5)
-                  : isStarShape
+              child:
+                  icon != null
+                      ? Icon(icon, color: Colors.white, size: size * 0.5)
+                      : isStarShape
                       ? const Center(
-                          child: Text('★', style: TextStyle(color: Colors.white, fontSize: 20)),
-                        )
+                        child: Text(
+                          '★',
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                      )
                       : null,
             ),
           ],
@@ -329,7 +336,10 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeSmall,
+      ),
       child: Row(
         children: [
           // First card (white/highlighted)
@@ -376,7 +386,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
         height: 140,
         decoration: BoxDecoration(
           color: cardPurple.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         ),
       );
     }
@@ -389,27 +399,29 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
       child: Container(
         height: 140,
         decoration: BoxDecoration(
-          color: isHighlighted ? Colors.white : cardPurple.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isHighlighted
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          color:
+              isHighlighted ? Colors.white : cardPurple.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+          boxShadow:
+              isHighlighted
+                  ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                  : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
               Text(
                 item.name ?? 'Item',
-                style: robotoBold.copyWith(
+                style: waddyBold.copyWith(
                   fontSize: isHighlighted ? 14 : 12,
                   color: isHighlighted ? deepPurple : Colors.white,
                 ),
@@ -420,7 +432,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                 const SizedBox(height: 2),
                 Text(
                   item.storeName!,
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: 10,
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
@@ -433,7 +445,9 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
               if (isHighlighted)
                 Center(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     child: SizedBox(
                       width: 50,
                       height: 50,
@@ -486,16 +500,22 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
 
   Widget _buildBottomActions() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeDefault,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Left button
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+              vertical: Dimensions.paddingSizeSmall,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -508,7 +528,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                 const SizedBox(width: 8),
                 Text(
                   'manage'.tr,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 14,
                     color: Colors.white,
                   ),
@@ -534,16 +554,12 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
                       colors: [accentYellow, accentPink],
                     ),
                   ),
-                  child: const Icon(
-                    Icons.star,
-                    size: 18,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.star, size: 18, color: Colors.white),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'view_all'.tr,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: 14,
                     color: Colors.white,
                   ),
@@ -567,9 +583,7 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
       clipper: _SnowyEdgeClipper(),
       child: Container(
         height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.95),
-        ),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.95)),
       ),
     );
   }
@@ -579,14 +593,15 @@ class _ItemThatYouLoveViewState extends State<ItemThatYouLoveView>
 class _LightStringPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.4)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.4)
+          ..strokeWidth = 2
+          ..style = PaintingStyle.stroke;
 
     final path = Path();
     path.moveTo(0, 15);
-    
+
     // Create a gentle curve across the top
     final controlPoints = [
       Offset(size.width * 0.15, 25),
@@ -596,24 +611,28 @@ class _LightStringPainter extends CustomPainter {
       Offset(size.width * 0.85, 22),
       Offset(size.width, 12),
     ];
-    
+
     for (int i = 0; i < controlPoints.length; i++) {
       if (i == 0) {
         path.quadraticBezierTo(
-          size.width * 0.075, 20,
-          controlPoints[i].dx, controlPoints[i].dy,
+          size.width * 0.075,
+          20,
+          controlPoints[i].dx,
+          controlPoints[i].dy,
         );
       } else {
         final prevPoint = controlPoints[i - 1];
         final midX = (prevPoint.dx + controlPoints[i].dx) / 2;
         final midY = (prevPoint.dy + controlPoints[i].dy) / 2;
         path.quadraticBezierTo(
-          midX, midY + (i.isEven ? 5 : -5),
-          controlPoints[i].dx, controlPoints[i].dy,
+          midX,
+          midY + (i.isEven ? 5 : -5),
+          controlPoints[i].dx,
+          controlPoints[i].dy,
         );
       }
     }
-    
+
     canvas.drawPath(path, paint);
   }
 
@@ -626,27 +645,24 @@ class _SnowyEdgeClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    
+
     // Start from bottom left
     path.moveTo(0, size.height);
     path.lineTo(0, 15);
-    
+
     // Create bumpy snow-like top edge
     const bumpCount = 8;
     final bumpWidth = size.width / bumpCount;
-    
+
     for (int i = 0; i < bumpCount; i++) {
       final startX = i * bumpWidth;
       final endX = (i + 1) * bumpWidth;
       final midX = startX + bumpWidth / 2;
       final bumpHeight = (i % 3 == 0) ? 0.0 : (i % 2 == 0 ? 10.0 : 15.0);
-      
-      path.quadraticBezierTo(
-        midX, bumpHeight,
-        endX, 15,
-      );
+
+      path.quadraticBezierTo(midX, bumpHeight, endX, 15);
     }
-    
+
     path.lineTo(size.width, size.height);
     path.close();
     return path;
@@ -686,8 +702,8 @@ class _ItemThatYouLoveShimmerView extends StatelessWidget {
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+                  topLeft: Radius.circular(Dimensions.radiusExtraLarge),
+                  topRight: Radius.circular(Dimensions.radiusExtraLarge),
                 ),
               ),
               child: Center(
@@ -696,7 +712,7 @@ class _ItemThatYouLoveShimmerView extends StatelessWidget {
                   height: 50,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                 ),
               ),
@@ -714,8 +730,8 @@ class _ItemThatYouLoveShimmerView extends StatelessWidget {
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
+                  bottomLeft: Radius.circular(Dimensions.radiusExtraLarge),
+                  bottomRight: Radius.circular(Dimensions.radiusExtraLarge),
                 ),
               ),
               child: Row(
@@ -724,10 +740,14 @@ class _ItemThatYouLoveShimmerView extends StatelessWidget {
                   return Container(
                     width: 160,
                     height: 220,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.paddingSizeSmall,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusExtraLarge,
+                      ),
                     ),
                   );
                 }),

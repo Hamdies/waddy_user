@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/flash_sale/domain/models/flash_sale_model.dart';
+import 'package:waddy_app/util/parse.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 
 class ProductFlashSale {
@@ -8,13 +9,22 @@ class ProductFlashSale {
   FlashSaleModel? flashSale;
   List<Products>? products;
 
-  ProductFlashSale({this.totalSize, this.limit, this.offset, this.flashSale, this.products});
+  ProductFlashSale({
+    this.totalSize,
+    this.limit,
+    this.offset,
+    this.flashSale,
+    this.products,
+  });
 
   ProductFlashSale.fromJson(Map<String, dynamic> json) {
     totalSize = json['total_size'];
-    limit = int.parse(json['limit'].toString());
-    offset = int.parse(json['offset'].toString());
-    flashSale = json['flash_sale'] != null ? FlashSaleModel.fromJson(json['flash_sale']) : null;
+    limit = Parse.lenientInt(json['limit']);
+    offset = Parse.lenientInt(json['offset']);
+    flashSale =
+        json['flash_sale'] != null
+            ? FlashSaleModel.fromJson(json['flash_sale'])
+            : null;
     if (json['products'] != null) {
       products = <Products>[];
       json['products'].forEach((v) {

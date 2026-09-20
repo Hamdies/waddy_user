@@ -14,7 +14,10 @@ class SearchRepository implements SearchRepositoryInterface {
 
   @override
   Future<bool> saveSearchHistory(List<String> searchHistories) async {
-    return await sharedPreferences.setStringList(AppConstants.searchHistory, searchHistories);
+    return await sharedPreferences.setStringList(
+      AppConstants.searchHistory,
+      searchHistories,
+    );
   }
 
   @override
@@ -43,8 +46,14 @@ class SearchRepository implements SearchRepositoryInterface {
   }
 
   @override
-  Future getList({int? offset, String? query, bool? isStore, bool isSuggestedItems = false, String? sortBy}) async {
-    if(isSuggestedItems) {
+  Future getList({
+    int? offset,
+    String? query,
+    bool? isStore,
+    bool isSuggestedItems = false,
+    String? sortBy,
+  }) async {
+    if (isSuggestedItems) {
       return await _getSuggestedItems();
     } else {
       return await _getSearchData(query, isStore!, sortBy: sortBy);
@@ -54,15 +63,22 @@ class SearchRepository implements SearchRepositoryInterface {
   Future<List<Item>?> _getSuggestedItems() async {
     List<Item>? suggestedItemList;
     Response response = await apiClient.getData(AppConstants.suggestedItemUri);
-    if(response.statusCode == 200) {
+    if (response.statusCode == 200) {
       suggestedItemList = [];
-      response.body.forEach((suggestedItem) => suggestedItemList!.add(Item.fromJson(suggestedItem)));
+      response.body.forEach(
+        (suggestedItem) => suggestedItemList!.add(Item.fromJson(suggestedItem)),
+      );
     }
     return suggestedItemList;
   }
 
-  Future<Response> _getSearchData(String? query, bool isStore, {String? sortBy}) async {
-    String url = '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&offset=1&limit=50';
+  Future<Response> _getSearchData(
+    String? query,
+    bool isStore, {
+    String? sortBy,
+  }) async {
+    String url =
+        '${AppConstants.searchUri}${isStore ? 'stores' : 'items'}/search?name=$query&offset=1&limit=50';
     if (sortBy != null && sortBy.isNotEmpty) {
       url += '&sort_by=$sortBy';
     }
@@ -77,8 +93,10 @@ class SearchRepository implements SearchRepositoryInterface {
   @override
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText) async {
     SearchSuggestionModel? searchSuggestionModel;
-    Response response = await apiClient.getData('${AppConstants.searchSuggestionsUri}?name=$searchText');
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      '${AppConstants.searchSuggestionsUri}?name=$searchText',
+    );
+    if (response.statusCode == 200) {
       searchSuggestionModel = SearchSuggestionModel.fromJson(response.body);
     }
     return searchSuggestionModel;
@@ -87,8 +105,10 @@ class SearchRepository implements SearchRepositoryInterface {
   @override
   Future<List<PopularCategoryModel?>?> getPopularCategories() async {
     List<PopularCategoryModel?>? popularCategoryList;
-    Response response = await apiClient.getData(AppConstants.searchPopularCategoriesUri);
-    if(response.statusCode == 200) {
+    Response response = await apiClient.getData(
+      AppConstants.searchPopularCategoriesUri,
+    );
+    if (response.statusCode == 200) {
       popularCategoryList = [];
       response.body.forEach((category) {
         popularCategoryList!.add(PopularCategoryModel.fromJson(category));
@@ -96,5 +116,4 @@ class SearchRepository implements SearchRepositoryInterface {
     }
     return popularCategoryList;
   }
-
 }

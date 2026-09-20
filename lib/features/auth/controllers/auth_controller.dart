@@ -12,8 +12,7 @@ import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
 import 'package:waddy_app/features/auth/domain/models/signup_body_model.dart';
 import 'package:waddy_app/features/auth/domain/services/auth_service_interface.dart';
-import 'package:waddy_app/features/verification/screens/verification_screen.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
+import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 
 class AuthController extends GetxController implements GetxService {
@@ -54,6 +53,9 @@ class AuthController extends GetxController implements GetxService {
     ResponseModel responseModel = await authServiceInterface.registration(
       signUpBody,
     );
+    if (responseModel.isSuccess) {
+      AnalyticsHelper.logCompleteRegistration(method: 'manual');
+    }
     _isLoading = false;
     update();
     return responseModel;
@@ -116,7 +118,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   Future<ResponseModel> guestLogin() async {
-    return ResponseModel(false, 'Guest mode is disabled');
+    return await authServiceInterface.guestLogin();
   }
 
   Future<ResponseModel> loginWithSocialMedia(
@@ -128,7 +130,7 @@ class AuthController extends GetxController implements GetxService {
         .loginWithSocialMedia(
           socialLogInBody,
           isCustomerVerificationOn:
-              Get.find<SplashController>().configModel!.customerVerification!,
+              Get.find<SplashController>().configModel.customerVerification!,
         );
     _getUserAndCartData(responseModel);
     _isLoading = false;
@@ -166,6 +168,13 @@ class AuthController extends GetxController implements GetxService {
       referCode: referCode,
       alreadyInApp: alreadyInApp,
     );
+    if (responseModel.isSuccess) {
+      // The name step is the finish line of the new-user flow (phone →
+      // verify → personal info), so this is CompleteRegistration for ads.
+      AnalyticsHelper.logCompleteRegistration(method: loginType);
+      // Profile is whole now; stop resuming the name step on next launch.
+      await authServiceInterface.setProfileIncomplete(false);
+    }
     _getUserAndCartData(responseModel);
     _isLoading = false;
     update();
@@ -188,7 +197,7 @@ class AuthController extends GetxController implements GetxService {
     countryDialCode =
         countryCode ??
         CountryCode.fromCountryCode(
-          Get.find<SplashController>().configModel!.country ?? "BD",
+          Get.find<SplashController>().configModel.country ?? "BD",
         ).dialCode ??
         "+880";
   }
@@ -211,8 +220,23 @@ class AuthController extends GetxController implements GetxService {
     return authServiceInterface.isLoggedIn();
   }
 
+  /// True while a verified phone still has no name on the account — the
+  /// window where the backend has only issued a temporary token.
+  bool isProfileIncomplete() {
+    return authServiceInterface.isProfileIncomplete();
+  }
+
+  Future<bool> setProfileIncomplete(bool value, {String? phone}) {
+    return authServiceInterface.setProfileIncomplete(value, phone: phone);
+  }
+
+  /// Phone captured when the profile step was interrupted, if any.
+  String? getPendingProfilePhone() {
+    return authServiceInterface.getPendingProfilePhone();
+  }
+
   bool isGuestLoggedIn() {
-    return false;
+    return authServiceInterface.isGuestLoggedIn();
   }
 
   String getGuestId() {
@@ -220,9 +244,7 @@ class AuthController extends GetxController implements GetxService {
   }
 
   Future<bool> clearSharedData({bool removeToken = true}) async {
-    if (!ResponsiveHelper.isDesktop(Get.context)) {
-      Get.find<SplashController>().setModule(null);
-    }
+    Get.find<SplashController>().leaveModule();
     return await authServiceInterface.clearSharedData(removeToken: removeToken);
   }
 
@@ -325,7 +347,9 @@ class AuthController extends GetxController implements GetxService {
   Future<ResponseModel> toggleHidePhone({required bool hidePhone}) async {
     _isLoading = true;
     update();
-    ResponseModel responseModel = await authServiceInterface.toggleHidePhone(hidePhone: hidePhone);
+    ResponseModel responseModel = await authServiceInterface.toggleHidePhone(
+      hidePhone: hidePhone,
+    );
     _isLoading = false;
     update();
     return responseModel;
@@ -371,35 +395,18 @@ class AuthController extends GetxController implements GetxService {
         }
 
         if (canRoute) {
-          if (ResponsiveHelper.isDesktop(Get.context)) {
-            Get.back();
-            Get.dialog(
-              VerificationScreen(
-                number: phoneNumber,
-                email: null,
-                token: token,
-                fromSignUp: fromSignUp,
-                fromForgetPassword: !fromSignUp,
-                loginType: loginType,
-                password: '',
-                firebaseSession: vId,
-                userModel: updateUserModel,
-              ),
-            );
-          } else {
-            Get.toNamed(
-              RouteHelper.getVerificationRoute(
-                phoneNumber,
-                '',
-                token,
-                fromSignUp ? RouteHelper.signUp : RouteHelper.forgotPassword,
-                '',
-                loginType,
-                session: vId,
-                updateUserModel: updateUserModel,
-              ),
-            );
-          }
+          Get.toNamed(
+            RouteHelper.getVerificationRoute(
+              phoneNumber,
+              '',
+              token,
+              fromSignUp ? RouteHelper.signUp : RouteHelper.forgotPassword,
+              '',
+              loginType,
+              session: vId,
+              updateUserModel: updateUserModel,
+            ),
+          );
         }
       },
       codeAutoRetrievalTimeout: (String verificationId) {

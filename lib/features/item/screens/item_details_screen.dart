@@ -7,19 +7,16 @@ import 'package:waddy_app/features/checkout/domain/models/place_order_body_model
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
-import 'package:waddy_app/common/widgets/custom_app_bar.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/features/checkout/screens/checkout_screen.dart';
 import 'package:waddy_app/features/item/widgets/details_app_bar_widget.dart';
-import 'package:waddy_app/features/item/widgets/details_web_view_widget.dart';
 import 'package:waddy_app/features/item/widgets/item_image_view_widget.dart';
 import 'package:waddy_app/features/item/widgets/item_title_view_widget.dart';
 import 'package:waddy_app/features/cart/widgets/cart_module_conflict_dialog.dart';
@@ -39,7 +36,8 @@ class ItemDetailsScreen extends StatefulWidget {
   State<ItemDetailsScreen> createState() => _ItemDetailsScreenState();
 }
 
-class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProviderStateMixin {
+class _ItemDetailsScreenState extends State<ItemDetailsScreen>
+    with TickerProviderStateMixin {
   final Size size = Get.size;
   final GlobalKey<ScaffoldMessengerState> _globalKey = GlobalKey();
   final GlobalKey<DetailsAppBarWidgetState> _key = GlobalKey();
@@ -75,8 +73,10 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
   }
 
   void _startFlyToCartAnimation(String imageUrl) {
-    final RenderBox? productBox = _productImageKey.currentContext?.findRenderObject() as RenderBox?;
-    final RenderBox? buttonBox = _addToCartButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? productBox =
+        _productImageKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? buttonBox =
+        _addToCartButtonKey.currentContext?.findRenderObject() as RenderBox?;
 
     if (productBox == null || buttonBox == null) return;
 
@@ -259,7 +259,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               priceWithAddons =
                   priceWithQuantity +
                   (Get.find<SplashController>()
-                          .configModel!
+                          .configModel
                           .moduleConfig!
                           .module!
                           .addOn!
@@ -279,44 +279,37 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               backgroundColor: const Color(0xFFF7F8FA),
               endDrawer: const MenuDrawer(),
               endDrawerEnableOpenDragGesture: false,
-              appBar:
-                  ResponsiveHelper.isDesktop(context)
-                      ? const CustomAppBar(title: '')
-                      : DetailsAppBarWidget(key: _key),
+              appBar: DetailsAppBarWidget(key: _key),
 
               body: SafeArea(
                 child:
                     (item != null)
-                        ? ResponsiveHelper.isDesktop(context)
-                            ? DetailsWebViewWidget(
-                              cartModel: cartModel,
-                              stock: stock,
-                              priceWithAddOns: priceWithAddons,
-                              cart: cart,
-                            )
-                            : Column(
-                              children: [
-                                // Scrollable content
-                                Expanded(
-                                  child: Stack(
-                                    children: [
-                                      SingleChildScrollView(
-                                        physics: const BouncingScrollPhysics(),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
+                        ? Column(
+                          children: [
+                            // Scrollable content
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  SingleChildScrollView(
+                                    physics: const BouncingScrollPhysics(),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
                                         // Product image
                                         RepaintBoundary(
                                           key: _productImageKey,
                                           child: ItemImageViewWidget(
                                             item: item,
-                                            isCampaign: widget.isCampaign ?? false,
-                                            inStock: (Get.find<SplashController>()
-                                                    .configModel!
-                                                    .moduleConfig!
-                                                    .module!
-                                                    .stock! &&
-                                                stock! <= 0),
+                                            isCampaign:
+                                                widget.isCampaign ?? false,
+                                            inStock:
+                                                (Get.find<SplashController>()
+                                                        .configModel
+                                                        .moduleConfig!
+                                                        .module!
+                                                        .stock! &&
+                                                    stock! <= 0),
                                           ),
                                         ),
 
@@ -324,119 +317,233 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                         ItemTitleViewWidget(
                                           item: item,
                                           inStorePage: widget.inStorePage,
-                                          isCampaign: item.availableDateStarts != null,
-                                          inStock: (Get.find<SplashController>()
-                                                  .configModel!
-                                                  .moduleConfig!
-                                                  .module!
-                                                  .stock! &&
-                                              stock! <= 0),
+                                          isCampaign:
+                                              item.availableDateStarts != null,
+                                          inStock:
+                                              (Get.find<SplashController>()
+                                                      .configModel
+                                                      .moduleConfig!
+                                                      .module!
+                                                      .stock! &&
+                                                  stock! <= 0),
                                         ),
 
                                         const SizedBox(height: 6),
 
                                         // Variation section - compact themed list with prices
                                         if (item.choiceOptions!.isNotEmpty)
-                                          ...item.choiceOptions!.asMap().entries.map((entry) {
+                                          ...item.choiceOptions!.asMap().entries.map((
+                                            entry,
+                                          ) {
                                             final index = entry.key;
                                             final choice = entry.value;
                                             // Find the cheapest variation price for "Save X!" calculation
                                             double? cheapestPrice;
                                             if (item.variations!.isNotEmpty) {
                                               for (var v in item.variations!) {
-                                                if (cheapestPrice == null || (v.price != null && v.price! < cheapestPrice)) {
+                                                if (cheapestPrice == null ||
+                                                    (v.price != null &&
+                                                        v.price! <
+                                                            cheapestPrice)) {
                                                   cheapestPrice = v.price;
                                                 }
                                               }
                                             }
                                             return Container(
-                                              margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                              margin: const EdgeInsets.fromLTRB(
+                                                16,
+                                                4,
+                                                16,
+                                                8,
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical:
+                                                        Dimensions
+                                                            .paddingSizeMedium,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: Colors.white,
-                                                borderRadius: BorderRadius.circular(18),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      Dimensions.radiusLarge,
+                                                    ),
                                                 boxShadow: [
                                                   BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.04),
+                                                    color: Colors.black
+                                                        .withValues(
+                                                          alpha: 0.04,
+                                                        ),
                                                     blurRadius: 12,
                                                     offset: const Offset(0, 2),
                                                   ),
                                                 ],
                                               ),
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   // Header
                                                   Padding(
-                                                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                                                    padding:
+                                                        const EdgeInsets.fromLTRB(
+                                                          14,
+                                                          0,
+                                                          14,
+                                                          8,
+                                                        ),
                                                     child: Row(
                                                       children: [
                                                         Text(
                                                           choice.title!,
-                                                          style: robotoBold.copyWith(
-                                                            fontSize: 14,
-                                                            color: const Color(0xFF1A1A2E),
-                                                          ),
+                                                          style: waddyBold
+                                                              .copyWith(
+                                                                fontSize: 14,
+                                                                color:
+                                                                    const Color(
+                                                                      0xFF1A1A2E,
+                                                                    ),
+                                                              ),
                                                         ),
-                                                        const SizedBox(width: 6),
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
                                                         Text(
                                                           '• ${'select'.tr} 1',
-                                                          style: robotoRegular.copyWith(
-                                                            fontSize: 11,
-                                                            color: Colors.grey.shade400,
-                                                          ),
+                                                          style: waddyRegular
+                                                              .copyWith(
+                                                                fontSize: 11,
+                                                                color:
+                                                                    Colors
+                                                                        .grey
+                                                                        .shade400,
+                                                              ),
                                                         ),
                                                         const Spacer(),
                                                         Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal:
+                                                                    Dimensions
+                                                                        .paddingSizeSmall,
+                                                                vertical: 2,
+                                                              ),
                                                           decoration: BoxDecoration(
-                                                            color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.15),
-                                                            borderRadius: BorderRadius.circular(6),
+                                                            color: Theme.of(
+                                                                  context,
+                                                                )
+                                                                .secondaryHeaderColor
+                                                                .withValues(
+                                                                  alpha: 0.15,
+                                                                ),
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  Dimensions
+                                                                      .radiusSmall,
+                                                                ),
                                                           ),
                                                           child: Text(
                                                             'required'.tr,
-                                                            style: robotoMedium.copyWith(
-                                                              fontSize: 10,
-                                                              color: Theme.of(context).primaryColor,
-                                                            ),
+                                                            style: waddyMedium
+                                                                .copyWith(
+                                                                  fontSize: 10,
+                                                                  color:
+                                                                      Theme.of(
+                                                                        context,
+                                                                      ).primaryColor,
+                                                                ),
                                                           ),
                                                         ),
                                                       ],
                                                     ),
                                                   ),
-                                                  Divider(height: 1, color: Colors.grey.shade50),
+                                                  Divider(
+                                                    height: 1,
+                                                    color: Colors.grey.shade50,
+                                                  ),
                                                   // Options with prices
-                                                  ...choice.options!.asMap().entries.map((optEntry) {
+                                                  ...choice.options!.asMap().entries.map((
+                                                    optEntry,
+                                                  ) {
                                                     final i = optEntry.key;
-                                                    final optionName = optEntry.value.trim();
-                                                    final bool isSelected = itemController.variationIndex![index] == i;
+                                                    final optionName =
+                                                        optEntry.value.trim();
+                                                    final bool isSelected =
+                                                        itemController
+                                                            .variationIndex![index] ==
+                                                        i;
 
                                                     // Find price for this option
                                                     double? optionPrice;
-                                                    final optionKey = optionName.replaceAll(' ', '');
-                                                    for (var v in item.variations!) {
-                                                      if (v.type != null && v.type!.contains(optionKey)) {
+                                                    final optionKey = optionName
+                                                        .replaceAll(' ', '');
+                                                    for (var v
+                                                        in item.variations!) {
+                                                      if (v.type != null &&
+                                                          v.type!.contains(
+                                                            optionKey,
+                                                          )) {
                                                         optionPrice = v.price;
                                                         break;
                                                       }
                                                     }
 
                                                     // Calculate discount with item discount
-                                                    double? displayPrice = optionPrice != null
-                                                        ? PriceConverter.convertWithDiscount(optionPrice, item.discount, item.discountType)
-                                                        : null;
+                                                    double? displayPrice =
+                                                        optionPrice != null
+                                                            ? PriceConverter.convertWithDiscount(
+                                                              optionPrice,
+                                                              item.discount,
+                                                              item.discountType,
+                                                            )
+                                                            : null;
 
                                                     return InkWell(
-                                                      onTap: () => itemController.setCartVariationIndex(index, i, item),
+                                                      onTap:
+                                                          () => itemController
+                                                              .setCartVariationIndex(
+                                                                index,
+                                                                i,
+                                                                item,
+                                                              ),
                                                       child: Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                                        margin: isSelected ? const EdgeInsets.symmetric(horizontal: 6, vertical: 2) : EdgeInsets.zero,
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal:
+                                                              Dimensions
+                                                                  .paddingSizeMedium,
+                                                          vertical:
+                                                              Dimensions
+                                                                  .paddingSizeSmall,
+                                                        ),
+                                                        margin:
+                                                            isSelected
+                                                                ? const EdgeInsets.symmetric(
+                                                                  horizontal: 6,
+                                                                  vertical: 2,
+                                                                )
+                                                                : EdgeInsets
+                                                                    .zero,
                                                         decoration: BoxDecoration(
-                                                          color: isSelected
-                                                              ? Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.12)
-                                                              : Colors.transparent,
-                                                          borderRadius: isSelected ? BorderRadius.circular(12) : null,
+                                                          color:
+                                                              isSelected
+                                                                  ? Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .secondaryHeaderColor
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.12,
+                                                                      )
+                                                                  : Colors
+                                                                      .transparent,
+                                                          borderRadius:
+                                                              isSelected
+                                                                  ? BorderRadius.circular(
+                                                                    Dimensions
+                                                                        .radiusDefault,
+                                                                  )
+                                                                  : null,
                                                         ),
                                                         child: Row(
                                                           children: [
@@ -444,27 +551,49 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                                             Expanded(
                                                               child: Text(
                                                                 optionName,
-                                                                style: (isSelected ? robotoBold : robotoRegular).copyWith(
-                                                                  fontSize: 13,
-                                                                  color: isSelected
-                                                                      ? Theme.of(context).primaryColor
-                                                                      : const Color(0xFF1A1A2E),
-                                                                ),
+                                                                style: (isSelected
+                                                                        ? waddyBold
+                                                                        : waddyRegular)
+                                                                    .copyWith(
+                                                                      fontSize:
+                                                                          13,
+                                                                      color:
+                                                                          isSelected
+                                                                              ? Theme.of(
+                                                                                context,
+                                                                              ).primaryColor
+                                                                              : const Color(
+                                                                                0xFF1A1A2E,
+                                                                              ),
+                                                                    ),
                                                               ),
                                                             ),
                                                             // Price
-                                                            if (displayPrice != null)
+                                                            if (displayPrice !=
+                                                                null)
                                                               Padding(
-                                                                padding: const EdgeInsets.only(right: 10),
+                                                                padding: const EdgeInsets.only(
+                                                                  right:
+                                                                      Dimensions
+                                                                          .paddingSizeSmall,
+                                                                ),
                                                                 child: Text(
-                                                                  PriceConverter.convertPrice(displayPrice),
-                                                                  style: robotoMedium.copyWith(
-                                                                    fontSize: 12,
-                                                                    color: isSelected
-                                                                        ? Theme.of(context).primaryColor
-                                                                        : Colors.grey.shade600,
+                                                                  PriceConverter.convertPrice(
+                                                                    displayPrice,
                                                                   ),
-                                                                  textDirection: TextDirection.ltr,
+                                                                  style: waddyMedium.copyWith(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color:
+                                                                        isSelected
+                                                                            ? Theme.of(
+                                                                              context,
+                                                                            ).primaryColor
+                                                                            : Colors.grey.shade600,
+                                                                  ),
+                                                                  textDirection:
+                                                                      TextDirection
+                                                                          .ltr,
                                                                 ),
                                                               ),
                                                             // Radio
@@ -472,26 +601,40 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                                               width: 22,
                                                               height: 22,
                                                               decoration: BoxDecoration(
-                                                                shape: BoxShape.circle,
+                                                                shape:
+                                                                    BoxShape
+                                                                        .circle,
                                                                 border: Border.all(
-                                                                  color: isSelected
-                                                                      ? Theme.of(context).secondaryHeaderColor
-                                                                      : Colors.grey.shade200,
+                                                                  color:
+                                                                      isSelected
+                                                                          ? Theme.of(
+                                                                            context,
+                                                                          ).secondaryHeaderColor
+                                                                          : Colors
+                                                                              .grey
+                                                                              .shade200,
                                                                   width: 2,
                                                                 ),
                                                               ),
-                                                              child: isSelected
-                                                                  ? Center(
-                                                                      child: Container(
-                                                                        width: 10,
-                                                                        height: 10,
-                                                                        decoration: BoxDecoration(
-                                                                          shape: BoxShape.circle,
-                                                                          color: Theme.of(context).secondaryHeaderColor,
+                                                              child:
+                                                                  isSelected
+                                                                      ? Center(
+                                                                        child: Container(
+                                                                          width:
+                                                                              10,
+                                                                          height:
+                                                                              10,
+                                                                          decoration: BoxDecoration(
+                                                                            shape:
+                                                                                BoxShape.circle,
+                                                                            color:
+                                                                                Theme.of(
+                                                                                  context,
+                                                                                ).secondaryHeaderColor,
+                                                                          ),
                                                                         ),
-                                                                      ),
-                                                                    )
-                                                                  : null,
+                                                                      )
+                                                                      : null,
                                                             ),
                                                           ],
                                                         ),
@@ -506,40 +649,79 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                         // Prescription required
                                         if (item.isPrescriptionRequired!)
                                           Padding(
-                                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                                            padding: const EdgeInsets.fromLTRB(
+                                              16,
+                                              4,
+                                              16,
+                                              0,
+                                            ),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal:
+                                                        Dimensions
+                                                            .paddingSizeMedium,
+                                                    vertical:
+                                                        Dimensions
+                                                            .paddingSizeSmall,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.05),
-                                                borderRadius: BorderRadius.circular(10),
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error
+                                                    .withValues(alpha: 0.05),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      Dimensions.radiusDefault,
+                                                    ),
                                                 border: Border.all(
-                                                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .error
+                                                      .withValues(alpha: 0.12),
                                                 ),
                                               ),
                                               child: Row(
                                                 children: [
                                                   Container(
-                                                    padding: const EdgeInsets.all(6),
+                                                    padding:
+                                                        const EdgeInsets.all(6),
                                                     decoration: BoxDecoration(
-                                                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
-                                                      borderRadius: BorderRadius.circular(8),
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .error
+                                                          .withValues(
+                                                            alpha: 0.1,
+                                                          ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            Dimensions
+                                                                .radiusSmall,
+                                                          ),
                                                     ),
                                                     child: Icon(
-                                                      Icons.medical_services_outlined,
+                                                      Icons
+                                                          .medical_services_outlined,
                                                       size: 16,
-                                                      color: Theme.of(context).colorScheme.error,
+                                                      color:
+                                                          Theme.of(
+                                                            context,
+                                                          ).colorScheme.error,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 10),
                                                   Expanded(
                                                     child: Text(
-                                                      'prescription_required'.tr,
-                                                      style: robotoMedium.copyWith(
-                                                        fontSize: Dimensions.fontSizeSmall,
-                                                        color: Theme.of(context).colorScheme.error,
+                                                      'prescription_required'
+                                                          .tr,
+                                                      style: waddyMedium.copyWith(
+                                                        fontSize:
+                                                            Dimensions
+                                                                .fontSizeSmall,
+                                                        color:
+                                                            Theme.of(
+                                                              context,
+                                                            ).colorScheme.error,
                                                       ),
                                                     ),
                                                   ),
@@ -551,37 +733,42 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                         const SizedBox(height: 4),
 
                                         // Nutrition & Allergies
-                                        if ((item.nutritionsName != null && item.nutritionsName!.isNotEmpty) ||
-                                            (item.allergiesName != null && item.allergiesName!.isNotEmpty))
+                                        if ((item.nutritionsName != null &&
+                                                item
+                                                    .nutritionsName!
+                                                    .isNotEmpty) ||
+                                            (item.allergiesName != null &&
+                                                item.allergiesName!.isNotEmpty))
                                           _buildNutritionAllergySection(item),
 
                                         // Suggested items
-                                        _buildSuggestedItems(itemController, item),
+                                        _buildSuggestedItems(
+                                          itemController,
+                                          item,
+                                        ),
 
                                         const SizedBox(height: 80),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ],
+                              ),
+                            ),
 
-                                // Sticky bottom bar - qty selector + checkout
-                                _buildBottomBar(
-                                  context: context,
-                                  item: item,
-                                  stock: stock,
-                                  cartModel: cartModel,
-                                  cart: cart,
-                                  cartController: cartController,
-                                  itemController: itemController,
-                                  priceWithAddons: priceWithAddons,
-                                ),
-                              ],
-                            )
-                        : const Center(
-                            child: CircularProgressIndicator(),
-                          ),
+                            // Sticky bottom bar - qty selector + checkout
+                            _buildBottomBar(
+                              context: context,
+                              item: item,
+                              stock: stock,
+                              cartModel: cartModel,
+                              cart: cart,
+                              cartController: cartController,
+                              itemController: itemController,
+                              priceWithAddons: priceWithAddons,
+                            ),
+                          ],
+                        )
+                        : const Center(child: CircularProgressIndicator()),
               ),
             );
           },
@@ -590,35 +777,46 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
     );
   }
 
-
   Widget _buildNutritionAllergySection(Item item) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.nutritionsName != null && item.nutritionsName!.isNotEmpty) ...[
+          if (item.nutritionsName != null &&
+              item.nutritionsName!.isNotEmpty) ...[
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Theme.of(
+                      context,
+                    ).secondaryHeaderColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
-                  child: Icon(Icons.eco_outlined, size: 16, color: Theme.of(context).primaryColor),
+                  child: Icon(
+                    Icons.eco_outlined,
+                    size: 16,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'nutrition_details'.tr,
-                  style: robotoBold.copyWith(fontSize: 14, color: const Color(0xFF1A1A2E)),
+                  style: waddyBold.copyWith(
+                    fontSize: 14,
+                    color: const Color(0xFF1A1A2E),
+                  ),
                 ),
               ],
             ),
@@ -629,41 +827,63 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               children: List.generate(
                 item.nutritionsName!.length,
                 (index) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: Dimensions.paddingSizeExtraSmall,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                   ),
                   child: Text(
                     item.nutritionsName![index],
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).primaryColor),
+                    style: waddyRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
                 ),
               ),
             ),
           ],
-          if (item.nutritionsName != null && item.nutritionsName!.isNotEmpty &&
-              item.allergiesName != null && item.allergiesName!.isNotEmpty) ...
-            [
-              const SizedBox(height: 6),
-              Divider(color: Colors.grey.shade100, height: 1),
-              const SizedBox(height: 10),
-            ],
+          if (item.nutritionsName != null &&
+              item.nutritionsName!.isNotEmpty &&
+              item.allergiesName != null &&
+              item.allergiesName!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Divider(color: Colors.grey.shade100, height: 1),
+            const SizedBox(height: 10),
+          ],
           if (item.allergiesName != null && item.allergiesName!.isNotEmpty) ...[
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
-                  child: Icon(Icons.warning_amber_rounded, size: 16, color: Theme.of(context).colorScheme.error),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'allergic_ingredients'.tr,
-                  style: robotoBold.copyWith(fontSize: 14, color: Theme.of(context).colorScheme.error),
+                  style: waddyBold.copyWith(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ),
@@ -674,14 +894,24 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               children: List.generate(
                 item.allergiesName!.length,
                 (index) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: Dimensions.paddingSizeExtraSmall,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.error.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusExtraLarge,
+                    ),
                   ),
                   child: Text(
                     item.allergiesName![index],
-                    style: robotoRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).colorScheme.error),
+                    style: waddyRegular.copyWith(
+                      fontSize: Dimensions.fontSizeSmall,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               ),
@@ -694,13 +924,16 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
 
   Widget _buildSuggestedItems(ItemController itemController, Item currentItem) {
     final List<Item>? recommended = itemController.recommendedItemList;
-    if (recommended == null || recommended.isEmpty) return const SizedBox.shrink();
+    if (recommended == null || recommended.isEmpty)
+      return const SizedBox.shrink();
 
     // Smart filtering: prioritize same category/subcategory, then same store
-    final currentCategoryIds = currentItem.categoryIds?.map((c) => c.id).toSet() ?? {};
+    final currentCategoryIds =
+        currentItem.categoryIds?.map((c) => c.id).toSet() ?? {};
     final currentCategoryId = currentItem.categoryId;
 
-    final List<Item> filtered = recommended.where((i) => i.id != currentItem.id).toList();
+    final List<Item> filtered =
+        recommended.where((i) => i.id != currentItem.id).toList();
 
     // Score items by relevance
     filtered.sort((a, b) {
@@ -711,8 +944,10 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
       if (b.storeId == currentItem.storeId) scoreB += 3;
 
       // Same primary category = +2
-      if (a.categoryId == currentCategoryId && currentCategoryId != null) scoreA += 2;
-      if (b.categoryId == currentCategoryId && currentCategoryId != null) scoreB += 2;
+      if (a.categoryId == currentCategoryId && currentCategoryId != null)
+        scoreA += 2;
+      if (b.categoryId == currentCategoryId && currentCategoryId != null)
+        scoreB += 2;
 
       // Shared subcategory = +1 per match
       final aCatIds = a.categoryIds?.map((c) => c.id).toSet() ?? {};
@@ -732,7 +967,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
         const SizedBox(height: 14),
 
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeLarge,
+          ),
           child: Divider(color: Colors.grey.shade100, height: 1),
         ),
         const SizedBox(height: 16),
@@ -745,16 +982,22 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Theme.of(
+                    context,
+                  ).secondaryHeaderColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
-                child: Icon(Icons.shopping_basket_rounded, size: 16, color: Theme.of(context).primaryColor),
+                child: Icon(
+                  Icons.shopping_basket_rounded,
+                  size: 16,
+                  color: Theme.of(context).primaryColor,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Frequently Bought Together',
-                  style: robotoBold.copyWith(
+                  style: waddyBold.copyWith(
                     fontSize: 15,
                     color: const Color(0xFF1A1A2E),
                   ),
@@ -770,22 +1013,31 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
             itemCount: suggestions.length,
             itemBuilder: (context, index) {
               final item = suggestions[index];
               final double? discount = item.discount;
               final String? discountType = item.discountType;
-              final bool hasVariations = item.choiceOptions != null && item.choiceOptions!.isNotEmpty;
+              final bool hasVariations =
+                  item.choiceOptions != null && item.choiceOptions!.isNotEmpty;
 
               return GestureDetector(
-                onTap: () => Get.find<ItemController>().navigateToItemPage(item, context),
+                onTap:
+                    () => Get.find<ItemController>().navigateToItemPage(
+                      item,
+                      context,
+                    ),
                 child: Container(
                   width: 135,
-                  margin: const EdgeInsets.only(right: 12),
+                  margin: const EdgeInsets.only(
+                    right: Dimensions.paddingSizeMedium,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -807,14 +1059,22 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFAFAFA),
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
+                                  topLeft: Radius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
+                                  topRight: Radius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
                                 ),
                               ),
                               child: ClipRRect(
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
+                                  topLeft: Radius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
+                                  topRight: Radius.circular(
+                                    Dimensions.radiusLarge,
+                                  ),
                                 ),
                                 child: CustomImage(
                                   image: '${item.imageFullUrl}',
@@ -830,16 +1090,21 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                 top: 8,
                                 left: 8,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Theme.of(context).colorScheme.error,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusSmall,
+                                    ),
                                   ),
                                   child: Text(
                                     discountType == 'percent'
                                         ? '${discount.toStringAsFixed(0)}%'
                                         : '-${PriceConverter.convertPrice(discount)}',
-                                    style: robotoBold.copyWith(
+                                    style: waddyBold.copyWith(
                                       fontSize: 10,
                                       color: Colors.white,
                                     ),
@@ -862,7 +1127,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                               // Name
                               Text(
                                 item.name ?? '',
-                                style: robotoMedium.copyWith(
+                                style: waddyMedium.copyWith(
                                   fontSize: 11,
                                   color: const Color(0xFF1A1A2E),
                                   height: 1.2,
@@ -872,16 +1137,18 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                               ),
                               // Price + ADD row
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Flexible(
                                     child: Text(
                                       PriceConverter.convertPrice(
-                                        Get.find<ItemController>().getStartingPrice(item),
+                                        Get.find<ItemController>()
+                                            .getStartingPrice(item),
                                         discount: discount,
                                         discountType: discountType,
                                       ),
-                                      style: robotoBold.copyWith(
+                                      style: waddyBold.copyWith(
                                         fontSize: 12,
                                         color: Theme.of(context).primaryColor,
                                       ),
@@ -892,11 +1159,15 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                   GestureDetector(
                                     onTap: () {
                                       if (hasVariations) {
-                                        Get.find<ItemController>().navigateToItemPage(item, context);
+                                        Get.find<ItemController>()
+                                            .navigateToItemPage(item, context);
                                       } else {
-                                        final double discountedPrice = PriceConverter.convertWithDiscount(
-                                          item.price, discount, discountType,
-                                        )!;
+                                        final double discountedPrice =
+                                            PriceConverter.convertWithDiscount(
+                                              item.price,
+                                              discount,
+                                              discountType,
+                                            )!;
                                         final onlineCart = OnlineCart(
                                           null,
                                           item.id,
@@ -911,30 +1182,64 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                                           [],
                                           'Item',
                                         );
-                                        Get.find<CartController>().addToCartOnline(onlineCart);
+                                        // Guest fallback so this quick-add lands
+                                        // in the local cart instead of 401ing.
+                                        final quickCartModel = CartModel(
+                                          null,
+                                          item.price,
+                                          discountedPrice,
+                                          [],
+                                          [],
+                                          (item.price! - discountedPrice),
+                                          1,
+                                          [],
+                                          [],
+                                          item.availableDateStarts != null,
+                                          item.stock,
+                                          item,
+                                          item.quantityLimit,
+                                        );
+                                        Get.find<CartController>()
+                                            .addToCartOnline(
+                                              onlineCart,
+                                              localFallback: quickCartModel,
+                                            );
                                       }
                                     },
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: Dimensions.paddingSizeSmall,
+                                        vertical:
+                                            Dimensions.paddingSizeExtraSmall,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).secondaryHeaderColor,
-                                        borderRadius: BorderRadius.circular(6),
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).secondaryHeaderColor,
+                                        borderRadius: BorderRadius.circular(
+                                          Dimensions.radiusSmall,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             'ADD',
-                                            style: robotoBold.copyWith(
+                                            style: waddyBold.copyWith(
                                               fontSize: 10,
-                                              color: Theme.of(context).primaryColor,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).primaryColor,
                                             ),
                                           ),
                                           const SizedBox(width: 2),
                                           Icon(
                                             Icons.add,
                                             size: 10,
-                                            color: Theme.of(context).primaryColor,
+                                            color:
+                                                Theme.of(context).primaryColor,
                                           ),
                                         ],
                                       ),
@@ -961,20 +1266,27 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
             builder: (context) {
               // Get IDs of items already in cart
               final cartController = Get.find<CartController>();
-              final Set<int> cartItemIds = cartController.cartList
-                  .map((c) => c.item?.id)
-                  .whereType<int>()
-                  .toSet();
+              final Set<int> cartItemIds =
+                  cartController.cartList
+                      .map((c) => c.item?.id)
+                      .whereType<int>()
+                      .toSet();
 
               // Calculate total bundle price — skip items already in cart or with variations
               double bundleTotal = 0;
               int addableCount = 0;
               for (final item in suggestions) {
-                final hasVars = item.choiceOptions != null && item.choiceOptions!.isNotEmpty;
+                final hasVars =
+                    item.choiceOptions != null &&
+                    item.choiceOptions!.isNotEmpty;
                 if (!hasVars && !cartItemIds.contains(item.id)) {
-                  final price = PriceConverter.convertWithDiscount(
-                    item.price, item.discount, item.discountType,
-                  ) ?? 0;
+                  final price =
+                      PriceConverter.convertWithDiscount(
+                        item.price,
+                        item.discount,
+                        item.discountType,
+                      ) ??
+                      0;
                   bundleTotal += price;
                   addableCount++;
                 }
@@ -983,39 +1295,82 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               return GestureDetector(
                 onTap: () {
                   for (final item in suggestions) {
-                    final hasVars = item.choiceOptions != null && item.choiceOptions!.isNotEmpty;
+                    final hasVars =
+                        item.choiceOptions != null &&
+                        item.choiceOptions!.isNotEmpty;
                     if (!hasVars && !cartItemIds.contains(item.id)) {
-                      final discountedPrice = PriceConverter.convertWithDiscount(
-                        item.price, item.discount, item.discountType,
-                      )!;
+                      final discountedPrice =
+                          PriceConverter.convertWithDiscount(
+                            item.price,
+                            item.discount,
+                            item.discountType,
+                          )!;
                       final onlineCart = OnlineCart(
-                        null, item.id, null,
-                        discountedPrice.toString(), '',
-                        null, null, 1, [], [], [], 'Item',
+                        null,
+                        item.id,
+                        null,
+                        discountedPrice.toString(),
+                        '',
+                        null,
+                        null,
+                        1,
+                        [],
+                        [],
+                        [],
+                        'Item',
                       );
-                      cartController.addToCartOnline(onlineCart);
+                      final bundleCartModel = CartModel(
+                        null,
+                        item.price,
+                        discountedPrice,
+                        [],
+                        [],
+                        (item.price! - discountedPrice),
+                        1,
+                        [],
+                        [],
+                        item.availableDateStarts != null,
+                        item.stock,
+                        item,
+                        item.quantityLimit,
+                      );
+                      cartController.addToCartOnline(
+                        onlineCart,
+                        localFallback: bundleCartModel,
+                      );
                     }
                   }
                 },
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: Dimensions.paddingSizeSmall,
+                  ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Theme.of(
+                      context,
+                    ).secondaryHeaderColor.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                     border: Border.all(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                      color: Theme.of(
+                        context,
+                      ).primaryColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_shopping_cart_rounded, size: 16,
-                        color: Theme.of(context).primaryColor),
+                      Icon(
+                        Icons.add_shopping_cart_rounded,
+                        size: 16,
+                        color: Theme.of(context).primaryColor,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Add all $addableCount items',
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: 12,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -1023,7 +1378,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
                       const SizedBox(width: 4),
                       Text(
                         PriceConverter.convertPrice(bundleTotal),
-                        style: robotoMedium.copyWith(
+                        style: waddyMedium.copyWith(
                           fontSize: 12,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -1050,8 +1405,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
     required ItemController itemController,
     required double priceWithAddons,
   }) {
-    final bool isOutOfStock = Get.find<SplashController>()
-            .configModel!
+    final bool isOutOfStock =
+        Get.find<SplashController>()
+            .configModel
             .moduleConfig!
             .module!
             .stock! &&
@@ -1059,16 +1415,17 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
     final bool isInCart = itemController.cartIndex != -1;
 
     // Get current quantity
-    final int currentQty = isInCart && itemController.cartIndex < cartController.cartList.length
-        ? cartController.cartList[itemController.cartIndex].quantity ?? 1
-        : itemController.quantity ?? 1;
+    final int currentQty =
+        isInCart && itemController.cartIndex < cartController.cartList.length
+            ? cartController.cartList[itemController.cartIndex].quantity ?? 1
+            : itemController.quantity ?? 1;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+          topLeft: Radius.circular(Dimensions.radiusExtraLarge),
+          topRight: Radius.circular(Dimensions.radiusExtraLarge),
         ),
         boxShadow: [
           BoxShadow(
@@ -1080,359 +1437,547 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
       ),
       child: SafeArea(
         top: false,
-        child: isOutOfStock
-            ? Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: Container(
-                  key: _addToCartButtonKey,
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.remove_shopping_cart_outlined, color: Colors.white, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'out_of_stock'.tr,
-                        style: robotoBold.copyWith(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
+        child:
+            isOutOfStock
+                ? Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Container(
+                    key: _addToCartButtonKey,
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: Dimensions.paddingSizeDefault,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusLarge,
                       ),
-                    ],
-                  ),
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Discount savings banner - only show if savings >= 3
-                  if (isInCart && item.discount != null && item.discount! > 0) ...[
-                    Builder(
-                      builder: (context) {
-                        final double totalSavings = (item.price! - PriceConverter.convertWithDiscount(item.price, item.discount, item.discountType)!) * currentQty;
-                        if (totalSavings < 3) return const SizedBox.shrink();
-                        return Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.12),
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.2),
-                              ),
-                            ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.remove_shopping_cart_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'out_of_stock'.tr,
+                          style: waddyBold.copyWith(
+                            color: Colors.white,
+                            fontSize: 16,
                           ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.local_offer_rounded, size: 16, color: Theme.of(context).primaryColor),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${'you_are_saving'.tr.isNotEmpty ? 'you_are_saving'.tr : 'You\'re saving'} ${PriceConverter.convertPrice(totalSavings)}',
-                                  style: robotoMedium.copyWith(
-                                    fontSize: 12,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                  textDirection: TextDirection.ltr,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Discount savings banner - only show if savings >= 3
+                    if (isInCart &&
+                        item.discount != null &&
+                        item.discount! > 0) ...[
+                      Builder(
+                        builder: (context) {
+                          final double totalSavings =
+                              (item.price! -
+                                  PriceConverter.convertWithDiscount(
+                                    item.price,
+                                    item.discount,
+                                    item.discountType,
+                                  )!) *
+                              currentQty;
+                          if (totalSavings < 3) return const SizedBox.shrink();
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: Dimensions.paddingSizeDefault,
+                              vertical: Dimensions.paddingSizeSmall,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).secondaryHeaderColor.withValues(alpha: 0.12),
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Theme.of(
+                                    context,
+                                  ).secondaryHeaderColor.withValues(alpha: 0.2),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.local_offer_rounded,
+                                  size: 16,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${'you_are_saving'.tr.isNotEmpty ? 'you_are_saving'.tr : 'You\'re saving'} ${PriceConverter.convertPrice(totalSavings)}',
+                                    style: waddyMedium.copyWith(
+                                      fontSize: 12,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                    textDirection: TextDirection.ltr,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
 
-                  // XP gain info
-                  if (Get.find<SplashController>().configModel!.loyaltyPointStatus == 1 &&
-                      Get.find<SplashController>().configModel!.loyaltyPointItemPurchasePoint != null &&
-                      Get.find<SplashController>().configModel!.loyaltyPointItemPurchasePoint! > 0)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8E1),
-                        border: Border(
-                          bottom: BorderSide(color: Colors.amber.shade100),
+                    // XP gain info
+                    if (Get.find<SplashController>()
+                                .configModel
+                                .loyaltyPointStatus ==
+                            1 &&
+                        Get.find<SplashController>()
+                                .configModel
+                                .loyaltyPointItemPurchasePoint !=
+                            null &&
+                        Get.find<SplashController>()
+                                .configModel
+                                .loyaltyPointItemPurchasePoint! >
+                            0)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Dimensions.paddingSizeDefault,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E1),
+                          border: Border(
+                            bottom: BorderSide(color: Colors.amber.shade100),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('⭐', style: TextStyle(fontSize: 13)),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${'earn'.tr.isNotEmpty ? 'earn'.tr : 'Earn'} ${(priceWithAddons * Get.find<SplashController>().configModel.loyaltyPointItemPurchasePoint! / 100).toStringAsFixed(0)} ${'points'.tr.isNotEmpty ? 'points'.tr : 'points'} ${'with_this_order'.tr.isNotEmpty ? 'with_this_order'.tr : 'with this order'}',
+                              style: waddyMedium.copyWith(
+                                fontSize: 12,
+                                color: const Color(0xFFF57C00),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          const Text('⭐', style: TextStyle(fontSize: 13)),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${'earn'.tr.isNotEmpty ? 'earn'.tr : 'Earn'} ${(priceWithAddons * Get.find<SplashController>().configModel!.loyaltyPointItemPurchasePoint! / 100).toStringAsFixed(0)} ${'points'.tr.isNotEmpty ? 'points'.tr : 'points'} ${'with_this_order'.tr.isNotEmpty ? 'with_this_order'.tr : 'with this order'}',
-                            style: robotoMedium.copyWith(
-                              fontSize: 12,
-                              color: const Color(0xFFF57C00),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                  // Subtotal + action row
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                    child: isInCart
-                        // IN CART: subtotal + counter + checkout
-                        ? Column(
-                            children: [
-                              // Subtotal row
-                            
-                              // Counter + Checkout row
-                              Row(
+                    // Subtotal + action row
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                      child:
+                          isInCart
+                              // IN CART: subtotal + counter + checkout
+                              ? Column(
                                 children: [
-                                  // Quantity selector - pill style
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF5F5F7),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        // Delete (qty=1) or Minus (qty>1)
-                                        GestureDetector(
-                                          onTap: cartController.isLoading
-                                              ? null
-                                              : () {
-                                                  if (currentQty <= 1) {
-                                                    cartController.removeFromCart(
-                                                      itemController.cartIndex,
-                                                      item: item,
-                                                    );
-                                                  } else {
-                                                    cartController.setQuantity(
-                                                      false,
-                                                      itemController.cartIndex,
-                                                      stock,
-                                                      cartController.cartList[itemController.cartIndex].quantity,
-                                                    );
-                                                  }
-                                                },
-                                          child: Container(
-                                            padding: const EdgeInsets.all(10),
-                                            margin: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 1),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Icon(
-                                              currentQty <= 1 ? Icons.delete_outline_rounded : Icons.remove_rounded,
-                                              size: 20,
-                                              color: currentQty <= 1
-                                                  ? Theme.of(context).colorScheme.error
-                                                  : Theme.of(context).primaryColor,
-                                            ),
+                                  // Subtotal row
+
+                                  // Counter + Checkout row
+                                  Row(
+                                    children: [
+                                      // Quantity selector - pill style
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF5F5F7),
+                                          borderRadius: BorderRadius.circular(
+                                            Dimensions.radiusLarge,
                                           ),
                                         ),
-                                        // Quantity number
-                                        AnimatedSwitcher(
-                                          duration: const Duration(milliseconds: 200),
-                                          transitionBuilder: (child, animation) {
-                                            return ScaleTransition(scale: animation, child: child);
-                                          },
-                                          child: Container(
-                                            key: ValueKey<int>(currentQty),
-                                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                                            constraints: const BoxConstraints(minWidth: 32),
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              '$currentQty',
-                                              style: robotoBlack.copyWith(
-                                                fontSize: 18,
-                                                color: const Color(0xFF1A1A2E),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Delete (qty=1) or Minus (qty>1)
+                                            GestureDetector(
+                                              onTap:
+                                                  cartController.isLoading
+                                                      ? null
+                                                      : () {
+                                                        if (currentQty <= 1) {
+                                                          cartController
+                                                              .removeFromCart(
+                                                                itemController
+                                                                    .cartIndex,
+                                                                item: item,
+                                                              );
+                                                        } else {
+                                                          cartController.setQuantity(
+                                                            false,
+                                                            itemController
+                                                                .cartIndex,
+                                                            stock,
+                                                            cartController
+                                                                .cartList[itemController
+                                                                    .cartIndex]
+                                                                .quantity,
+                                                          );
+                                                        }
+                                                      },
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  Dimensions.paddingSizeSmall,
+                                                ),
+                                                margin: const EdgeInsets.all(
+                                                  Dimensions
+                                                      .paddingSizeExtraSmall,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        Dimensions
+                                                            .radiusDefault,
+                                                      ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.06,
+                                                          ),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(
+                                                        0,
+                                                        1,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Icon(
+                                                  currentQty <= 1
+                                                      ? Icons
+                                                          .delete_outline_rounded
+                                                      : Icons.remove_rounded,
+                                                  size: 20,
+                                                  color:
+                                                      currentQty <= 1
+                                                          ? Theme.of(
+                                                            context,
+                                                          ).colorScheme.error
+                                                          : Theme.of(
+                                                            context,
+                                                          ).primaryColor,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                        // Plus button
-                                        GestureDetector(
-                                          onTap: cartController.isLoading
-                                              ? null
-                                              : () {
-                                                  cartController.setQuantity(
-                                                    true,
-                                                    itemController.cartIndex,
-                                                    stock,
-                                                    cartController.cartList[itemController.cartIndex].quantityLimit,
-                                                  );
-                                                },
-                                          child: Container(
-                                            padding: const EdgeInsets.all(10),
-                                            margin: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius: BorderRadius.circular(12),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.06),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 1),
+                                            // Quantity number
+                                            AnimatedSwitcher(
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
+                                              transitionBuilder: (
+                                                child,
+                                                animation,
+                                              ) {
+                                                return ScaleTransition(
+                                                  scale: animation,
+                                                  child: child,
+                                                );
+                                              },
+                                              child: Container(
+                                                key: ValueKey<int>(currentQty),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                    ),
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 32,
+                                                    ),
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  '$currentQty',
+                                                  style: waddyBlack.copyWith(
+                                                    fontSize: 18,
+                                                    color: const Color(
+                                                      0xFF1A1A2E,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ],
+                                              ),
                                             ),
-                                            child: Icon(
-                                              Icons.add_rounded,
-                                              size: 20,
-                                              color: Theme.of(context).secondaryHeaderColor,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // View Cart button with price
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: cartController.isLoading
-                                          ? null
-                                          : () => Get.toNamed(RouteHelper.getCartRoute()),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context).secondaryHeaderColor,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
-                                            width: 1.5,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.35),
-                                              blurRadius: 16,
-                                              offset: const Offset(0, 6),
+                                            // Plus button
+                                            GestureDetector(
+                                              onTap:
+                                                  cartController.isLoading
+                                                      ? null
+                                                      : () {
+                                                        cartController.setQuantity(
+                                                          true,
+                                                          itemController
+                                                              .cartIndex,
+                                                          stock,
+                                                          cartController
+                                                              .cartList[itemController
+                                                                  .cartIndex]
+                                                              .quantityLimit,
+                                                        );
+                                                      },
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  Dimensions.paddingSizeSmall,
+                                                ),
+                                                margin: const EdgeInsets.all(
+                                                  Dimensions
+                                                      .paddingSizeExtraSmall,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        Dimensions
+                                                            .radiusDefault,
+                                                      ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.06,
+                                                          ),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(
+                                                        0,
+                                                        1,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Icon(
+                                                  Icons.add_rounded,
+                                                  size: 20,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).secondaryHeaderColor,
+                                                ),
+                                              ),
                                             ),
                                           ],
                                         ),
-                                        child: cartController.isLoading
-                                            ? Center(
-                                                child: SizedBox(
-                                                  height: 22,
-                                                  width: 22,
-                                                  child: CircularProgressIndicator(
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                                    strokeWidth: 2.5,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // View Cart button with price
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap:
+                                              cartController.isLoading
+                                                  ? null
+                                                  : () => Get.toNamed(
+                                                    RouteHelper.getCartRoute(),
                                                   ),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical:
+                                                  Dimensions.paddingSizeMedium,
+                                              horizontal:
+                                                  Dimensions.paddingSizeDefault,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).secondaryHeaderColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    Dimensions.radiusLarge,
+                                                  ),
+                                              border: Border.all(
+                                                color: Theme.of(context)
+                                                    .primaryColor
+                                                    .withValues(alpha: 0.15),
+                                                width: 1.5,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Theme.of(context)
+                                                      .secondaryHeaderColor
+                                                      .withValues(alpha: 0.35),
+                                                  blurRadius: 16,
+                                                  offset: const Offset(0, 6),
                                                 ),
-                                              )
-                                            : Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Icon(
-                                                        Icons.shopping_cart_outlined,
-                                                        color: Theme.of(context).primaryColor,
-                                                        size: 20,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        'view_cart'.tr.isNotEmpty ? 'view_cart'.tr : 'View Cart',
-                                                        style: robotoBold.copyWith(
-                                                          color: Theme.of(context).primaryColor,
-                                                          fontSize: 15,
-                                                          letterSpacing: 0.3,
+                                              ],
+                                            ),
+                                            child:
+                                                cartController.isLoading
+                                                    ? Center(
+                                                      child: SizedBox(
+                                                        height: 22,
+                                                        width: 22,
+                                                        child: CircularProgressIndicator(
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                Color
+                                                              >(
+                                                                Theme.of(
+                                                                  context,
+                                                                ).primaryColor,
+                                                              ),
+                                                          strokeWidth: 2.5,
                                                         ),
                                                       ),
-                                                    ],
-                                                  ),
-                                                  Text(
-                                                    PriceConverter.convertPrice(priceWithAddons),
-                                                    style: robotoBlack.copyWith(
-                                                      color: Theme.of(context).primaryColor,
-                                                      fontSize: 16,
+                                                    )
+                                                    : Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .spaceBetween,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            Icon(
+                                                              Icons
+                                                                  .shopping_cart_outlined,
+                                                              color:
+                                                                  Theme.of(
+                                                                    context,
+                                                                  ).primaryColor,
+                                                              size: 20,
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 8,
+                                                            ),
+                                                            Text(
+                                                              'view_cart'
+                                                                      .tr
+                                                                      .isNotEmpty
+                                                                  ? 'view_cart'
+                                                                      .tr
+                                                                  : 'View Cart',
+                                                              style: waddyBold.copyWith(
+                                                                color:
+                                                                    Theme.of(
+                                                                      context,
+                                                                    ).primaryColor,
+                                                                fontSize: 15,
+                                                                letterSpacing:
+                                                                    0.3,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        Text(
+                                                          PriceConverter.convertPrice(
+                                                            priceWithAddons,
+                                                          ),
+                                                          style: waddyBlack
+                                                              .copyWith(
+                                                                color:
+                                                                    Theme.of(
+                                                                      context,
+                                                                    ).primaryColor,
+                                                                fontSize: 16,
+                                                              ),
+                                                          textDirection:
+                                                              TextDirection.ltr,
+                                                        ),
+                                                      ],
                                                     ),
-                                                    textDirection: TextDirection.ltr,
-                                                  ),
-                                                ],
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          )
-                        // NOT IN CART: full-width Add To Cart button
-                        : GestureDetector(
-                            onTap: cartController.isLoading
-                                ? null
-                                : () => _handleAddToCart(
-                                      item: item,
-                                      cartModel: cartModel,
-                                      cart: cart,
-                                      stock: stock,
-                                      cartController: cartController,
-                                      itemController: itemController,
-                                    ),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              key: _addToCartButtonKey,
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).secondaryHeaderColor,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.of(context).secondaryHeaderColor.withValues(alpha: 0.35),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: cartController.isLoading
-                                  ? Center(
-                                      child: SizedBox(
-                                        height: 22,
-                                        width: 22,
-                                        child: CircularProgressIndicator(
-                                          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                                          strokeWidth: 2.5,
-                                        ),
-                                      ),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_shopping_cart_rounded,
-                                          color: Theme.of(context).primaryColor,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'add_to_cart'.tr,
-                                          style: robotoBold.copyWith(
-                                            color: Theme.of(context).primaryColor,
-                                            fontSize: 15,
-                                            letterSpacing: 0.3,
                                           ),
                                         ),
-                                      ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              )
+                              // NOT IN CART: full-width Add To Cart button
+                              : GestureDetector(
+                                onTap:
+                                    cartController.isLoading
+                                        ? null
+                                        : () => _handleAddToCart(
+                                          item: item,
+                                          cartModel: cartModel,
+                                          cart: cart,
+                                          stock: stock,
+                                          cartController: cartController,
+                                          itemController: itemController,
+                                        ),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  key: _addToCartButtonKey,
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: Dimensions.paddingSizeDefault,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).secondaryHeaderColor,
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusLarge,
                                     ),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context)
+                                            .secondaryHeaderColor
+                                            .withValues(alpha: 0.35),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child:
+                                      cartController.isLoading
+                                          ? Center(
+                                            child: SizedBox(
+                                              height: 22,
+                                              width: 22,
+                                              child: CircularProgressIndicator(
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<
+                                                      Color
+                                                    >(
+                                                      Theme.of(
+                                                        context,
+                                                      ).primaryColor,
+                                                    ),
+                                                strokeWidth: 2.5,
+                                              ),
+                                            ),
+                                          )
+                                          : Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.add_shopping_cart_rounded,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).primaryColor,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'add_to_cart'.tr,
+                                                style: waddyBold.copyWith(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).primaryColor,
+                                                  fontSize: 15,
+                                                  letterSpacing: 0.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                ),
+                              ),
+                    ),
+                  ],
+                ),
       ),
     );
   }
@@ -1445,8 +1990,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
     required CartController cartController,
     required ItemController itemController,
   }) async {
-    final bool canAdd = !Get.find<SplashController>()
-            .configModel!
+    final bool canAdd =
+        !Get.find<SplashController>()
+            .configModel
             .moduleConfig!
             .module!
             .stock! ||
@@ -1479,7 +2025,8 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
             currentModuleName = cartModule?.moduleName ?? 'another category'.tr;
           }
         }
-        final newModuleName = splashController.module?.moduleName ??
+        final newModuleName =
+            splashController.module?.moduleName ??
             splashController.cacheModule?.moduleName ??
             'this category'.tr;
         Get.dialog(
@@ -1490,7 +2037,10 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
               Get.back();
               cartController.clearCartOnline().then((success) async {
                 if (success) {
-                  await cartController.addToCartOnline(cart!);
+                  await cartController.addToCartOnline(
+                    cart!,
+                    localFallback: cartModel,
+                  );
                   itemController.setExistInCart(item, null);
                 }
               });
@@ -1509,18 +2059,23 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
           ConfirmationDialog(
             icon: Images.warning,
             title: 'are_you_sure_to_reset'.tr,
-            description: Get.find<SplashController>()
-                    .configModel!
-                    .moduleConfig!
-                    .module!
-                    .showRestaurantText!
-                ? 'if_you_continue'.tr
-                : 'if_you_continue_without_another_store'.tr,
+            description:
+                Get.find<SplashController>()
+                        .configModel
+                        .moduleConfig!
+                        .module!
+                        .showRestaurantText ??
+                            false
+                    ? 'if_you_continue'.tr
+                    : 'if_you_continue_without_another_store'.tr,
             onYesPressed: () {
               Get.back();
               cartController.clearCartOnline().then((success) async {
                 if (success) {
-                  await cartController.addToCartOnline(cart!);
+                  await cartController.addToCartOnline(
+                    cart!,
+                    localFallback: cartModel,
+                  );
                   itemController.setExistInCart(item, null);
                 }
               });
@@ -1530,18 +2085,26 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
         );
       } else {
         if (itemController.cartIndex == -1) {
-          await cartController.addToCartOnline(cart!).then((success) {
-            if (success) {
-              itemController.setExistInCart(item, null);
-              _startFlyToCartAnimation(item.imageFullUrl ?? '');
-            }
-          });
+          await cartController
+              .addToCartOnline(cart!, localFallback: cartModel)
+              .then((success) {
+                if (success) {
+                  itemController.setExistInCart(item, null);
+                  _startFlyToCartAnimation(item.imageFullUrl ?? '');
+                }
+              });
         } else {
-          await cartController.updateCartOnline(cart!).then((success) {
-            if (success) {
-              _startFlyToCartAnimation(item.imageFullUrl ?? '');
-            }
-          });
+          await cartController
+              .updateCartOnline(
+                cart!,
+                localFallback: cartModel,
+                localIndex: itemController.cartIndex,
+              )
+              .then((success) {
+                if (success) {
+                  _startFlyToCartAnimation(item.imageFullUrl ?? '');
+                }
+              });
         }
       }
     }
@@ -1562,7 +2125,6 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> with TickerProvid
     }
     return listOfAddOnQty;
   }
-
 }
 
 class QuantityButton extends StatelessWidget {
@@ -1604,7 +2166,7 @@ class QuantityButton extends StatelessWidget {
                   } else if (isIncrement && quantity! > 0) {
                     if (quantity! < stock! ||
                         !Get.find<SplashController>()
-                            .configModel!
+                            .configModel
                             .moduleConfig!
                             .module!
                             .stock!) {
@@ -1628,7 +2190,7 @@ class QuantityButton extends StatelessWidget {
                   } else if (isIncrement && quantity! > 0) {
                     if (quantity! < stock! ||
                         !Get.find<SplashController>()
-                            .configModel!
+                            .configModel
                             .moduleConfig!
                             .module!
                             .stock!) {

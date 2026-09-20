@@ -5,6 +5,7 @@ import 'package:waddy_app/features/coupon/widgets/scratch_card_dialog.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class CouponCardWidget extends StatelessWidget {
   final CouponModel coupon;
@@ -29,7 +30,10 @@ class CouponCardWidget extends StatelessWidget {
     return GestureDetector(
       onTap: () => showScratchCardDialog(context, coupon),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4, right: 4),
+        margin: const EdgeInsets.only(
+          bottom: Dimensions.paddingSizeExtraSmall,
+          right: Dimensions.paddingSizeExtraSmall,
+        ),
         child: Stack(
           children: [
             // Neo shadow (hard offset)
@@ -41,17 +45,17 @@ class CouponCardWidget extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: primaryColor,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 ),
               ),
             ),
 
             // Main card
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 border: Border.all(color: primaryColor, width: 2.5),
               ),
               child: Row(
@@ -62,7 +66,9 @@ class CouponCardWidget extends StatelessWidget {
                     height: 75,
                     decoration: BoxDecoration(
                       color: accentColor,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       border: Border.all(color: primaryColor, width: 2),
                     ),
                     child: Column(
@@ -70,14 +76,14 @@ class CouponCardWidget extends StatelessWidget {
                       children: [
                         Text(
                           '?',
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 32,
                             color: primaryColor,
                           ),
                         ),
                         Text(
                           'MYSTERY',
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 9,
                             color: primaryColor,
                             letterSpacing: 0.5,
@@ -101,7 +107,7 @@ class CouponCardWidget extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 coupon.title ?? 'Special Offer',
-                                style: robotoBold.copyWith(
+                                style: waddyBold.copyWith(
                                   fontSize: 15,
                                   color: primaryColor,
                                 ),
@@ -147,10 +153,13 @@ class CouponCardWidget extends StatelessWidget {
 
   Widget _buildNeoBadge(String text, Color primary, Color accent) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
       decoration: BoxDecoration(
         color: primary,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
         border: Border.all(color: primary, width: 1.5),
       ),
       child: Row(
@@ -158,7 +167,7 @@ class CouponCardWidget extends StatelessWidget {
         children: [
           Icon(Icons.touch_app_rounded, color: accent, size: 12),
           const SizedBox(width: 4),
-          Text(text, style: robotoBold.copyWith(fontSize: 10, color: accent)),
+          Text(text, style: waddyBold.copyWith(fontSize: 10, color: accent)),
         ],
       ),
     );
@@ -172,7 +181,7 @@ class CouponCardWidget extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: robotoRegular.copyWith(fontSize: 11, color: color),
+            style: waddyRegular.copyWith(fontSize: 11, color: color),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

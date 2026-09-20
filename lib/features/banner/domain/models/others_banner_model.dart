@@ -1,4 +1,3 @@
-
 class ParcelOtherBannerModel {
   String? promotionalBannerUrl;
   String? promotionalBanners3Url;

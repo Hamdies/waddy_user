@@ -19,32 +19,32 @@ class PaymentController extends GetxController implements GetxService {
   int _selectedOfflineBankIndex = 0;
   int get selectedOfflineBankIndex => _selectedOfflineBankIndex;
 
-  Future<void> getOfflineMethodList()async {
+  Future<void> getOfflineMethodList() async {
     _offlineMethodList = await paymentServiceInterface.getOfflineMethodList();
     update();
   }
 
-  void selectOfflineBank(int index, {bool canUpdate = true}){
+  void selectOfflineBank(int index, {bool canUpdate = true}) {
     _selectedOfflineBankIndex = index;
-    if(canUpdate) {
+    if (canUpdate) {
       update();
     }
   }
 
   void changesMethod({bool canUpdate = true}) {
-    List<MethodInformations>? methodInformation = offlineMethodList![selectedOfflineBankIndex].methodInformations!;
+    List<MethodInformations>? methodInformation =
+        offlineMethodList![selectedOfflineBankIndex].methodInformations!;
 
     informationControllerList = [];
     informationFocusList = [];
 
-    for(int index=0; index<methodInformation.length; index++) {
+    for (int index = 0; index < methodInformation.length; index++) {
       informationControllerList.add(TextEditingController());
       informationFocusList.add(FocusNode());
     }
-    if(canUpdate) {
+    if (canUpdate) {
       update();
     }
-
   }
 
   Future<bool> saveOfflineInfo(String data) async {

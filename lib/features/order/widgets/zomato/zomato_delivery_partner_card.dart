@@ -9,6 +9,7 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ZomatoDeliveryPartnerCard
@@ -49,16 +50,19 @@ class ZomatoDeliveryPartnerCard extends StatelessWidget {
       return _SearchingCard();
     }
 
-    final bool enRoute = status == OrderStatus.handover ||
-        status == OrderStatus.pickedUp;
+    final bool enRoute =
+        status == OrderStatus.handover || status == OrderStatus.pickedUp;
     final bool showActions = status?.isOngoing == true;
     final String name = '${dm.fName ?? ''} ${dm.lName ?? ''}'.trim();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -112,7 +116,9 @@ class ZomatoDeliveryPartnerCard extends StatelessWidget {
           if (showActions) ...[
             const SizedBox(height: 14),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
               child: Row(
                 children: [
                   if (showChatPermission) ...[
@@ -202,25 +208,27 @@ class _RiderAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: enRoute
-              ? WaddyColors.mintDark
-              : WaddyColors.primary.withValues(alpha: 0.20),
+          color:
+              enRoute
+                  ? WaddyColors.mintDark
+                  : WaddyColors.primary.withValues(alpha: 0.20),
           width: enRoute ? 2.5 : 1.5,
         ),
-        boxShadow: enRoute
-            ? [
-                BoxShadow(
-                  color: WaddyColors.mint.withValues(alpha: 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ]
-            : null,
+        boxShadow:
+            enRoute
+                ? [
+                  BoxShadow(
+                    color: WaddyColors.mint.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+                : null,
       ),
       child: ClipOval(
         child: CustomImage(
           image: imageUrl,
-            height: 58,
+          height: 58,
           width: 58,
           fit: BoxFit.cover,
         ),
@@ -241,10 +249,13 @@ class _StatusBadge extends StatelessWidget {
     if (enRoute) return const _LiveDot();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.amberSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: WaddyColors.amber.withValues(alpha: 0.35)),
       ),
       child: Text(
@@ -278,9 +289,10 @@ class _LiveDotState extends State<_LiveDot>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
-    _scale = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _scale = Tween<double>(
+      begin: 0.6,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -292,10 +304,13 @@ class _LiveDotState extends State<_LiveDot>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.mintSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: WaddyColors.mint.withValues(alpha: 0.35)),
       ),
       child: Row(
@@ -331,10 +346,13 @@ class _SearchingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.07),
@@ -394,26 +412,31 @@ class _TerminalStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool delivered = status == OrderStatus.delivered ||
-        status == OrderStatus.refunded;
+    final bool delivered =
+        status == OrderStatus.delivered || status == OrderStatus.refunded;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeMedium,
+      ),
       decoration: BoxDecoration(
         color: delivered ? WaddyColors.mintSurface : WaddyColors.errorSurface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         border: Border.all(
-          color: delivered
-              ? WaddyColors.mint.withValues(alpha: 0.30)
-              : WaddyColors.error.withValues(alpha: 0.25),
+          color:
+              delivered
+                  ? WaddyColors.mint.withValues(alpha: 0.30)
+                  : WaddyColors.error.withValues(alpha: 0.25),
         ),
       ),
       child: Row(
         children: [
           Icon(
-            delivered
-                ? Icons.check_circle_rounded
-                : Icons.cancel_rounded,
+            delivered ? Icons.check_circle_rounded : Icons.cancel_rounded,
             color: delivered ? WaddyColors.mintDark : WaddyColors.error,
             size: 30,
           ),
@@ -436,9 +459,10 @@ class _TerminalStrip extends StatelessWidget {
                       ? 'Hope you enjoy every bite!'
                       : 'Contact support if you need help.',
                   style: waddyMicro.copyWith(
-                    color: delivered
-                        ? WaddyColors.mintDark.withValues(alpha: 0.7)
-                        : WaddyColors.error.withValues(alpha: 0.7),
+                    color:
+                        delivered
+                            ? WaddyColors.mintDark.withValues(alpha: 0.7)
+                            : WaddyColors.error.withValues(alpha: 0.7),
                     fontSize: 11.5,
                   ),
                 ),
@@ -470,9 +494,10 @@ class _PulsingAvatarPlaceholderState extends State<_PulsingAvatarPlaceholder>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
-    _opacity = Tween<double>(begin: 0.35, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _opacity = Tween<double>(
+      begin: 0.35,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -553,10 +578,13 @@ class _MatchingChipState extends State<_MatchingChip>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
         color: WaddyColors.amberSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: WaddyColors.amber.withValues(alpha: 0.35)),
       ),
       child: Row(
@@ -590,20 +618,23 @@ class _SupportRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(20),
-        bottomRight: Radius.circular(20),
+        bottomLeft: Radius.circular(Dimensions.radiusExtraLarge),
+        bottomRight: Radius.circular(Dimensions.radiusExtraLarge),
       ),
       onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
       child: Container(
         decoration: BoxDecoration(
           color: const Color(0xFFF8FAF9),
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(20),
-            bottomRight: Radius.circular(20),
+            bottomLeft: Radius.circular(Dimensions.radiusExtraLarge),
+            bottomRight: Radius.circular(Dimensions.radiusExtraLarge),
           ),
           border: Border(top: BorderSide(color: WaddyColors.divider)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeDefault,
+          vertical: Dimensions.paddingSizeMedium,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -660,21 +691,20 @@ class _ActionBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(48),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(
+            vertical: Dimensions.paddingSizeMedium,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(48),
-            border: filled
-                ? null
-                : Border.all(color: btnColor.withValues(alpha: 0.28)),
+            border:
+                filled
+                    ? null
+                    : Border.all(color: btnColor.withValues(alpha: 0.28)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 17,
-                color: filled ? Colors.white : btnColor,
-              ),
+              Icon(icon, size: 17, color: filled ? Colors.white : btnColor),
               const SizedBox(width: 8),
               Text(
                 label,

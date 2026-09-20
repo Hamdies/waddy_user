@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/util/parse.dart';
 
 class CartModel {
   int? _id;
@@ -29,8 +30,9 @@ class CartModel {
     bool isCampaign,
     int? stock,
     Item? item,
-    int? quantityLimit,
-    {bool isLoading = false}) {
+    int? quantityLimit, {
+    bool isLoading = false,
+  }) {
     _id = id;
     _price = price;
     _discountedPrice = discountedPrice;
@@ -106,7 +108,7 @@ class CartModel {
       _item = Item.fromJson(json['item']);
     }
     if (json['quantity_limit'] != null) {
-      _quantityLimit = int.parse(json['quantity_limit']);
+      _quantityLimit = Parse.strictInt(json['quantity_limit'], 'quantity_limit');
     }
     _isLoading = json['is_loading'] ?? false;
   }

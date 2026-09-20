@@ -123,10 +123,13 @@ class _RamadanDecoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Guard against invalid sizes to prevent assertion errors
-    if (size.width <= 0 || size.height <= 0 || size.width.isNaN || size.height.isNaN) {
+    if (size.width <= 0 ||
+        size.height <= 0 ||
+        size.width.isNaN ||
+        size.height.isNaN) {
       return;
     }
-    
+
     final anchors = _calculateAnchors(size);
     if (anchors.isEmpty) return;
 
@@ -201,7 +204,7 @@ class _RamadanDecoPainter extends CustomPainter {
       final curr = anchors[i];
       // Deep drape for a heavy, quality wire look
       final controlX = (prev.dx + curr.dx) / 2;
-      final controlY = (prev.dy + curr.dy) / 2 + 8; 
+      final controlY = (prev.dy + curr.dy) / 2 + 8;
 
       path.quadraticBezierTo(controlX, controlY, curr.dx, curr.dy);
     }
@@ -230,11 +233,11 @@ class _RamadanDecoPainter extends CustomPainter {
     // Limit decorations for performance
     final maxDecorations = anchors.length > 12 ? 12 : anchors.length;
     final step = anchors.length > 12 ? (anchors.length / 12).floor() : 1;
-    
+
     for (int i = 0; i < maxDecorations; i++) {
       final anchorIndex = i * step;
       if (anchorIndex >= anchors.length) break;
-      
+
       final anchor = anchors[anchorIndex];
       final isItemLit = isLit;
 
@@ -257,7 +260,9 @@ class _RamadanDecoPainter extends CustomPainter {
     canvas.drawLine(
       anchor,
       Offset(centerX, startY),
-      Paint()..color = colorDarkTeal..strokeWidth = 1.2,
+      Paint()
+        ..color = colorDarkTeal
+        ..strokeWidth = 1.2,
     );
 
     final moonCenter = Offset(centerX, startY + 7);
@@ -280,13 +285,19 @@ class _RamadanDecoPainter extends CustomPainter {
     moonPath.addOval(Rect.fromCircle(center: moonCenter, radius: radius));
     // Inner circle (subtraction to create crescent)
     // Shifted slightly up and right to tilt the crescent
-    final cutCircle = Path()
-      ..addOval(Rect.fromCircle(
-        center: Offset(moonCenter.dx + 3, moonCenter.dy - 2), 
-        radius: radius * 0.85
-      ));
-    
-    final crescentPath = Path.combine(PathOperation.difference, moonPath, cutCircle);
+    final cutCircle =
+        Path()..addOval(
+          Rect.fromCircle(
+            center: Offset(moonCenter.dx + 3, moonCenter.dy - 2),
+            radius: radius * 0.85,
+          ),
+        );
+
+    final crescentPath = Path.combine(
+      PathOperation.difference,
+      moonPath,
+      cutCircle,
+    );
 
     // Fill
     final paint = Paint();
@@ -299,19 +310,26 @@ class _RamadanDecoPainter extends CustomPainter {
     } else {
       paint.color = colorDeepTeal;
     }
-    
+
     // Draw body
     canvas.drawPath(crescentPath, paint);
-    
+
     // Outline
     canvas.drawPath(
-      crescentPath, 
-      Paint()..color = colorDarkTeal..style = PaintingStyle.stroke..strokeWidth = 1
+      crescentPath,
+      Paint()
+        ..color = colorDarkTeal
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
     );
-    
+
     // Tiny star hanging from the top tip of the crescent (optional detail)
     if (isLit) {
-       canvas.drawCircle(Offset(centerX - 5, startY + 3), 1.5, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        Offset(centerX - 5, startY + 3),
+        1.5,
+        Paint()..color = Colors.white,
+      );
     }
   }
 
@@ -351,46 +369,66 @@ class _RamadanDecoPainter extends CustomPainter {
     canvas.drawPath(domePath, metalPaint);
 
     // Ring handle
-    canvas.drawCircle(Offset(centerX, startY), 2.0, Paint()..color = colorDarkTeal..style = PaintingStyle.stroke..strokeWidth = 1.5);
+    canvas.drawCircle(
+      Offset(centerX, startY),
+      2.0,
+      Paint()
+        ..color = colorDarkTeal
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
 
     // -- Glass Body (The light source) --
     // Traditional "swelling" shape (Fatimid style)
     final bodyTop = startY + 8.0;
     final bodyBot = startY + 22.0;
-    
+
     final glassPath = Path();
     glassPath.moveTo(centerX - 7, bodyTop);
     // Curve out then in
     glassPath.cubicTo(
-      centerX - 10, bodyTop + 5, // control point 1 (bulge out)
-      centerX - 5, bodyBot - 2,  // control point 2 (taper in)
-      centerX - 5, bodyBot       // end point
+      centerX - 10,
+      bodyTop + 5, // control point 1 (bulge out)
+      centerX - 5,
+      bodyBot - 2, // control point 2 (taper in)
+      centerX - 5,
+      bodyBot, // end point
     );
     glassPath.lineTo(centerX + 5, bodyBot);
     glassPath.cubicTo(
-      centerX + 5, bodyBot - 2, 
-      centerX + 10, bodyTop + 5, 
-      centerX + 7, bodyTop
+      centerX + 5,
+      bodyBot - 2,
+      centerX + 10,
+      bodyTop + 5,
+      centerX + 7,
+      bodyTop,
     );
     glassPath.close();
 
     final glassPaint = Paint();
     if (isLit) {
       glassPaint.shader = RadialGradient(
-        colors: [Colors.white, colorNeonGreen, colorNeonGreen.withValues(alpha: 0.5)],
+        colors: [
+          Colors.white,
+          colorNeonGreen,
+          colorNeonGreen.withValues(alpha: 0.5),
+        ],
         stops: const [0.2, 0.6, 1.0],
-      ).createShader(Rect.fromLTWH(centerX - 10, bodyTop, 20, bodyBot - bodyTop));
+      ).createShader(
+        Rect.fromLTWH(centerX - 10, bodyTop, 20, bodyBot - bodyTop),
+      );
     } else {
       glassPaint.color = colorDeepTeal.withValues(alpha: 0.7);
     }
     canvas.drawPath(glassPath, glassPaint);
 
     // -- Simplified Metal Structure for performance --
-    final structPaint = Paint()
-      ..color = colorDarkTeal.withValues(alpha: 0.7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-    
+    final structPaint =
+        Paint()
+          ..color = colorDarkTeal.withValues(alpha: 0.7)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8;
+
     canvas.drawPath(glassPath, structPaint);
 
     // -- Bottom Base --

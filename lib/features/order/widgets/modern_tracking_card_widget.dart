@@ -43,7 +43,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
                     Colors.white.withOpacity(0.85),
                   ],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
         border: Border.all(
           color:
               isDarkMode
@@ -79,7 +79,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, _StatusInfo info) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       child: Row(
         children: [
           // Animated status icon
@@ -131,10 +131,15 @@ class ModernTrackingCardWidget extends StatelessWidget {
           // Time indicator
           if (info.timeText != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeMedium,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
                 color: info.color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(
+                  Dimensions.radiusExtraLarge,
+                ),
               ),
               child: Text(
                 info.timeText!,
@@ -152,7 +157,9 @@ class ModernTrackingCardWidget extends StatelessWidget {
 
   Widget _buildProgressBar(BuildContext context, double progress) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
       height: 6,
       decoration: BoxDecoration(
         color: Theme.of(context).dividerColor.withOpacity(0.3),
@@ -187,7 +194,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
 
   Widget _buildStatusDetails(BuildContext context, _StatusInfo info) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -278,7 +285,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.only(bottom: 20),
+        margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeLarge),
         color:
             isCompleted
                 ? Theme.of(context).primaryColor
@@ -290,7 +297,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
   Widget _buildETASection(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -298,7 +305,7 @@ class ModernTrackingCardWidget extends StatelessWidget {
             Theme.of(context).primaryColor.withOpacity(0.05),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(
           color: Theme.of(context).primaryColor.withOpacity(0.2),
         ),
@@ -333,10 +340,13 @@ class ModernTrackingCardWidget extends StatelessWidget {
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeSmall,
+              vertical: Dimensions.paddingSizeExtraSmall,
+            ),
             decoration: BoxDecoration(
               color: Colors.green.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
             ),
             child: Row(
               children: [

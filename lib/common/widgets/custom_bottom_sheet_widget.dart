@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 
 void showCustomBottomSheet({required Widget child, double? height}) {
   showModalBottomSheet(
-    isScrollControlled: true, useRootNavigator: true, context: Get.context!,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    context: Get.context!,
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.only(
@@ -14,7 +16,9 @@ void showCustomBottomSheet({required Widget child, double? height}) {
     ),
     builder: (context) {
       return ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: height ?? MediaQuery.of(context).size.height * 0.85),
+        constraints: BoxConstraints(
+          maxHeight: height ?? MediaQuery.of(context).size.height * 0.85,
+        ),
         child: child,
       );
     },

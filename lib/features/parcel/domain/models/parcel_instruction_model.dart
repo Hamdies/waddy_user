@@ -38,13 +38,14 @@ class Data {
   String? updatedAt;
   List<Translations>? translations;
 
-  Data(
-      {this.id,
-        this.instruction,
-        this.status,
-        this.createdAt,
-        this.updatedAt,
-        this.translations});
+  Data({
+    this.id,
+    this.instruction,
+    this.status,
+    this.createdAt,
+    this.updatedAt,
+    this.translations,
+  });
 
   Data.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -84,15 +85,16 @@ class Translations {
   String? createdAt;
   String? updatedAt;
 
-  Translations(
-      {this.id,
-        this.translationableType,
-        this.translationableId,
-        this.locale,
-        this.key,
-        this.value,
-        this.createdAt,
-        this.updatedAt});
+  Translations({
+    this.id,
+    this.translationableType,
+    this.translationableId,
+    this.locale,
+    this.key,
+    this.value,
+    this.createdAt,
+    this.updatedAt,
+  });
 
   Translations.fromJson(Map<String, dynamic> json) {
     id = json['id'];

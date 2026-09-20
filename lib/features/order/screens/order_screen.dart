@@ -46,7 +46,9 @@ class OrderScreenState extends State<OrderScreen>
       appBar: AppBar(
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(
+              right: Dimensions.paddingSizeDefault,
+            ),
             child: _CoinsPill(
               teal: Theme.of(context).primaryColor,
               textDark: Theme.of(context).textTheme.bodyLarge!.color!,
@@ -57,7 +59,7 @@ class OrderScreenState extends State<OrderScreen>
         titleSpacing: 20,
         title: Text(
           'orders'.tr,
-          style: robotoBold.copyWith(
+          style: waddyBold.copyWith(
             fontSize: 24,
             color: const Color(0xFF134E4A),
           ),
@@ -121,7 +123,9 @@ class OrderScreenState extends State<OrderScreen>
 
         return Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
           child: Row(
             children: [
               _buildTab(index: 0, label: 'running'.tr, count: runningCount),
@@ -154,13 +158,15 @@ class OrderScreenState extends State<OrderScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               child: Text(
                 '$label ($count)',
                 style:
                     selected
-                        ? robotoBold.copyWith(fontSize: 14, color: primary)
-                        : robotoRegular.copyWith(
+                        ? waddyBold.copyWith(fontSize: 14, color: primary)
+                        : waddyRegular.copyWith(
                           fontSize: 14,
                           color: Colors.grey.shade500,
                         ),
@@ -191,12 +197,16 @@ class _CoinsPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<XpController>(
+      id: XpController.idLevel,
       builder: (xpController) {
         final xpPoints = xpController.currentLevel?.currentXp ?? 0;
         return GestureDetector(
-          onTap: () => Get.toNamed(RouteHelper.getMainRoute('levels')),
+          onTap: () => RouteHelper.goToTab(RouteHelper.tabRewards),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeMedium,
+              vertical: Dimensions.paddingSizeSmall,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF134E4A),
               borderRadius: BorderRadius.circular(30),
@@ -212,7 +222,7 @@ class _CoinsPill extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '$xpPoints',
-                  style: robotoBold.copyWith(fontSize: 15, color: Colors.white),
+                  style: waddyBold.copyWith(fontSize: 15, color: Colors.white),
                 ),
               ],
             ),

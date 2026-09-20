@@ -1,157 +1,53 @@
-# Waddi Animated Splash Screen
+# Waddi Splash Screen
 
 ## Overview
-This is a beautiful, animated splash screen inspired by the Wise app's splash animation. It features smooth track animations, expanding circles, and elegant transitions.
+Brand-field splash: a full mint (`#1EF2A0`) field — identical to the native
+launch screens on both platforms, so the native → Flutter handoff is
+invisible — with the Waddi "W" mark tinted deep teal (`#134E4A`) at center.
+The splash is brand-constant: it does not change with light/dark theme.
 
-## Features
-- **Track Animation**: A vertical track that animates from bottom to top
-- **Expanding Circle**: A circular element that expands and moves with the track
-- **Background Reveal**: A gradient background that reveals as the animation progresses
-- **Smooth Transitions**: All animations use carefully tuned easing curves
-- **Fade Out**: The entire splash screen fades out at the end
+The mark asset (`assets/image/waddy.png`) is the mint glyph on transparency;
+it is recolored at runtime via `Image.asset(color: …)`, so no separate teal
+asset exists.
 
-## Animation Timeline (1265ms total)
+## Motion (two `AnimationController`s; the splash never sits on a dead frame)
+- **Idle breath** — from the very first frame, the mark scales 1.0 ⇄ 1.05
+  (`easeInOutSine`, 1600ms, auto-reversing loop). It loops until the moment
+  navigation actually happens — through config loading AND all navigation
+  prep (token refresh, favourites fetch, deep-link resolution). A slow
+  network never looks like a frozen app, and there is never a blank field
+  after the mark has left.
+- **Exit (played on demand, always the final beat)** — the splash registers
+  `_playExit` with `SplashController.registerSplashExit()`. The route helper
+  awaits `playSplashExit()` immediately before every `Get.offNamed` that
+  replaces the splash — after its async prep is done. The mark dissolves:
+  scale 1.0 → 1.15 (`easeOutCubic`) while fading out (`easeInOut`), 350ms,
+  then the route pushes over the mint field (app default `Transition.topLevel`).
+- **Minimum brand beat** — if everything is ready faster than
+  `_minBrandBeatMs` (500ms), the exit waits for that mark so instant launches
+  read as a beat, not a strobe. There is no fixed animation cost added on top
+  of network time.
 
-### Phase 1: Back Track (0-435ms)
-- A dark green track starts appearing from the bottom
-- Progress: 0% to 31% of screen height
+## Flow
+1. `initState` starts the breath loop, config loading (`getConfigData`),
+   connectivity monitoring, and registers the exit callback — all up front.
+2. Each `GetBuilder` rebuild calls `_checkConfigReady()`; once
+   `SplashController.configLoaded` is true, `markAnimationComplete()` fires
+   immediately (the breath keeps looping).
+3. The controller's `_tryNavigate` → `route()` runs its routing branches;
+   right before pushing the destination, `_exitSplashThen()` awaits the
+   dissolve, then navigates. Notification deep links that push *on top* of
+   the splash (`Get.toNamed`) skip the exit so the field beneath stays alive.
 
-### Phase 2: Front Track Progress (0-875ms)
-- The main track with gradient background starts moving up
-- Progress: 0% to 100% (bottom to top)
-
-### Phase 3: Front Track Expansion (450-990ms)
-- The track width expands from initial width to full screen width
-- Creates a dramatic reveal effect
-
-### Phase 4: Circle Head Expansion (475-875ms)
-- The circular element at the top of the track expands
-- Diameter increases from 102px to 132px
-
-### Phase 5: Fade Out (1050-1265ms)
-- The entire splash screen fades out smoothly
+## Accessibility
+If the system "disable animations" setting is on, neither the breath nor the
+exit runs; the exit callback resolves instantly and navigation proceeds as
+soon as config is ready.
 
 ## Customization
-
-### Colors
-You can customize the brand colors in `waddi_animated_splash_screen.dart`:
-
-```dart
-// Line 28-30
-const _primaryColor = Color(0xFF4CAF50); // Main brand color (green)
-const _darkColor = Color(0xFF1B5E20); // Dark accent color
-const _backgroundColor = Color(0xFFF1F8E9); // Light background
-```
-
-### Logo
-The logo is displayed in the center during the animation. Update the path in the `_Background` widget:
-
-```dart
-// Line 100-104
-Image.asset(
-  'assets/image/logo_no_bg.png', // Change this path
-  height: 90,
-  width: 90,
-),
-```
-
-### Icon in Circle
-The shopping bag icon in the expanding circle can be customized in the `_CirclePainter` class (lines 345-375). You can:
-- Change the icon shape
-- Modify the stroke width
-- Update the icon color
-
-### Animation Duration
-To change the overall animation speed, modify:
-
-```dart
-// Line 7
-const _animationDuration = 1265; // Duration in milliseconds
-```
-
-### Animation Timing
-Fine-tune individual animation phases by adjusting these constants (lines 9-21):
-- `_fadeTransitionStart` / `_fadeTransitionEnd`: When fade out begins/ends
-- `_frontTrackProgressStart` / `_frontTrackProgressEnd`: Track movement timing
-- `_frontTrackExpansionStart` / `_frontTrackExpansionEnd`: Width expansion timing
-- `_frontTrackHeadExpansionStart` / `_frontTrackHeadExpansionEnd`: Circle growth timing
-- `_backTrackProgressStart` / `_backTrackProgressEnd`: Background track timing
-
-### Track Dimensions
-Adjust the initial and final sizes:
-
-```dart
-// Lines 23-25
-const _initialTrackWidth = 112.0; // Starting width
-const _initialTrackHeadDiameter = 102.0; // Starting circle size
-const _finalTrackHeadDiameter = 132.0; // Ending circle size
-```
-
-## Usage
-
-The splash screen is already integrated into your main `SplashScreen` widget. The animation automatically starts when the splash screen is displayed and plays once.
-
-### Integration Points
-1. **Animation Controller**: Created in `SplashScreenState.initState()`
-2. **Auto-start**: Animation starts with `_animationController.forward()`
-3. **Cleanup**: Controller is disposed in `dispose()` method
-
-## Technical Details
-
-### Performance Optimizations
-- Uses `RepaintBoundary` widgets to isolate repainting
-- Efficient `CustomPainter` implementations
-- Smooth 60fps animations with proper curve functions
-
-### Widget Structure
-```
-WaddiAnimatedSplashScreen
-├── FadeTransition (fade out effect)
-    └── Stack
-        ├── _Background (logo on solid color)
-        └── _Foreground
-            ├── _TrackPainter (dark background track)
-            ├── ClipPath with _Clipper (gradient reveal)
-            └── _CirclePainter (expanding circle with icon)
-```
-
-### Key Components
-- **_Track**: Calculates the track path and position
-- **_TrackPainter**: Paints the background track
-- **_Clipper**: Clips the gradient background to reveal it progressively
-- **_Delegate**: Positions the expanding circle
-- **_CirclePainter**: Draws the circle and icon
-
-## Tips for Customization
-
-1. **Test on Real Devices**: Animations may look different on actual devices vs simulators
-2. **Adjust Curves**: Experiment with different easing curves for different feels
-3. **Color Contrast**: Ensure good contrast between logo and background colors
-4. **Icon Simplicity**: Keep the circle icon simple for best visual impact
-5. **Duration Balance**: Too fast feels rushed, too slow feels sluggish (1-2 seconds is ideal)
-
-## Troubleshooting
-
-### Animation Not Playing
-- Check that the controller is properly initialized
-- Ensure `forward()` is called in `initState()`
-- Verify the widget is being rebuilt
-
-### Performance Issues
-- Reduce animation duration
-- Simplify custom painters
-- Check for unnecessary rebuilds
-
-### Visual Glitches
-- Ensure proper use of `RepaintBoundary`
-- Check z-order of Stack children
-- Verify clip paths are calculated correctly
-
-## Future Enhancements
-
-Potential improvements you could add:
-- Add sound effects
-- Include particle effects
-- Add logo animation (rotation, scale, etc.)
-- Implement different animation styles based on theme
-- Add loading progress indicator
+Tuning knobs at the top of `splash_screen.dart`:
+- `_mintField` / `_tealInk` — brand colors (keep `_mintField` in sync with
+  `launch_background.xml` and `LaunchScreen.storyboard`)
+- `_logoSide` — logo box size (default 100)
+- `_minBrandBeatMs` — minimum splash hold on instant readiness (default 500)
+- `_exit` duration — dissolve length (default 350ms)

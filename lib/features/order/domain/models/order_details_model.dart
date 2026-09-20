@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/util/parse.dart';
 
 class OrderDetailsModel {
   int? id;
@@ -48,7 +49,10 @@ class OrderDetailsModel {
     itemId = json['item_id'];
     orderId = json['order_id'];
     price = json['price'].toDouble();
-    itemDetails = json['item_details'] != null ? Item.fromJson(json['item_details']) : null;
+    itemDetails =
+        json['item_details'] != null
+            ? Item.fromJson(json['item_details'])
+            : null;
     variation = [];
     foodVariation = [];
     if (json['variation'] != null && json['variation'].isNotEmpty) {
@@ -118,16 +122,15 @@ class AddOn {
   double? price;
   int? quantity;
 
-  AddOn({
-    this.name,
-    this.price,
-    this.quantity,
-  });
+  AddOn({this.name, this.price, this.quantity});
 
   AddOn.fromJson(Map<String, dynamic> json) {
     name = json['name'];
     price = json['price'].toDouble();
-    quantity = int.parse(json['quantity'].toString());
+    // Strict: a quantity that cannot be read must not silently become a
+    // number. This line used to throw on null and take down the whole
+    // order-details screen.
+    quantity = Parse.strictInt(json['quantity'], 'quantity');
   }
 
   Map<String, dynamic> toJson() {

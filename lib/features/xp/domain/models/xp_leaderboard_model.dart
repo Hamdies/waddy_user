@@ -22,15 +22,19 @@ class XpLeaderboardModel {
         rank: json['my_rank'] ?? 0,
         totalXp: json['my_xp'] ?? 0,
         level: json['my_level'] ?? 1,
+        isMe: true,
+        delta: json['my_delta'] ?? 0,
+        movement: json['my_movement'] ?? 'none',
       );
     }
 
     return XpLeaderboardModel(
-      entries: json['leaderboard'] != null
-          ? (json['leaderboard'] as List)
-              .map((e) => LeaderboardEntry.fromJson(e))
-              .toList()
-          : [],
+      entries:
+          json['leaderboard'] != null
+              ? (json['leaderboard'] as List)
+                  .map((e) => LeaderboardEntry.fromJson(e))
+                  .toList()
+              : [],
       currentUser: currentUser,
       totalParticipants: json['total_participants'] ?? 0,
     );
@@ -47,6 +51,16 @@ class LeaderboardEntry {
   final String? levelName;
   final String? levelBadge;
 
+  /// True when this row is the requesting user (server sets `is_me`), so the
+  /// UI can highlight their own position within the top list.
+  final bool isMe;
+
+  /// Real rank movement since the user last viewed this board (server-computed
+  /// from a per-period snapshot). Positive [delta] = climbed. [movement] is one
+  /// of `up` / `down` / `held` / `new` / `none`, driving the ▲/▼/HELD column.
+  final int delta;
+  final String movement;
+
   LeaderboardEntry({
     required this.userId,
     required this.name,
@@ -56,6 +70,9 @@ class LeaderboardEntry {
     required this.level,
     this.levelName,
     this.levelBadge,
+    this.isMe = false,
+    this.delta = 0,
+    this.movement = 'none',
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -68,6 +85,9 @@ class LeaderboardEntry {
       level: json['level'] ?? json['current_level'] ?? 1,
       levelName: json['level_name'],
       levelBadge: json['level_badge'],
+      isMe: json['is_me'] ?? false,
+      delta: json['delta'] ?? 0,
+      movement: json['movement'] ?? 'none',
     );
   }
 

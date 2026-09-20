@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/notification/domain/models/notification_model.dart';
 import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 
 class NotificationBottomSheet extends StatelessWidget {
@@ -18,8 +17,8 @@ class NotificationBottomSheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(Dimensions.radiusExtraLarge),
+          topRight: Radius.circular(Dimensions.radiusExtraLarge),
         ),
       ),
       child: Column(
@@ -36,7 +35,9 @@ class NotificationBottomSheet extends StatelessWidget {
                 width: 35,
                 decoration: BoxDecoration(
                   color: Theme.of(context).disabledColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusExtraSmall,
+                  ),
                 ),
               ),
 
@@ -75,7 +76,6 @@ class NotificationBottomSheet extends StatelessWidget {
                             Dimensions.radiusSmall,
                           ),
                           child: CustomImage(
-                            placeholder: Images.placeholder,
                             image: '${notificationModel.imageFullUrl}',
                             height: 140,
                             width: MediaQuery.of(context).size.width,
@@ -93,7 +93,7 @@ class NotificationBottomSheet extends StatelessWidget {
 
                     Text(
                       notificationModel.data?.title ?? '',
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                       ),
                     ),
@@ -101,7 +101,7 @@ class NotificationBottomSheet extends StatelessWidget {
 
                     Text(
                       notificationModel.data?.description ?? '',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeSmall,
                       ),
                     ),

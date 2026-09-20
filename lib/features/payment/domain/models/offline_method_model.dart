@@ -42,11 +42,11 @@ class OfflineMethodModel {
     data['id'] = id;
     data['method_name'] = methodName;
     if (methodFields != null) {
-      data['method_fields'] =
-          methodFields!.map((v) => v.toJson()).toList();
+      data['method_fields'] = methodFields!.map((v) => v.toJson()).toList();
     }
     if (methodInformations != null) {
-      data['method_informations'] = methodInformations!.map((v) => v.toJson()).toList();
+      data['method_informations'] =
+          methodInformations!.map((v) => v.toJson()).toList();
     }
     data['status'] = status;
     data['created_at'] = createdAt;
@@ -79,7 +79,11 @@ class MethodInformations {
   String? customerPlaceholder;
   bool? isRequired;
 
-  MethodInformations({this.customerInput, this.customerPlaceholder, this.isRequired});
+  MethodInformations({
+    this.customerInput,
+    this.customerPlaceholder,
+    this.isRequired,
+  });
 
   MethodInformations.fromJson(Map<String, dynamic> json) {
     customerInput = json['customer_input'];

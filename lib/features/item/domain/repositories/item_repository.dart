@@ -470,7 +470,8 @@ class ItemRepository implements ItemRepositoryInterface {
     final module = Get.find<SplashController>().module;
     final moduleId = module?.id?.toString() ?? '';
 
-    String cacheId = '${AppConstants.ramadanFeaturedItemsUri}?limit=20$moduleId';
+    String cacheId =
+        '${AppConstants.ramadanFeaturedItemsUri}?limit=20$moduleId';
 
     switch (source) {
       case DataSourceEnum.client:

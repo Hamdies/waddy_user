@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/domain/models/place_category_model.dart';
+import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
+import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -44,18 +46,29 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
-    final neon = Theme.of(context).secondaryHeaderColor;
+    // On the Spots palette, not the app theme — this screen is part of the
+    // Spots surface, so it must not drift when the app theme changes.
+    const primary = Spots.teal;
+    const neon = Spots.mint;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Spots.canvas,
       appBar: AppBar(
-        title: Text('submit_hidden_gem'.tr,
-            style: robotoBold.copyWith(fontSize: 18, color: Colors.white)),
-        backgroundColor: primary,
+        title: Text(
+          displayCaps('submit_hidden_gem'.tr),
+          style: waddyBlack.copyWith(
+            fontSize: 16,
+            color: Spots.ink,
+            letterSpacing: 0.5,
+          ),
+        ),
+        backgroundColor: Spots.canvas,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: Spots.border, width: Spots.borderThin),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_rounded, color: Spots.teal),
           onPressed: () => Get.back(),
         ),
       ),
@@ -71,32 +84,43 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
                   // ─── NEO HEADER ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [primary, primary.withValues(alpha: 0.85)],
+                      color: neon,
+                      border: Border.all(
+                        color: Spots.border,
+                        width: Spots.borderThin,
                       ),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: neon.withValues(alpha: 0.25),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(Spots.radiusMd),
+                      ),
+                      boxShadow: Spots.shadow(dx: 4, dy: 4),
                     ),
                     child: Column(
                       children: [
-                        const Text('🗺️', style: TextStyle(fontSize: 36)),
+                        const SpotsGlyph(
+                          SpotsMark.pin,
+                          size: 36,
+                          color: Spots.teal,
+                        ),
                         const SizedBox(height: 8),
-                        Text('share_your_discovery'.tr,
-                            style: robotoBold.copyWith(fontSize: 18, color: Colors.white)),
+                        Text(
+                          displayCaps('share_your_discovery'.tr),
+                          style: waddyBlack.copyWith(
+                            fontSize: 17,
+                            color: Spots.ink,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('help_others_find_hidden_gems'.tr,
-                            style: robotoRegular.copyWith(fontSize: 12, color: neon.withValues(alpha: 0.9)),
-                            textAlign: TextAlign.center),
+                        Text(
+                          'help_others_find_hidden_gems'.tr,
+                          style: waddyMedium.copyWith(
+                            fontSize: 12,
+                            color: primary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
@@ -105,8 +129,14 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
 
                   // Name
                   _buildLabel('place_name'.tr, neon, required: true),
-                  _buildTextField(_nameController, 'enter_place_name'.tr, primary, neon,
-                      validator: (v) => v == null || v.isEmpty ? 'required'.tr : null),
+                  _buildTextField(
+                    _nameController,
+                    'enter_place_name'.tr,
+                    primary,
+                    neon,
+                    validator:
+                        (v) => v == null || v.isEmpty ? 'required'.tr : null,
+                  ),
 
                   // Category
                   _buildLabel('category'.tr, neon),
@@ -114,27 +144,52 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
 
                   // Description
                   _buildLabel('description'.tr, neon),
-                  _buildTextField(_descriptionController, 'describe_this_place'.tr, primary, neon,
-                      maxLines: 3),
+                  _buildTextField(
+                    _descriptionController,
+                    'describe_this_place'.tr,
+                    primary,
+                    neon,
+                    maxLines: 3,
+                  ),
 
                   // Address
                   _buildLabel('address'.tr, neon),
-                  _buildTextField(_addressController, 'enter_address'.tr, primary, neon),
+                  _buildTextField(
+                    _addressController,
+                    'enter_address'.tr,
+                    primary,
+                    neon,
+                  ),
 
                   // Phone
                   _buildLabel('phone'.tr, neon),
-                  _buildTextField(_phoneController, 'enter_phone'.tr, primary, neon,
-                      keyboardType: TextInputType.phone),
+                  _buildTextField(
+                    _phoneController,
+                    'enter_phone'.tr,
+                    primary,
+                    neon,
+                    keyboardType: TextInputType.phone,
+                  ),
 
                   // Website
                   _buildLabel('website'.tr, neon),
-                  _buildTextField(_websiteController, 'enter_website'.tr, primary, neon,
-                      keyboardType: TextInputType.url),
+                  _buildTextField(
+                    _websiteController,
+                    'enter_website'.tr,
+                    primary,
+                    neon,
+                    keyboardType: TextInputType.url,
+                  ),
 
                   // Instagram
                   _buildLabel('instagram'.tr, neon),
-                  _buildTextField(_instagramController, 'instagram_handle'.tr, primary, neon,
-                      prefix: '@'),
+                  _buildTextField(
+                    _instagramController,
+                    'instagram_handle'.tr,
+                    primary,
+                    neon,
+                    prefix: '@',
+                  ),
 
                   // Photo
                   _buildLabel('photo'.tr, neon),
@@ -143,32 +198,44 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
                   const SizedBox(height: 28),
 
                   // ─── NEO SUBMIT BUTTON ───
-                  GestureDetector(
+                  SpotsPressable(
                     onTap: controller.isSubmitting ? null : _submit,
+                    dx: 4,
+                    dy: 4,
+                    shadowColor: neon,
+                    radius: Spots.radiusMd,
                     child: Container(
                       width: double.infinity,
                       height: 54,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [neon, neon.withValues(alpha: 0.8)],
+                        color: Spots.teal,
+                        border: Border.all(
+                          color: Spots.border,
+                          width: Spots.borderThin,
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: neon.withValues(alpha: 0.4),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(Spots.radiusMd),
+                        ),
                       ),
                       child: Center(
-                        child: controller.isSubmitting
-                            ? SizedBox(
-                                width: 22, height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: primary),
-                              )
-                            : Text('submit_for_review'.tr,
-                                style: robotoBold.copyWith(fontSize: 15, color: primary)),
+                        child:
+                            controller.isSubmitting
+                                ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                                : Text(
+                                  displayCaps('submit_for_review'.tr),
+                                  style: waddyBlack.copyWith(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                       ),
                     ),
                   ),
@@ -177,8 +244,10 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
                   Center(
                     child: Text(
                       'submission_review_note'.tr,
-                      style: robotoRegular.copyWith(
-                          fontSize: 11, color: Theme.of(context).disabledColor),
+                      style: waddyRegular.copyWith(
+                        fontSize: 11,
+                        color: Theme.of(context).disabledColor,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -195,12 +264,15 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
 
   Widget _buildLabel(String text, Color neon, {bool required = false}) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 6),
+      padding: const EdgeInsets.only(
+        top: Dimensions.paddingSizeDefault,
+        bottom: 6,
+      ),
       child: Row(
         children: [
-          Text(text, style: robotoMedium.copyWith(fontSize: 13)),
+          Text(text, style: waddyMedium.copyWith(fontSize: 13)),
           if (required)
-            Text(' *', style: robotoMedium.copyWith(fontSize: 13, color: neon)),
+            Text(' *', style: waddyMedium.copyWith(fontSize: 13, color: neon)),
         ],
       ),
     );
@@ -216,56 +288,87 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
     String? prefix,
     String? Function(String?)? validator,
   }) {
+    // Gumroad field: white fill, 1.5px black outline, tight radius,
+    // thicker black outline on focus
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
-      style: robotoRegular.copyWith(fontSize: 14),
+      style: waddyRegular.copyWith(fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
         prefixText: prefix,
-        hintStyle: robotoRegular.copyWith(fontSize: 14, color: Theme.of(context).disabledColor),
+        hintStyle: waddyRegular.copyWith(
+          fontSize: 14,
+          color: Theme.of(context).disabledColor,
+        ),
         filled: true,
-        fillColor: primary.withValues(alpha: 0.03),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: primary.withValues(alpha: 0.15)),
+        fillColor: Spots.paper,
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          borderSide: BorderSide(color: Spots.border, width: Spots.borderThin),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: primary.withValues(alpha: 0.15)),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          borderSide: BorderSide(color: Spots.border, width: Spots.borderThin),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: neon, width: 1.5),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          borderSide: BorderSide(color: Spots.border, width: Spots.borderThick),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          borderSide: BorderSide(color: Spots.red, width: Spots.borderThin),
+        ),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          borderSide: BorderSide(color: Spots.red, width: Spots.borderThick),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeMedium,
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryDropdown(PlacesController controller, Color primary, Color neon) {
+  Widget _buildCategoryDropdown(
+    PlacesController controller,
+    Color primary,
+    Color neon,
+  ) {
     final categories = controller.categories ?? [];
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+      ),
       decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.03),
-        border: Border.all(color: primary.withValues(alpha: 0.15)),
-        borderRadius: BorderRadius.circular(14),
+        color: Spots.paper,
+        border: Border.all(color: Spots.border, width: Spots.borderThin),
+        borderRadius: const BorderRadius.all(Radius.circular(Spots.radiusMd)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: _selectedCategoryId,
           isExpanded: true,
-          hint: Text('select_category'.tr,
-              style: robotoRegular.copyWith(fontSize: 14, color: Theme.of(context).disabledColor)),
-          items: categories.map((PlaceCategory cat) {
-            return DropdownMenuItem<int>(
-              value: cat.id,
-              child: Text(cat.name, style: robotoRegular.copyWith(fontSize: 14)),
-            );
-          }).toList(),
+          hint: Text(
+            'select_category'.tr,
+            style: waddyRegular.copyWith(
+              fontSize: 14,
+              color: Theme.of(context).disabledColor,
+            ),
+          ),
+          items:
+              categories.map((PlaceCategory cat) {
+                return DropdownMenuItem<int>(
+                  value: cat.id,
+                  child: Text(
+                    cat.name,
+                    style: waddyRegular.copyWith(fontSize: 14),
+                  ),
+                );
+              }).toList(),
           onChanged: (value) => setState(() => _selectedCategoryId = value),
         ),
       ),
@@ -279,56 +382,72 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
         height: 130,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: primary.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: neon.withValues(alpha: 0.25), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: neon.withValues(alpha: 0.08),
-              blurRadius: 12,
-            ),
+          color: Colors.white,
+          borderRadius: const BorderRadius.all(Radius.circular(Spots.radiusMd)),
+          border: Border.all(color: Spots.border, width: Spots.borderThin),
+          boxShadow: const [
+            BoxShadow(color: Colors.black, offset: Offset(3, 3), blurRadius: 0),
           ],
         ),
-        child: _imagePath != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(15),
-                    child: Image.file(File(_imagePath!), fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 8, right: 8,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _imagePath = null),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error,
-                          shape: BoxShape.circle,
+        child:
+            _imagePath != null
+                ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(
+                        Radius.circular(Spots.radiusMd),
+                      ),
+                      child: Image.file(File(_imagePath!), fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _imagePath = null),
+                        child: Container(
+                          padding: const EdgeInsets.all(
+                            Dimensions.paddingSizeExtraSmall,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
-                        child: const Icon(Icons.close, size: 14, color: Colors.white),
                       ),
                     ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('📸', style: TextStyle(fontSize: 28)),
-                  const SizedBox(height: 6),
-                  Text('tap_to_add_photo'.tr,
-                      style: robotoMedium.copyWith(fontSize: 12, color: neon)),
-                ],
-              ),
+                  ],
+                )
+                : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.camera_alt_rounded,
+                      size: 26,
+                      color: Spots.ink3,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'tap_to_add_photo'.tr,
+                      style: waddyMedium.copyWith(fontSize: 12, color: neon),
+                    ),
+                  ],
+                ),
       ),
     );
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024);
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+    );
     if (image != null) {
       setState(() => _imagePath = image.path);
     }
@@ -337,7 +456,9 @@ class _PlaceSubmissionScreenState extends State<PlaceSubmissionScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Backend expects `title`; keep `name` for older server builds
     final fields = <String, String>{
+      'title': _nameController.text.trim(),
       'name': _nameController.text.trim(),
     };
     if (_descriptionController.text.trim().isNotEmpty) {

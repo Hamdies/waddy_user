@@ -11,10 +11,15 @@ import 'package:waddy_app/features/auth/domain/services/deliveryman_registration
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 
-class DeliverymanRegistrationService implements DeliverymanRegistrationServiceInterface{
-  final DeliverymanRegistrationRepositoryInterface deliverymanRegistrationRepoInterface;
+class DeliverymanRegistrationService
+    implements DeliverymanRegistrationServiceInterface {
+  final DeliverymanRegistrationRepositoryInterface
+  deliverymanRegistrationRepoInterface;
   final AuthRepositoryInterface authRepositoryInterface;
-  DeliverymanRegistrationService({required this.deliverymanRegistrationRepoInterface, required this.authRepositoryInterface});
+  DeliverymanRegistrationService({
+    required this.deliverymanRegistrationRepoInterface,
+    required this.authRepositoryInterface,
+  });
 
   @override
   Future<List<ZoneDataModel>?> getZoneList() async {
@@ -23,19 +28,28 @@ class DeliverymanRegistrationService implements DeliverymanRegistrationServiceIn
 
   @override
   Future<List<ModuleModel>?> getModules(int? zoneId) async {
-    return await deliverymanRegistrationRepoInterface.getList(isZone: false, zoneId: zoneId);
+    return await deliverymanRegistrationRepoInterface.getList(
+      isZone: false,
+      zoneId: zoneId,
+    );
   }
 
   @override
   Future<List<DeliveryManVehicleModel>?> getVehicleList() async {
-    return await deliverymanRegistrationRepoInterface.getList(isZone: false, isVehicle: true);
+    return await deliverymanRegistrationRepoInterface.getList(
+      isZone: false,
+      isVehicle: true,
+    );
   }
 
   @override
-  int? prepareSelectedZoneIndex(List<int>? zoneIds, List<ZoneDataModel>? zoneList) {
+  int? prepareSelectedZoneIndex(
+    List<int>? zoneIds,
+    List<ZoneDataModel>? zoneList,
+  ) {
     int? selectedZoneIndex = 0;
-    for(int index=0; index<zoneList!.length; index++) {
-      if(zoneIds!.contains(zoneList[index].id)) {
+    for (int index = 0; index < zoneList!.length; index++) {
+      if (zoneIds!.contains(zoneList[index].id)) {
         selectedZoneIndex = index;
         break;
       }
@@ -54,22 +68,31 @@ class DeliverymanRegistrationService implements DeliverymanRegistrationServiceIn
   }
 
   @override
-  Future<void> registerDeliveryMan(DeliveryManBody deliveryManBody, List<MultipartBody> multiParts) async {
-    bool success = await deliverymanRegistrationRepoInterface.registerDeliveryMan(deliveryManBody, multiParts);
-    if(success) {
+  Future<void> registerDeliveryMan(
+    DeliveryManBody deliveryManBody,
+    List<MultipartBody> multiParts,
+  ) async {
+    bool success = await deliverymanRegistrationRepoInterface
+        .registerDeliveryMan(deliveryManBody, multiParts);
+    if (success) {
       Get.offAllNamed(RouteHelper.getInitialRoute());
-      showCustomSnackBar('delivery_man_registration_successful'.tr, isError: false);
+      showCustomSnackBar(
+        'delivery_man_registration_successful'.tr,
+        isError: false,
+      );
     }
   }
 
   @override
-  List<MultipartBody> prepareMultipart(XFile? pickedImage, List<XFile> pickedIdentities) {
+  List<MultipartBody> prepareMultipart(
+    XFile? pickedImage,
+    List<XFile> pickedIdentities,
+  ) {
     List<MultipartBody> multiParts = [];
     multiParts.add(MultipartBody('image', pickedImage));
-    for(XFile file in pickedIdentities) {
+    for (XFile file in pickedIdentities) {
       multiParts.add(MultipartBody('identity_image[]', file));
     }
     return multiParts;
   }
-
 }

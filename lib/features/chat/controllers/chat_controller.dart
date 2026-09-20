@@ -9,7 +9,6 @@ import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
 import 'package:waddy_app/features/chat/domain/models/chat_model.dart';
 import 'package:waddy_app/helper/date_converter.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/chat/domain/services/chat_service_interface.dart';
 
@@ -107,25 +106,25 @@ class ChatController extends GetxController implements GetxService {
         _conversationModel!.conversations,
       );
       _hasAdmin = false;
-      if (index0 != -1 && !ResponsiveHelper.isDesktop(Get.context)) {
+      if (index0 != -1) {
         _hasAdmin = true;
         if (sender) {
           _conversationModel!.conversations![index0]!.sender = User(
             id: 0,
-            fName: Get.find<SplashController>().configModel!.businessName,
+            fName: Get.find<SplashController>().configModel.businessName,
             lName: '',
-            phone: Get.find<SplashController>().configModel!.phone,
-            email: Get.find<SplashController>().configModel!.email,
-            imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
+            phone: Get.find<SplashController>().configModel.phone,
+            email: Get.find<SplashController>().configModel.email,
+            imageFullUrl: Get.find<SplashController>().configModel.logoFullUrl,
           );
         } else {
           _conversationModel!.conversations![index0]!.receiver = User(
             id: 0,
-            fName: Get.find<SplashController>().configModel!.businessName,
+            fName: Get.find<SplashController>().configModel.businessName,
             lName: '',
-            phone: Get.find<SplashController>().configModel!.phone,
-            email: Get.find<SplashController>().configModel!.email,
-            imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
+            phone: Get.find<SplashController>().configModel.phone,
+            email: Get.find<SplashController>().configModel.email,
+            imageFullUrl: Get.find<SplashController>().configModel.logoFullUrl,
           );
         }
       }
@@ -156,19 +155,19 @@ class ChatController extends GetxController implements GetxService {
           updatedAt: '2024-07-14T05:05:20.000000Z',
           sender: User(
             id: 0,
-            fName: Get.find<SplashController>().configModel!.businessName,
+            fName: Get.find<SplashController>().configModel.businessName,
             lName: '',
-            phone: Get.find<SplashController>().configModel!.phone,
-            email: Get.find<SplashController>().configModel!.email,
-            imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
+            phone: Get.find<SplashController>().configModel.phone,
+            email: Get.find<SplashController>().configModel.email,
+            imageFullUrl: Get.find<SplashController>().configModel.logoFullUrl,
           ),
           receiver: User(
             id: 0,
-            fName: Get.find<SplashController>().configModel!.businessName,
+            fName: Get.find<SplashController>().configModel.businessName,
             lName: '',
-            phone: Get.find<SplashController>().configModel!.phone,
-            email: Get.find<SplashController>().configModel!.email,
-            imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
+            phone: Get.find<SplashController>().configModel.phone,
+            email: Get.find<SplashController>().configModel.email,
+            imageFullUrl: Get.find<SplashController>().configModel.logoFullUrl,
           ),
           lastMessage: Message(
             id: 0,
@@ -266,9 +265,7 @@ class ChatController extends GetxController implements GetxService {
         response.statusCode == 200) {
       if (offset == 1) {
         /// Unread-read
-        if (conversationID != null &&
-            _conversationModel != null &&
-            !ResponsiveHelper.isDesktop(Get.context)) {
+        if (conversationID != null && _conversationModel != null) {
           int index0 = chatServiceInterface.findOutConversationUnreadIndex(
             _conversationModel!.conversations,
             conversationID,
@@ -298,11 +295,11 @@ class ChatController extends GetxController implements GetxService {
                       id: 0,
                       fName:
                           Get.find<SplashController>()
-                              .configModel!
+                              .configModel
                               .businessName,
                       lName: '',
                       imageFullUrl:
-                          Get.find<SplashController>().configModel!.logoFullUrl,
+                          Get.find<SplashController>().configModel.logoFullUrl,
                     )
                     : user,
           );
@@ -432,8 +429,7 @@ class ChatController extends GetxController implements GetxService {
           !_hasAdmin &&
           (_messageModel!.conversation!.senderType == UserType.admin.name ||
               _messageModel!.conversation!.receiverType ==
-                  UserType.admin.name) &&
-          !ResponsiveHelper.isDesktop(Get.context)) {
+                  UserType.admin.name)) {
         _conversationModel!.conversations!.add(_messageModel!.conversation);
         _hasAdmin = true;
       }
@@ -464,9 +460,9 @@ class ChatController extends GetxController implements GetxService {
     if (adminId != null) {
       _messageModel!.conversation!.receiver = User(
         id: 0,
-        fName: Get.find<SplashController>().configModel!.businessName,
+        fName: Get.find<SplashController>().configModel.businessName,
         lName: '',
-        imageFullUrl: Get.find<SplashController>().configModel!.logoFullUrl,
+        imageFullUrl: Get.find<SplashController>().configModel.logoFullUrl,
       );
     }
   }

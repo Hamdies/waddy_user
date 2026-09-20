@@ -12,15 +12,15 @@ class FlashSaleController extends GetxController implements GetxService {
 
   Duration? _duration;
   Duration? get duration => _duration;
-  
+
   Timer? _timer;
-  
+
   FlashSaleModel? _flashSaleModel;
   FlashSaleModel? get flashSaleModel => _flashSaleModel;
-  
+
   int _pageIndex = 1;
   int get pageIndex => _pageIndex;
-  
+
   ProductFlashSale? _productFlashSale;
   ProductFlashSale? get productFlashSale => _productFlashSale;
 
@@ -30,37 +30,53 @@ class FlashSaleController extends GetxController implements GetxService {
   }
 
   void setEmptyFlashSale({bool fromModule = false}) {
-    if(fromModule) {
+    if (fromModule) {
       _flashSaleModel = null;
     }
   }
 
-  Future<void> getFlashSale(bool reload, bool notify, {DataSourceEnum dataSource = DataSourceEnum.local, bool fromRecall = false}) async {
-    if(_flashSaleModel == null || reload && !fromRecall) {
+  Future<void> getFlashSale(
+    bool reload,
+    bool notify, {
+    DataSourceEnum dataSource = DataSourceEnum.local,
+    bool fromRecall = false,
+  }) async {
+    if (_flashSaleModel == null || reload && !fromRecall) {
       _flashSaleModel = null;
     }
-    if(notify) {
+    if (notify) {
       update();
     }
-    if(_flashSaleModel == null || reload || fromRecall) {
+    if (_flashSaleModel == null || reload || fromRecall) {
       FlashSaleModel? flashSaleModel;
-      if(dataSource == DataSourceEnum.local) {
-        flashSaleModel = await flashSaleServiceInterface.getFlashSale(DataSourceEnum.local);
+      if (dataSource == DataSourceEnum.local) {
+        flashSaleModel = await flashSaleServiceInterface.getFlashSale(
+          DataSourceEnum.local,
+        );
         _prepareFlashModel(flashSaleModel);
-        getFlashSale(false, notify, dataSource: DataSourceEnum.client, fromRecall: true);
+        getFlashSale(
+          false,
+          notify,
+          dataSource: DataSourceEnum.client,
+          fromRecall: true,
+        );
       } else {
-        flashSaleModel = await flashSaleServiceInterface.getFlashSale(DataSourceEnum.client);
+        flashSaleModel = await flashSaleServiceInterface.getFlashSale(
+          DataSourceEnum.client,
+        );
         _prepareFlashModel(flashSaleModel);
       }
-
     }
   }
 
   _prepareFlashModel(FlashSaleModel? flashSaleModel) {
     if (flashSaleModel != null) {
       _flashSaleModel = flashSaleModel;
-      if(_flashSaleModel?.endDate != null) {
-        DateTime endTime = DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(_flashSaleModel!.endDate!, true).toLocal();
+      if (_flashSaleModel?.endDate != null) {
+        DateTime endTime =
+            DateFormat(
+              'yyyy-MM-ddTHH:mm:ss.SSS',
+            ).parse(_flashSaleModel!.endDate!, true).toLocal();
         _duration = endTime.difference(DateTime.now());
         _timer?.cancel();
         _timer = null;
@@ -74,14 +90,14 @@ class FlashSaleController extends GetxController implements GetxService {
   }
 
   Future<void> getFlashSaleWithId(int offset, bool reload, int id) async {
-    if(reload) {
+    if (reload) {
       _productFlashSale = null;
       update();
     }
-    ProductFlashSale? productFlashSale = await flashSaleServiceInterface.getFlashSaleWithId(id, offset);
+    ProductFlashSale? productFlashSale = await flashSaleServiceInterface
+        .getFlashSaleWithId(id, offset);
     if (productFlashSale != null) {
-
-      if(offset == 1){
+      if (offset == 1) {
         _productFlashSale = productFlashSale;
       } else {
         _productFlashSale!.totalSize = productFlashSale.totalSize;
@@ -90,8 +106,11 @@ class FlashSaleController extends GetxController implements GetxService {
         _productFlashSale!.products!.addAll(productFlashSale.products!);
       }
 
-      if(_productFlashSale!.flashSale!.endDate != null) {
-        DateTime endTime = DateFormat('yyyy-MM-ddTHH:mm:ss.SSS').parse(_productFlashSale!.flashSale!.endDate!, true).toLocal();
+      if (_productFlashSale!.flashSale!.endDate != null) {
+        DateTime endTime =
+            DateFormat(
+              'yyyy-MM-ddTHH:mm:ss.SSS',
+            ).parse(_productFlashSale!.flashSale!.endDate!, true).toLocal();
         _duration = endTime.difference(DateTime.now());
         _timer?.cancel();
         _timer = null;
@@ -103,5 +122,4 @@ class FlashSaleController extends GetxController implements GetxService {
       update();
     }
   }
-  
 }

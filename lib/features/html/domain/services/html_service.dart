@@ -11,5 +11,4 @@ class HtmlService implements HtmlServiceInterface {
   Future<Response> getHtmlText(HtmlType htmlType) async {
     return await htmlRepositoryInterface.getHtmlText(htmlType);
   }
-
 }

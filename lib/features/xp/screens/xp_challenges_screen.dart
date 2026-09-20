@@ -1,10 +1,19 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
+/// ─── WADDI XP — Quests ────────────────────────────────────────────────────────
+/// Native port of Challenges.dc.html: a dark deep-teal "Quests" screen with a
+/// streak card, then Daily and Weekly quest sections (shown together, each with
+/// its own reset countdown). Every quest is a compact card — emoji, title, an
+/// XP-reward chip that flips to "✓ CLAIMED", a progress track (green in
+/// progress, mint when complete), and a "N of M" / status line. Claiming is
+/// wired to the real backend via [XpController.claimChallenge].
 class XpChallengesScreen extends StatefulWidget {
   const XpChallengesScreen({super.key});
 
@@ -12,102 +21,97 @@ class XpChallengesScreen extends StatefulWidget {
   State<XpChallengesScreen> createState() => _XpChallengesScreenState();
 }
 
-class _XpChallengesScreenState extends State<XpChallengesScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  Timer? _countdownTimer;
-
-  // --- COLOR PALETTE (Same as XP Levels Screen) ---
-  final Color brandDarkTeal = const Color(0xFF134E4A);
-  final Color brandNeonGreen = const Color(0xFF1EF2A0);
-  final Color neoBlack = const Color(0xFF121212);
-  final Color lightTeal = const Color(0xFFE0F7F4);
-  final Color tealText = const Color(0xFF0D7377);
-  final Color textSecondary = const Color(0xFF5A6670);
+class _XpChallengesScreenState extends State<XpChallengesScreen> {
+  Timer? _countdown;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        Get.find<XpController>().changeChallengeTab(_tabController.index);
-      }
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<XpController>().getChallenges();
+      final xp = Get.find<XpController>();
+      xp.getChallenges();
+      // Streak lives on the level-details payload; ensure it's loaded so the
+      // streak card is real even when this screen is opened directly.
+      xp.getLevelDetails();
     });
-
-    // Live countdown timer — tick every 30 seconds
-    _countdownTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // Live reset countdown — tick each minute.
+    _countdown = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
-    _tabController.dispose();
+    _countdown?.cancel();
     super.dispose();
   }
+
+  Future<void> _refresh() =>
+      Get.find<XpController>().getChallenges(reload: true);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: brandDarkTeal,
+      backgroundColor: _Q.panel,
       body: SafeArea(
+        bottom: false,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Custom Header
-            _buildHeader(),
-
-            // Tab Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildNeoTabBar(),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Reset Timer Info
-            GetBuilder<XpController>(
-              builder: (xpController) {
-                if (xpController.challengeModel != null) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildResetInfo(xpController),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Challenges List
+            const _Header(),
             Expanded(
               child: GetBuilder<XpController>(
-                builder: (xpController) {
-                  if (xpController.isChallengesLoading) {
-                    return Center(
-                      child: CircularProgressIndicator(color: brandNeonGreen),
+                id: XpController.idChallenges,
+                builder: (xp) {
+                  final model = xp.challengeModel;
+                  if (xp.isChallengesLoading && model == null) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: _Q.mint),
                     );
                   }
 
-                  return TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildChallengesList(
-                        xpController.challengeModel?.dailyChallenges ?? [],
-                        xpController,
-                        isDaily: true,
+                  final daily = model?.dailyChallenges ?? [];
+                  final weekly = model?.weeklyChallenges ?? [];
+                  final streak = xp.streak?.currentStreak ?? 0;
+
+                  return RefreshIndicator(
+                    color: _Q.mint,
+                    backgroundColor: _Q.panel,
+                    onRefresh: _refresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: ClampingScrollPhysics(),
                       ),
-                      _buildChallengesList(
-                        xpController.challengeModel?.weeklyChallenges ?? [],
-                        xpController,
-                        isDaily: false,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        4,
+                        16,
+                        MediaQuery.of(context).padding.bottom + 28,
                       ),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          _StreakCard(days: streak),
+                          _QuestSection(
+                            label: 'Daily quests',
+                            resetLabel: _dailyResetLabel(model?.dailyResetTime),
+                            quests: daily,
+                            emptyText: 'check_back_tomorrow'.tr,
+                            xp: xp,
+                          ),
+                          _QuestSection(
+                            label: 'Weekly quests',
+                            resetLabel: _weeklyResetLabel(
+                              model?.weeklyResetTime,
+                            ),
+                            quests: weekly,
+                            emptyText: 'check_back_next_week'.tr,
+                            xp: xp,
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -118,539 +122,533 @@ class _XpChallengesScreenState extends State<XpChallengesScreen>
     );
   }
 
-  Widget _buildHeader() {
+  /// "8h 12m" style remaining-time label for the daily reset.
+  String _dailyResetLabel(DateTime? resetTime) {
+    if (resetTime == null) return '—';
+    final left = resetTime.difference(DateTime.now());
+    if (left.isNegative) return 'soon';
+    final h = left.inHours;
+    final m = left.inMinutes % 60;
+    if (h >= 24) {
+      final d = left.inDays;
+      final hh = left.inHours % 24;
+      return hh > 0 ? '${d}d ${hh}h' : '${d}d';
+    }
+    return h > 0 ? '${h}h ${m}m' : '${m}m';
+  }
+
+  /// The weekday the weekly quests reset on (e.g. "Monday").
+  String _weeklyResetLabel(DateTime? resetTime) {
+    if (resetTime == null) return '—';
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[(resetTime.weekday - 1).clamp(0, 6)];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THEME (matches the XP design tokens)
+// ─────────────────────────────────────────────────────────────────────────────
+class _Q {
+  _Q._();
+  static const Color mint = Color(0xFF1EF2A0);
+  static const Color teal = Color(0xFF134E4A);
+  static const Color panel = Color(0xFF0E3532);
+  static const Color border = Color(0xFF134E4A);
+  static const Color green = Color(0xFF22C55E);
+
+  static Color get onMed => Colors.white.withValues(alpha: 0.5);
+  static Color get faint => Colors.white.withValues(alpha: 0.45);
+  static Color get tileFill => Colors.white.withValues(alpha: 0.06);
+  static Color get tileBorder => Colors.white.withValues(alpha: 0.28);
+  static Color get track => Colors.white.withValues(alpha: 0.14);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEADER — "WHAT'S NEXT / QUESTS" + a quiet back affordance
+// ─────────────────────────────────────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  const _Header();
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back Button
           GestureDetector(
             onTap: () => Get.back(),
             child: Container(
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
+              margin: const EdgeInsets.only(
+                top: 2,
+                right: Dimensions.paddingSizeMedium,
+              ),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
+                color: Colors.white.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1.5,
                 ),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: Colors.white,
-                size: 18,
+                size: 16,
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          // Title
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '🎯 ${'challenges'.tr}',
-                  style: robotoBold.copyWith(fontSize: 22, color: Colors.white),
+                  'WHAT\'S NEXT',
+                  style: waddyBlack.copyWith(
+                    fontSize: 10,
+                    color: _Q.onMed,
+                    letterSpacing: 0.1 * 10,
+                    height: 1.2,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'complete_challenges_to_earn_xp'.tr,
-                  style: robotoMedium.copyWith(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.7),
+                  'QUESTS',
+                  style: waddyBlack.copyWith(
+                    fontSize: 22,
+                    color: Colors.white,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Play at your pace — new quests roll in daily and weekly',
+                  style: waddyBold.copyWith(
+                    fontSize: 11,
+                    color: _Q.onMed,
+                    height: 1.3,
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNeoTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: neoBlack, width: 2.5),
-        boxShadow: [
-          BoxShadow(color: neoBlack, offset: const Offset(4, 4), blurRadius: 0),
-        ],
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: brandNeonGreen,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: const EdgeInsets.all(4),
-        dividerColor: Colors.transparent,
-        labelColor: neoBlack,
-        unselectedLabelColor: textSecondary,
-        labelStyle: robotoBold.copyWith(fontSize: 14),
-        unselectedLabelStyle: robotoMedium.copyWith(fontSize: 14),
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.today_rounded, size: 18),
-                const SizedBox(width: 8),
-                Text('daily'.tr),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.date_range_rounded, size: 18),
-                const SizedBox(width: 8),
-                Text('weekly'.tr),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResetInfo(XpController xpController) {
-    final challenges = xpController.challengeModel;
-    if (challenges == null) return const SizedBox.shrink();
-
-    final isDaily = xpController.selectedChallengeTab == 0;
-    final resetTime =
-        isDaily ? challenges.dailyResetTime : challenges.weeklyResetTime;
-
-    if (resetTime == null) return const SizedBox.shrink();
-
-    final now = DateTime.now();
-    final duration = resetTime.difference(now);
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: lightTeal,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: neoBlack, width: 2),
-        boxShadow: [
-          BoxShadow(color: neoBlack, offset: const Offset(3, 3), blurRadius: 0),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: brandNeonGreen,
-              shape: BoxShape.circle,
-              border: Border.all(color: neoBlack, width: 2),
-            ),
-            child: Icon(Icons.timer_outlined, size: 18, color: neoBlack),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isDaily ? 'daily_reset'.tr : 'weekly_reset'.tr,
-                  style: robotoMedium.copyWith(
-                    fontSize: 12,
-                    color: textSecondary,
-                  ),
-                ),
-                Text(
-                  'challenges_reset_in'.tr,
-                  style: robotoBold.copyWith(fontSize: 14, color: tealText),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: brandNeonGreen,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: neoBlack, width: 2),
-            ),
-            child: Text(
-              '${hours}h ${minutes}m',
-              style: robotoBold.copyWith(fontSize: 14, color: neoBlack),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChallengesList(
-    List<Challenge> challenges,
-    XpController xpController, {
-    required bool isDaily,
-  }) {
-    if (challenges.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.emoji_events_outlined,
-                size: 40,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'no_challenges_available'.tr,
-              style: robotoMedium.copyWith(
-                fontSize: 16,
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isDaily ? 'check_back_tomorrow'.tr : 'check_back_next_week'.tr,
-              style: robotoRegular.copyWith(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () => xpController.getChallenges(reload: true),
-      color: brandNeonGreen,
-      backgroundColor: Colors.white,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        itemCount: challenges.length,
-        itemBuilder: (context, index) {
-          final challenge = challenges[index];
-          return _NeoChallengeCard(
-            challenge: challenge,
-            neoBlack: neoBlack,
-            accentColor: brandNeonGreen,
-            lightTeal: lightTeal,
-            tealText: tealText,
-            textSecondary: textSecondary,
-            isLoading: xpController.isClaimingChallengeId(challenge.id),
-            onClaim:
-                challenge.canClaim
-                    ? () => xpController.claimChallenge(challenge.id)
-                    : null,
-          );
-        },
       ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// NEO CHALLENGE CARD
-// -----------------------------------------------------------------------------
-class _NeoChallengeCard extends StatelessWidget {
-  final Challenge challenge;
-  final Color neoBlack;
-  final Color accentColor;
-  final Color lightTeal;
-  final Color tealText;
-  final Color textSecondary;
-  final VoidCallback? onClaim;
-  final bool isLoading;
+// ─────────────────────────────────────────────────────────────────────────────
+// STREAK CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _StreakCard extends StatelessWidget {
+  final int days;
+  const _StreakCard({required this.days});
 
-  const _NeoChallengeCard({
-    required this.challenge,
-    required this.neoBlack,
-    required this.accentColor,
-    required this.lightTeal,
-    required this.tealText,
-    required this.textSecondary,
-    this.onClaim,
-    this.isLoading = false,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _Q.tileFill,
+        border: Border.all(color: _Q.tileBorder, width: 2.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: Dimensions.paddingSizeMedium,
+      ),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$days ${days == 1 ? 'DAY' : 'DAYS'} STREAK',
+                  style: waddyBlack.copyWith(
+                    fontSize: 14,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'ONE ORDER A DAY KEEPS IT ALIVE',
+                  style: waddyBold.copyWith(
+                    fontSize: 10,
+                    color: _Q.mint,
+                    letterSpacing: 0.03 * 10,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEST SECTION — header row (label + reset) then quest cards
+// ─────────────────────────────────────────────────────────────────────────────
+class _QuestSection extends StatelessWidget {
+  final String label;
+  final String resetLabel;
+  final List<Challenge> quests;
+  final String emptyText;
+  final XpController xp;
+
+  const _QuestSection({
+    required this.label,
+    required this.resetLabel,
+    required this.quests,
+    required this.emptyText,
+    required this.xp,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDaily = challenge.type == 'daily';
-    final canClaim = challenge.canClaim;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: canClaim ? accentColor : neoBlack,
-          width: canClaim ? 3 : 2.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: canClaim ? accentColor.withValues(alpha: 0.5) : neoBlack,
-            offset: const Offset(4, 4),
-            blurRadius: 0,
+    return Padding(
+      padding: const EdgeInsets.only(top: Dimensions.paddingSizeLarge),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: waddyBlack.copyWith(
+                    fontSize: 11,
+                    color: Colors.white,
+                    letterSpacing: 0.08 * 11,
+                    height: 1,
+                  ),
+                ),
+              ),
+              Text(
+                _resetText(label, resetLabel),
+                style: waddyBold.copyWith(
+                  fontSize: 9.5,
+                  color: _Q.faint,
+                  height: 1,
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          if (quests.isEmpty)
+            _EmptyQuest(text: emptyText)
+          else
+            ...quests.map(
+              (q) => Padding(
+                padding: const EdgeInsets.only(
+                  bottom: Dimensions.paddingSizeSmall,
+                ),
+                child: _QuestCard(
+                  challenge: q,
+                  claiming: xp.isClaimingChallengeId(q.id),
+                  onClaim: q.canClaim ? () => xp.claimChallenge(q.id) : null,
+                ),
+              ),
+            ),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Row
-            Row(
-              children: [
-                // Challenge Type Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        isDaily ? Colors.orange.shade50 : Colors.purple.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isDaily ? Colors.orange : Colors.purple,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isDaily
-                            ? Icons.today_rounded
-                            : Icons.date_range_rounded,
-                        size: 14,
-                        color: isDaily ? Colors.orange : Colors.purple,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isDaily ? 'daily'.tr : 'weekly'.tr,
-                        style: robotoBold.copyWith(
-                          fontSize: 11,
-                          color: isDaily ? Colors.orange : Colors.purple,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                // XP Reward Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: neoBlack, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: neoBlack,
-                        offset: const Offset(2, 2),
-                        blurRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    '+${challenge.xpReward} XP',
-                    style: robotoBold.copyWith(fontSize: 13, color: neoBlack),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // Title
-            Text(
-              challenge.title,
-              style: robotoBold.copyWith(fontSize: 17, color: neoBlack),
-            ),
-            const SizedBox(height: 4),
-
-            // Description
-            Text(
-              challenge.description,
-              style: robotoRegular.copyWith(fontSize: 13, color: textSecondary),
-            ),
-
-            const SizedBox(height: 18),
-
-            // Progress Section
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'progress'.tr,
-                            style: robotoMedium.copyWith(
-                              fontSize: 12,
-                              color: textSecondary,
-                            ),
-                          ),
-                          Text(
-                            '${challenge.currentProgress}/${challenge.targetProgress}',
-                            style: robotoBold.copyWith(
-                              fontSize: 13,
-                              color: neoBlack,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Neo-style Progress Bar
-                      Stack(
-                        children: [
-                          Container(
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(7),
-                              border: Border.all(color: neoBlack, width: 1.5),
-                            ),
-                          ),
-                          FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: challenge.progressPercentage.clamp(
-                              0.05,
-                              1.0,
-                            ),
-                            child: Container(
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color:
-                                    challenge.isCompleted
-                                        ? Colors.green
-                                        : accentColor,
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(color: neoBlack, width: 1.5),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Action Button
-                _buildActionButton(context),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildActionButton(BuildContext context) {
-    if (challenge.isClaimed) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.green.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green, width: 2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 16, color: Colors.green.shade600),
-            const SizedBox(width: 4),
-            Text(
-              'claimed'.tr,
-              style: robotoBold.copyWith(
-                color: Colors.green.shade600,
-                fontSize: 13,
+  String _resetText(String label, String reset) {
+    // Daily shows "RESETS IN 8h 12m"; weekly shows "RESETS MONDAY".
+    final isDaily = label.toLowerCase().startsWith('daily');
+    if (reset == '—') return '';
+    return isDaily
+        ? 'RESETS IN ${reset.toUpperCase()}'
+        : 'RESETS ${reset.toUpperCase()}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEST CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _QuestCard extends StatelessWidget {
+  final Challenge challenge;
+  final bool claiming;
+  final VoidCallback? onClaim;
+
+  const _QuestCard({
+    required this.challenge,
+    required this.claiming,
+    this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final done = challenge.isCompleted; // completed or claimed
+    final claimed = challenge.isClaimed;
+    final canClaim = challenge.canClaim;
+    final pct = challenge.progressPercentage.clamp(0.0, 1.0);
+    final emoji =
+        (challenge.icon != null && challenge.icon!.isNotEmpty)
+            ? challenge.icon!
+            : _fallbackEmoji(challenge);
+
+    final card = Container(
+      decoration: BoxDecoration(
+        color: done ? _Q.mint.withValues(alpha: 0.08) : _Q.tileFill,
+        border: Border.all(color: done ? _Q.mint : _Q.tileBorder, width: 2.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top: emoji · title · reward chip
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  challenge.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: waddyBlack.copyWith(
+                    fontSize: 13,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+                ),
               ),
+              const SizedBox(width: 10),
+              _RewardChip(
+                xp: challenge.xpReward,
+                claimed: claimed,
+                canClaim: canClaim,
+                claiming: claiming,
+                onClaim: onClaim,
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          // Progress track
+          ClipRRect(
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
+            child: Stack(
+              children: [
+                Container(height: 9, color: _Q.track),
+                FractionallySizedBox(
+                  widthFactor: done ? 1.0 : pct,
+                  child: Container(height: 9, color: done ? _Q.mint : _Q.green),
+                ),
+              ],
             ),
-          ],
+          ),
+          const SizedBox(height: 7),
+          // Meta: N of M · status
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${challenge.currentProgress} of ${challenge.targetProgress}',
+                style: waddyBold.copyWith(
+                  fontSize: 10,
+                  color: _Q.onMed,
+                  height: 1,
+                ),
+              ),
+              Text(
+                _statusLabel(challenge),
+                style: waddyBlack.copyWith(
+                  fontSize: 10,
+                  color: done ? _Q.mint : _Q.onMed,
+                  height: 1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    // Tapping a claimable card claims it too (the chip is small); otherwise
+    // the whole card is inert so an in-progress quest doesn't feel tappable.
+    if (canClaim && onClaim != null && !claiming) {
+      return GestureDetector(onTap: onClaim, child: card);
+    }
+    return card;
+  }
+
+  String _statusLabel(Challenge c) {
+    if (c.isClaimed) return 'CLAIMED';
+    if (c.canClaim) return 'READY TO CLAIM';
+    if (c.isCompleted) return 'COMPLETE';
+    return 'IN PROGRESS';
+  }
+
+  String _fallbackEmoji(Challenge c) {
+    switch (c.challengeType) {
+      case 'multiple_orders':
+        return '🎯';
+      case 'min_order_amount':
+        return '💰';
+      case 'new_store':
+        return '🗺️';
+      case 'complete_order':
+      default:
+        return '🍔';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REWARD CHIP — "+N XP" / claim button / "✓ CLAIMED"
+// ─────────────────────────────────────────────────────────────────────────────
+class _RewardChip extends StatelessWidget {
+  final int xp;
+  final bool claimed;
+  final bool canClaim;
+  final bool claiming;
+  final VoidCallback? onClaim;
+
+  const _RewardChip({
+    required this.xp,
+    required this.claimed,
+    required this.canClaim,
+    required this.claiming,
+    this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Claimed — outlined mint tag.
+    if (claimed) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          border: Border.all(color: _Q.mint, width: 2),
+          borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
+        ),
+        child: Text(
+          '✓ CLAIMED',
+          style: waddyBlack.copyWith(fontSize: 10.5, color: _Q.mint, height: 1),
         ),
       );
     }
 
-    if (challenge.canClaim) {
+    // Ready to claim — solid mint button that claims on tap.
+    if (canClaim) {
       return GestureDetector(
-        onTap: isLoading ? null : onClaim,
+        onTap: claiming ? null : onClaim,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeSmall,
+            vertical: 6,
+          ),
           decoration: BoxDecoration(
-            color: accentColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: neoBlack, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: neoBlack,
-                offset: const Offset(3, 3),
-                blurRadius: 0,
-              ),
-            ],
+            color: _Q.mint,
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
+            border: Border.all(color: _Q.border, width: 2),
           ),
           child:
-              isLoading
-                  ? SizedBox(
-                    width: 16,
-                    height: 16,
+              claiming
+                  ? const SizedBox(
+                    width: 12,
+                    height: 12,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(neoBlack),
+                      valueColor: AlwaysStoppedAnimation(_Q.teal),
                     ),
                   )
-                  : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star_rounded, size: 16, color: neoBlack),
-                      const SizedBox(width: 4),
-                      Text(
-                        'claim'.tr,
-                        style: robotoBold.copyWith(
-                          color: neoBlack,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                  : Text(
+                    'CLAIM +$xp',
+                    style: waddyBlack.copyWith(
+                      fontSize: 10.5,
+                      color: _Q.teal,
+                      height: 1,
+                    ),
                   ),
         ),
       );
     }
 
-    // In Progress
+    // In progress — plain mint reward chip.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+        vertical: Dimensions.paddingSizeExtraSmall,
+      ),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: neoBlack, width: 1.5),
+        color: _Q.mint,
+        borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
       ),
       child: Text(
-        'in_progress'.tr,
-        style: robotoMedium.copyWith(color: textSecondary, fontSize: 13),
+        '+$xp XP',
+        style: waddyBlack.copyWith(fontSize: 10.5, color: _Q.teal, height: 1),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPTY STATE
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmptyQuest extends StatelessWidget {
+  final String text;
+  const _EmptyQuest({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _Q.tileFill,
+        border: Border.all(color: _Q.tileBorder, width: 2.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+        vertical: 22,
+      ),
+      child: Column(
+        children: [
+          const Text('🎯', style: TextStyle(fontSize: 26)),
+          const SizedBox(height: 8),
+          Text(
+            'All done for now',
+            style: waddyBlack.copyWith(
+              fontSize: 13,
+              color: Colors.white,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: waddyBold.copyWith(
+              fontSize: 11,
+              color: _Q.onMed,
+              height: 1.3,
+            ),
+          ),
+        ],
       ),
     );
   }

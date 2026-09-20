@@ -1,13 +1,62 @@
 import 'dart:async';
+import 'package:waddy_app/util/swallow.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/home/domain/models/cashback_model.dart';
 import 'package:waddy_app/features/home/domain/services/home_service_interface.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 
+/// GetBuilder ids for the home feed's sections.
+///
+/// Keyed by what the user can *see* fail, not by endpoint: several calls feed
+/// one rail, and a rail is the smallest thing the UI can put an error row in.
+/// These double as `update([id])` targets so one section's failure repaints
+/// that section and nothing else.
+class HomeSection {
+  const HomeSection._();
+
+  static const String modules = 'home_modules';
+  static const String battle = 'home_battle';
+  static const String fastest = 'home_fastest';
+  static const String grocery = 'home_grocery';
+  static const String offers = 'home_offers';
+  static const String recommended = 'home_recommended';
+  static const String orderAgain = 'home_order_again';
+  static const String zone = 'home_zone';
+
+  /// Repainted whenever any section's failure state changes.
+  static const String any = 'home_error';
+}
+
 class HomeController extends GetxController implements GetxService {
   final HomeServiceInterface homeServiceInterface;
   HomeController({required this.homeServiceInterface});
+
+  // ── Section failure state ──────────────────────────────────────────────────
+  // A Set, not a bool: on a partial failure only the sections that actually
+  // failed may show an error row. A global flag would put one under every
+  // empty section, including the ones that are legitimately empty.
+  final Set<String> _failedSections = <String>{};
+  Set<String> get failedSections => Set.unmodifiable(_failedSections);
+
+  bool hasError(String section) => _failedSections.contains(section);
+  bool get hasAnyError => _failedSections.isNotEmpty;
+
+  /// Set.add/remove return whether the set changed, which is the guard for
+  /// free — same shape as [setBottomNavVisibility] below.
+  void recordError(String section) {
+    if (_failedSections.add(section)) update([section, HomeSection.any]);
+  }
+
+  void clearError(String section) {
+    if (_failedSections.remove(section)) update([section, HomeSection.any]);
+  }
+
+  void clearAllErrors() {
+    if (_failedSections.isEmpty) return;
+    _failedSections.clear();
+    update([HomeSection.any]);
+  }
 
   List<CashBackModel>? _cashBackOfferList;
   List<CashBackModel>? get cashBackOfferList => _cashBackOfferList;
@@ -28,16 +77,14 @@ class HomeController extends GetxController implements GetxService {
   // _showRamadanDecorations: whether to show the decorations overlay at all
   // _isRamadanLightsOn: whether the lights are currently lit (user tapped button)
   // _ramadanLightProgress: 0.0 to 1.0, controls sequential bulb lighting animation
-  bool _showRamadanDecorations = false; // Controlled by backend ramadan_mode setting
+  bool _showRamadanDecorations =
+      false; // Controlled by backend ramadan_mode setting
   bool _isRamadanLightsOn = false; // Lights start OFF
   double _ramadanLightProgress = 0.0; // Animation progress
 
   bool get showRamadanDecorations => _showRamadanDecorations;
   bool get isRamadanLightsOn => _isRamadanLightsOn;
   double get ramadanLightProgress => _ramadanLightProgress;
-
-  // For backward compatibility
-  bool get isRamadanCelebrationActive => _showRamadanDecorations;
 
   /// Initialize Ramadan mode from backend config (called after config loads)
   void initRamadanMode(bool isEnabled) {
@@ -50,7 +97,9 @@ class HomeController extends GetxController implements GetxService {
         // Fetch Ramadan featured items when mode is enabled
         try {
           Get.find<ItemController>().getRamadanFeaturedItemList();
-        } catch (_) {}
+        } catch (e, s) {
+          swallow('fetch Ramadan featured items', e, s);
+        }
       }
       update();
       update(['ramadan']);
@@ -99,11 +148,6 @@ class HomeController extends GetxController implements GetxService {
     update(['ramadan_lights']);
   }
 
-  /// Toggle Ramadan celebration overlay on/off (legacy method)
-  void toggleRamadanCelebration() {
-    toggleRamadanDecorations();
-  }
-
   void setBottomNavVisibility(bool visible) {
     if (_isBottomNavVisible != visible) {
       _isBottomNavVisible = visible;
@@ -126,17 +170,6 @@ class HomeController extends GetxController implements GetxService {
     setBottomNavVisibility(true);
   }
 
-  // bool _canShoeReferrerBottomSheet = false;
-  // bool get canShoeReferrerBottomSheet => _canShoeReferrerBottomSheet;
-
-  // void toggleReferrerBottomSheet({bool? status}) {
-  //   if(Get.find<ProfileController>().userInfoModel!.isValidForDiscount! && status == null) {
-  //     _canShoeReferrerBottomSheet = true;
-  //   } else {
-  //     _canShoeReferrerBottomSheet = status ?? false;
-  //   }
-  // }
-
   Future<void> getCashBackOfferList() async {
     _cashBackOfferList = null;
     _cashBackOfferList = await homeServiceInterface.getCashBackOfferList();
@@ -147,11 +180,6 @@ class HomeController extends GetxController implements GetxService {
     _cashBackOfferList = null;
     update();
   }
-
-  /*  Future<double> getCashBackAmount(double amount) async {
-    _cashBackAmount = await homeServiceInterface.getCashBackAmount(amount);
-    return _cashBackAmount;
-  }*/
 
   Future<void> getCashBackData(double amount) async {
     CashBackModel? cashBackModel = await homeServiceInterface.getCashBackData(

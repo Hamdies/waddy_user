@@ -13,10 +13,14 @@ class ReviewRepository implements ReviewRepositoryInterface {
   @override
   Future<List<ReviewModel>?> getList({int? offset, String? storeID}) async {
     List<ReviewModel>? storeReviewList;
-    Response response = await apiClient.getData('${AppConstants.storeReviewUri}?store_id=$storeID');
+    Response response = await apiClient.getData(
+      '${AppConstants.storeReviewUri}?store_id=$storeID',
+    );
     if (response.statusCode == 200) {
       storeReviewList = [];
-      response.body.forEach((review) => storeReviewList!.add(ReviewModel.fromJson(review)));
+      response.body.forEach(
+        (review) => storeReviewList!.add(ReviewModel.fromJson(review)),
+      );
     }
     return storeReviewList;
   }
@@ -24,7 +28,11 @@ class ReviewRepository implements ReviewRepositoryInterface {
   @override
   Future<ResponseModel> submitReview(ReviewBodyModel reviewBody) async {
     ResponseModel responseModel;
-    Response response = await apiClient.postData(AppConstants.reviewUri, reviewBody.toJson(), handleError: false);
+    Response response = await apiClient.postData(
+      AppConstants.reviewUri,
+      reviewBody.toJson(),
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       responseModel = ResponseModel(true, 'review_submitted_successfully'.tr);
     } else {
@@ -34,9 +42,15 @@ class ReviewRepository implements ReviewRepositoryInterface {
   }
 
   @override
-  Future<ResponseModel> submitDeliveryManReview(ReviewBodyModel reviewBody) async {
+  Future<ResponseModel> submitDeliveryManReview(
+    ReviewBodyModel reviewBody,
+  ) async {
     ResponseModel responseModel;
-    Response response = await apiClient.postData(AppConstants.deliveryManReviewUri, reviewBody.toJson(), handleError: false);
+    Response response = await apiClient.postData(
+      AppConstants.deliveryManReviewUri,
+      reviewBody.toJson(),
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       responseModel = ResponseModel(true, 'review_submitted_successfully'.tr);
     } else {
@@ -64,5 +78,4 @@ class ReviewRepository implements ReviewRepositoryInterface {
   Future update(Map<String, dynamic> body, int? id) {
     throw UnimplementedError();
   }
-  
 }

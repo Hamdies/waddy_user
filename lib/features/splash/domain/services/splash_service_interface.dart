@@ -9,20 +9,18 @@ abstract class SplashServiceInterface {
   Future<Response> getConfigData({required DataSourceEnum source});
   ConfigModel? prepareConfigData(Response response);
   Future<LandingModel?> getLandingPageData({required DataSourceEnum source});
-  Future<ModuleModel?> initSharedData();
+  Future<void> initSharedData();
   void disableIntro();
   bool? showIntro();
   Future<void> setStoreCategory(int storeCategoryID);
-  Future<List<ModuleModel>?> getModules({Map<String, String>? headers, required DataSourceEnum source});
-  Future<void> setModule(ModuleModel? module);
+  Future<List<ModuleModel>?> getModules({
+    Map<String, String>? headers,
+    required DataSourceEnum source,
+  });
+  void updateModuleHeader(ModuleModel? module);
   Future<ModuleModel?> setCacheModule(ModuleModel? module);
   ModuleModel? getCacheModule();
-  ModuleModel? getModule();
   Future<ResponseModel> subscribeEmail(String email);
-  bool getSavedCookiesData();
-  Future<void> saveCookiesData(bool data);
-  void cookiesStatusChange(String? data);
-  bool getAcceptCookiesStatus(String data);
   bool getSuggestedLocationStatus();
   Future<void> saveSuggestedLocationStatus(bool data);
   bool getReferBottomSheetStatus();

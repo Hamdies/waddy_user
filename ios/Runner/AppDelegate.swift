@@ -7,6 +7,12 @@ import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+
+  /// Shared engine owned by the app and attached to the window scene by
+  /// `SceneDelegate`. Under the UIScene lifecycle the app delegate no longer
+  /// owns a window, so the engine has to outlive any single scene.
+  static let flutterEngine = FlutterEngine(name: "waddy.main")
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -22,18 +28,22 @@ import UserNotifications
     // Register for remote notifications
     application.registerForRemoteNotifications()
 
-    GeneratedPluginRegistrant.register(with: self)
-
-    // Live Activity MethodChannel
-    let controller = window?.rootViewController as! FlutterViewController
-    let liveActivityChannel = FlutterMethodChannel(
-      name: "com.hamdiesolutions.waddi/live_activity",
-      binaryMessenger: controller.binaryMessenger
-    )
-    liveActivityChannel.setMethodCallHandler { (call, result) in
-      LiveActivityManager.shared.handle(call, result: result)
-    }
+    AppDelegate.flutterEngine.run()
+    GeneratedPluginRegistrant.register(with: AppDelegate.flutterEngine)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    configurationForConnecting connectingSceneSession: UISceneSession,
+    options: UIScene.ConnectionOptions
+  ) -> UISceneConfiguration {
+    let configuration = UISceneConfiguration(
+      name: "Default Configuration",
+      sessionRole: connectingSceneSession.role
+    )
+    configuration.delegateClass = SceneDelegate.self
+    return configuration
   }
 }

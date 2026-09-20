@@ -9,6 +9,7 @@ import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 /// Store-specific version of SpecialOfferView.
 /// Accepts [items] directly instead of pulling from global ItemController.
@@ -20,9 +21,11 @@ class StoreSpecialOfferView extends StatefulWidget {
   State<StoreSpecialOfferView> createState() => _StoreSpecialOfferViewState();
 }
 
-class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with SingleTickerProviderStateMixin {
+class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  final CarouselSliderController _carouselController = CarouselSliderController();
+  final CarouselSliderController _carouselController =
+      CarouselSliderController();
   int _currentPage = 0;
 
   // Colors derived from Theme in build methods
@@ -42,7 +45,9 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
   static const double kCarouselHeight = 240.0;
   static const double kCarouselViewportFraction = 0.46;
   static const Duration kAutoPlayInterval = Duration(seconds: 4);
-  static const Duration kAutoPlayAnimationDuration = Duration(milliseconds: 800);
+  static const Duration kAutoPlayAnimationDuration = Duration(
+    milliseconds: 800,
+  );
 
   @override
   void initState() {
@@ -63,84 +68,104 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
   Widget build(BuildContext context) {
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
-    final displayItems = widget.items.length > 12
-        ? widget.items.sublist(0, 12)
-        : widget.items;
+    final displayItems =
+        widget.items.length > 12 ? widget.items.sublist(0, 12) : widget.items;
     final Color primaryTeal = Theme.of(context).primaryColor;
     final Color accentGreen = Theme.of(context).secondaryHeaderColor;
 
-    return GetBuilder<HomeController>(builder: (homeController) {
-      final isRamadanMode = homeController.showRamadanDecorations;
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        final isRamadanMode = homeController.showRamadanDecorations;
 
-      final container = Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        decoration: BoxDecoration(
-          color: primaryTeal,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accentGreen, width: 4),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            isRamadanMode
-                ? RamadanStringLightWrapper(
+        final container = Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeSmall,
+            vertical: Dimensions.paddingSizeMedium,
+          ),
+          decoration: BoxDecoration(
+            color: primaryTeal,
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+            border: Border.all(color: accentGreen, width: 4),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              isRamadanMode
+                  ? RamadanStringLightWrapper(
                     showTopString: false,
                     showBottomString: true,
                     alwaysOn: true,
                     child: _buildMagazineHeader(context),
                   )
-                : _buildMagazineHeader(context),
-            _buildDecorativeTextRow(),
-            const SizedBox(height: 10),
-            CarouselSlider.builder(
-              carouselController: _carouselController,
-              itemCount: displayItems.length,
-              itemBuilder: (context, index, realIndex) {
-                return _buildMagazineProductCard(context, displayItems[index], index + 1);
-              },
-              options: CarouselOptions(
-                height: kCarouselHeight,
-                viewportFraction: kCarouselViewportFraction,
-                enlargeCenterPage: true,
-                enlargeFactor: 0.15,
-                enableInfiniteScroll: true,
-                autoPlay: true,
-                autoPlayInterval: kAutoPlayInterval,
-                autoPlayAnimationDuration: kAutoPlayAnimationDuration,
-                autoPlayCurve: Curves.easeInOutCubic,
-                pauseAutoPlayOnTouch: true,
-                pauseAutoPlayOnManualNavigate: true,
-                onPageChanged: (index, reason) {
-                  if (mounted) {
-                    setState(() => _currentPage = index);
-                  }
+                  : _buildMagazineHeader(context),
+              _buildDecorativeTextRow(),
+              const SizedBox(height: 10),
+              CarouselSlider.builder(
+                carouselController: _carouselController,
+                itemCount: displayItems.length,
+                itemBuilder: (context, index, realIndex) {
+                  return _buildMagazineProductCard(
+                    context,
+                    displayItems[index],
+                    index + 1,
+                  );
                 },
+                options: CarouselOptions(
+                  height: kCarouselHeight,
+                  viewportFraction: kCarouselViewportFraction,
+                  enlargeCenterPage: true,
+                  enlargeFactor: 0.15,
+                  enableInfiniteScroll: true,
+                  autoPlay: true,
+                  autoPlayInterval: kAutoPlayInterval,
+                  autoPlayAnimationDuration: kAutoPlayAnimationDuration,
+                  autoPlayCurve: Curves.easeInOutCubic,
+                  pauseAutoPlayOnTouch: true,
+                  pauseAutoPlayOnManualNavigate: true,
+                  onPageChanged: (index, reason) {
+                    if (mounted) {
+                      setState(() => _currentPage = index);
+                    }
+                  },
+                ),
               ),
-            ),
-            _buildPageIndicators(displayItems.length),
-            _buildScrollingBanner(),
-          ],
-        ),
-      );
+              _buildPageIndicators(displayItems.length),
+              _buildScrollingBanner(),
+            ],
+          ),
+        );
 
-      return container;
-    });
+        return container;
+      },
+    );
   }
 
   Widget _buildMagazineHeader(BuildContext context) {
     final Color primaryTeal = Theme.of(context).primaryColor;
     final Color accentGreen = Theme.of(context).secondaryHeaderColor;
-    final Color primaryDarker = HSLColor.fromColor(primaryTeal).withLightness(
-      (HSLColor.fromColor(primaryTeal).lightness - 0.03).clamp(0.0, 1.0),
-    ).toColor();
+    final Color primaryDarker =
+        HSLColor.fromColor(primaryTeal)
+            .withLightness(
+              (HSLColor.fromColor(primaryTeal).lightness - 0.03).clamp(
+                0.0,
+                1.0,
+              ),
+            )
+            .toColor();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+        vertical: Dimensions.paddingSizeSmall,
+      ),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeLarge,
+            vertical: Dimensions.paddingSizeSmall,
+          ),
           decoration: BoxDecoration(
             color: accentGreen,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
             border: Border.all(color: primaryDarker, width: 3),
             boxShadow: [
               BoxShadow(
@@ -152,7 +177,7 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
           ),
           child: Text(
             'special_offer'.tr.toUpperCase(),
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: 18,
               color: primaryTeal,
               letterSpacing: 2,
@@ -171,25 +196,34 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
   }
 
   Widget _buildDecorativeTextRow() {
-    return GetBuilder<HomeController>(builder: (homeController) {
-      final isRamadanMode = homeController.showRamadanDecorations;
-      final Color accentGreen = Theme.of(context).secondaryHeaderColor;
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: isRamadanMode
-            ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [])
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildDecorativeText('CRAZY', accentGreen),
-                  _buildStar(),
-                  _buildDecorativeText('BIG', accentGreen),
-                  _buildStar(),
-                  _buildDecorativeText('SALE', accentGreen),
-                ],
-              ),
-      );
-    });
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        final isRamadanMode = homeController.showRamadanDecorations;
+        final Color accentGreen = Theme.of(context).secondaryHeaderColor;
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+            vertical: Dimensions.paddingSizeExtraSmall,
+          ),
+          child:
+              isRamadanMode
+                  ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [],
+                  )
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildDecorativeText('CRAZY', accentGreen),
+                      _buildStar(),
+                      _buildDecorativeText('BIG', accentGreen),
+                      _buildStar(),
+                      _buildDecorativeText('SALE', accentGreen),
+                    ],
+                  ),
+        );
+      },
+    );
   }
 
   Widget _buildDecorativeText(String text, Color color) {
@@ -197,7 +231,7 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
       children: [
         Text(
           text,
-          style: robotoBold.copyWith(
+          style: waddyBold.copyWith(
             fontSize: kDecorativeTextSize,
             color: Theme.of(context).primaryColor,
             letterSpacing: 1,
@@ -208,7 +242,7 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
           top: -1,
           child: Text(
             text,
-            style: robotoBold.copyWith(
+            style: waddyBold.copyWith(
               fontSize: kDecorativeTextSize,
               color: color,
               letterSpacing: 1,
@@ -220,7 +254,11 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
   }
 
   Widget _buildStar() {
-    return Icon(Icons.star, color: Theme.of(context).secondaryHeaderColor, size: 16);
+    return Icon(
+      Icons.star,
+      color: Theme.of(context).secondaryHeaderColor,
+      size: 16,
+    );
   }
 
   Widget _buildPageIndicators(int itemCount) {
@@ -235,7 +273,10 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
             width: _currentPage == index ? 20 : 6,
             height: 6,
             decoration: BoxDecoration(
-              color: _currentPage == index ? Theme.of(context).secondaryHeaderColor : Colors.white.withValues(alpha: 0.4),
+              color:
+                  _currentPage == index
+                      ? Theme.of(context).secondaryHeaderColor
+                      : Colors.white.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(3),
             ),
           );
@@ -244,13 +285,18 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
     );
   }
 
-  Widget _buildMagazineProductCard(BuildContext context, Item item, int number) {
+  Widget _buildMagazineProductCard(
+    BuildContext context,
+    Item item,
+    int number,
+  ) {
     final Color primaryTeal = Theme.of(context).primaryColor;
     final Color accentGreen = Theme.of(context).secondaryHeaderColor;
     final Color ovalBackground = accentGreen.withValues(alpha: 0.08);
     double price = item.price ?? 0;
     double discount = item.discount ?? 0;
-    double discountPrice = PriceConverter.convertWithDiscount(price, discount, item.discountType)!;
+    double discountPrice =
+        PriceConverter.convertWithDiscount(price, discount, item.discountType)!;
     bool hasDiscount = discount > 0;
 
     String originalPriceDisplay = PriceConverter.convertPrice(price);
@@ -302,16 +348,24 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
                     top: 4,
                     left: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(
+                          Dimensions.radiusExtraSmall,
+                        ),
                       ),
                       child: Text(
                         item.discountType == 'percent'
                             ? '-${item.discount?.toInt()}%'
                             : '-${PriceConverter.convertPrice(item.discount ?? 0)}',
-                        style: robotoBold.copyWith(fontSize: kDiscountBadgeSize, color: Colors.white),
+                        style: waddyBold.copyWith(
+                          fontSize: kDiscountBadgeSize,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -321,7 +375,10 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
             Flexible(
               child: Text(
                 item.name ?? '',
-                style: robotoBold.copyWith(fontSize: kProductNameSize, color: primaryTeal),
+                style: waddyBold.copyWith(
+                  fontSize: kProductNameSize,
+                  color: primaryTeal,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -335,7 +392,7 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
                 if (hasDiscount)
                   Text(
                     originalPriceDisplay,
-                    style: robotoMedium.copyWith(
+                    style: waddyMedium.copyWith(
                       fontSize: kOriginalPriceSize,
                       color: Colors.grey[600],
                       decoration: TextDecoration.lineThrough,
@@ -344,27 +401,40 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
                   ),
                 if (hasDiscount) const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: Dimensions.paddingSizeExtraSmall,
+                  ),
                   decoration: BoxDecoration(
                     color: primaryTeal,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
                   ),
                   child: Text(
                     hasDiscount ? discountPriceDisplay : originalPriceDisplay,
-                    style: robotoBold.copyWith(fontSize: kDiscountPriceSize, color: accentGreen),
+                    style: waddyBold.copyWith(
+                      fontSize: kDiscountPriceSize,
+                      color: accentGreen,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             GestureDetector(
-              onTap: () => Get.find<ItemController>().itemDirectlyAddToCart(item, context),
+              onTap:
+                  () => Get.find<ItemController>().itemDirectlyAddToCart(
+                    item,
+                    context,
+                  ),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: Dimensions.paddingSizeSmall,
+                  horizontal: Dimensions.paddingSizeDefault,
+                ),
                 decoration: BoxDecoration(
                   color: accentGreen,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                   boxShadow: [
                     BoxShadow(
                       color: accentGreen.withValues(alpha: 0.3),
@@ -376,7 +446,11 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
                 child: Center(
                   child: Text(
                     'ADD',
-                    style: robotoBold.copyWith(fontSize: 14, color: primaryTeal, letterSpacing: 1),
+                    style: waddyBold.copyWith(
+                      fontSize: 14,
+                      color: primaryTeal,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
               ),
@@ -389,22 +463,28 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
 
   Widget _buildScrollingBanner() {
     final Color primaryTeal = Theme.of(context).primaryColor;
-    final Color bannerBg = HSLColor.fromColor(primaryTeal).withLightness(
-      (HSLColor.fromColor(primaryTeal).lightness - 0.03).clamp(0.0, 1.0),
-    ).toColor();
+    final Color bannerBg =
+        HSLColor.fromColor(primaryTeal)
+            .withLightness(
+              (HSLColor.fromColor(primaryTeal).lightness - 0.03).clamp(
+                0.0,
+                1.0,
+              ),
+            )
+            .toColor();
     return Container(
       height: 28,
       decoration: BoxDecoration(
         color: bannerBg,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
+          bottomLeft: Radius.circular(Dimensions.radiusDefault),
+          bottomRight: Radius.circular(Dimensions.radiusDefault),
         ),
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
+          bottomLeft: Radius.circular(Dimensions.radiusDefault),
+          bottomRight: Radius.circular(Dimensions.radiusDefault),
         ),
         child: AnimatedBuilder(
           animation: _animController,
@@ -414,7 +494,10 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
                 Positioned(
                   left: -(_animController.value * 400),
                   child: Row(
-                    children: List.generate(3, (index) => _buildBannerContent()),
+                    children: List.generate(
+                      3,
+                      (index) => _buildBannerContent(),
+                    ),
                   ),
                 ),
               ],
@@ -426,48 +509,63 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView> with Sing
   }
 
   Widget _buildBannerContent() {
-    return GetBuilder<HomeController>(builder: (homeController) {
-      final isRamadanMode = homeController.showRamadanDecorations;
-      return Row(
-        children: isRamadanMode
-            ? [
-                _buildBannerItem('RAMADAN'),
-                _buildBannerStar(),
-                _buildBannerItem('DEALS'),
-                _buildBannerStar(),
-                _buildBannerItem('IN'),
-                _buildBannerStar(),
-                _buildBannerItem('STORE'),
-                _buildBannerStar(),
-              ]
-            : [
-                _buildBannerItem('SALE'),
-                _buildBannerStar(),
-                _buildBannerItem('EVERYTHING'),
-                _buildBannerStar(),
-                _buildBannerItem('MUST'),
-                _buildBannerStar(),
-                _buildBannerItem('GO!'),
-                _buildBannerStar(),
-              ],
-      );
-    });
+    return GetBuilder<HomeController>(
+      builder: (homeController) {
+        final isRamadanMode = homeController.showRamadanDecorations;
+        return Row(
+          children:
+              isRamadanMode
+                  ? [
+                    _buildBannerItem('RAMADAN'),
+                    _buildBannerStar(),
+                    _buildBannerItem('DEALS'),
+                    _buildBannerStar(),
+                    _buildBannerItem('IN'),
+                    _buildBannerStar(),
+                    _buildBannerItem('STORE'),
+                    _buildBannerStar(),
+                  ]
+                  : [
+                    _buildBannerItem('SALE'),
+                    _buildBannerStar(),
+                    _buildBannerItem('EVERYTHING'),
+                    _buildBannerStar(),
+                    _buildBannerItem('MUST'),
+                    _buildBannerStar(),
+                    _buildBannerItem('GO!'),
+                    _buildBannerStar(),
+                  ],
+        );
+      },
+    );
   }
 
   Widget _buildBannerItem(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeMedium,
+      ),
       child: Text(
         text,
-        style: robotoBold.copyWith(fontSize: kBannerTextSize, color: Colors.white, letterSpacing: 1),
+        style: waddyBold.copyWith(
+          fontSize: kBannerTextSize,
+          color: Colors.white,
+          letterSpacing: 1,
+        ),
       ),
     );
   }
 
   Widget _buildBannerStar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Icon(Icons.star, color: Theme.of(context).secondaryHeaderColor, size: 14),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeSmall,
+      ),
+      child: Icon(
+        Icons.star,
+        color: Theme.of(context).secondaryHeaderColor,
+        size: 14,
+      ),
     );
   }
 }

@@ -7,7 +7,13 @@ class ResponseModel {
   List<int>? zoneIds;
   AuthResponseModel? authResponseModel;
   UpdateProfileResponseModel? updateProfileResponseModel;
-  ResponseModel(this._isSuccess, this._message, {this.zoneIds, this.authResponseModel, this.updateProfileResponseModel});
+  ResponseModel(
+    this._isSuccess,
+    this._message, {
+    this.zoneIds,
+    this.authResponseModel,
+    this.updateProfileResponseModel,
+  });
 
   String? get message => _message;
   bool get isSuccess => _isSuccess;

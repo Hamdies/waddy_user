@@ -26,41 +26,40 @@ class ShopHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool isLoggedIn = AuthHelper.isLoggedIn();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-      Container(
-        width: MediaQuery.of(context).size.width,
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage(Images.shopModuleBannerBg),
-            fit: BoxFit.cover,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: MediaQuery.of(context).size.width,
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage(Images.shopModuleBannerBg),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: const Column(
+            children: [BannerView(isFeatured: false), SizedBox(height: 12)],
           ),
         ),
-        child: const Column(
-          children: [
-            BannerView(isFeatured: false),
-            SizedBox(height: 12),
-          ],
-        ),
-      ),
 
-      const CategoryView(),
-      isLoggedIn ? const VisitAgainView() : const SizedBox(),
-      const RecommendedStoreView(),
-      const MostPopularItemView(isFood: false, isShop: true),
-      const FlashSaleViewWidget(),
-      const MiddleSectionBannerView(),
-      const HighlightWidget(),
-      const PopularStoreView(),
-      const BrandsViewWidget(),
-      const SpecialOfferView(isFood: false, isShop: true),
-      const ProductWithCategoriesView(fromShop: true),
-      const JustForYouView(),
-      const TopOffersNearMe(),
-      const FeaturedCategoriesView(),
-      const ItemThatYouLoveView(forShop: true,),
-      const NewOnMartView(isShop: true,isPharmacy: false),
-      const PromotionalBannerView(),
-    ]);
+        const CategoryView(),
+        isLoggedIn ? const VisitAgainView() : const SizedBox(),
+        const RecommendedStoreView(),
+        const MostPopularItemView(isFood: false, isShop: true),
+        const FlashSaleViewWidget(),
+        const MiddleSectionBannerView(),
+        const HighlightWidget(),
+        const PopularStoreView(),
+        const BrandsViewWidget(),
+        const SpecialOfferView(isFood: false, isShop: true),
+        const ProductWithCategoriesView(fromShop: true),
+        const JustForYouView(),
+        const TopOffersNearMe(),
+        const FeaturedCategoriesView(),
+        const ItemThatYouLoveView(forShop: true),
+        const NewOnMartView(isShop: true, isPharmacy: false),
+        const PromotionalBannerView(),
+      ],
+    );
   }
 }

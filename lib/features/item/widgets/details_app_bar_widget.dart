@@ -6,8 +6,10 @@ import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
-class DetailsAppBarWidget extends StatefulWidget implements PreferredSizeWidget {
+class DetailsAppBarWidget extends StatefulWidget
+    implements PreferredSizeWidget {
   const DetailsAppBarWidget({super.key});
 
   @override
@@ -17,15 +19,20 @@ class DetailsAppBarWidget extends StatefulWidget implements PreferredSizeWidget 
   Size get preferredSize => const Size(double.maxFinite, 50);
 }
 
-class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTickerProviderStateMixin {
+class DetailsAppBarWidgetState extends State<DetailsAppBarWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController controller;
 
   @override
   void initState() {
     super.initState();
 
-    controller = AnimationController(duration: const Duration(milliseconds: 1000), vsync: this);
+    controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
   }
+
   @override
   void dispose() {
     controller.dispose();
@@ -50,7 +57,7 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
   Widget build(BuildContext context) {
     return AppBar(
       leading: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -64,7 +71,11 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
             ],
           ),
           child: IconButton(
-            icon: Icon(Icons.arrow_back_rounded, color: Theme.of(context).primaryColor, size: 20),
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: Theme.of(context).primaryColor,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
           ),
@@ -80,10 +91,15 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
         GetBuilder<FavouriteController>(
           builder: (favouriteController) {
             final itemController = Get.find<ItemController>();
-            final bool isFav = itemController.item != null &&
-                favouriteController.wishItemIdList.contains(itemController.item!.id);
+            final bool isFav =
+                itemController.item != null &&
+                favouriteController.wishItemIdList.contains(
+                  itemController.item!.id,
+                );
             return Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
+              margin: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -102,9 +118,14 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
                     return ScaleTransition(scale: animation, child: child);
                   },
                   child: Icon(
-                    isFav ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                    isFav
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_outline_rounded,
                     key: ValueKey<bool>(isFav),
-                    color: isFav ? const Color(0xFFE53935) : const Color(0xFF1A1A2E),
+                    color:
+                        isFav
+                            ? const Color(0xFFE53935)
+                            : const Color(0xFF1A1A2E),
                     size: 20,
                   ),
                 ),
@@ -112,11 +133,14 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
                   if (AuthHelper.isLoggedIn()) {
                     if (isFav) {
                       favouriteController.removeFromFavouriteList(
-                        itemController.item!.id, false,
+                        itemController.item!.id,
+                        false,
                       );
                     } else {
                       favouriteController.addToFavouriteList(
-                        itemController.item, null, false,
+                        itemController.item,
+                        null,
+                        false,
                       );
                     }
                   } else {
@@ -133,7 +157,9 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
           builder: (cartController) {
             final int cartCount = cartController.cartList.length;
             return Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
+              margin: const EdgeInsets.symmetric(
+                vertical: Dimensions.paddingSizeSmall,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -149,7 +175,11 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
                 clipBehavior: Clip.none,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.shopping_cart_outlined, color: Theme.of(context).primaryColor, size: 19),
+                    icon: Icon(
+                      Icons.shopping_cart_outlined,
+                      color: Theme.of(context).primaryColor,
+                      size: 19,
+                    ),
                     onPressed: () => Get.toNamed(RouteHelper.getCartRoute()),
                   ),
                   if (cartCount > 0)
@@ -157,7 +187,9 @@ class DetailsAppBarWidgetState extends State<DetailsAppBarWidget> with SingleTic
                       top: 4,
                       right: 4,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(
+                          Dimensions.paddingSizeExtraSmall,
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).secondaryHeaderColor,
                           shape: BoxShape.circle,

@@ -7,6 +7,18 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// MARK: - Palette
+
+private enum Waddy {
+    static let teal     = Color(red: 0.075, green: 0.306, blue: 0.290) // #134E4A
+    static let tealDeep = Color(red: 0.043, green: 0.216, blue: 0.204) // #0B3734
+    static let mint     = Color(red: 0.118, green: 0.949, blue: 0.627) // #1EF2A0
+    static let inkHigh  = Color.white
+    static let inkMid   = Color.white.opacity(0.72)
+    static let inkLow   = Color.white.opacity(0.42)
+    static let track    = Color.white.opacity(0.16)
+}
+
 // MARK: - Widget
 
 @available(iOS 16.2, *)
@@ -14,194 +26,218 @@ struct WaddiLiveActivityLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: OrderTrackingAttributes.self) { context in
             LockScreenView(state: context.state, attributes: context.attributes)
-                .activityBackgroundTint(Color.white)
-                .activitySystemActionForegroundColor(Color.black)
+                .activityBackgroundTint(Waddy.tealDeep)
+                .activitySystemActionForegroundColor(Waddy.inkHigh)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 8) {
-                        StoreLogoView(url: context.attributes.storeLogoUrl, size: 30)
-                        VStack(alignment: .leading, spacing: 1) {
+                        StoreLogoView(url: context.attributes.storeLogoUrl, size: 32)
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(context.state.storeName ?? "Waddy")
-                                .font(.caption).fontWeight(.semibold)
-                                .foregroundColor(.primary).lineLimit(1)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
                             Text(context.state.subtitle)
-                                .font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                                .font(.system(size: 11))
+                                .foregroundColor(Waddy.inkMid)
+                                .lineLimit(1)
                         }
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if let eta = context.state.etaText {
-                        Text(eta).font(.caption).fontWeight(.bold).foregroundColor(waddiGreen)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(context.state.status == "delivered" ? "STATUS" : "ETA")
+                            .font(.system(size: 9, weight: .semibold))
+                            .tracking(1.0)
+                            .foregroundColor(Waddy.inkLow)
+                        Text(context.state.etaText ?? shortStatus(context.state.status))
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundColor(Waddy.mint)
+                            .lineLimit(1)
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    StepTrack(status: context.state.status, step: context.state.step)
-                        .padding(.top, 4)
+                    StageBar(status: context.state.status)
+                        .padding(.top, 8)
                 }
             } compactLeading: {
-                StoreLogoView(url: context.attributes.storeLogoUrl, size: 20)
+                Image(systemName: statusIcon(context.state.status, context.state.subStatus))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Waddy.mint)
             } compactTrailing: {
-                Text(context.state.etaText ?? shortStatus(context.state.status))
-                    .font(.caption2).fontWeight(.bold).foregroundColor(waddiGreen)
+                Text(compactEta(context.state))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(Waddy.mint)
+                    .lineLimit(1)
             } minimal: {
                 Image(systemName: statusIcon(context.state.status, context.state.subStatus))
-                    .font(.caption2).foregroundColor(waddiGreen)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Waddy.mint)
             }
+            .keylineTint(Waddy.mint)
         }
     }
 }
 
-// MARK: - Lock Screen View
+// MARK: - Lock Screen
 
 @available(iOS 16.2, *)
 struct LockScreenView: View {
     let state: OrderTrackingAttributes.ContentState
     let attributes: OrderTrackingAttributes
 
+    private var isDelivered: Bool { state.status == "delivered" }
+
     var body: some View {
-        // VStack with zero spacing so the top bar touches the edge
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 12) {
 
-            // ── Top accent bar (no padding, flush to card top) ────────
-            Rectangle()
-                .fill(waddiGreen)
-                .frame(height: 3)
-                .frame(maxWidth: .infinity)
-
-            // ── Main content ──────────────────────────────────────────
-            VStack(alignment: .leading, spacing: 0) {
-
-                // Row 1: Store logo + name  |  Waddy logo
-                HStack(alignment: .center) {
-                    StoreLogoView(url: attributes.storeLogoUrl, size: 20)
-                        .padding(.trailing, 4)
-                    Text(state.storeName ?? "Restaurant")
-                        .font(.caption2).fontWeight(.medium)
-                        .foregroundColor(Color(.systemGray))
-                        .lineLimit(1)
-                    Spacer()
-                    Image("WaddyLogo")
-                        .resizable()
-                        .renderingMode(.template)
-                        .scaledToFit()
-                        .frame(height: 20)
-                        .foregroundColor(waddiGreen)
-                }
-                .padding(.bottom, 9)
-
-                // Row 2: Status subtitle + ETA  |  emoji
-                HStack(alignment: .center, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(state.subtitle)
-                            .font(.caption)
-                            .foregroundColor(Color(.systemGray))
-                            .lineLimit(1)
-                        etaLine(state: state)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 8)
-                    Text(statusEmoji(state.status, state.subStatus))
-                        .font(.system(size: 44))
-                        .frame(width: 54, height: 52, alignment: .center)
-                }
-                .padding(.bottom, 10)
-
-                // Row 3: 4-step track
-                StepTrack(status: state.status, step: state.step)
+            // Header: store identity | Waddy wordmark
+            HStack(spacing: 6) {
+                StoreLogoView(url: attributes.storeLogoUrl, size: 18)
+                Text(state.storeName ?? "Waddy")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Waddy.inkMid)
+                    .lineLimit(1)
+                Spacer()
+                Image("WaddyLogo")
+                    .resizable()
+                    .renderingMode(.template)
+                    .scaledToFit()
+                    .frame(height: 15)
+                    .foregroundColor(Waddy.mint)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 12)
+
+            // Hero: kicker + big line + subtitle | status chip
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if !isDelivered, state.etaText != nil {
+                        Text("ARRIVING IN")
+                            .font(.system(size: 10, weight: .semibold))
+                            .tracking(1.2)
+                            .foregroundColor(Waddy.inkLow)
+                    }
+                    heroLine
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text(state.subtitle)
+                        .font(.system(size: 12))
+                        .foregroundColor(Waddy.inkMid)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                StatusChip(icon: statusIcon(state.status, state.subStatus))
+            }
+
+            StageBar(status: state.status)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            LinearGradient(
+                colors: [Waddy.teal, Waddy.tealDeep],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
     }
 
-    // "Arriving in" (black) + "22–32 min" (green bold) — only for active statuses
-    private func etaLine(state: OrderTrackingAttributes.ContentState) -> Text {
-        if state.status == "delivered" {
-            return Text("Order delivered! ")
-                .font(.title3).fontWeight(.bold).foregroundColor(.black)
-            + Text("Enjoy your meal")
-                .font(.caption).foregroundColor(Color(.systemGray))
+    private var heroLine: Text {
+        if isDelivered {
+            return Text(state.title.isEmpty ? "Delivered!" : state.title)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(Waddy.mint)
         } else if let eta = state.etaText {
-            return Text("Arriving in ")
-                .font(.title3).fontWeight(.bold).foregroundColor(.black)
-            + Text(eta)
-                .font(.title3).fontWeight(.bold).foregroundColor(waddiGreen)
+            return Text(eta)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(Waddy.mint)
         } else {
-            // No ETA yet — show title only (e.g. "Order Placed", "Order Confirmed")
             return Text(state.title)
-                .font(.title3).fontWeight(.bold).foregroundColor(.black)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(Waddy.inkHigh)
         }
     }
 }
 
-// MARK: - 4-Node Step Track
+// MARK: - Status Chip
 
-struct StepTrack: View {
+struct StatusChip: View {
+    let icon: String
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Waddy.mint.opacity(0.14))
+            .frame(width: 46, height: 46)
+            .overlay(
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Waddy.mint)
+            )
+    }
+}
+
+// MARK: - Stage Bar (4 segments + labels)
+
+struct StageBar: View {
     let status: String
-    let step: Int
 
-    // 1 = Order placed (node 1 active), 2 = Cooking, 3 = On Way, 4 = Done
-    private var activeCount: Int {
+    private static let labels = ["Placed", "Preparing", "On the way", "Delivered"]
+
+    // 1-based index of the current stage
+    private var current: Int {
         switch status {
-        case "pending":               return 1
-        case "accepted", "confirmed": return 1
-        case "processing":            return 2
-        case "handover":              return 3
-        case "picked_up":             return 3
-        case "delivered":             return 4
-        default:                      return 1
+        case "pending", "accepted", "confirmed": return 1
+        case "processing":                       return 2
+        case "handover", "picked_up":            return 3
+        case "delivered":                        return 4
+        default:                                 return 1
         }
     }
 
-    private let nodes: [(icon: String, label: String)] = [
-        ("fork.knife",   "Order"),
-        ("flame.fill",   "Cook"),
-        ("bicycle",      "Ride"),
-        ("house.fill",   "Done"),
-    ]
-
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ForEach(0..<nodes.count, id: \.self) { i in
-                let isActive  = i < activeCount
-                let isCurrent = i == activeCount - 1
-
-                // Node + label stacked
-                VStack(spacing: 4) {
-                    ZStack {
-                        if isCurrent {
-                            Circle()
-                                .fill(waddiGreen.opacity(0.13))
-                                .frame(width: 34, height: 34)
-                        }
-                        Circle()
-                            .fill(isActive ? waddiGreen : Color(white: 0.88))
-                            .frame(width: 24, height: 24)
-                        Image(systemName: nodes[i].icon)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(isActive ? .white : Color(white: 0.65))
-                    }
-                    .frame(width: 34, height: 34)
-
-                    Text(nodes[i].label)
-                        .font(.system(size: 9, weight: isCurrent ? .bold : .regular))
-                        .foregroundColor(isActive ? (isCurrent ? .black : Color(.systemGray)) : Color(white: 0.75))
-                        .frame(width: 34, alignment: .center)
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                ForEach(0..<4, id: \.self) { i in
+                    Capsule()
+                        .fill(segmentStyle(i))
+                        .frame(height: 4)
                 }
-
-                // Connecting line between nodes (vertically centered with the 24pt circle inside 34pt frame)
-                if i < nodes.count - 1 {
-                    Rectangle()
-                        .fill(i < activeCount - 1 ? waddiGreen : Color(white: 0.88))
-                        .frame(height: 2.5)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 16) // center of 34pt node frame
+            }
+            HStack(spacing: 0) {
+                ForEach(0..<4, id: \.self) { i in
+                    Text(Self.labels[i])
+                        .font(.system(size: 10, weight: i == current - 1 ? .semibold : .medium))
+                        .foregroundColor(labelColor(i))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: alignment(i))
                 }
             }
         }
+    }
+
+    private func segmentStyle(_ i: Int) -> AnyShapeStyle {
+        if i < current - 1 || status == "delivered" {
+            return AnyShapeStyle(Waddy.mint)
+        } else if i == current - 1 {
+            // Current stage: gradient fade shows "in progress"
+            return AnyShapeStyle(LinearGradient(
+                colors: [Waddy.mint, Waddy.mint.opacity(0.35)],
+                startPoint: .leading, endPoint: .trailing
+            ))
+        }
+        return AnyShapeStyle(Waddy.track)
+    }
+
+    private func labelColor(_ i: Int) -> Color {
+        if i == current - 1 { return Waddy.mint }
+        if i < current - 1  { return Waddy.inkMid }
+        return Waddy.inkLow
+    }
+
+    private func alignment(_ i: Int) -> Alignment {
+        if i == 0 { return .leading }
+        if i == 3 { return .trailing }
+        return .center
     }
 }
 
@@ -223,36 +259,20 @@ struct StoreLogoView: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .overlay(Circle().stroke(Color(white: 0.88), lineWidth: 0.5))
+        .overlay(Circle().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
     }
 
     private var placeholder: some View {
-        Circle().fill(waddiGreen.opacity(0.12))
+        Circle().fill(Waddy.mint.opacity(0.18))
             .overlay(
                 Text("W")
-                    .font(.system(size: size * 0.45, weight: .bold))
-                    .foregroundColor(waddiGreen)
+                    .font(.system(size: size * 0.45, weight: .bold, design: .rounded))
+                    .foregroundColor(Waddy.mint)
             )
     }
 }
 
 // MARK: - Helpers
-
-private var waddiGreen: Color { Color(red: 0.075, green: 0.306, blue: 0.290) }
-
-private func statusEmoji(_ status: String, _ subStatus: String?) -> String {
-    switch status {
-    case "pending":               return "📋"
-    case "accepted", "confirmed": return "✅"
-    case "processing":            return "🧑‍🍳"
-    case "handover":              return "📦"
-    case "picked_up":
-        if subStatus == "nearby" || subStatus == "arrived" { return "🏠" }
-        return "🛵"
-    case "delivered":             return "🎉"
-    default:                      return "⏱️"
-    }
-}
 
 private func statusIcon(_ status: String, _ subStatus: String?) -> String {
     switch status {
@@ -278,4 +298,11 @@ private func shortStatus(_ status: String) -> String {
     case "delivered":             return "Done"
     default:                      return "..."
     }
+}
+
+@available(iOS 16.2, *)
+private func compactEta(_ state: OrderTrackingAttributes.ContentState) -> String {
+    if state.status == "delivered" { return "Done" }
+    if let minutes = state.etaMinutes { return "\(minutes)m" }
+    return shortStatus(state.status)
 }

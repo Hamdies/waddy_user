@@ -10,7 +10,6 @@ import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/helper/address_helper.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
@@ -200,8 +199,7 @@ class CheckoutCalculationHelper {
           discount = discount + d;
           if (disType == 'percent' && discount != 0) {
             discount =
-                discount +
-                calculateFoodVariationDiscount(cartModel: cartModel);
+                discount + calculateFoodVariationDiscount(cartModel: cartModel);
           }
         } else {
           String variationType = '';
@@ -257,10 +255,7 @@ class CheckoutCalculationHelper {
     return PriceConverter.toFixed(discount);
   }
 
-  double getDiscountPrice(
-    double storeDiscountPrice,
-    double itemDiscountPrice,
-  ) {
+  double getDiscountPrice(double storeDiscountPrice, double itemDiscountPrice) {
     if (storeDiscountPrice > itemDiscountPrice) {
       return storeDiscountPrice;
     }
@@ -343,6 +338,16 @@ class CheckoutCalculationHelper {
         addOns -
         couponDiscount -
         referralDiscount;
+    // Clamped at zero. A coupon or referral bonus larger than the cart used to
+    // drive this negative — a 200 EGP coupon on a 50 EGP cart produced -150 —
+    // and this figure is what the free-delivery threshold and the delivery
+    // tiers are judged against. The server recomputes the charge, so a
+    // negative here was a wrong *quote* rather than a wrong charge, but
+    // "the customer owes minus 150" is not a state the rest of checkout should
+    // have to reason about. Nothing is owed below zero.
+    if (orderAmount < 0) {
+      orderAmount = 0;
+    }
     return PriceConverter.toFixed(orderAmount);
   }
 
@@ -368,6 +373,49 @@ class CheckoutCalculationHelper {
     }
 
     return subTotal;
+  }
+
+  /// The subtotal as the cart bars show it: net of the item discount.
+  ///
+  /// `CS-03`: subtotal had two independent implementations —
+  /// [calculateSubTotal] here and `CartController.calculationCart`, which
+  /// walked the cart again to reach a *different* number. For a cart with a
+  /// 10% item discount the cart bar showed 180 and the checkout screen 200,
+  /// which is `CC-14`'s mechanism: checkout reports the subtotal gross and
+  /// lists the discount as its own row, while the pre-checkout bars show the
+  /// figure the customer will actually pay.
+  ///
+  /// Both are wanted — they answer different questions — so the merge keeps
+  /// both meanings and removes only the second implementation. This states the
+  /// cart's meaning in terms of the checkout's, so the two can no longer drift.
+  double calculateNetSubTotal({
+    required Store? store,
+    required List<CartModel?>? cartList,
+  }) {
+    final double price = calculatePrice(store: store, cartList: cartList);
+    final double addOns = calculateAddonsPrice(
+      store: store,
+      cartList: cartList,
+    );
+    final double variations = calculateVariationPrice(
+      store: store,
+      cartList: cartList,
+      calculateWithoutDiscount: true,
+    );
+    final double subTotal = calculateSubTotal(
+      price: price,
+      addOns: addOns,
+      variations: variations,
+      cartList: cartList,
+    );
+    final double itemDiscount = calculateDiscountPrice(
+      store: store,
+      cartList: cartList,
+      price: price,
+      addOns: addOns,
+      calStoreDiscount: false,
+    );
+    return PriceConverter.toFixed(subTotal - itemDiscount);
   }
 
   double calculateOriginalDeliveryCharge({
@@ -467,29 +515,39 @@ class CheckoutCalculationHelper {
       surgePriceType: surgePriceType,
     );
 
-    ConfigModel? configModel = Get.find<SplashController>().configModel;
+    final ConfigModel configModel = Get.find<SplashController>().configModel;
 
     final xpController = Get.find<XpController>();
     final hasXpFreeDelivery =
         xpController.selectedCheckoutPrize != null &&
         xpController.selectedCheckoutPrize!.isFreeDelivery;
 
+    // The sentinel stops here. calculateOriginalDeliveryCharge returns -1 for
+    // "not computable" (no store, or no distance yet), and calculateTotal adds
+    // whatever it is handed — so the sentinel used to show up as a one-pound
+    // discount on the displayed total. The screen guards SUBMISSION on -1
+    // (checkout_screen.dart:1021) but not the figure it renders while the user
+    // waits for a distance. Callers that need to distinguish "not yet known"
+    // from "free" read originalDeliveryCharge, which still carries it.
+    if (deliveryCharge < 0) {
+      deliveryCharge = 0;
+    }
+
     if (orderType == 'take_away' ||
         (store != null && store.freeDelivery!) ||
-        (configModel?.adminFreeDelivery?.status == true &&
-            (configModel?.adminFreeDelivery?.type != null &&
-                configModel?.adminFreeDelivery?.type ==
+        (configModel.adminFreeDelivery?.status == true &&
+            (configModel.adminFreeDelivery?.type != null &&
+                configModel.adminFreeDelivery?.type ==
                     'free_delivery_to_all_store')) ||
-        (configModel?.adminFreeDelivery?.status == true &&
-            (configModel?.adminFreeDelivery?.type != null &&
-                configModel?.adminFreeDelivery?.type ==
+        (configModel.adminFreeDelivery?.status == true &&
+            (configModel.adminFreeDelivery?.type != null &&
+                configModel.adminFreeDelivery?.type ==
                     'free_delivery_by_order_amount') &&
-            (configModel!.adminFreeDelivery?.freeDeliveryOver != null &&
+            (configModel.adminFreeDelivery?.freeDeliveryOver != null &&
                 orderAmount >=
                     configModel.adminFreeDelivery!.freeDeliveryOver!)) ||
         Get.find<CouponController>().freeDelivery ||
-        hasXpFreeDelivery ||
-        false) {
+        hasXpFreeDelivery) {
       deliveryCharge = 0;
     }
 
@@ -515,7 +573,7 @@ class CheckoutCalculationHelper {
           couponDiscount +
           (taxIncluded ? 0 : tax) +
           ((orderType != 'take_away' &&
-                  Get.find<SplashController>().configModel!.dmTipsStatus == 1)
+                  Get.find<SplashController>().configModel.dmTipsStatus == 1)
               ? tips
               : 0) +
           additionalCharge +
@@ -572,13 +630,20 @@ class CheckoutCalculationHelper {
 
   bool checkCODActive({required Store? store}) {
     bool isCashOnDeliveryActive = false;
-    if (store != null) {
-      for (ZoneData zData
-          in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
+    // Having no saved address is a normal state — first run, and every launch
+    // until the location gate resolves one (see AddressHelper). This used to
+    // bang through the nullable read and the zone list, so a signed-in user
+    // whose address had not loaded yet got a thrown exception in the payment
+    // section rather than "no methods available".
+    final List<ZoneData>? zones =
+        AddressHelper.getUserAddressFromSharedPref()?.zoneData;
+    if (store != null && zones != null) {
+      for (ZoneData zData in zones) {
         if (zData.id == store.zoneId) {
           isCashOnDeliveryActive =
-              zData.cashOnDelivery! &&
-              Get.find<SplashController>().configModel!.cashOnDelivery!;
+              (zData.cashOnDelivery ?? false) &&
+              (Get.find<SplashController>().configModelOrNull?.cashOnDelivery ??
+                  false);
         }
       }
     }
@@ -587,13 +652,16 @@ class CheckoutCalculationHelper {
 
   bool checkDigitalPaymentActive({required Store? store}) {
     bool isDigitalPaymentActive = false;
-    if (store != null) {
-      for (ZoneData zData
-          in AddressHelper.getUserAddressFromSharedPref()!.zoneData!) {
+    // Same nullable-address reasoning as checkCODActive above.
+    final List<ZoneData>? zones =
+        AddressHelper.getUserAddressFromSharedPref()?.zoneData;
+    if (store != null && zones != null) {
+      for (ZoneData zData in zones) {
         if (zData.id == store.zoneId) {
           isDigitalPaymentActive =
-              zData.digitalPayment! &&
-              Get.find<SplashController>().configModel!.digitalPayment!;
+              (zData.digitalPayment ?? false) &&
+              (Get.find<SplashController>().configModelOrNull?.digitalPayment ??
+                  false);
         }
       }
     }

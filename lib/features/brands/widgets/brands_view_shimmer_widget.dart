@@ -9,48 +9,51 @@ class BrandViewShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeDefault),
-        child: TitleWidget(
-          title: 'brands'.tr,
-          onTap: () => null,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeDefault,
+          ),
+          child: TitleWidget(title: 'brands'.tr, onTap: () => null),
         ),
-      ),
 
-      GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 13, mainAxisSpacing: 13,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: 8,
-        itemBuilder: (context, index) {
-          return Shimmer(
-            duration: const Duration(seconds: 2),
-            enabled: true,
-            child: Container(
-              padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
-              decoration: BoxDecoration(
-                color: Theme.of(context).disabledColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4,
+            crossAxisSpacing: 13,
+            mainAxisSpacing: 13,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: 8,
+          itemBuilder: (context, index) {
+            return Shimmer(
+              duration: const Duration(seconds: 2),
+              enabled: true,
               child: Container(
-                height: 60, width: 60,
+                padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
+                  color: Theme.of(context).disabledColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
+                child: Container(
+                  height: 60,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          );
-        },
-      ),
-
-    ]);
+            );
+          },
+        ),
+      ],
+    );
   }
 }

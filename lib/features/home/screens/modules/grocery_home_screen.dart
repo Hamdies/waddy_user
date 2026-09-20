@@ -1,89 +1,69 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
-import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/category/controllers/category_controller.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_best_nearby_section.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_category_circles.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_ribbon_sticker.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_store_list.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/module_store_semantics.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
+import 'package:waddy_app/features/home/screens/modules/widgets/ramadan_reorder_section.dart';
 import 'package:waddy_app/features/home/widgets/banner_view.dart';
+import 'package:waddy_app/features/home/widgets/home_hero_banner_widget.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/store/screens/store_screen.dart';
-import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
-import 'package:waddy_app/util/app_design_tokens.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/features/location/widgets/coming_soon_delivery.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
 
 class GroceryHomeScreen extends StatefulWidget {
-  const GroceryHomeScreen({super.key});
+  final ScrollController scrollController;
+  const GroceryHomeScreen({super.key, required this.scrollController});
 
   @override
   State<GroceryHomeScreen> createState() => _GroceryHomeScreenState();
 }
 
-class _GroceryHomeScreenState extends State<GroceryHomeScreen>
-    with TickerProviderStateMixin {
+class _GroceryHomeScreenState extends State<GroceryHomeScreen> {
   static const double _sectionGapXS = 8;
   static const double _sectionGapS = 12;
   static const double _sectionGapM = 16;
   static const double _sectionGapL = 24;
 
-  int? _selectedCategoryId;
-  bool _filterOffers = false;
-  bool _filterUnder30 = false;
-  bool _filterFreeDelivery = false;
+  /// `StoreController.moduleFilters` is the only copy of the browse filters.
+  ///
+  /// This screen used to keep four `setState` fields alongside it and push them
+  /// in without ever reading back — `F-02`'s defect, verbatim. `DashboardScreen`
+  /// builds its pages with a `PageView.builder` that keeps nothing alive, so a
+  /// hop to Orders disposed this State: the chips came back empty while the
+  /// controller was still filtering the list, and the only way out was to
+  /// toggle a chip on and off again.
+  ModuleStoreFilters get _filters => Get.find<StoreController>().moduleFilters;
 
-  late final AnimationController _categoryAnimController;
-  late final Animation<double> _categoryFadeAnim;
-  late final AnimationController _freshBadgeController;
-  late final Animation<double> _freshBadgeAnim;
+  int? get _selectedCategoryId => _filters.categoryId;
+  bool get _filterOffers => _filters.offers;
+  bool get _filterUnder30 => _filters.maxDeliveryTime != null;
+  bool get _filterFreeDelivery => _filters.freeDelivery;
 
-  // Store slideshow for "All Stores" category
-  int _storeSlideIndex = 0;
-  Timer? _storeSlideTimer;
-
-  void _startStoreSlideshow() {
-    _storeSlideTimer?.cancel();
-    _storeSlideTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted) setState(() => _storeSlideIndex++);
-    });
-  }
-
-  @override
-  void dispose() {
-    _categoryAnimController.dispose();
-    _freshBadgeController.dispose();
-    _storeSlideTimer?.cancel();
-    super.dispose();
+  /// Change one filter, keeping the rest. The controller refetches and
+  /// notifies; every surface that renders filter state is a `GetBuilder` on it,
+  /// so nothing here calls `setState` for a filter any more.
+  void _applyFilters(ModuleStoreFilters next) {
+    Get.find<StoreController>().setModuleStoreFilters(next);
   }
 
   @override
   void initState() {
     super.initState();
-    _categoryAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _categoryFadeAnim = CurvedAnimation(
-      parent: _categoryAnimController,
-      curve: Curves.easeOutCubic,
-    );
-    _freshBadgeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
-    _freshBadgeAnim = CurvedAnimation(
-      parent: _freshBadgeController,
-      curve: Curves.easeInOut,
-    );
-    _categoryAnimController.forward();
-    _startStoreSlideshow();
     _loadData();
   }
 
@@ -94,58 +74,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
     }
   }
 
+  // Filters are applied server-side: results cover the whole catalog,
+  // not just the pages loaded so far.
   void _onCategoryTap(int? categoryId) {
-    setState(() {
-      _selectedCategoryId =
-          (_selectedCategoryId == categoryId) ? null : categoryId;
-    });
-  }
-
-  List<Store> _filterStores(List<Store>? stores) {
-    if (stores == null) return [];
-    List<Store> result = stores;
-
-    // Category filter
-    if (_selectedCategoryId != null) {
-      result =
-          result.where((store) {
-            return store.categoryIds != null &&
-                store.categoryIds!.contains(_selectedCategoryId);
-          }).toList();
-    }
-
-    // Offers filter
-    if (_filterOffers) {
-      result =
-          result.where((store) {
-            return store.discount != null &&
-                store.discount!.discount != null &&
-                store.discount!.discount! > 0;
-          }).toList();
-    }
-
-    // Under 30 min filter
-    if (_filterUnder30) {
-      result =
-          result.where((store) {
-            if (store.deliveryTime == null || store.deliveryTime!.isEmpty) {
-              return false;
-            }
-            final parts = store.deliveryTime!.split('-');
-            final maxTime = int.tryParse(parts.last.trim()) ?? 999;
-            return maxTime <= 30;
-          }).toList();
-    }
-
-    // Free delivery filter
-    if (_filterFreeDelivery) {
-      result =
-          result.where((store) {
-            return store.freeDelivery == true;
-          }).toList();
-    }
-
-    return result;
+    _applyFilters(
+      _filters.copyWith(
+        categoryId: _selectedCategoryId == categoryId ? null : categoryId,
+      ),
+    );
   }
 
   bool get _hasActiveChipFilter =>
@@ -154,12 +90,22 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
   bool get _hasAnyBrowseFilters =>
       _selectedCategoryId != null || _hasActiveChipFilter;
 
+  /// Clears every browse filter. Unlike food's sheet, which owns only its own
+  /// two switches, grocery's sheet owns the category tiles as well — so its
+  /// reset and the header's reset clear the same four things.
   void _clearAllBrowseFilters() {
-    _selectedCategoryId = null;
-    _filterOffers = false;
-    _filterUnder30 = false;
-    _filterFreeDelivery = false;
+    _applyFilters(
+      _filters.copyWith(
+        categoryId: null,
+        offers: false,
+        freeDelivery: false,
+        maxDeliveryTime: null,
+      ),
+    );
   }
+
+  Object _storeScreenArguments(Store store) =>
+      StoreScreen(store: store, fromModule: false);
 
   void _showBrowseRefineSheet(BuildContext context) {
     final categoryController = Get.find<CategoryController>();
@@ -172,34 +118,38 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
         child: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(Dimensions.radiusExtraLarge),
+            ),
           ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          child: StatefulBuilder(
-            builder: (context, setSheetState) {
-              void syncSheet(void Function() update) {
-                setState(update);
-                setSheetState(() {});
-              }
-
+          // A `GetBuilder` on the store controller, not a `StatefulBuilder`:
+          // the sheet renders in its own overlay route, so it subscribes to the
+          // filter state itself rather than waiting for the screen behind it.
+          child: GetBuilder<StoreController>(
+            builder: (_) {
               Widget buildCategoryTile({
                 required String label,
                 String? imageUrl,
                 required bool isSelected,
                 required VoidCallback onTap,
               }) {
-                return _PressableScale(
+                return PressableScale(
+                  semanticLabel:
+                      isSelected ? '$label, ${'selected'.tr}' : label,
                   onTap: onTap,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
                     width: 92,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
+                      horizontal: Dimensions.paddingSizeSmall,
+                      vertical: Dimensions.paddingSizeSmall,
                     ),
                     decoration: BoxDecoration(
                       color: isSelected ? primaryColor : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusLarge,
+                      ),
                       border: Border.all(
                         color:
                             isSelected
@@ -217,10 +167,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                                 isSelected
                                     ? accentColor.withValues(alpha: 0.15)
                                     : Colors.white,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusLarge,
+                            ),
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusLarge,
+                            ),
                             child:
                                 imageUrl != null && imageUrl.isNotEmpty
                                     ? CustomImage(
@@ -242,7 +196,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           maxLines: 2,
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: 11,
                             color: isSelected ? Colors.white : Colors.black87,
                           ),
@@ -259,17 +213,20 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                 required VoidCallback onTap,
                 required IconData icon,
               }) {
-                return _PressableScale(
+                return PressableScale(
+                  semanticLabel: isActive ? '$label, ${'selected'.tr}' : label,
                   onTap: onTap,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                      horizontal: Dimensions.paddingSizeMedium,
+                      vertical: Dimensions.paddingSizeSmall,
                     ),
                     decoration: BoxDecoration(
                       color: isActive ? primaryColor : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusLarge,
+                      ),
                       border: Border.all(
                         color: isActive ? primaryColor : Colors.grey.shade200,
                       ),
@@ -285,7 +242,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                         const SizedBox(width: 6),
                         Text(
                           label,
-                          style: robotoMedium.copyWith(
+                          style: waddyMedium.copyWith(
                             fontSize: 12,
                             color: isActive ? Colors.white : Colors.black87,
                           ),
@@ -307,7 +264,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                         height: 5,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(
+                            Dimensions.radiusDefault,
+                          ),
                         ),
                       ),
                     ),
@@ -317,7 +276,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                         Expanded(
                           child: Text(
                             'apply_filters'.tr,
-                            style: robotoBold.copyWith(
+                            style: waddyBold.copyWith(
                               fontSize: 18,
                               color: Colors.black87,
                             ),
@@ -326,9 +285,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                         TextButton(
                           onPressed:
                               _hasAnyBrowseFilters
-                                  ? () {
-                                    syncSheet(_clearAllBrowseFilters);
-                                  }
+                                  ? _clearAllBrowseFilters
                                   : null,
                           child: Text('reset'.tr),
                         ),
@@ -337,7 +294,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                     const SizedBox(height: 8),
                     Text(
                       'browse_all_stores'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 13,
                         color: Colors.grey.shade600,
                       ),
@@ -351,9 +308,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           label: 'all_stores'.tr,
                           isSelected: _selectedCategoryId == null,
                           onTap:
-                              () => syncSheet(() {
-                                _selectedCategoryId = null;
-                              }),
+                              () => _applyFilters(
+                                _filters.copyWith(categoryId: null),
+                              ),
                         ),
                         ...categories.map(
                           (category) => buildCategoryTile(
@@ -361,9 +318,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                             imageUrl: category.imageFullUrl,
                             isSelected: _selectedCategoryId == category.id,
                             onTap:
-                                () => syncSheet(() {
-                                  _selectedCategoryId = category.id;
-                                }),
+                                () => _applyFilters(
+                                  _filters.copyWith(categoryId: category.id),
+                                ),
                           ),
                         ),
                       ],
@@ -371,7 +328,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                     const SizedBox(height: 18),
                     Text(
                       'filter'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 13,
                         color: Colors.grey.shade600,
                       ),
@@ -385,8 +342,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           label: 'offers'.tr,
                           isActive: _filterOffers,
                           onTap:
-                              () => syncSheet(
-                                () => _filterOffers = !_filterOffers,
+                              () => _applyFilters(
+                                _filters.copyWith(offers: !_filterOffers),
                               ),
                           icon: Icons.local_offer_outlined,
                         ),
@@ -394,8 +351,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           label: 'under_30_mins'.tr,
                           isActive: _filterUnder30,
                           onTap:
-                              () => syncSheet(
-                                () => _filterUnder30 = !_filterUnder30,
+                              () => _applyFilters(
+                                _filters.copyWith(
+                                  maxDeliveryTime: _filterUnder30 ? null : 30,
+                                ),
                               ),
                           icon: Icons.access_time_rounded,
                         ),
@@ -403,29 +362,19 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           label: 'free_delivery'.tr,
                           isActive: _filterFreeDelivery,
                           onTap:
-                              () => syncSheet(
-                                () =>
-                                    _filterFreeDelivery = !_filterFreeDelivery,
+                              () => _applyFilters(
+                                _filters.copyWith(
+                                  freeDelivery: !_filterFreeDelivery,
+                                ),
                               ),
                           icon: Icons.delivery_dining_outlined,
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Get.back(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text('done'.tr),
-                      ),
+                    CustomButton(
+                      buttonText: 'done'.tr,
+                      onPressed: () => Get.back(),
                     ),
                   ],
                 ),
@@ -440,791 +389,57 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
   }
 
   @override
+  /// Returns a SLIVER — see FoodHomeScreen for why. This screen is rendered
+  /// directly into the home screen's `CustomScrollView`, so it belongs in
+  /// `slivers:`, not inside a box.
+  ///
+  /// Grocery's catalogue is the longest list in the app, and as a `Column` every
+  /// card in it was built and laid out in the first frame.
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── App Bar ──
-        _buildAppBar(context),
-
-        // ── Search Bar ──
-        _buildSearchBar(context),
+    return SliverMainAxisGroup(
+      slivers: [
+        // ── Hero banner (compact: deliver-to + cart + search) ──
+        const SliverToBoxAdapter(
+          child: HomeHeroBannerWidget(showBackButton: true, compact: true),
+        ),
 
         // ── Current Order Status ──
-        const CurrentOrderWidget(),
-        const SizedBox(height: _sectionGapM),
+        const SliverToBoxAdapter(child: CurrentOrderWidget()),
+        const SliverToBoxAdapter(child: SizedBox(height: _sectionGapM)),
 
         // Re-Order (Buy Again) — first if exists
-        _buildBuyAgainSection(context),
+        SliverToBoxAdapter(child: _buildBuyAgainSection(context)),
 
         // "Big brands near you" — hero horizontal store cards
-        _buildBigBrandsSection(context),
+        SliverToBoxAdapter(
+          child: ModuleBestNearbySection(
+            title: 'best_store_nearby'.tr,
+            stickerStyle: ModuleStickerStyle.grocery,
+            closedLabel: 'closed'.tr.toUpperCase(),
+            bottomPadding: _sectionGapL,
+            shimmerBottomPadding: _sectionGapL,
+            storeScreenBuilder: _storeScreenArguments,
+          ),
+        ),
 
         // Browse area is grouped as one visual band to reduce section noise.
-        _buildBrowseSection(context),
+        _buildBrowseSectionSliver(context),
 
-        const SizedBox(height: _sectionGapL),
+        const SliverToBoxAdapter(child: SizedBox(height: _sectionGapL)),
 
         // Banner — single, optional, now treated as a secondary promo.
-        const BannerView(isFeatured: false, showRamadanWrapper: false),
+        const SliverToBoxAdapter(
+          child: BannerView(isFeatured: false, showRamadanWrapper: false),
+        ),
 
-        const SizedBox(height: _sectionGapL),
+        // The banner, not the store list, is grocery's terminal element, so
+        // the bottom-nav overlay is reserved here rather than inside
+        // the store list. _sectionGapL alone left the banner under the bar.
+        SliverToBoxAdapter(
+          child: SizedBox(height: Dimensions.cartBarReserve(context)),
+        ),
       ],
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // APP BAR — Talabat style (← Deliver to address)
-  // ═══════════════════════════════════════════
-  Widget _buildAppBar(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Back button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              onTap: () {
-                Get.find<SplashController>().setModule(null);
-                Get.find<StoreController>().resetStoreData();
-              },
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Icon(
-                  Icons.arrow_back_rounded,
-                  size: 22,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 4),
-
-          // "Deliver to" + address
-          Expanded(
-            child: _PressableScale(
-              onTap:
-                  () => Get.toNamed(RouteHelper.getAccessLocationRoute('home')),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'deliver_to'.tr,
-                              style: robotoRegular.copyWith(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Colors.grey.shade500,
-                            ),
-                          ],
-                        ),
-                        Builder(
-                          builder: (context) {
-                            final address =
-                                AddressHelper.getUserAddressFromSharedPref();
-                            return Text(
-                              address?.address ?? 'Select Location',
-                              style: robotoMedium.copyWith(
-                                fontSize: 14,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Cart button
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => Get.toNamed(RouteHelper.getCartRoute()),
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Center(
-                      child: HugeIcon(
-                        icon: HugeIcons.strokeRoundedShoppingBag02,
-                        size: 21,
-                        color: primaryColor,
-                      ),
-                    ),
-                    GetBuilder<CartController>(
-                      builder: (cartController) {
-                        return cartController.cartList.isNotEmpty
-                            ? Positioned(
-                              top: -4,
-                              right: -4,
-                              child: Container(
-                                height: 18,
-                                width: 18,
-                                decoration: BoxDecoration(
-                                  color: accentColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    cartController.cartList.length.toString(),
-                                    style: robotoBold.copyWith(
-                                      fontSize: 9,
-                                      color: primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            : const SizedBox();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // SEARCH BAR — Talabat style (simple, full width)
-  // ═══════════════════════════════════════════
-  Widget _buildSearchBar(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        Dimensions.paddingSizeDefault,
-        12,
-        Dimensions.paddingSizeDefault,
-        0,
-      ),
-      child: _PressableScale(
-        onTap: () => Get.toNamed(RouteHelper.getSearchRoute()),
-        child: Container(
-          height: 52,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: accentColor.withValues(alpha: 0.12),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: primaryColor.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.search, size: 20, color: primaryColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'search_products_or_stores'.tr,
-                  style: robotoRegular.copyWith(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 10),
-              ScaleTransition(
-                scale: _freshBadgeAnim,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.eco_rounded, size: 18, color: accentColor),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // MAADI BEST NEARBY — modern cards with top items
-  // ═══════════════════════════════════════════
-  Widget _buildBigBrandsSection(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        final stores =
-            storeController.popularStoreList ?? storeController.latestStoreList;
-
-        if (stores == null) {
-          return _buildBigBrandsShimmer();
-        }
-        if (stores.isEmpty) return const SizedBox();
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: _sectionGapL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Section title + View All
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    IntrinsicWidth(
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            bottom: 2,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: accentColor.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            'best_store_nearby'.tr,
-                            style: robotoBold.copyWith(
-                              fontSize: 18,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    _PressableScale(
-                      onTap:
-                          () => Get.toNamed(
-                            RouteHelper.getAllStoreRoute(
-                              'popular',
-                              isNearbyStore: true,
-                            ),
-                          ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppDesignTokens.secondaryNeon.withValues(
-                            alpha: 0.08,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'view_all'.tr,
-                              style: robotoMedium.copyWith(
-                                fontSize: 12,
-                                color: primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: primaryColor,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Horizontal store cards
-              SizedBox(
-                height: 155,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: stores.length > 8 ? 8 : stores.length,
-                  padding: const EdgeInsets.only(
-                    left: Dimensions.paddingSizeDefault,
-                  ),
-                  itemBuilder: (context, index) {
-                    return _buildBestNearbyCard(
-                      context,
-                      stores[index],
-                      primaryColor,
-                      accentColor,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // STICKER SYSTEM — ribbon flags that poke out
-  // ═══════════════════════════════════════════
-  List<_StickerData> _getStickersForStore(Store store) {
-    final stickers = <_StickerData>[];
-
-    if (store.featured == 1) {
-      stickers.add(
-        const _StickerData(
-          text: 'FAST',
-          icon: Icons.electric_bolt,
-          bgColor: Color(0xFF134E4A),
-          textColor: Color(0xFF1EF2A0),
-          rotation: -0.05,
-        ),
-      );
-    }
-
-    if (store.deliveryTime != null && store.deliveryTime!.isNotEmpty) {
-      final parts = store.deliveryTime!.split('-');
-      final maxTime = int.tryParse(parts.last.trim()) ?? 999;
-      if (maxTime <= 30) {
-        stickers.add(
-          const _StickerData(
-            text: '30 MIN',
-            icon: Icons.schedule_rounded,
-            bgColor: Color(0xFFFFD600),
-            textColor: Color(0xFF3E2700),
-            rotation: 0.06,
-          ),
-        );
-      }
-    }
-
-    if (store.freeDelivery == true) {
-      stickers.add(
-        const _StickerData(
-          text: 'FREE',
-          icon: Icons.local_shipping_rounded,
-          bgColor: Color(0xFFFF5252),
-          textColor: Colors.white,
-          rotation: -0.04,
-        ),
-      );
-    }
-
-    if (store.discount != null &&
-        store.discount!.discount != null &&
-        store.discount!.discount! > 0) {
-      stickers.add(
-        const _StickerData(
-          text: 'DEAL',
-          icon: Icons.local_offer_rounded,
-          bgColor: Color(0xFFFF6D00),
-          textColor: Colors.white,
-          rotation: 0.05,
-        ),
-      );
-    }
-
-    if (store.avgRating != null && store.avgRating! >= 4.5) {
-      stickers.add(
-        const _StickerData(
-          text: 'TOP',
-          icon: Icons.workspace_premium_rounded,
-          bgColor: Color(0xFF7C4DFF),
-          textColor: Colors.white,
-          rotation: -0.05,
-        ),
-      );
-    }
-
-    if ((store.ratingCount ?? 0) < 5 && stickers.length < 2) {
-      stickers.add(
-        const _StickerData(
-          text: 'NEW',
-          icon: Icons.auto_awesome_rounded,
-          bgColor: Color(0xFF00E676),
-          textColor: Color(0xFF0D3B2E),
-          rotation: 0.07,
-        ),
-      );
-    }
-
-    return stickers.take(1).toList();
-  }
-
-  // ── Ribbon sticker widget — flag shape, rotated ──
-  Widget _buildRibbonSticker(_StickerData sticker, {bool compact = false}) {
-    return Transform.rotate(
-      angle: sticker.rotation,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 8 : 10,
-          vertical: compact ? 4 : 5,
-        ),
-        decoration: BoxDecoration(
-          color: sticker.bgColor,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(8),
-            bottomLeft: Radius.circular(8),
-            topRight: Radius.circular(3),
-            bottomRight: Radius.circular(3),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: sticker.bgColor.withValues(alpha: 0.4),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (sticker.icon != null) ...[
-              Icon(
-                sticker.icon,
-                size: compact ? 10 : 12,
-                color: sticker.textColor,
-              ),
-              SizedBox(width: compact ? 3 : 4),
-            ],
-            Text(
-              sticker.text,
-              style: robotoBold.copyWith(
-                fontSize: compact ? 8 : 9.5,
-                color: sticker.textColor,
-                letterSpacing: 0.6,
-                height: 1.0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // BEST NEARBY CARD — full-bleed magazine style
-  // ═══════════════════════════════════════════
-  Widget _buildBestNearbyCard(
-    BuildContext context,
-    Store store,
-    Color primaryColor,
-    Color accentColor,
-  ) {
-    final bool isOpen = store.open == 1;
-    final stickers = _getStickersForStore(store);
-
-    return _PressableScale(
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: StoreScreen(store: store, fromModule: false),
-          ),
-      child: Container(
-        width: 210,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              // ── Full-bleed cover image ──
-              Positioned.fill(
-                child: CustomImage(
-                  image: store.coverPhotoFullUrl ?? '',
-                  fit: BoxFit.cover,
-                ),
-              ),
-
-              // ── Bold gradient overlay — bottom heavy ──
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.transparent,
-                        primaryColor.withValues(alpha: 0.6),
-                        primaryColor.withValues(alpha: 0.95),
-                      ],
-                      stops: const [0.0, 0.3, 0.70, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Closed overlay ──
-              if (!isOpen)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    child: Center(
-                      child: Transform.rotate(
-                        angle: -0.12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'CLOSED',
-                            style: robotoBold.copyWith(
-                              fontSize: 16,
-                              color: Colors.black87,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              // ── Logo floating top-left ──
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: CustomImage(
-                      image: store.logoFullUrl ?? '',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-
-              // ── Single sticker ribbon — right edge ──
-              if (stickers.isNotEmpty && isOpen)
-                Positioned(
-                  top: 12,
-                  right: 0,
-                  child: _buildRibbonSticker(stickers.first),
-                ),
-
-              // ── Bottom info overlay ──
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Store name — big bold white
-                      Text(
-                        store.name ?? '',
-                        style: robotoBold.copyWith(
-                          fontSize: 15,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Delivery time pill
-                      if (store.deliveryTime != null)
-                        _buildInfoPill(
-                          icon: Icons.schedule_rounded,
-                          text: '${store.deliveryTime}',
-                          bgColor: accentColor,
-                          textColor: primaryColor,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Small info pill for cards ──
-  Widget _buildInfoPill({
-    required IconData icon,
-    required String text,
-    required Color bgColor,
-    required Color textColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: textColor),
-          const SizedBox(width: 3),
-          Text(
-            text,
-            style: robotoBold.copyWith(fontSize: 10, color: textColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBigBrandsShimmer() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: _sectionGapL),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Shimmer(
-              child: Container(
-                width: 180,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 185,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              padding: const EdgeInsets.only(
-                left: Dimensions.paddingSizeDefault,
-              ),
-              itemBuilder:
-                  (context, index) => Padding(
-                    padding: const EdgeInsets.only(right: 14),
-                    child: Shimmer(
-                      child: Container(
-                        width: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1237,7 +452,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
 
     return GetBuilder<HomeController>(
       builder: (homeController) {
-        final bool isRamadan = homeController.isRamadanCelebrationActive;
+        final bool isRamadan = homeController.showRamadanDecorations;
 
         return GetBuilder<StoreController>(
           builder: (storeController) {
@@ -1245,11 +460,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             if (stores == null || stores.isEmpty) return const SizedBox();
 
             if (isRamadan) {
-              return _buildRamadanBuyAgain(
-                context,
-                stores,
-                primaryColor,
-                accentColor,
+              return RamadanReorderSection(
+                stores: stores,
+                storeScreenBuilder: _storeScreenArguments,
+                titleFontSize: 18,
+                subtitleFontSize: 12,
+                listHeight: 162,
+                bottomPadding: _sectionGapM,
+                subtitleGap: 12,
               );
             }
             return _buildNormalBuyAgain(
@@ -1282,7 +500,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             ),
             child: Text(
               'buy_again'.tr,
-              style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+              style: waddyBold.copyWith(fontSize: 18, color: Colors.black87),
             ),
           ),
           const SizedBox(height: 2),
@@ -1292,7 +510,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             ),
             child: Text(
               'a_quick_way_to_find_your_go_to_items'.tr,
-              style: robotoRegular.copyWith(
+              style: waddyRegular.copyWith(
                 fontSize: 12,
                 color: Colors.grey.shade600,
               ),
@@ -1334,7 +552,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
     final displayItems = items.take(4).toList();
     final int remaining = totalItems - displayItems.length;
 
-    return _PressableScale(
+    return PressableScale(
+      semanticLabel: moduleStoreSemanticLabel(store),
       onTap:
           () => Get.toNamed(
             RouteHelper.getStoreRoute(id: store.id, page: 'store'),
@@ -1342,10 +561,10 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
           ),
       child: Container(
         width: 168,
-        margin: const EdgeInsets.only(right: 12),
+        margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
         ),
         child: Column(
           children: [
@@ -1357,12 +576,16 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       border: Border.all(color: Colors.grey.shade200),
                       color: Colors.white,
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       child: CustomImage(
                         image: store.logoFullUrl ?? '',
                         fit: BoxFit.cover,
@@ -1376,21 +599,30 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                       children: [
                         Text(
                           store.name ?? '',
-                          style: robotoBold.copyWith(
+                          style: waddyBold.copyWith(
                             fontSize: 12.5,
                             color: Colors.black87,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (store.deliveryTime != null)
-                          Text(
-                            '${store.deliveryTime}',
-                            style: robotoRegular.copyWith(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
+                        ZoneAware(
+                          builder: (context) {
+                            if (isComingSoon) {
+                              return const ComingSoonText(fontSize: 11);
+                            }
+                            if (store.deliveryTime == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Text(
+                              '${store.deliveryTime}',
+                              style: waddyRegular.copyWith(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -1399,7 +631,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeSmall,
+                ),
                 child:
                     displayItems.isNotEmpty
                         ? GridView.builder(
@@ -1416,11 +650,15 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                             return Container(
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  Dimensions.radiusDefault,
+                                ),
                               ),
                               padding: const EdgeInsets.all(7),
                               child: ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(
+                                  Dimensions.radiusSmall,
+                                ),
                                 child: CustomImage(
                                   image: displayItems[index].imageFullUrl ?? '',
                                   fit: BoxFit.contain,
@@ -1440,21 +678,26 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             ),
             if (remaining > 0)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8, top: 4),
+                padding: const EdgeInsets.only(
+                  bottom: Dimensions.paddingSizeSmall,
+                  top: Dimensions.paddingSizeExtraSmall,
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+                    horizontal: Dimensions.paddingSizeMedium,
+                    vertical: Dimensions.paddingSizeExtraSmall,
                   ),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: accentColor.withValues(alpha: 0.5),
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      Dimensions.radiusDefault,
+                    ),
                   ),
                   child: Text(
                     '+$remaining ${'more'.tr}',
-                    style: robotoMedium.copyWith(
+                    style: waddyMedium.copyWith(
                       fontSize: 10.5,
                       color: primaryColor,
                     ),
@@ -1464,340 +707,6 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             else
               const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // RAMADAN-THEMED BUY AGAIN — compact & stylish
-  // ═══════════════════════════════════════════
-  static const Color _ramadanGold = Color(0xFFD4AF37);
-
-  Widget _buildRamadanBuyAgain(
-    BuildContext context,
-    List<Store> stores,
-    Color primaryColor,
-    Color accentColor,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: _sectionGapM),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Ramadan header with marker highlight ──
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Row(
-              children: [
-                const HugeIcon(
-                  icon: HugeIcons.strokeRoundedRamadhan01,
-                  color: _ramadanGold,
-                  size: 22,
-                ),
-                const SizedBox(width: 8),
-                // Title with gold marker underline
-                Stack(
-                  children: [
-                    Positioned(
-                      bottom: 0,
-                      left: -3,
-                      right: -3,
-                      child: Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: _ramadanGold.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'ramadan_reorder'.tr,
-                      style: robotoBold.copyWith(
-                        fontSize: 18,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-            ),
-            child: Text(
-              'ramadan_reorder_subtitle'.tr,
-              style: robotoRegular.copyWith(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // ── Horizontal store cards — Ramadan style ──
-          SizedBox(
-            height: 162,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeDefault,
-              ),
-              itemCount: stores.length > 6 ? 6 : stores.length,
-              itemBuilder: (context, index) {
-                return _buildRamadanChip(context, stores[index], primaryColor);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRamadanChip(
-    BuildContext context,
-    Store store,
-    Color primaryColor,
-  ) {
-    final items = store.items ?? [];
-    final displayItems = items.take(3).toList();
-
-    return _PressableScale(
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: StoreScreen(store: store, fromModule: false),
-          ),
-      child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _ramadanGold.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: _ramadanGold.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(
-            children: [
-              // Gradient background
-              Positioned.fill(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFFFFFDF5), Color(0xFFFFF8E7)],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Decorative top-right crescent
-              Positioned(
-                top: -6,
-                right: -4,
-                child: Icon(
-                  Icons.nightlight_round,
-                  size: 44,
-                  color: _ramadanGold.withValues(alpha: 0.06),
-                ),
-              ),
-              // Decorative bottom-left star cluster
-              Positioned(
-                bottom: 12,
-                left: 6,
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 16,
-                  color: _ramadanGold.withValues(alpha: 0.08),
-                ),
-              ),
-
-              // Card content
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Store logo + name
-                    Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.white,
-                            border: Border.all(
-                              color: _ramadanGold.withValues(alpha: 0.25),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _ramadanGold.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: CustomImage(
-                              image: store.logoFullUrl ?? '',
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                store.name ?? '',
-                                style: robotoBold.copyWith(
-                                  fontSize: 13,
-                                  color: Colors.black87,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (store.deliveryTime != null)
-                                Text(
-                                  '${store.deliveryTime}',
-                                  style: robotoRegular.copyWith(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Item thumbnails — elevated white cards
-                    Row(
-                      children: [
-                        ...displayItems.map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.06),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                  BoxShadow(
-                                    color: _ramadanGold.withValues(alpha: 0.06),
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.all(5),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(7),
-                                child: CustomImage(
-                                  image: item.imageFullUrl ?? '',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (items.length > 3)
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  _ramadanGold.withValues(alpha: 0.15),
-                                  _ramadanGold.withValues(alpha: 0.08),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '+${items.length - 3}',
-                              style: robotoBold.copyWith(
-                                fontSize: 11,
-                                color: const Color(0xFF8B6914),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-
-                    const Spacer(),
-
-                    // Re-order CTA button
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _ramadanGold.withValues(alpha: 0.18),
-                            _ramadanGold.withValues(alpha: 0.08),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _ramadanGold.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.refresh_rounded,
-                            size: 13,
-                            color: Color(0xFF8B6914),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'ramadan_reorder'.tr,
-                            style: robotoMedium.copyWith(
-                              fontSize: 11,
-                              color: const Color(0xFF8B6914),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -1819,18 +728,18 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
           Expanded(
             child: Text(
               'browse_all_stores'.tr,
-              style: robotoBold.copyWith(fontSize: 18, color: Colors.black87),
+              style: waddyBold.copyWith(fontSize: 18, color: Colors.black87),
             ),
           ),
           if (_hasAnyBrowseFilters)
             TextButton(
-              onPressed: () => setState(_clearAllBrowseFilters),
+              onPressed: _clearAllBrowseFilters,
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).primaryColor,
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: Dimensions.paddingSizeSmall,
+                  vertical: Dimensions.paddingSizeExtraSmall,
                 ),
               ),
               child: Text('reset'.tr),
@@ -1840,7 +749,16 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
     );
   }
 
-  Widget _buildBrowseSection(BuildContext context) {
+  /// The browse band, as a sliver.
+  ///
+  /// This used to be a `Container` with a tint and top/bottom borders wrapping
+  /// a `Column` — which is exactly what forced the whole store catalogue to
+  /// build up front. `DecoratedSliver` paints the same band behind a group of
+  /// slivers instead, so the visual treatment survives and the list inside it
+  /// stays lazy. The Container's vertical padding becomes leading and trailing
+  /// spacers inside the decoration, so the tint still extends past the content
+  /// the way it did.
+  Widget _buildBrowseSectionSliver(BuildContext context) {
     final Color sectionTint = Theme.of(
       context,
     ).primaryColor.withValues(alpha: 0.025);
@@ -1848,8 +766,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
       context,
     ).secondaryHeaderColor.withValues(alpha: 0.08);
 
-    return Container(
-      width: double.infinity,
+    return DecoratedSliver(
       decoration: BoxDecoration(
         color: sectionTint,
         border: Border(
@@ -1857,354 +774,50 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
           bottom: BorderSide(color: borderTint),
         ),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildBrowseAllStoresHeader(context),
-          _buildCategoryCircles(context),
-          const SizedBox(height: _sectionGapXS),
-          _buildRefineButton(context),
-          const SizedBox(height: _sectionGapS),
-          _buildStoreList(context),
+      sliver: SliverMainAxisGroup(
+        slivers: [
+          const SliverToBoxAdapter(
+            child: SizedBox(height: Dimensions.paddingSizeMedium),
+          ),
+          // The three surfaces below render filter state, and the screen no
+          // longer rebuilds when that changes — so each subscribes for itself:
+          // the header's reset button, the selected tile's ring, and the refine
+          // button's active count.
+          SliverToBoxAdapter(
+            child: GetBuilder<StoreController>(
+              builder: (_) => _buildBrowseAllStoresHeader(context),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: GetBuilder<StoreController>(
+              builder:
+                  (_) => ModuleCategoryCircles(
+                    selectedCategoryId: _selectedCategoryId,
+                    onCategoryTap: _onCategoryTap,
+                    allLabel: 'all'.tr,
+                    allSemanticLabel: 'all_stores'.tr,
+                    fallbackIcon: Icon(
+                      Icons.storefront_rounded,
+                      size: 26,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    maxCategories: 3,
+                    bottomPadding: 2,
+                  ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: _sectionGapXS)),
+          SliverToBoxAdapter(
+            child: GetBuilder<StoreController>(
+              builder: (_) => _buildRefineButton(context),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: _sectionGapS)),
+          _buildStoreListSliver(context),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: Dimensions.paddingSizeMedium),
+          ),
         ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // CATEGORY CARDS — rounded square with animated All Stores
-  // ═══════════════════════════════════════════
-  Widget _buildCategoryCircles(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    return GetBuilder<CategoryController>(
-      builder: (categoryController) {
-        if (categoryController.categoryList == null) {
-          return _buildCategoryCirclesShimmer();
-        }
-        if (categoryController.categoryList!.isEmpty) {
-          return const SizedBox();
-        }
-
-        final allCategories = categoryController.categoryList!;
-        final visibleCategories =
-            allCategories.length > 3
-                ? allCategories.take(3).toList()
-                : allCategories;
-
-        // Get store covers for "All Stores" slideshow
-        final storeController = Get.find<StoreController>();
-        final stores =
-            storeController.popularStoreList ??
-            storeController.latestStoreList ??
-            [];
-
-        return FadeTransition(
-          opacity: _categoryFadeAnim,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 2),
-            child: SizedBox(
-              height: 110,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                clipBehavior: Clip.none,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                children: List.generate(visibleCategories.length + 1, (index) {
-                  if (index == 0) {
-                    return _buildAllStoresItem(
-                      context: context,
-                      isSelected: _selectedCategoryId == null,
-                      primaryColor: primaryColor,
-                      accentColor: accentColor,
-                      stores: stores,
-                      onTap: () => _onCategoryTap(null),
-                    );
-                  }
-                  final category = visibleCategories[index - 1];
-                  return _buildCategoryItem(
-                    context: context,
-                    isSelected: _selectedCategoryId == category.id,
-                    label: category.name ?? '',
-                    imageUrl: category.imageFullUrl,
-                    primaryColor: primaryColor,
-                    accentColor: accentColor,
-                    onTap: () => _onCategoryTap(category.id),
-                    index: index,
-                  );
-                }),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ── "All Stores" with animated store image slideshow ──
-  Widget _buildAllStoresItem({
-    required BuildContext context,
-    required bool isSelected,
-    required Color primaryColor,
-    required Color accentColor,
-    required List<Store> stores,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: _PressableScale(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          width: 82,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                width: 66,
-                height: 66,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: isSelected ? primaryColor : Colors.grey.shade100,
-                  border: Border.all(
-                    color:
-                        isSelected
-                            ? accentColor.withValues(alpha: 0.5)
-                            : Colors.grey.shade200,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                  boxShadow:
-                      isSelected
-                          ? [
-                            BoxShadow(
-                              color: accentColor.withValues(alpha: 0.15),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                          : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child:
-                      stores.isNotEmpty
-                          ? AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 600),
-                            child: CustomImage(
-                              key: ValueKey<int>(
-                                _storeSlideIndex % stores.length,
-                              ),
-                              image:
-                                  stores[_storeSlideIndex % stores.length]
-                                      .logoFullUrl ??
-                                  '',
-                              fit: BoxFit.cover,
-                              width: 66,
-                              height: 66,
-                            ),
-                          )
-                          : Icon(
-                            Icons.storefront_rounded,
-                            size: 26,
-                            color:
-                                isSelected
-                                    ? Colors.white
-                                    : Colors.grey.shade500,
-                          ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: robotoMedium.copyWith(
-                  fontSize: isSelected ? 11 : 10.5,
-                  color: isSelected ? primaryColor : Colors.grey.shade700,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                ),
-                child: Text(
-                  'all_stores'.tr,
-                  maxLines: 1,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.only(top: 4),
-                width: isSelected ? 20 : 0,
-                height: isSelected ? 3 : 0,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(2),
-                  color: accentColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Category item — rounded square card ──
-  Widget _buildCategoryItem({
-    required BuildContext context,
-    required bool isSelected,
-    required String label,
-    required String? imageUrl,
-    required Color primaryColor,
-    required Color accentColor,
-    required VoidCallback onTap,
-    required int index,
-  }) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 300 + (index * 50)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 8 * (1 - value)),
-          child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(right: 10),
-        child: _PressableScale(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 82,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Rounded square image — full bleed
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 66,
-                  height: 66,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color:
-                        isSelected
-                            ? accentColor.withValues(alpha: 0.1)
-                            : Colors.grey.shade50,
-                    border: Border.all(
-                      color:
-                          isSelected
-                              ? accentColor.withValues(alpha: 0.5)
-                              : Colors.grey.shade200,
-                      width: isSelected ? 1.5 : 1,
-                    ),
-                    boxShadow:
-                        isSelected
-                            ? [
-                              BoxShadow(
-                                color: accentColor.withValues(alpha: 0.15),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ]
-                            : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: CustomImage(
-                      image: imageUrl ?? '',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                // Label
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  style: robotoMedium.copyWith(
-                    fontSize: isSelected ? 11 : 10.5,
-                    color: isSelected ? primaryColor : Colors.grey.shade700,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                // Selection underline bar
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.only(top: 4),
-                  width: isSelected ? 20 : 0,
-                  height: isSelected ? 3 : 0,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    color: accentColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryCirclesShimmer() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: SizedBox(
-        height: 110,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 5,
-          padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-          itemBuilder:
-              (context, index) => Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Column(
-                  children: [
-                    Shimmer(
-                      child: Container(
-                        width: 62,
-                        height: 62,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: Colors.grey.shade200,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Shimmer(
-                      child: Container(
-                        width: 50,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-        ),
       ),
     );
   }
@@ -2222,14 +835,18 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeDefault,
       ),
-      child: _PressableScale(
+      child: PressableScale(
+        semanticLabel: 'filter'.tr,
         onTap: () => _showBrowseRefineSheet(context),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.paddingSizeMedium,
+            vertical: Dimensions.paddingSizeMedium,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
@@ -2257,7 +874,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                   children: [
                     Text(
                       'filter'.tr,
-                      style: robotoMedium.copyWith(
+                      style: waddyMedium.copyWith(
                         fontSize: 13,
                         color: Colors.black87,
                       ),
@@ -2267,7 +884,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                       activeFilterCount > 0
                           ? 'apply_filters'.tr
                           : 'try_different_filters'.tr,
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: 11,
                         color: Colors.grey.shade600,
                       ),
@@ -2278,8 +895,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
               if (activeFilterCount > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: Dimensions.paddingSizeSmall,
+                    vertical: Dimensions.paddingSizeExtraSmall,
                   ),
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.14),
@@ -2287,7 +904,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                   ),
                   child: Text(
                     activeFilterCount.toString(),
-                    style: robotoBold.copyWith(
+                    style: waddyBold.copyWith(
                       fontSize: 11,
                       color: primaryColor,
                     ),
@@ -2308,101 +925,35 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
   // ═══════════════════════════════════════════
   // STORE LIST — Talabat style vertical cards
   // ═══════════════════════════════════════════
-  Widget _buildStoreList(BuildContext context) {
+  /// GetBuilder contributes no RenderObject of its own, so it can return a
+  /// sliver directly — no adapter needed, which is the point.
+  Widget _buildStoreListSliver(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color accentColor = Theme.of(context).secondaryHeaderColor;
 
     return GetBuilder<StoreController>(
       builder: (storeController) {
-        final allStores = storeController.storeModel?.stores;
-        final filteredStores = _filterStores(allStores);
+        final bool hasFilters =
+            _selectedCategoryId != null || _hasActiveChipFilter;
 
-        if (allStores == null) {
-          return _buildStoreListShimmer();
-        }
-
-        if (filteredStores.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeDefault,
-              vertical: Dimensions.paddingSizeExtraLarge,
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.storefront_outlined,
-                    size: 52,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    (_selectedCategoryId != null || _hasActiveChipFilter)
-                        ? 'no_stores_in_category'.tr
-                        : 'no_store_available'.tr,
-                    style: robotoMedium.copyWith(
-                      fontSize: 15,
-                      color: Colors.grey.shade600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    (_selectedCategoryId != null || _hasActiveChipFilter)
-                        ? 'try_different_filters'.tr
-                        : 'try_different_category'.tr,
-                    style: robotoRegular.copyWith(
-                      fontSize: 12,
-                      color: Colors.grey.shade400,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_hasAnyBrowseFilters) ...[
-                    const SizedBox(height: 14),
-                    _PressableScale(
-                      onTap: () => setState(_clearAllBrowseFilters),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'reset'.tr,
-                          style: robotoMedium.copyWith(
-                            fontSize: 12,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
+        return ModuleStoreListSliver(
+          scrollController: widget.scrollController,
+          storeModel: storeController.storeModel,
+          shimmer: _buildStoreListShimmer(),
+          emptyIcon: const Icon(
+            Icons.storefront_outlined,
+            size: 52,
+            color: WaddyColors.inkMuted,
           ),
-          child: Column(
-            children:
-                filteredStores.map((store) {
-                  return _buildStoreCard(
-                    context,
-                    store,
-                    primaryColor,
-                    accentColor,
-                  );
-                }).toList(),
-          ),
+          emptyTitle:
+              hasFilters ? 'no_stores_in_category'.tr : 'no_store_available'.tr,
+          emptySubtitle:
+              hasFilters
+                  ? 'try_different_filters'.tr
+                  : 'try_different_category'.tr,
+          cardBuilder:
+              (store) =>
+                  _buildStoreCard(context, store, primaryColor, accentColor),
         );
       },
     );
@@ -2418,7 +969,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
     Color accentColor,
   ) {
     final bool isOpen = store.open == 1;
-    final stickers = _getStickersForStore(store);
+    final stickers = moduleStickersForStore(store, ModuleStickerStyle.grocery);
 
     // Trigger fetch of recommended items for this store
     final storeController = Get.find<StoreController>();
@@ -2426,7 +977,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
       storeController.fetchStoreRecommendedItems(store.id!);
     }
 
-    return _PressableScale(
+    return PressableScale(
+      semanticLabel: moduleStoreSemanticLabel(store),
       onTap:
           () => Get.toNamed(
             RouteHelper.getStoreRoute(id: store.id, page: 'store'),
@@ -2435,9 +987,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
       child: Opacity(
         opacity: isOpen ? 1.0 : 0.55,
         child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
+          margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.10),
@@ -2447,7 +999,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
             child: Stack(
               children: [
                 // ── Full-bleed cover ──
@@ -2489,12 +1041,14 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                           angle: -0.12,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
+                              horizontal: Dimensions.paddingSizeLarge,
+                              vertical: Dimensions.paddingSizeSmall,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(
+                                Dimensions.radiusExtraSmall,
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.3),
@@ -2503,8 +1057,8 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                               ],
                             ),
                             child: Text(
-                              'CLOSED',
-                              style: robotoBold.copyWith(
+                              'closed'.tr.toUpperCase(),
+                              style: waddyBold.copyWith(
                                 fontSize: 14,
                                 color: Colors.black87,
                                 letterSpacing: 3,
@@ -2524,7 +1078,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       color: Colors.white,
                       boxShadow: [
                         BoxShadow(
@@ -2535,7 +1091,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        Dimensions.radiusDefault,
+                      ),
                       child: CustomImage(
                         image: store.logoFullUrl ?? '',
                         fit: BoxFit.cover,
@@ -2549,7 +1107,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                   Positioned(
                     top: 12,
                     right: 0,
-                    child: _buildRibbonSticker(stickers.first),
+                    child: ModuleRibbonSticker(sticker: stickers.first),
                   ),
 
                 // ── Tilted top items — bottom right ──
@@ -2578,7 +1136,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                                   height: 42,
                                   margin: const EdgeInsets.only(left: 6),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusDefault,
+                                    ),
                                     color: Colors.white,
                                     border: Border.all(
                                       color: Colors.white,
@@ -2595,7 +1155,9 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                                     ],
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(
+                                      Dimensions.radiusSmall,
+                                    ),
                                     child: CustomImage(
                                       image: topItems[i].imageFullUrl ?? '',
                                       fit: BoxFit.cover,
@@ -2625,7 +1187,7 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                             children: [
                               Text(
                                 store.name ?? '',
-                                style: robotoBold.copyWith(
+                                style: waddyBold.copyWith(
                                   fontSize: 15,
                                   color: Colors.white,
                                 ),
@@ -2633,13 +1195,27 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 3),
-                              if (store.deliveryTime != null)
-                                _buildInfoPill(
-                                  icon: Icons.schedule_rounded,
-                                  text: '${store.deliveryTime}',
-                                  bgColor: accentColor,
-                                  textColor: primaryColor,
-                                ),
+                              ZoneAware(
+                                builder: (context) {
+                                  if (isComingSoon) {
+                                    return ModuleInfoPill(
+                                      icon: Icons.schedule_rounded,
+                                      text: 'coming_soon'.tr,
+                                      bgColor: accentColor,
+                                      textColor: primaryColor,
+                                    );
+                                  }
+                                  if (store.deliveryTime == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return ModuleInfoPill(
+                                    icon: Icons.schedule_rounded,
+                                    text: '${store.deliveryTime}',
+                                    bgColor: accentColor,
+                                    textColor: primaryColor,
+                                  );
+                                },
+                              ),
                             ],
                           ),
                         ),
@@ -2664,75 +1240,20 @@ class _GroceryHomeScreenState extends State<GroceryHomeScreen>
         children: List.generate(
           4,
           (_) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(
+              bottom: Dimensions.paddingSizeMedium,
+            ),
             child: Shimmer(
               child: Container(
                 height: 80,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════
-// STICKER DATA MODEL
-// ═══════════════════════════════════════════
-class _StickerData {
-  final String text;
-  final IconData? icon;
-  final Color bgColor;
-  final Color textColor;
-  final double rotation;
-
-  const _StickerData({
-    required this.text,
-    this.icon,
-    required this.bgColor,
-    required this.textColor,
-    this.rotation = 0.0,
-  });
-}
-
-class _PressableScale extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const _PressableScale({required this.child, required this.onTap});
-
-  @override
-  State<_PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<_PressableScale> {
-  bool _pressed = false;
-
-  void _setPressed(bool value) {
-    if (_pressed == value) return;
-    setState(() => _pressed = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _setPressed(true),
-      onTapUp: (_) {
-        _setPressed(false);
-        widget.onTap();
-      },
-      onTapCancel: () => _setPressed(false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOutCubic,
-        child: widget.child,
       ),
     );
   }

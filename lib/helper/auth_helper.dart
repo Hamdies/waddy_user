@@ -3,7 +3,7 @@ import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 
 class AuthHelper {
   static bool isGuestLoggedIn() {
-    return false;
+    return Get.find<AuthController>().isGuestLoggedIn();
   }
 
   static String getGuestId() {

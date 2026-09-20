@@ -28,8 +28,16 @@ class PredictionModel {
     place = json['placePrediction']['place'];
     reference = json['placePrediction']['text']['text'];
     types = List<String>.from(json['placePrediction']['types'] ?? []);
-    text = json['placePrediction']['text'] != null ? TextModel.fromJson(json['placePrediction']['text']) : null;
-    structuredFormat = json['placePrediction']['structuredFormat'] != null ? StructuredFormat.fromJson(json['placePrediction']['structuredFormat']) : null;
+    text =
+        json['placePrediction']['text'] != null
+            ? TextModel.fromJson(json['placePrediction']['text'])
+            : null;
+    structuredFormat =
+        json['placePrediction']['structuredFormat'] != null
+            ? StructuredFormat.fromJson(
+              json['placePrediction']['structuredFormat'],
+            )
+            : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -94,8 +102,12 @@ class StructuredFormat {
   StructuredFormat({this.mainText, this.secondaryText});
 
   StructuredFormat.fromJson(Map<String, dynamic> json) {
-    mainText = json['mainText'] != null ? MainText.fromJson(json['mainText']) : null;
-    secondaryText = json['secondaryText'] != null ? SecondaryText.fromJson(json['secondaryText']) : null;
+    mainText =
+        json['mainText'] != null ? MainText.fromJson(json['mainText']) : null;
+    secondaryText =
+        json['secondaryText'] != null
+            ? SecondaryText.fromJson(json['secondaryText'])
+            : null;
   }
 
   Map<String, dynamic> toJson() {

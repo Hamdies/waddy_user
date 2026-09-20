@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:waddy_app/util/swallow.dart';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
@@ -92,7 +94,11 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
         if (duration != null && mounted) {
           setState(() => _recordingDuration = duration);
         }
-      } catch (_) {}
+      } catch (e, s) {
+        // The duration label is cosmetic — the recording still plays and still
+        // attaches to the order without it.
+        swallow('read voice recording duration', e, s);
+      }
     }
   }
 
@@ -114,7 +120,9 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
       if (status == 'granted') {
         onGranted();
       } else if (status == 'denied') {
-        final String result = await channel.invokeMethod('requestMicPermission');
+        final String result = await channel.invokeMethod(
+          'requestMicPermission',
+        );
         if (result == 'granted') {
           onGranted();
         } else if (result == 'denied_forever') {
@@ -132,49 +140,53 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
 
   Widget _buildPermissionDialog() {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
-      insetPadding: const EdgeInsets.all(30),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      ),
+      insetPadding: const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge),
       clipBehavior: Clip.antiAliasWithSaveLayer,
       child: Padding(
         padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
         child: SizedBox(
           width: 500,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.mic_off_rounded, color: Theme.of(Get.context!).primaryColor, size: 100),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
-            Text(
-              'microphone_permission_denied'.tr, textAlign: TextAlign.center,
-              style: robotoMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
-            ),
-            const SizedBox(height: Dimensions.paddingSizeLarge),
-            Row(children: [
-              Expanded(
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall), side: BorderSide(width: 2, color: Theme.of(Get.context!).primaryColor)),
-                    minimumSize: const Size(1, 50),
-                  ),
-                  child: Text('close'.tr),
-                  onPressed: () => Navigator.pop(Get.context!),
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.mic_off_rounded,
+                color: Theme.of(Get.context!).primaryColor,
+                size: 100,
               ),
-              const SizedBox(width: Dimensions.paddingSizeSmall),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(Get.context!).primaryColor,
-                    minimumSize: const Size(1, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusSmall)),
-                  ),
-                  child: Text('settings'.tr, style: robotoMedium.copyWith(color: Colors.white)),
-                  onPressed: () async {
-                    await Geolocator.openAppSettings();
-                    Get.back();
-                  },
-                ),
+              const SizedBox(height: Dimensions.paddingSizeLarge),
+              Text(
+                'microphone_permission_denied'.tr,
+                textAlign: TextAlign.center,
+                style: waddyMedium.copyWith(fontSize: Dimensions.fontSizeLarge),
               ),
-            ]),
-          ]),
+              const SizedBox(height: Dimensions.paddingSizeLarge),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomButton(
+                      buttonText: 'close'.tr,
+                      transparent: true,
+                      onPressed: () => Navigator.pop(Get.context!),
+                    ),
+                  ),
+                  const SizedBox(width: Dimensions.paddingSizeSmall),
+                  Expanded(
+                    child: CustomButton(
+                      buttonText: 'settings'.tr,
+                      onPressed: () async {
+                        await Geolocator.openAppSettings();
+                        Get.back();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -257,7 +269,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
         if (await file.exists()) {
           await file.delete();
         }
-      } catch (_) {}
+      } catch (e, s) {
+        // Best-effort cleanup of a temp recording the user already discarded.
+        swallow('discard temp voice recording', e, s);
+      }
     }
     setState(() {
       _recordingPath = null;
@@ -290,7 +305,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
   Widget _buildIdleState(BuildContext context) {
     return InkWell(
       onTap: _startRecording,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: Dimensions.paddingSizeDefault,
@@ -298,7 +313,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
         ),
         decoration: BoxDecoration(
           color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
             color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
           ),
@@ -325,7 +340,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                 children: [
                   Text(
                     'tap_to_record_voice'.tr,
-                    style: robotoMedium.copyWith(
+                    style: waddyMedium.copyWith(
                       fontSize: Dimensions.fontSizeSmall,
                       color: Theme.of(context).primaryColor,
                     ),
@@ -333,7 +348,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                   const SizedBox(height: 2),
                   Text(
                     '${'max'.tr} ${_maxDurationSeconds}s',
-                    style: robotoRegular.copyWith(
+                    style: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeExtraSmall,
                       color: Theme.of(context).hintColor,
                     ),
@@ -355,7 +370,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
       ),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
       ),
       child: Row(
@@ -387,7 +402,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
               children: [
                 Text(
                   'recording'.tr,
-                  style: robotoMedium.copyWith(
+                  style: waddyMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
                     color: Colors.red,
                   ),
@@ -406,14 +421,14 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                     const SizedBox(width: 6),
                     Text(
                       _formatDuration(_recordingDuration),
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
                         color: Colors.red.shade700,
                       ),
                     ),
                     Text(
                       ' / ${_maxDurationSeconds}s',
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
                         color: Theme.of(context).hintColor,
                       ),
@@ -432,7 +447,11 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                 color: Colors.red,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.stop_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -442,15 +461,17 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
 
   Widget _buildPlaybackState(BuildContext context) {
     final bool isPlaying = _state == RecordingState.playing;
-    final double progress = _playbackDuration.inMilliseconds > 0
-        ? _playbackPosition.inMilliseconds / _playbackDuration.inMilliseconds
-        : 0.0;
+    final double progress =
+        _playbackDuration.inMilliseconds > 0
+            ? _playbackPosition.inMilliseconds /
+                _playbackDuration.inMilliseconds
+            : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
         color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
         border: Border.all(
           color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
         ),
@@ -482,7 +503,9 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
                     value: progress.clamp(0.0, 1.0),
-                    backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.15),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).primaryColor,
                     ),
@@ -494,7 +517,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                   isPlaying
                       ? _formatDuration(_playbackPosition)
                       : _formatDuration(_recordingDuration),
-                  style: robotoRegular.copyWith(
+                  style: waddyRegular.copyWith(
                     fontSize: Dimensions.fontSizeExtraSmall,
                     color: Theme.of(context).primaryColor,
                   ),

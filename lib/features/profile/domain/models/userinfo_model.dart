@@ -13,6 +13,8 @@ class UserInfoModel {
   int? memberSinceDays;
   double? walletBalance;
   int? loyaltyPoint;
+  int? totalXp;
+  int? level;
   String? refCode;
   String? socialId;
   User? userInfo;
@@ -38,6 +40,8 @@ class UserInfoModel {
     this.memberSinceDays,
     this.walletBalance,
     this.loyaltyPoint,
+    this.totalXp,
+    this.level,
     this.refCode,
     this.socialId,
     this.userInfo,
@@ -64,17 +68,20 @@ class UserInfoModel {
     memberSinceDays = json['member_since_days'];
     walletBalance = json['wallet_balance'].toDouble();
     loyaltyPoint = json['loyalty_point'];
+    totalXp = int.tryParse('${json['total_xp'] ?? ''}');
+    level = int.tryParse('${json['level'] ?? ''}');
     refCode = json['ref_code'];
     socialId = json['social_id'];
-    userInfo = json['userinfo'] != null ? User.fromJson(json['userinfo']) : null;
+    userInfo =
+        json['userinfo'] != null ? User.fromJson(json['userinfo']) : null;
     isValidForDiscount = json['is_valid_for_discount'] ?? false;
     discountAmount = json['discount_amount']?.toDouble();
     discountAmountType = json['discount_amount_type'];
     validity = json['validity'];
-    if(json['selected_modules_for_interest'] != null) {
+    if (json['selected_modules_for_interest'] != null) {
       selectedModuleForInterest = [];
       json['selected_modules_for_interest'].forEach((value) {
-        if(value != null && value != 'null') {
+        if (value != null && value != 'null') {
           selectedModuleForInterest!.add(int.parse(value.toString()));
         }
       });
@@ -98,6 +105,8 @@ class UserInfoModel {
     data['member_since_days'] = memberSinceDays;
     data['wallet_balance'] = walletBalance;
     data['loyalty_point'] = loyaltyPoint;
+    data['total_xp'] = totalXp;
+    data['level'] = level;
     data['ref_code'] = refCode;
     if (userInfo != null) {
       data['user`info'] = userInfo!.toJson();

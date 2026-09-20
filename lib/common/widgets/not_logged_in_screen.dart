@@ -1,6 +1,4 @@
-import 'package:waddy_app/features/auth/widgets/auth_dialog_widget.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
-import 'package:waddy_app/helper/responsive_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -18,47 +16,54 @@ class NotLoggedInScreen extends StatelessWidget {
     return SingleChildScrollView(
       child: FooterView(
         child: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                Images.guest,
+                width: MediaQuery.of(context).size.height * 0.25,
+                height: MediaQuery.of(context).size.height * 0.25,
+              ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.01),
 
-            Image.asset(
-              Images.guest,
-              width: MediaQuery.of(context).size.height*0.25,
-              height: MediaQuery.of(context).size.height*0.25,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height*0.01),
+              Text(
+                'you_are_not_logged_in'.tr,
+                style: waddyBold.copyWith(
+                  fontSize: MediaQuery.of(context).size.height * 0.023,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.01),
 
-            Text(
-              'you_are_not_logged_in'.tr,
-              style: robotoBold.copyWith(fontSize: MediaQuery.of(context).size.height*0.023),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height*0.01),
+              Text(
+                'please_login_to_continue'.tr,
+                style: waddyRegular.copyWith(
+                  fontSize: MediaQuery.of(context).size.height * 0.0175,
+                  color: Theme.of(context).disabledColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.04),
 
-            Text(
-              'please_login_to_continue'.tr,
-              style: robotoRegular.copyWith(fontSize: MediaQuery.of(context).size.height*0.0175, color: Theme.of(context).disabledColor),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: MediaQuery.of(context).size.height*0.04),
-
-            SizedBox(
-              width: 200,
-              child: CustomButton(buttonText: 'login'.tr, height: 40, onPressed: () async {
-
-                if(!ResponsiveHelper.isDesktop(context)) {
-                  await Get.toNamed(RouteHelper.getSignInRoute(Get.currentRoute));
-                }else{
-                  Get.dialog(const Center(child: AuthDialogWidget(exitFromApp: false, backFromThis: true)),barrierDismissible: false).then((value) => callBack(true));
-                }
-                if(Get.find<OrderController>().showBottomSheet) {
-                  Get.find<OrderController>().showRunningOrders();
-                }
-                callBack(true);
-
-              }),
-            ),
-
-          ]),
+              SizedBox(
+                width: 200,
+                child: CustomButton(
+                  buttonText: 'login'.tr,
+                  height: 40,
+                  onPressed: () async {
+                    await Get.toNamed(
+                      RouteHelper.getSignInRoute(Get.currentRoute),
+                    );
+                    if (Get.find<OrderController>().showBottomSheet) {
+                      Get.find<OrderController>().showRunningOrders();
+                    }
+                    callBack(true);
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

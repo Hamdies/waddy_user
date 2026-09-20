@@ -6,7 +6,7 @@ import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
 import 'package:waddy_app/features/auth/domain/reposotories/auth_repository_interface.dart';
 import 'package:waddy_app/features/auth/domain/services/auth_service_interface.dart';
 
-class AuthService implements AuthServiceInterface{
+class AuthService implements AuthServiceInterface {
   final AuthRepositoryInterface authRepositoryInterface;
   AuthService({required this.authRepositoryInterface});
 
@@ -18,42 +18,98 @@ class AuthService implements AuthServiceInterface{
   @override
   Future<ResponseModel> registration(SignUpBodyModel signUpBody) async {
     Response response = await authRepositoryInterface.registration(signUpBody);
-    if(response.statusCode == 200){
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
+    if (response.statusCode == 200) {
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
       await _updateHeaderFunctionality(authResponse, alreadyInApp: false);
-      return ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      return ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
 
   @override
-  Future<ResponseModel> login({required String emailOrPhone, required String password, required String loginType, required String fieldType, bool alreadyInApp = false}) async {
-    Response response = await authRepositoryInterface.login(emailOrPhone: emailOrPhone, password: password, loginType: loginType, fieldType: fieldType);
+  Future<ResponseModel> login({
+    required String emailOrPhone,
+    required String password,
+    required String loginType,
+    required String fieldType,
+    bool alreadyInApp = false,
+  }) async {
+    Response response = await authRepositoryInterface.login(
+      emailOrPhone: emailOrPhone,
+      password: password,
+      loginType: loginType,
+      fieldType: fieldType,
+    );
     if (response.statusCode == 200) {
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      return ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
+      await _updateHeaderFunctionality(
+        authResponse,
+        alreadyInApp: alreadyInApp,
+      );
+      return ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
 
-  Future<void> _updateHeaderFunctionality(AuthResponseModel authResponse, {bool alreadyInApp = false}) async {
-    if(authResponse.isEmailVerified! && authResponse.isPhoneVerified! && authResponse.isPersonalInfo! && authResponse.token != null && authResponse.isExistUser == null) {
-      authRepositoryInterface.saveUserToken(authResponse.token??'', alreadyInApp: alreadyInApp);
+  Future<void> _updateHeaderFunctionality(
+    AuthResponseModel authResponse, {
+    bool alreadyInApp = false,
+  }) async {
+    if (authResponse.isEmailVerified! &&
+        authResponse.isPhoneVerified! &&
+        authResponse.isPersonalInfo! &&
+        authResponse.token != null &&
+        authResponse.isExistUser == null) {
+      authRepositoryInterface.saveUserToken(
+        authResponse.token ?? '',
+        alreadyInApp: alreadyInApp,
+      );
       await authRepositoryInterface.updateToken();
       await authRepositoryInterface.clearSharedPrefGuestId();
     }
   }
 
   @override
-  Future<ResponseModel> otpLogin({required String phone, required String otp, required String loginType, required String verified, bool alreadyInApp = false}) async {
-    Response response = await authRepositoryInterface.otpLogin(phone: phone, otp: otp, loginType: loginType, verified: verified);
+  Future<ResponseModel> otpLogin({
+    required String phone,
+    required String otp,
+    required String loginType,
+    required String verified,
+    bool alreadyInApp = false,
+  }) async {
+    Response response = await authRepositoryInterface.otpLogin(
+      phone: phone,
+      otp: otp,
+      loginType: loginType,
+      verified: verified,
+    );
     if (response.statusCode == 200) {
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      return ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
+      await _updateHeaderFunctionality(
+        authResponse,
+        alreadyInApp: alreadyInApp,
+      );
+      return ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -65,24 +121,57 @@ class AuthService implements AuthServiceInterface{
   }
 
   @override
-  Future<ResponseModel> loginWithSocialMedia(SocialLogInBody socialLogInModel, {bool isCustomerVerificationOn = false}) async {
-    Response response = await authRepositoryInterface.loginWithSocialMedia(socialLogInModel);
+  Future<ResponseModel> loginWithSocialMedia(
+    SocialLogInBody socialLogInModel, {
+    bool isCustomerVerificationOn = false,
+  }) async {
+    Response response = await authRepositoryInterface.loginWithSocialMedia(
+      socialLogInModel,
+    );
     if (response.statusCode == 200) {
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
       await _updateHeaderFunctionality(authResponse);
-      return ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      return ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
 
   @override
-  Future<ResponseModel> updatePersonalInfo({required String name, required String? phone, required String loginType, required String? email, required String? referCode, bool alreadyInApp = false}) async {
-    Response response = await authRepositoryInterface.updatePersonalInfo(name: name, phone: phone, email: email, loginType: loginType, referCode: referCode);
+  Future<ResponseModel> updatePersonalInfo({
+    required String name,
+    required String? phone,
+    required String loginType,
+    required String? email,
+    required String? referCode,
+    bool alreadyInApp = false,
+  }) async {
+    Response response = await authRepositoryInterface.updatePersonalInfo(
+      name: name,
+      phone: phone,
+      email: email,
+      loginType: loginType,
+      referCode: referCode,
+    );
     if (response.statusCode == 200) {
-      AuthResponseModel authResponse = AuthResponseModel.fromJson(response.body);
-      await _updateHeaderFunctionality(authResponse, alreadyInApp: alreadyInApp);
-      return ResponseModel(true, authResponse.token??'', authResponseModel: authResponse);
+      AuthResponseModel authResponse = AuthResponseModel.fromJson(
+        response.body,
+      );
+      await _updateHeaderFunctionality(
+        authResponse,
+        alreadyInApp: alreadyInApp,
+      );
+      return ResponseModel(
+        true,
+        authResponse.token ?? '',
+        authResponseModel: authResponse,
+      );
     } else {
       return ResponseModel(false, response.statusText);
     }
@@ -99,6 +188,21 @@ class AuthService implements AuthServiceInterface{
   }
 
   @override
+  Future<bool> setProfileIncomplete(bool value, {String? phone}) {
+    return authRepositoryInterface.setProfileIncomplete(value, phone: phone);
+  }
+
+  @override
+  bool isProfileIncomplete() {
+    return authRepositoryInterface.isProfileIncomplete();
+  }
+
+  @override
+  String? getPendingProfilePhone() {
+    return authRepositoryInterface.getPendingProfilePhone();
+  }
+
+  @override
   bool isGuestLoggedIn() {
     return authRepositoryInterface.isGuestLoggedIn();
   }
@@ -110,7 +214,9 @@ class AuthService implements AuthServiceInterface{
 
   @override
   Future<bool> clearSharedData({bool removeToken = true}) async {
-    return await authRepositoryInterface.clearSharedData(removeToken: removeToken);
+    return await authRepositoryInterface.clearSharedData(
+      removeToken: removeToken,
+    );
   }
 
   @override
@@ -119,8 +225,16 @@ class AuthService implements AuthServiceInterface{
   }
 
   @override
-  Future<void> saveUserNumberAndPassword(String number, String password, String countryCode) async {
-    await authRepositoryInterface.saveUserNumberAndPassword(number, password, countryCode);
+  Future<void> saveUserNumberAndPassword(
+    String number,
+    String password,
+    String countryCode,
+  ) async {
+    await authRepositoryInterface.saveUserNumberAndPassword(
+      number,
+      password,
+      countryCode,
+    );
   }
 
   @override
@@ -185,7 +299,7 @@ class AuthService implements AuthServiceInterface{
 
   @override
   Future<void> setNotificationActive(bool isActive) async {
-   await authRepositoryInterface.setNotificationActive(isActive);
+    await authRepositoryInterface.setNotificationActive(isActive);
   }
 
   @override
@@ -195,7 +309,9 @@ class AuthService implements AuthServiceInterface{
 
   @override
   Future<ResponseModel> toggleHidePhone({required bool hidePhone}) async {
-    Response response = await authRepositoryInterface.toggleHidePhone(hidePhone: hidePhone);
+    Response response = await authRepositoryInterface.toggleHidePhone(
+      hidePhone: hidePhone,
+    );
     if (response.statusCode == 200) {
       return ResponseModel(true, response.body['message'] ?? 'success');
     } else {

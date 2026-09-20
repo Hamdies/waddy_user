@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/util/dimensions.dart';
 
 class EtaChipWidget extends StatelessWidget {
   final OrderModel order;
@@ -13,10 +14,13 @@ class EtaChipWidget extends StatelessWidget {
     if (order.estimatedDelivery != null &&
         order.estimatedDelivery!.isNotEmpty) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).primaryColor.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
           border: Border.all(
             color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
           ),
@@ -32,7 +36,7 @@ class EtaChipWidget extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${'estimated_delivery'.tr}: ${order.estimatedDelivery}',
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: 12,
                 color: Theme.of(context).primaryColor,
               ),
@@ -43,7 +47,7 @@ class EtaChipWidget extends StatelessWidget {
                 null) ...[
               Text(
                 ' (${DateConverter.formatEstimatedDeliveryTime(order.estimatedDeliveryAt)})',
-                style: robotoMedium.copyWith(
+                style: waddyMedium.copyWith(
                   fontSize: 12,
                   color: Theme.of(context).primaryColor,
                 ),
@@ -56,10 +60,13 @@ class EtaChipWidget extends StatelessWidget {
         order.store!.deliveryTime != null &&
         order.store!.deliveryTime!.isNotEmpty) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.paddingSizeMedium,
+          vertical: Dimensions.paddingSizeSmall,
+        ),
         decoration: BoxDecoration(
           color: Colors.grey.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
           border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
         ),
         child: Row(
@@ -69,7 +76,7 @@ class EtaChipWidget extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               '${'estimated_delivery'.tr}: ${order.store!.deliveryTime}',
-              style: robotoMedium.copyWith(
+              style: waddyMedium.copyWith(
                 fontSize: 12,
                 color: Colors.grey.shade600,
               ),

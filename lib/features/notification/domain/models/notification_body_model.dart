@@ -1,4 +1,4 @@
-enum NotificationType{
+enum NotificationType {
   message,
   order,
   general,
@@ -16,6 +16,10 @@ enum NotificationType{
   //ignore: constant_identifier_names
   loyalty_point,
   trip,
+
+  /// Won (or about to lose) a WADDI Spots voter prize — deep-links to My Prizes
+  //ignore: constant_identifier_names
+  spots_prize,
 }
 
 class NotificationBodyModel {
@@ -30,7 +34,6 @@ class NotificationBodyModel {
   String? image;
   String? name;
   String? receiverType;
-
 
   NotificationBodyModel({
     this.notificationType,
@@ -94,5 +97,4 @@ class NotificationBodyModel {
 
     return enumMap[enumString] ?? NotificationType.general;
   }
-
 }

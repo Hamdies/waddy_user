@@ -13,6 +13,7 @@ import 'package:waddy_app/features/auth/domain/models/social_log_in_body.dart';
 import 'package:waddy_app/features/auth/domain/reposotories/auth_repository_interface.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/module_helper.dart';
+import 'package:waddy_app/helper/auth_token_store.dart';
 import 'package:waddy_app/helper/secure_storage_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
@@ -167,14 +168,18 @@ class AuthRepository implements AuthRepositoryInterface {
         null,
       );
     }
-    return await sharedPreferences.setString(AppConstants.token, token);
+    // Encrypted storage, not SharedPreferences: this is a bearer credential.
+    // AuthTokenStore keeps a synchronous in-memory copy so getUserToken() and
+    // the ApiClient header can stay synchronous.
+    await AuthTokenStore.save(token);
+    return true;
   }
 
   @override
   Future<Response> updateToken({String notificationDeviceToken = ''}) async {
     String? deviceToken;
     if (notificationDeviceToken.isEmpty) {
-      if (GetPlatform.isIOS && !GetPlatform.isWeb) {
+      if (GetPlatform.isIOS) {
         FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
           alert: true,
           badge: true,
@@ -196,15 +201,13 @@ class AuthRepository implements AuthRepositoryInterface {
       } else {
         deviceToken = await saveDeviceToken();
       }
-      if (!GetPlatform.isWeb) {
-        FirebaseMessaging.instance.subscribeToTopic(AppConstants.topic);
-        // Only subscribe to zone topic if user has an address
-        if (AddressHelper.getUserAddressFromSharedPref() != null &&
-            AddressHelper.getUserAddressFromSharedPref()!.zoneId != null) {
-          FirebaseMessaging.instance.subscribeToTopic(
-            'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
-          );
-        }
+      FirebaseMessaging.instance.subscribeToTopic(AppConstants.topic);
+      // Only subscribe to zone topic if user has an address
+      if (AddressHelper.getUserAddressFromSharedPref() != null &&
+          AddressHelper.getUserAddressFromSharedPref()!.zoneId != null) {
+        FirebaseMessaging.instance.subscribeToTopic(
+          'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
+        );
       }
     }
     return await apiClient.postData(AppConstants.tokenUri, {
@@ -219,29 +222,27 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<String?> saveDeviceToken() async {
     String? deviceToken = '@';
-    if (!GetPlatform.isWeb) {
-      try {
-        // On iOS, we must wait for APNs token before getting FCM token
-        if (GetPlatform.isIOS) {
-          String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-          if (apnsToken == null) {
-            // Wait and retry - APNs token may not be immediately available
-            await Future.delayed(const Duration(seconds: 2));
-            apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-          }
-          if (apnsToken == null) {
-            if (kDebugMode) {
-              print(
-                'Warning: APNs token not available - push notifications may not work',
-              );
-            }
+    try {
+      // On iOS, we must wait for APNs token before getting FCM token
+      if (GetPlatform.isIOS) {
+        String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        if (apnsToken == null) {
+          // Wait and retry - APNs token may not be immediately available
+          await Future.delayed(const Duration(seconds: 2));
+          apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        }
+        if (apnsToken == null) {
+          if (kDebugMode) {
+            print(
+              'Warning: APNs token not available - push notifications may not work',
+            );
           }
         }
-        deviceToken = (await FirebaseMessaging.instance.getToken())!;
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error getting device token: $e');
-        }
+      }
+      deviceToken = (await FirebaseMessaging.instance.getToken())!;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting device token: $e');
       }
     }
     if (kDebugMode && deviceToken != null) {
@@ -252,7 +253,35 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   bool isLoggedIn() {
-    return sharedPreferences.containsKey(AppConstants.token);
+    return AuthTokenStore.hasToken;
+  }
+
+  @override
+  Future<bool> setProfileIncomplete(bool value, {String? phone}) async {
+    if (value) {
+      if (phone != null && phone.isNotEmpty) {
+        await sharedPreferences.setString(
+          AppConstants.pendingProfilePhone,
+          phone,
+        );
+      }
+      return await sharedPreferences.setBool(
+        AppConstants.profileIncomplete,
+        true,
+      );
+    }
+    await sharedPreferences.remove(AppConstants.pendingProfilePhone);
+    return await sharedPreferences.remove(AppConstants.profileIncomplete);
+  }
+
+  @override
+  bool isProfileIncomplete() {
+    return sharedPreferences.getBool(AppConstants.profileIncomplete) ?? false;
+  }
+
+  @override
+  String? getPendingProfilePhone() {
+    return sharedPreferences.getString(AppConstants.pendingProfilePhone);
   }
 
   @override
@@ -272,7 +301,10 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   bool isGuestLoggedIn() {
-    return sharedPreferences.containsKey(AppConstants.guestId);
+    // The guest_id deliberately survives login (it's sent with the login
+    // request so the backend can link guest orders), so "is a guest" must
+    // also mean "not actually logged in".
+    return sharedPreferences.containsKey(AppConstants.guestId) && !isLoggedIn();
   }
 
   @override
@@ -283,24 +315,23 @@ class AuthRepository implements AuthRepositoryInterface {
 
   @override
   Future<bool> clearSharedData({bool removeToken = true}) async {
-    if (!GetPlatform.isWeb) {
-      FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-      if (AddressHelper.getUserAddressFromSharedPref() != null) {
-        FirebaseMessaging.instance.unsubscribeFromTopic(
-          'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
-        );
-      }
-      if (removeToken) {
-        apiClient.postData(AppConstants.tokenUri, {
-          "_method": "put",
-          "cm_firebase_token": '@',
-        }, handleError: false);
-      }
+    FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
+    if (AddressHelper.getUserAddressFromSharedPref() != null) {
+      FirebaseMessaging.instance.unsubscribeFromTopic(
+        'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
+      );
     }
-    sharedPreferences.remove(AppConstants.token);
+    if (removeToken) {
+      apiClient.postData(AppConstants.tokenUri, {
+        "_method": "put",
+        "cm_firebase_token": '@',
+      }, handleError: false);
+    }
+    await AuthTokenStore.clear(sharedPreferences);
     sharedPreferences.remove(AppConstants.guestId);
+    sharedPreferences.remove(AppConstants.profileIncomplete);
+    sharedPreferences.remove(AppConstants.pendingProfilePhone);
     sharedPreferences.setStringList(AppConstants.cartList, []);
-    await SecureStorageHelper.deleteToken();
     apiClient.token = null;
     if (sharedPreferences.getString(AppConstants.userAddress) != null) {
       AddressModel? addressModel = AddressModel.fromJson(
@@ -364,14 +395,16 @@ class AuthRepository implements AuthRepositoryInterface {
   @override
   Future<bool> clearUserNumberAndPassword() async {
     await SecureStorageHelper.deletePassword();
-    await sharedPreferences.remove(AppConstants.userPassword); // Clean up legacy
+    await sharedPreferences.remove(
+      AppConstants.userPassword,
+    ); // Clean up legacy
     await sharedPreferences.remove(AppConstants.userCountryCode);
     return await sharedPreferences.remove(AppConstants.userNumber);
   }
 
   @override
   String getUserToken() {
-    return sharedPreferences.getString(AppConstants.token) ?? "";
+    return AuthTokenStore.token;
   }
 
   @override
@@ -414,14 +447,12 @@ class AuthRepository implements AuthRepositoryInterface {
     if (isActive) {
       await updateToken();
     } else {
-      if (!GetPlatform.isWeb) {
-        await updateToken(notificationDeviceToken: '@');
-        FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
-        if (isLoggedIn()) {
-          FirebaseMessaging.instance.unsubscribeFromTopic(
-            'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
-          );
-        }
+      await updateToken(notificationDeviceToken: '@');
+      FirebaseMessaging.instance.unsubscribeFromTopic(AppConstants.topic);
+      if (isLoggedIn()) {
+        FirebaseMessaging.instance.unsubscribeFromTopic(
+          'zone_${AddressHelper.getUserAddressFromSharedPref()!.zoneId}_customer',
+        );
       }
     }
     sharedPreferences.setBool(AppConstants.notification, isActive);

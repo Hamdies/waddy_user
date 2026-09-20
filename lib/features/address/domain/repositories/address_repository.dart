@@ -17,14 +17,23 @@ class AddressRepository implements AddressRepositoryInterface<AddressModel> {
   }
 
   Future<ResponseModel> _addAddress(AddressModel addressModel) async {
-    Response response = await apiClient.postData(AppConstants.addAddressUri, addressModel.toJson(), handleError: false);
+    Response response = await apiClient.postData(
+      AppConstants.addAddressUri,
+      addressModel.toJson(),
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       String? message = response.body["message"];
       List<int> zoneIds = [];
       response.body['zone_ids'].forEach((z) => zoneIds.add(z));
       return ResponseModel(true, message, zoneIds: zoneIds);
     } else {
-      return ResponseModel(false, response.statusText == 'Out of coverage!' ? 'service_not_available_in_this_area'.tr : response.statusText);
+      return ResponseModel(
+        false,
+        response.statusText == 'Out of coverage!'
+            ? 'service_not_available_in_this_area'.tr
+            : response.statusText,
+      );
     }
   }
 
@@ -34,7 +43,11 @@ class AddressRepository implements AddressRepositoryInterface<AddressModel> {
   }
 
   Future<ResponseModel> _removeAddressByID(int? id) async {
-    Response response = await apiClient.postData('${AppConstants.removeAddressUri}$id', {"_method": "delete"}, handleError: false);
+    Response response = await apiClient.postData(
+      '${AppConstants.removeAddressUri}$id',
+      {"_method": "delete"},
+      handleError: false,
+    );
     if (response.statusCode == 200) {
       return ResponseModel(true, response.body['message']);
     } else {
@@ -69,13 +82,18 @@ class AddressRepository implements AddressRepositoryInterface<AddressModel> {
     return await _updateAddress(body, id);
   }
 
-  Future<ResponseModel> _updateAddress(Map<String, dynamic> addressBody, int? addressId) async {
-    Response response = await apiClient.putData('${AppConstants.updateAddressUri}$addressId', addressBody);
+  Future<ResponseModel> _updateAddress(
+    Map<String, dynamic> addressBody,
+    int? addressId,
+  ) async {
+    Response response = await apiClient.putData(
+      '${AppConstants.updateAddressUri}$addressId',
+      addressBody,
+    );
     if (response.statusCode == 200) {
       return ResponseModel(true, response.body["message"]);
     } else {
       return ResponseModel(false, response.statusText);
     }
   }
-
 }

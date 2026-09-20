@@ -9,10 +9,7 @@ import 'package:waddy_app/util/styles.dart';
 class XpPreviewWidget extends StatefulWidget {
   final double orderAmount;
 
-  const XpPreviewWidget({
-    super.key,
-    required this.orderAmount,
-  });
+  const XpPreviewWidget({super.key, required this.orderAmount});
 
   @override
   State<XpPreviewWidget> createState() => _XpPreviewWidgetState();
@@ -22,7 +19,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  
+
   int _displayedXp = 0;
   int _targetXp = 0;
   bool _isAnimating = false;
@@ -37,10 +34,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
     );
 
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutBack,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
 
     // Fetch XP config if not already loaded
@@ -50,7 +44,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
   void _fetchXpConfig() {
     if (_configFetched) return;
     _configFetched = true;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final xpController = Get.find<XpController>();
       await xpController.getXpConfig();
@@ -78,7 +72,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
     final xpController = Get.find<XpController>();
     final splashController = Get.find<SplashController>();
     final moduleType = splashController.module?.moduleType;
-    
+
     final newXp = xpController.calculateEstimatedXp(
       widget.orderAmount,
       moduleType,
@@ -136,17 +130,18 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
     }
 
     return GetBuilder<XpController>(
+      id: XpController.idConfig,
       builder: (xpController) {
         // Show nothing while loading
         if (xpController.isXpConfigLoading) {
           return const SizedBox.shrink();
         }
-        
+
         // If config failed to load or leveling disabled, hide
         if (xpController.xpConfig == null) {
           return const SizedBox.shrink();
         }
-        
+
         if (!xpController.xpConfig!.levelingEnabled) {
           return const SizedBox.shrink();
         }
@@ -192,10 +187,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
                 ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFF134E4A),
-                      const Color(0xFF0D7377),
-                    ],
+                    colors: [const Color(0xFF134E4A), const Color(0xFF0D7377)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -218,7 +210,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
                     // XP text
                     Text(
                       '+$displayXp XP',
-                      style: robotoBold.copyWith(
+                      style: waddyBold.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                         color: const Color(0xFF1EF2A0),
                         letterSpacing: 1.2,
@@ -228,7 +220,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
                     // Info text
                     Text(
                       'earn_with_order'.tr,
-                      style: robotoRegular.copyWith(
+                      style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeSmall,
                         color: Colors.white.withValues(alpha: 0.9),
                       ),
@@ -257,11 +249,7 @@ class _XpPreviewWidgetState extends State<XpPreviewWidget>
           ),
         ),
         // Star icon
-        const Icon(
-          Icons.auto_awesome,
-          color: Color(0xFF1EF2A0),
-          size: 20,
-        ),
+        const Icon(Icons.auto_awesome, color: Color(0xFF1EF2A0), size: 20),
       ],
     );
   }

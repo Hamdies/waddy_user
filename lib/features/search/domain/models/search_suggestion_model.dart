@@ -38,12 +38,7 @@ class Items {
   String? unitType;
   String? imageFullUrl;
 
-  Items({this.id,
-        this.name,
-        this.image,
-        this.unitType,
-        this.imageFullUrl,
-      });
+  Items({this.id, this.name, this.image, this.unitType, this.imageFullUrl});
 
   Items.fromJson(Map<String, dynamic> json) {
     id = json['id'];
@@ -71,12 +66,13 @@ class Stores {
   String? gstCode;
   String? logoFullUrl;
 
-  Stores({this.id,
-        this.name,
-        this.logo,
-        this.gstStatus,
-        this.gstCode,
-        this.logoFullUrl,
+  Stores({
+    this.id,
+    this.name,
+    this.logo,
+    this.gstStatus,
+    this.gstCode,
+    this.logoFullUrl,
   });
 
   Stores.fromJson(Map<String, dynamic> json) {
