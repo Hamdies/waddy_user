@@ -22,8 +22,7 @@ class CartRepository implements CartRepositoryInterface<OnlineCart> {
   /// server cart works exactly like a user's. Empty when logged in (the user's
   /// Bearer token identifies them) or when no guest session exists.
   String get _guestId {
-    final bool loggedIn =
-        AuthTokenStore.hasToken;
+    final bool loggedIn = AuthTokenStore.hasToken;
     if (loggedIn) return '';
     return sharedPreferences.getString(AppConstants.guestId) ?? '';
   }

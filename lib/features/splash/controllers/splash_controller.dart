@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'package:waddy_app/helper/crash_context_helper.dart';
 import 'package:waddy_app/util/swallow.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/helper/cache_ttl_helper.dart';
@@ -14,7 +16,7 @@ import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/features/splash/domain/models/landing_model.dart';
@@ -346,6 +348,11 @@ class SplashController extends GetxController implements GetxService {
   /// the new module's screens rendered the old module's catalogue. The ways in
   /// are [enterModule] and [activateModuleFor]; the way out is [leaveModule].
   Future<void> _setModule(ModuleModel? module, {bool notify = true}) async {
+    // Food and grocery share most of the code and diverge in exactly the
+    // places that break. A crash report that does not say which was active
+    // costs a reproduction attempt.
+    unawaited(CrashContext.setModule(module?.moduleType, module?.id));
+
     // Remember what they are leaving. Backing out of a module home clears
     // `_module` so the module picker can render, which used to make every
     // return look like a brand-new switch — see [switchModule].
@@ -392,7 +399,7 @@ class SplashController extends GetxController implements GetxService {
     if (AuthHelper.isLoggedIn() || AuthHelper.isGuestLoggedIn()) {
       // Guests have a server-side cart too, keyed by guest_id.
       Get.find<CartController>().getCartDataOnline();
-      Get.find<StoreController>().clearModuleStoreFilters();
+      Get.find<StoreListController>().clearModuleStoreFilters();
     }
     if (AuthHelper.isLoggedIn()) {
       Get.find<HomeController>().getCashBackOfferList();
@@ -596,12 +603,13 @@ class SplashController extends GetxController implements GetxService {
     if (inFlight != null) return inFlight;
 
     late final Future<void> fetch;
-    fetch = _getModules(headers: headers, dataSource: dataSource)
-        .whenComplete(() {
-      if (identical(_modulesFetchInFlight, fetch)) {
-        _modulesFetchInFlight = null;
-      }
-    });
+    fetch = _getModules(headers: headers, dataSource: dataSource).whenComplete(
+      () {
+        if (identical(_modulesFetchInFlight, fetch)) {
+          _modulesFetchInFlight = null;
+        }
+      },
+    );
     _modulesFetchInFlight = fetch;
     return fetch;
   }
@@ -626,7 +634,11 @@ class SplashController extends GetxController implements GetxService {
       // has to fall through to the network or the module grid shimmers
       // forever with a stamp saying everything is fine.
       if (moduleList == null) {
-        return getModules(headers: headers, dataSource: DataSourceEnum.client);
+        // Straight to `_getModules`, NOT back through the coalescing wrapper:
+        // its in-flight future is *this* call, so going through it would
+        // return this same future and await it — a fetch waiting on itself,
+        // leaving the module grid shimmering with no request on the wire.
+        return _getModules(headers: headers, dataSource: DataSourceEnum.client);
       }
       _prepareModuleList(moduleList);
     } else {
@@ -668,6 +680,10 @@ class SplashController extends GetxController implements GetxService {
         userInfoModel.selectedModuleForInterest == null) {
       return;
     }
+    // Pets asks about the customer's pet instead ("Meet your pet", opened by
+    // the hub), which is the same question in the module's own words.
+    // Showing both stacked two first-visit screens on top of each other.
+    if (module.type == ModuleType.pets) return;
 
     if (!userInfoModel.selectedModuleForInterest!.contains(module.id)) {
       await Get.find<CategoryController>()
@@ -747,7 +763,7 @@ class SplashController extends GetxController implements GetxService {
     if (AuthHelper.isLoggedIn()) {
       Get.find<AddressController>().getAddressList();
     }
-    Get.find<StoreController>().getFeaturedStoreList();
+    Get.find<StoreListController>().getFeaturedStoreList();
     Get.find<CampaignController>().itemAndBasicCampaignNull();
   }
 

@@ -1,6 +1,7 @@
 import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/banner/domain/models/banner_model.dart';
+import 'package:waddy_app/features/item/domain/models/basic_campaign_model.dart';
 import 'package:waddy_app/features/banner/domain/models/others_banner_model.dart';
 import 'package:waddy_app/features/banner/domain/models/promotional_banner_model.dart';
 import 'package:get/get.dart';
@@ -48,20 +49,26 @@ class BannerController extends GetxController implements GetxService {
 
       List<int?> moduleIdList = bannerServiceInterface.moduleIdList();
 
-      for (var campaign in bannerModel.campaigns!) {
+      // Same `?? const []` guard as _prepareBanner: the backend's error path
+      // returns a bare `[]`, which parses into a model with both fields null.
+      final List<BasicCampaignModel> campaigns =
+          bannerModel.campaigns ?? const [];
+      final List<Banner> banners = bannerModel.banners ?? const [];
+
+      for (var campaign in campaigns) {
         if (_featuredBannerList!.contains(campaign.imageFullUrl)) {
           _featuredBannerList!.add(
-            '${campaign.imageFullUrl}${bannerModel.campaigns!.indexOf(campaign)}',
+            '${campaign.imageFullUrl}${campaigns.indexOf(campaign)}',
           );
         } else {
           _featuredBannerList!.add(campaign.imageFullUrl);
         }
         _featuredBannerDataList!.add(campaign);
       }
-      for (var banner in bannerModel.banners!) {
+      for (var banner in banners) {
         if (_featuredBannerList!.contains(banner.imageFullUrl)) {
           _featuredBannerList!.add(
-            '${banner.imageFullUrl}${bannerModel.banners!.indexOf(banner)}',
+            '${banner.imageFullUrl}${banners.indexOf(banner)}',
           );
         } else {
           _featuredBannerList!.add(banner.imageFullUrl);
@@ -82,8 +89,15 @@ class BannerController extends GetxController implements GetxService {
     update();
   }
 
+  /// Drops all three banner lists together.
+  ///
+  /// They are built index-for-index in [_prepareBanner], so nulling only the
+  /// image list left the data and variant lists holding the previous module's
+  /// entries — and a refetch that then failed would leave them that way.
   void clearBanner() {
     _bannerImageList = null;
+    _bannerDataList = null;
+    _bannerVariantsList = null;
   }
 
   Future<void> getBannerList(
@@ -100,9 +114,18 @@ class BannerController extends GetxController implements GetxService {
         bannerModel = await bannerServiceInterface.getBannerList(
           source: DataSourceEnum.local,
         );
-        await _prepareBanner(bannerModel);
+        // A cache miss is not an answer, so it must not paint one. Publishing
+        // the empty state here would flash "no banner" on every cold start
+        // before the network reply lands; staying null keeps the shimmer up
+        // and lets the client call below resolve it.
+        if (bannerModel != null) {
+          _prepareBanner(bannerModel);
+        }
 
-        getBannerList(
+        // Awaited: this is the call that actually resolves the state on a
+        // cold start. Fire-and-forget meant a failure here left the lists
+        // null and the shimmer running for the life of the screen.
+        await getBannerList(
           false,
           dataSource: DataSourceEnum.client,
           fromRecall: true,
@@ -116,15 +139,32 @@ class BannerController extends GetxController implements GetxService {
     }
   }
 
-  _prepareBanner(BannerModel? bannerModel) async {
+  /// Resolves the banner lists to a rendered state, always.
+  ///
+  /// BannerView reads null as "still loading" and an empty list as "no
+  /// banner", so leaving the lists null on a failed or empty fetch shimmers
+  /// forever. Every path through here therefore ends with non-null lists, so
+  /// a failed or empty fetch collapses the section instead of loading forever.
+  ///
+  /// The campaign and banner collections are read with `?? const []`: the
+  /// backend's own error path returns a bare `[]` with status 200, which
+  /// parses into a model whose fields are both null, and the bangs that used
+  /// to be here threw inside the fetch — swallowed by the home screen's
+  /// `_safe`, leaving the lists null and the shimmer running.
+  void _prepareBanner(BannerModel? bannerModel) {
+    _bannerImageList = [];
+    _bannerDataList = [];
+    _bannerVariantsList = [];
+
     if (bannerModel != null) {
-      _bannerImageList = [];
-      _bannerDataList = [];
-      _bannerVariantsList = [];
-      for (var campaign in bannerModel.campaigns!) {
+      final List<BasicCampaignModel> campaigns =
+          bannerModel.campaigns ?? const [];
+      final List<Banner> banners = bannerModel.banners ?? const [];
+
+      for (var campaign in campaigns) {
         if (_bannerImageList!.contains(campaign.imageFullUrl)) {
           _bannerImageList!.add(
-            '${campaign.imageFullUrl}${bannerModel.campaigns!.indexOf(campaign)}',
+            '${campaign.imageFullUrl}${campaigns.indexOf(campaign)}',
           );
         } else {
           _bannerImageList!.add(campaign.imageFullUrl);
@@ -132,10 +172,10 @@ class BannerController extends GetxController implements GetxService {
         _bannerVariantsList!.add(campaign.imageVariants);
         _bannerDataList!.add(campaign);
       }
-      for (var banner in bannerModel.banners!) {
+      for (var banner in banners) {
         if (_bannerImageList!.contains(banner.imageFullUrl)) {
           _bannerImageList!.add(
-            '${banner.imageFullUrl}${bannerModel.banners!.indexOf(banner)}',
+            '${banner.imageFullUrl}${banners.indexOf(banner)}',
           );
         } else {
           _bannerImageList!.add(banner.imageFullUrl);

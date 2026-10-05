@@ -20,9 +20,15 @@ class CuisineRepository implements CuisineRepositoryInterface {
   Future<List<CuisineModel>?> _getCuisineList(DataSourceEnum source) async {
     List<CuisineModel>? cuisineList;
 
-    // Cuisines are global, not per-module, so the cache id carries no module
-    // suffix the way the category one does.
-    const String cacheId = AppConstants.cuisineUri;
+    // Module-scoped since 2026-09-28: food gets cuisines, grocery gets main
+    // categories (Supermarkets, Roasteries, …). The cache id carries the
+    // module the request is actually sent with, or one module's list would be
+    // served from cache on the other's home.
+    final String? moduleId = apiClient.getHeader()[AppConstants.moduleId];
+    final String cacheId =
+        moduleId == null
+            ? AppConstants.cuisineUri
+            : '${AppConstants.cuisineUri}-$moduleId';
 
     switch (source) {
       case DataSourceEnum.client:

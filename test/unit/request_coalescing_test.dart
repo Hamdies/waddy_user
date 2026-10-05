@@ -53,9 +53,9 @@ void main() {
 
   test('getFeaturedStoreList coalesces', () {
     expectCoalesced(
-      read('lib/features/store/controllers/store_controller.dart'),
+      read('lib/features/store/controllers/store_list_controller.dart'),
       '_featuredFetchInFlight',
-      'StoreController.getFeaturedStoreList',
+      'StoreListController.getFeaturedStoreList',
     );
   });
 

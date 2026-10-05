@@ -1,30 +1,29 @@
-import 'dart:math' as math;
 import 'package:waddy_app/util/swallow.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/level_up_event_model.dart';
 import 'package:waddy_app/features/xp/widgets/level_up_rive_burst.dart';
+import 'package:waddy_app/features/xp/widgets/xp_tokens.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_kind.dart';
+import 'package:waddy_app/features/xp/widgets/prize_visual.dart';
 
-/// The full-screen "LEVEL UP!" celebration — a native port of Level Up.dc.html.
+/// The full-screen "LEVEL UP!" celebration.
 ///
-/// Deep-teal foil canvas, falling confetti, the level's medal, tier + level
-/// chips, momentum stats, and the reward unlocked this level. The "LEVEL UP!"
-/// headline and the XP readout come from the Rive artboard behind it (see
-/// [LevelUpRiveBurst]), bound to the user's real numbers rather than drawn
-/// twice. Presented via [LevelUpScreen.showQueue], which walks the
-/// controller's [XpController.pendingLevelUps] one at a time and acknowledges
-/// them on the server as each is dismissed.
+/// The "LEVEL UP!" headline and the XP readout come from the Rive artboard
+/// behind it (see [LevelUpRiveBurst]), bound to the user's real numbers. Over
+/// it, in Flutter text so it localizes without a `.riv` change: the name of
+/// the level reached and the reward it unlocked (X-05). Presented via
+/// [LevelUpScreen.showQueue], which walks the controller's
+/// [XpController.pendingLevelUps] one at a time and acknowledges them on the
+/// server once all are dismissed.
 class LevelUpScreen extends StatefulWidget {
   final LevelUpEvent event;
-  final int? rank;
 
-  const LevelUpScreen({super.key, required this.event, this.rank});
+  const LevelUpScreen({super.key, required this.event});
 
   /// Drain every queued level-up, showing one celebration after another, then
   /// acknowledge them all so they don't replay. Safe to call when the queue is
@@ -33,15 +32,9 @@ class LevelUpScreen extends StatefulWidget {
     final events = xp.takePendingLevelUps();
     if (events.isEmpty) return;
 
-    // The user's Maadi rank for the middle stat — reuse the leaderboard the
-    // screen already loads; null hides the stat gracefully.
-    final rank =
-        xp.leaderboardModel?.currentUser?.rank ??
-        xp.leaderboardModel?.entries.firstWhereOrNull((e) => e.isMe)?.rank;
-
     for (final event in events) {
       await Get.dialog(
-        LevelUpScreen(event: event, rank: rank),
+        LevelUpScreen(event: event),
         barrierDismissible: false,
         barrierColor: Colors.black.withValues(alpha: 0.6),
         useSafeArea: false,
@@ -61,19 +54,17 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final event = widget.event;
-
-    final streak = _streakDays();
+    final levelName = event.levelName;
+    final rewardName = event.rewardName;
 
     return Material(
-      color: _Lu.foil,
+      color: XpTokens.foil,
       child: Stack(
         children: [
           // The Rive celebration sits furthest back. It owns the "Level up!"
           // headline and the Current XP / Next level readout — bound to the
-          // user's real numbers — so this screen deliberately does not draw
-          // its own copies of those; the confetti rains over the top.
+          // user's real numbers — so this screen does not draw its own copies.
           Positioned.fill(
             child: LevelUpRiveBurst(
               key: _burstKey,
@@ -90,13 +81,31 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Spacer(),
-                  // if (event.rewardName != null) ...[
-                  //   _FadeUp(
-                  //     delayMs: 650,
-                  //     child: _RewardUnlockedChip(rewardName: event.rewardName!),
-                  //   ),
-                  //   const SizedBox(height: Dimensions.paddingSizeDefault),
-                  // ],
+                  // The artboard says "level 3"; this says what level 3 *is*.
+                  if (levelName != null)
+                    _FadeUp(
+                      delayMs: 450,
+                      child: Text(
+                        levelName,
+                        textAlign: TextAlign.center,
+                        style: waddyBlack.copyWith(
+                          fontSize: 26,
+                          color: Colors.white,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  if (rewardName != null) ...[
+                    const SizedBox(height: Dimensions.paddingSizeDefault),
+                    _FadeUp(
+                      delayMs: 650,
+                      child: _RewardUnlockedChip(
+                        rewardName: rewardName,
+                        rewardType: event.rewardType,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: Dimensions.paddingSizeLarge),
                   _KeepGoingButton(onTap: () => Get.back()),
                 ],
               ),
@@ -113,62 +122,41 @@ class _LevelUpScreenState extends State<LevelUpScreen> {
   /// the animation never advertises a target of 0 XP.
   int _nextLevelXp() {
     try {
-      final level = Get.find<XpController>().currentLevel;
-      final next = level?.nextLevel?.xpRequired;
+      final xp = Get.find<XpController>();
+      // With several level-ups queued, the controller's "next level" is the
+      // one after the *last*; read the one after this event's level instead.
+      final next =
+          xp.levelsListModel?.levels
+              .where((l) => l.level == widget.event.level + 1)
+              .firstOrNull
+              ?.xpRequired;
       if (next != null && next > 0) return next;
+      final fallback = xp.currentLevel?.nextLevel?.xpRequired;
+      if (fallback != null && fallback > 0) return fallback;
     } catch (e, s) {
       swallow('read next-level XP target', e, s);
     }
     return widget.event.totalXp;
   }
-
-  int _streakDays() {
-    try {
-      return Get.find<XpController>().streak?.currentStreak ?? 0;
-    } catch (_) {
-      return 0;
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THEME (matches the XP design tokens)
+// THEME
 // ─────────────────────────────────────────────────────────────────────────────
 class _Lu {
   _Lu._();
-  static const Color mint = Color(0xFF1EF2A0);
-  static const Color teal = Color(0xFF134E4A);
-  static const Color foil = Color(0xFF0B2A27);
-  static const Color border = Color(0xFF134E4A);
-  static const Color red = Color(0xFFFF3B30);
-  static const Color green = Color(0xFF22C55E);
-}
-
-String _fmt(int n) {
-  final s = n.toString();
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
-    buf.write(s[i]);
-  }
-  return buf.toString();
+  static const Color mint = XpTokens.mint;
+  static const Color teal = XpTokens.teal;
+  static const Color border = XpTokens.teal;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MEDAL — the level badge, framed in teal with a mint ring + glow
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER NAME + LEVEL
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REWARD UNLOCKED — the prize this level grants, in the mint/teal card
-// language established by _KeepGoingButton (hard border + drop shadow).
+// REWARD UNLOCKED — the prize this level grants
 // ─────────────────────────────────────────────────────────────────────────────
 class _RewardUnlockedChip extends StatelessWidget {
   final String rewardName;
-  const _RewardUnlockedChip({required this.rewardName});
+  final String? rewardType;
+  const _RewardUnlockedChip({required this.rewardName, this.rewardType});
 
   @override
   Widget build(BuildContext context) {
@@ -176,32 +164,43 @@ class _RewardUnlockedChip extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeDefault,
-        vertical:
-            Dimensions.paddingSizeSmall + Dimensions.paddingSizeExtraSmall,
+        vertical: Dimensions.paddingSizeMedium,
       ),
-
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: '${'level_up_your_reward'.tr} : ',
-              style: waddyBold.copyWith(
-                fontSize: 15,
-                color: _Lu.mint,
-                height: 1.2,
-              ),
+      decoration: BoxDecoration(
+        color: _Lu.mint.withValues(alpha: 0.12),
+        border: Border.all(color: _Lu.mint, width: 2),
+        borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+      ),
+      child: Row(
+        children: [
+          Icon(PrizeKind.parse(rewardType).icon, color: _Lu.mint, size: 26),
+          const SizedBox(width: Dimensions.paddingSizeMedium),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'level_up_your_reward'.tr,
+                  style: waddyBold.copyWith(
+                    fontSize: 12,
+                    color: _Lu.mint,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  rewardName,
+                  style: waddyBlack.copyWith(
+                    fontSize: 16,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                ),
+              ],
             ),
-            TextSpan(
-              text: rewardName,
-              style: waddyBlack.copyWith(
-                fontSize: 15,
-                color: Colors.white,
-                height: 1.2,
-              ),
-            ),
-          ],
-        ),
-        textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -320,179 +319,4 @@ class _FadeUpState extends State<_FadeUp> with SingleTickerProviderStateMixin {
       child: widget.child,
     );
   }
-}
-
-class _Pop extends StatefulWidget {
-  final int delayMs;
-  final Widget child;
-  const _Pop({required this.delayMs, required this.child});
-
-  @override
-  State<_Pop> createState() => _PopState();
-}
-
-class _PopState extends State<_Pop> with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    Future.delayed(Duration(milliseconds: widget.delayMs), () {
-      if (mounted) _c.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.of(context).disableAnimations) return widget.child;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, child) {
-        final t = Curves.easeOutBack.transform(_c.value);
-        return Opacity(
-          opacity: (_c.value * 1.5).clamp(0.0, 1.0),
-          child: Transform.scale(scale: 0.5 + 0.5 * t, child: child),
-        );
-      },
-      child: widget.child,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFETTI — lightweight painted field, respects reduced-motion
-// ─────────────────────────────────────────────────────────────────────────────
-class _ConfettiField extends StatefulWidget {
-  final double height;
-  const _ConfettiField({required this.height});
-
-  @override
-  State<_ConfettiField> createState() => _ConfettiFieldState();
-}
-
-class _ConfettiFieldState extends State<_ConfettiField>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  final List<_Conf> _pieces = [];
-  double _t = 0;
-
-  static const _colors = [_Lu.mint, _Lu.red, _Lu.green, Colors.white];
-
-  @override
-  void initState() {
-    super.initState();
-    final rnd = math.Random(7);
-    for (var i = 0; i < 26; i++) {
-      _pieces.add(
-        _Conf(
-          left: rnd.nextDouble(),
-          color: _colors[i % _colors.length],
-          duration: 2.0 + rnd.nextDouble() * 2.2,
-          delay: (i % 8) * 0.15,
-          drift: (rnd.nextDouble() - 0.5) * 0.06,
-          size: 6 + rnd.nextDouble() * 4,
-        ),
-      );
-    }
-    _ticker = createTicker((elapsed) {
-      setState(() => _t = elapsed.inMilliseconds / 1000.0);
-    })..start();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.of(context).disableAnimations) {
-      return const SizedBox.shrink();
-    }
-    return CustomPaint(
-      painter: _ConfettiPainter(
-        pieces: _pieces,
-        t: _t,
-        fieldHeight: widget.height,
-      ),
-      size: Size.infinite,
-    );
-  }
-}
-
-class _Conf {
-  final double left; // 0..1 horizontal start
-  final Color color;
-  final double duration; // seconds for a full fall
-  final double delay; // seconds
-  final double drift; // horizontal drift per cycle (fraction of width)
-  final double size;
-  const _Conf({
-    required this.left,
-    required this.color,
-    required this.duration,
-    required this.delay,
-    required this.drift,
-    required this.size,
-  });
-}
-
-class _ConfettiPainter extends CustomPainter {
-  final List<_Conf> pieces;
-  final double t;
-  final double fieldHeight;
-
-  _ConfettiPainter({
-    required this.pieces,
-    required this.t,
-    required this.fieldHeight,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-    for (final c in pieces) {
-      final localT = ((t - c.delay) / c.duration);
-      if (localT < 0) continue;
-      final cycle = localT % 1.0;
-      final y = -40 + cycle * (size.height + 80);
-      final x = (c.left + c.drift * cycle) * size.width;
-      // Fade in at the top, out near the bottom.
-      final opacity =
-          cycle < 0.08
-              ? cycle / 0.08
-              : (cycle > 0.9 ? (1 - (cycle - 0.9) / 0.1) : 1.0);
-      paint.color = c.color.withValues(alpha: (0.9 * opacity).clamp(0.0, 1.0));
-      final angle = cycle * 2 * math.pi + c.left * 6;
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(angle);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset.zero,
-            width: c.size,
-            height: c.size * 1.7,
-          ),
-          const Radius.circular(1.5),
-        ),
-        paint,
-      );
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ConfettiPainter old) => old.t != t;
 }

@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+
 class XpConfigModel {
   final bool levelingEnabled;
   final int xpPerOrder;
@@ -32,35 +34,28 @@ class XpConfigModel {
   });
 
   factory XpConfigModel.fromJson(Map<String, dynamic> json) {
-    Map<String, double> multipliersMap = {};
-    if (json['multipliers'] != null) {
-      (json['multipliers'] as Map<String, dynamic>).forEach((key, value) {
-        multipliersMap[key] =
-            (value is int) ? value.toDouble() : (value ?? 0.0).toDouble();
-      });
-    }
+    final multipliersMap = <String, double>{};
+    xpMap(json['multipliers'])?.forEach((key, value) {
+      multipliersMap[key] = xpDoubleOrNull(value) ?? 0.0;
+    });
 
-    Map<String, int> sourcesMap = {};
-    if (json['xp_sources'] is Map) {
-      (json['xp_sources'] as Map).forEach((key, value) {
-        final v = value is int ? value : int.tryParse('${value ?? ''}');
-        if (v != null) sourcesMap['$key'] = v;
-      });
-    }
+    final sourcesMap = <String, int>{};
+    xpMap(json['xp_sources'])?.forEach((key, value) {
+      final v = xpIntOrNull(value);
+      if (v != null) sourcesMap[key] = v;
+    });
 
+    final event = xpMap(json['multiplier_event']);
     return XpConfigModel(
-      levelingEnabled: json['enabled'] ?? false,
-      xpPerOrder: json['xp_per_order'] ?? 0,
-      xpPerReview: json['xp_per_review'] ?? 0,
-      xpSignupBonus: json['xp_signup_bonus'] ?? 50,
-      maxLevel: json['max_level'] ?? 10,
-      streakBonusXp: json['streak_bonus_xp'] ?? 0,
-      xpPerCurrencyUnit: (json['xp_per_currency_unit'] ?? 0.1).toDouble(),
+      levelingEnabled: xpBool(json['enabled']),
+      xpPerOrder: xpInt(json['xp_per_order']),
+      xpPerReview: xpInt(json['xp_per_review']),
+      xpSignupBonus: xpInt(json['xp_signup_bonus'], 50),
+      maxLevel: xpInt(json['max_level'], 10),
+      streakBonusXp: xpInt(json['streak_bonus_xp']),
+      xpPerCurrencyUnit: xpDoubleOrNull(json['xp_per_currency_unit']) ?? 0.1,
       multipliers: multipliersMap,
-      multiplierEvent:
-          json['multiplier_event'] != null
-              ? MultiplierEvent.fromJson(json['multiplier_event'])
-              : null,
+      multiplierEvent: event != null ? MultiplierEvent.fromJson(event) : null,
       xpSources: sourcesMap,
     );
   }
@@ -136,13 +131,10 @@ class MultiplierEvent {
 
   factory MultiplierEvent.fromJson(Map<String, dynamic> json) {
     return MultiplierEvent(
-      active: json['active'] ?? false,
-      multiplier: (json['multiplier'] ?? 1.0).toDouble(),
-      title: json['title'],
-      endsAt:
-          json['ends_at'] != null
-              ? DateTime.tryParse(json['ends_at'].toString())
-              : null,
+      active: xpBool(json['active']),
+      multiplier: xpDoubleOrNull(json['multiplier']) ?? 1.0,
+      title: xpStr(json['title']),
+      endsAt: xpDate(json['ends_at']),
     );
   }
 

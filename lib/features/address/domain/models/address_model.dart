@@ -16,6 +16,17 @@ class AddressModel {
   String? streetNumber;
   String? house;
   String? floor;
+  String? deliveryInstructions;
+
+  /// The saved voice directions, served by the backend.
+  String? voiceInstructionFullUrl;
+
+  /// A fresh recording on this device, uploaded with the next save. Not part
+  /// of [toJson]: the repository sends it as a file.
+  String? voiceInstructionPath;
+
+  /// Clears the saved voice directions on update.
+  bool removeVoiceInstruction = false;
   List<ZoneData>? zoneData;
   List<int>? areaIds;
   String? email;
@@ -35,6 +46,10 @@ class AddressModel {
     this.streetNumber,
     this.house,
     this.floor,
+    this.deliveryInstructions,
+    this.voiceInstructionFullUrl,
+    this.voiceInstructionPath,
+    this.removeVoiceInstruction = false,
     this.zoneData,
     this.areaIds,
     this.email,
@@ -58,6 +73,8 @@ class AddressModel {
     streetNumber = json['road'];
     house = json['house'];
     floor = json['floor'];
+    deliveryInstructions = json['delivery_instructions'];
+    voiceInstructionFullUrl = json['voice_instruction_full_url'];
     if (json['zone_data'] != null) {
       zoneData = [];
       json['zone_data'].forEach((v) {
@@ -86,6 +103,9 @@ class AddressModel {
     data['road'] = streetNumber;
     data['house'] = house;
     data['floor'] = floor;
+    data['delivery_instructions'] = deliveryInstructions;
+    data['voice_instruction_full_url'] = voiceInstructionFullUrl;
+    if (removeVoiceInstruction) data['remove_voice_instruction'] = '1';
     if (zoneData != null) {
       data['zone_data'] = zoneData!.map((v) => v.toJson()).toList();
     }

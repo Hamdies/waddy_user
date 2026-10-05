@@ -311,25 +311,25 @@ class ClawCabinet extends StatelessWidget {
                     i < releasedCount,
                 scale: scale,
                 child: ClawBall(
-                entrant: shown[i],
-                index: i,
-                size: ballSize,
-                // The target grows and rings; everything else shrinks a
-                // fraction and steps back. The design does this with a
-                // `scale(1.3)` on the target against `scale(0.94)` on the
-                // rest, and it is most of why the run reads as a hunt.
-                spotlit: shown[i].userId == targetEntrantId,
-                dimmed:
-                    _hunting &&
-                    shown[i].userId != targetEntrantId &&
-                    !wonEntrantIds.contains(shown[i].userId),
-                still: still,
-                state:
-                    wonEntrantIds.contains(shown[i].userId)
-                        ? ClawBallState.won
-                        : drawClosed
-                        ? ClawBallState.lost
-                        : ClawBallState.waiting,
+                  entrant: shown[i],
+                  index: i,
+                  size: ballSize,
+                  // The target grows and rings; everything else shrinks a
+                  // fraction and steps back. The design does this with a
+                  // `scale(1.3)` on the target against `scale(0.94)` on the
+                  // rest, and it is most of why the run reads as a hunt.
+                  spotlit: shown[i].userId == targetEntrantId,
+                  dimmed:
+                      _hunting &&
+                      shown[i].userId != targetEntrantId &&
+                      !wonEntrantIds.contains(shown[i].userId),
+                  still: still,
+                  state:
+                      wonEntrantIds.contains(shown[i].userId)
+                          ? ClawBallState.won
+                          : drawClosed
+                          ? ClawBallState.lost
+                          : ClawBallState.waiting,
                 ),
               ),
             ),

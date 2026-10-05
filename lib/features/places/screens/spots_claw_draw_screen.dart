@@ -833,10 +833,7 @@ class _SpotsClawDrawScreenState extends State<SpotsClawDrawScreen>
             // filled slot carries a `pick N, name` label of its own; see
             // `ClawChute`. Excluding it would leave a screen-reader user with
             // the run's announcements and nothing afterwards.
-            ClawChute(
-              winners: _draw.winners,
-              totalPulls: _draw.effectivePulls,
-            ),
+            ClawChute(winners: _draw.winners, totalPulls: _draw.effectivePulls),
           ],
           const SizedBox(height: Spots.s12),
           _controlDeck(),
@@ -1217,4 +1214,3 @@ class _PreviewRibbon extends StatelessWidget {
     );
   }
 }
-

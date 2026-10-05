@@ -1,4 +1,6 @@
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'dart:async';
+import 'package:waddy_app/helper/crash_context_helper.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
 import 'package:waddy_app/common/models/response_model.dart';
@@ -30,6 +32,11 @@ class ProfileController extends GetxController implements GetxService {
     UserInfoModel? userInfoModel = await profileServiceInterface.getUserInfo();
     if (userInfoModel != null) {
       _userInfoModel = userInfoModel;
+      // Ties crash reports to an account: Crashlytics counts distinct
+      // affected users from this, which is the difference between "one user
+      // hitting this 40 times" and "40 users hitting it once". Only the id —
+      // no name, phone or email.
+      unawaited(CrashContext.setUser(userInfoModel?.id));
     }
     update();
   }

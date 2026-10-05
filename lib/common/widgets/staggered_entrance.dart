@@ -18,6 +18,16 @@ class StaggeredEntrance extends StatefulWidget {
   final int index;
   final Widget child;
 
+  /// Names the arrival, so it plays ONCE per app session.
+  ///
+  /// The first time a (group, index) mounts it animates; every later mount —
+  /// the dashboard rebuilt, a tab switched back to, a list reloaded — starts
+  /// already arrived. An entrance is for the first time the user meets a
+  /// screen; replayed on every visit it is a delay in front of content they
+  /// already know. Null keeps the old behaviour (animate on every mount) for
+  /// callers that want it.
+  final String? group;
+
   /// Travel distance as a fraction of the child's own height. Fractional
   /// rather than a fixed offset so the move stays in proportion on a 132pt
   /// card and a 176pt one, instead of reading as a bigger jump on the small
@@ -28,8 +38,11 @@ class StaggeredEntrance extends StatefulWidget {
     super.key,
     required this.index,
     required this.child,
+    this.group,
     this.rise = 0.06,
   });
+
+  static final Set<String> _played = <String>{};
 
   @override
   State<StaggeredEntrance> createState() => _StaggeredEntranceState();
@@ -41,7 +54,16 @@ class _StaggeredEntranceState extends State<StaggeredEntrance>
   late final Animation<double> _opacity;
   late final Animation<Offset> _slide;
 
-  bool get _staggers => widget.index < WaddyMotion.maxStaggered;
+  late final bool _staggers = _shouldStagger();
+
+  bool _shouldStagger() {
+    if (widget.index >= WaddyMotion.maxStaggered) return false;
+    final String? group = widget.group;
+    if (group == null) return true;
+    // Marked on mount, not on completion: a rebuild mid-animation must not
+    // replay it either.
+    return StaggeredEntrance._played.add('$group#${widget.index}');
+  }
 
   @override
   void initState() {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:waddy_app/util/swallow.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:waddy_app/common/widgets/mccoin_mood.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/features/auth/widgets/auth_bottom_sheet.dart';
 import 'package:waddy_app/features/location/controllers/location_controller.dart';
@@ -147,11 +148,10 @@ class GuestGate {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                Icon(
-                  Icons.flag_outlined,
-                  size: 56,
-                  color: Theme.of(context).primaryColor,
-                ),
+                // McCoin wearing the sad face. The rejection lands softer from
+                // a mascot than from a flag glyph, and it keeps the brand in
+                // the room at the one moment the app has to say no.
+                const McCoinMoodAnimation(mood: McCoinMood.sad, size: 100),
                 const SizedBox(height: Dimensions.paddingSizeDefault),
                 Text(
                   'no_delivery_there'.tr,
@@ -495,25 +495,16 @@ class GuestGate {
                   const NotifyMeButton(source: 'sheet'),
                   const SizedBox(height: Dimensions.paddingSizeSmall),
                 ],
-                CustomButton(
-                  buttonText: 'add_a_new_address'.tr,
-                  onPressed: () {
-                    AnalyticsHelper.log('delivery_locations_add_address');
-                    Navigator.of(context).pop();
-                    Get.toNamed(RouteHelper.getAccessLocationRoute('home'));
-                  },
-                ),
-                const SizedBox(height: Dimensions.paddingSizeSmall),
+
                 // Entry point for the serving-zones polygon map. It used to
                 // hang off the out-of-zone hint pill on home; that pill is gone,
                 // and a names-only list answers "do you serve me?" far less
                 // well than a map does for someone near a boundary.
-
                 Center(
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(
-                      'maybe_later'.tr,
+                      'okay'.tr,
                       style: waddyMedium.copyWith(
                         fontSize: Dimensions.fontSizeLarge,
                         color: Theme.of(context).primaryColor,

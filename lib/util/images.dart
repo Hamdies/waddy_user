@@ -26,6 +26,10 @@ class Images {
   static const String restaurantMarker = 'assets/image/restaurant_marker.png';
   static const String deliveryManMarker =
       'assets/image/delivery_man_marker.png';
+
+  /// The Waddi rider's helmet. Stands in for the rider everywhere: the map
+  /// marker, the avatar, and the "finding a rider" disc.
+  static const String riderHelmet = 'assets/image/rider_w.png';
   static const String user = 'assets/image/user.png';
   static const String coupon = 'assets/image/coupon.png';
   static const String couponBgLight = 'assets/image/coupon_bg_light.png';

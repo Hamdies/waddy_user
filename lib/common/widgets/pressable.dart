@@ -44,6 +44,10 @@ class Pressable extends StatefulWidget {
   /// growth.
   final double? minSize;
 
+  /// Announced as the picked one in a group (a size tile, a chip). Null for
+  /// controls that are not a choice; only meaningful with [semanticLabel].
+  final bool? selected;
+
   /// Fires a selection tick when the finger lands.
   ///
   /// On by default because the press scale alone only answers the *eye*, and
@@ -65,6 +69,7 @@ class Pressable extends StatefulWidget {
     this.semanticLabel,
     this.haptic = true,
     this.minSize,
+    this.selected,
   });
 
   @override
@@ -136,6 +141,10 @@ class _PressableState extends State<Pressable> {
     if (widget.semanticLabel != null) {
       result = Semantics(
         button: true,
+        // A control with no handler is announced as dimmed, not as a live
+        // button that does nothing.
+        enabled: enabled,
+        selected: widget.selected,
         label: widget.semanticLabel,
         child: result,
       );

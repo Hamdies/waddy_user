@@ -14,6 +14,8 @@ import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/features/pets/pets_navigator.dart';
+import 'package:waddy_app/features/pets/screens/pet_profile_screen.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -124,6 +126,14 @@ class _MenuScreenState extends State<MenuScreen> {
                     title: 'my_address'.tr,
                     onTap: () => Get.toNamed(RouteHelper.getAddressRoute()),
                   ),
+                  // Only where a Pets module serves this zone.
+                  if (PetsNavigator.available)
+                    _buildFlatItem(
+                      context,
+                      icon: HugeIcons.strokeRoundedBone01,
+                      title: 'my_pets'.tr,
+                      onTap: () => PetProfileScreen.open(),
+                    ),
                   _buildFlatItem(
                     context,
                     icon: HugeIcons.strokeRoundedFavourite,

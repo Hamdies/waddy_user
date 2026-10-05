@@ -52,6 +52,7 @@ import 'package:waddy_app/features/favourite/screens/favourite_screen.dart';
 import 'package:waddy_app/features/flash_sale/screens/flash_sale_details_screen.dart';
 import 'package:waddy_app/features/item/screens/item_campaign_screen.dart';
 import 'package:waddy_app/features/item/screens/item_details_screen.dart';
+import 'package:waddy_app/features/item/screens/mart_product_screen.dart';
 import 'package:waddy_app/features/item/screens/popular_item_screen.dart';
 import 'package:waddy_app/features/verification/screens/forget_pass_screen.dart';
 import 'package:waddy_app/features/verification/screens/new_pass_screen.dart';
@@ -66,7 +67,6 @@ import 'package:waddy_app/features/location/screens/serving_zones_screen.dart';
 import 'package:waddy_app/features/onboard/screens/onboarding_screen.dart';
 import 'package:waddy_app/features/order/screens/order_details_screen.dart';
 import 'package:waddy_app/features/order/screens/order_screen.dart';
-import 'package:waddy_app/features/order/screens/order_tracking_screen.dart';
 import 'package:waddy_app/features/order/screens/refund_request_screen.dart';
 import 'package:waddy_app/features/parcel/screens/parcel_category_screen.dart';
 import 'package:waddy_app/features/parcel/screens/parcel_location_screen.dart';
@@ -75,7 +75,7 @@ import 'package:waddy_app/features/profile/screens/profile_screen.dart';
 import 'package:waddy_app/features/profile/screens/update_profile_screen.dart';
 import 'package:waddy_app/features/store/screens/all_store_screen.dart';
 import 'package:waddy_app/features/store/screens/store_item_search_screen.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/features/review/screens/review_screen.dart';
 import 'package:waddy_app/features/search/screens/search_screen.dart';
 import 'package:waddy_app/features/splash/screens/splash_screen.dart';
@@ -163,7 +163,6 @@ class RouteHelper {
   static const String orderSuccess = '/order-successful';
   static const String payment = '/payment';
   static const String checkout = '/checkout';
-  static const String orderTracking = '/track-order';
   static const String basicCampaign = '/basic-campaign';
   static const String html = '/html-page';
   static const String categories = '/categories';
@@ -185,6 +184,7 @@ class RouteHelper {
   static const String searchStoreItem = '/search-store-item';
   static const String order = '/order';
   static const String itemDetails = '/item-details';
+  static const String martProduct = '/mart-product';
   static const String wallet = '/wallet';
   static const String loyalty = '/loyalty';
   static const String referAndEarn = '/refer-and-earn';
@@ -375,8 +375,6 @@ class RouteHelper {
       '$payment?id=$id&user=$user&type=$type&amount=$amount&cod-delivery=$codDelivery&add-fund-url=$addFundUrl&payment-method=$paymentMethod&guest-id=$guestId&number=$contactNumber&subscription-url=$subscriptionUrl&store_id=$storeId&create_account=$createAccount&create_user_id=$createUserId';
   static String getCheckoutRoute(String page, {int? storeId}) =>
       '$checkout?page=$page&store-id=$storeId';
-  static String getOrderTrackingRoute(int? id, String? contactNumber) =>
-      '$orderTracking?id=$id&number=$contactNumber';
   static String getBasicCampaignRoute(BasicCampaignModel basicCampaignModel) {
     String data = base64Encode(
       utf8.encode(jsonEncode(basicCampaignModel.toJson())),
@@ -464,6 +462,7 @@ class RouteHelper {
   static String getOrderRoute() => order;
   static String getItemDetailsRoute(int? itemID, bool isRestaurant) =>
       '$itemDetails?id=$itemID&page=${isRestaurant ? 'restaurant' : 'item'}';
+  static String getMartProductRoute(int? itemID) => '$martProduct?id=$itemID';
   static String getWalletRoute({
     String? fundStatus,
     String? token,
@@ -725,8 +724,11 @@ class RouteHelper {
       name: store,
       page: () {
         return getRoute(
+          // StoreNavigator passes a StoreRouteShell. A bare named route —
+          // a deep link, a shared slug, XP — builds the same shell from the
+          // URL, which fetches the store and picks its page.
           Get.arguments ??
-              StoreScreen(
+              StoreRouteShell(
                 store: Store(
                   id:
                       Get.parameters['id'] != 'null' &&
@@ -734,9 +736,6 @@ class RouteHelper {
                           ? _paramIntOrNull('id')
                           : null,
                 ),
-                fromModule:
-                    Get.parameters['page'] != null &&
-                    Get.parameters['page'] == 'module',
                 slug: Get.parameters['slug'] ?? '',
               ),
           byPuss: Get.parameters['slug']?.isNotEmpty ?? false,
@@ -769,7 +768,9 @@ class RouteHelper {
       page: () => getRoute(const UpdateProfileScreen()),
       middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: coupon, page: () => getRoute(const CouponScreen()),
+    GetPage(
+      name: coupon,
+      page: () => getRoute(const CouponScreen()),
       middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
@@ -900,17 +901,6 @@ class RouteHelper {
               ),
         );
       },
-      middlewares: [AuthGuardMiddleware()],
-    ),
-    GetPage(
-      name: orderTracking,
-      page:
-          () => getRoute(
-            OrderTrackingScreen(
-              orderID: Get.parameters['id'],
-              contactNumber: Get.parameters['number'],
-            ),
-          ),
       middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
@@ -1140,7 +1130,9 @@ class RouteHelper {
       page:
           () => getRoute(StoreItemSearchScreen(storeID: Get.parameters['id'])),
     ),
-    GetPage(name: order, page: () => getRoute(const OrderScreen()),
+    GetPage(
+      name: order,
+      page: () => getRoute(const OrderScreen()),
       middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(
@@ -1151,6 +1143,20 @@ class RouteHelper {
                 ItemDetailsScreen(
                   itemId: _paramInt('id'),
                   inStorePage: Get.parameters['page'] == 'restaurant',
+                ),
+          ),
+    ),
+    GetPage(
+      name: martProduct,
+      // The page is built from the list item in hand; a cold link has only
+      // the id, so it opens the full item page, which fetches its own.
+      page:
+          () => getRoute(
+            Get.arguments is MartProductScreen
+                ? Get.arguments as MartProductScreen
+                : ItemDetailsScreen(
+                  itemId: _paramInt('id'),
+                  inStorePage: false,
                 ),
           ),
     ),
@@ -1240,7 +1246,9 @@ class RouteHelper {
       },
       middlewares: [AuthGuardMiddleware()],
     ),
-    GetPage(name: conversation, page: () => const ConversationScreen(),
+    GetPage(
+      name: conversation,
+      page: () => const ConversationScreen(),
       middlewares: [AuthGuardMiddleware()],
     ),
     GetPage(

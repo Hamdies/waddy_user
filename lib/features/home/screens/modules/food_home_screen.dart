@@ -1,21 +1,25 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
+import 'package:waddy_app/common/widgets/add_to_cart_control.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
 import 'package:waddy_app/features/home/widgets/views/top_restaurants_view.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/cuisine/controllers/cuisine_controller.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/module_category_circles.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/module_store_list.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/ramadan_reorder_section.dart';
+import 'package:waddy_app/features/banner/controllers/banner_controller.dart';
 import 'package:waddy_app/features/home/widgets/banner_view.dart';
 import 'package:waddy_app/features/home/widgets/home_hero_banner_widget.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/food_store_screen.dart';
 import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/module_store_row_card.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
@@ -23,7 +27,6 @@ import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
 
 // ── Filter chip metrics ──────────────────────────────────────────────────────
 // Shared by the filter chips, the clear chip and the pinned header's height so
@@ -87,7 +90,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   /// Orders tab disposed this State: the chips came back empty while the
   /// controller was still filtering the list, and the only way out was to
   /// toggle a chip on and off again.
-  ModuleStoreFilters get _filters => Get.find<StoreController>().moduleFilters;
+  ModuleStoreFilters get _filters =>
+      Get.find<StoreListController>().moduleFilters;
 
   int? get _selectedCuisineId => _filters.cuisineId;
   bool get _filterOffers => _filters.offers;
@@ -99,7 +103,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   /// notifies; every widget that renders filter state is a `GetBuilder` on it,
   /// so nothing here calls `setState` for a filter any more.
   void _applyFilters(ModuleStoreFilters next) {
-    Get.find<StoreController>().setModuleStoreFilters(next);
+    Get.find<StoreListController>().setModuleStoreFilters(next);
   }
 
   /// Horizontal offset of the filter strip.
@@ -134,7 +138,20 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
     // dashboard and for pharmacy, and splash_controller only refetches it on
     // module exit — so without this call the rail is stuck on stale data
     // from whatever module was open before, or null forever.
-    Get.find<StoreController>().getFeaturedStoreList();
+    Get.find<StoreListController>().getFeaturedStoreList();
+
+    // Feeds this screen's BannerView, for the same reason as the rail above.
+    //
+    // home_screen's loadData reads `splashController.module` once, at the top,
+    // and picks its branch from that snapshot: the module-scoped banner fetch
+    // sits behind `module != null`, the featured one behind `module == null`.
+    // On a cold start into a restored module, `/api/v1/module` has not
+    // answered yet when that snapshot is taken, so the no-module branch wins
+    // and `/api/v1/banners` is never requested. The load cannot simply be run
+    // again either — `_loadInFlight` swallows a concurrent call and the
+    // two-minute quiet window swallows a later one — so the module's own home
+    // asks for what it renders, on mount, when the module is known for certain.
+    Get.find<BannerController>().getBannerList(false);
   }
 
   // Chips/sort/cuisine are applied server-side: results cover the whole
@@ -220,9 +237,6 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
     );
   }
 
-  Object _storeScreenArguments(Store store) =>
-      FoodStoreScreen(store: store, fromModule: false);
-
   // Opens the item sheet (handles variations/addons) instead of blind
   // cart insertion — same pattern as cart_item_widget.
   void _openItemSheet(BuildContext context, Items item) {
@@ -263,7 +277,6 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
         const SliverToBoxAdapter(
           child: HomeHeroBannerWidget(showBackButton: true, compact: true),
         ),
-        const SliverToBoxAdapter(child: CurrentOrderWidget()),
         const SliverToBoxAdapter(child: SizedBox(height: _kSectionGap)),
         SliverToBoxAdapter(child: _buildOrderAgainSection(context)),
         const SliverToBoxAdapter(child: SizedBox(height: _kSectionGapTight)),
@@ -283,7 +296,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
         SliverToBoxAdapter(
           // Same reason as the chip strip: the selected tile's ring is filter
           // state, and the screen no longer rebuilds when that changes.
-          child: GetBuilder<StoreController>(
+          child: GetBuilder<StoreListController>(
+            id: StoreListController.cuisineStripId,
             builder:
                 (_) => ModuleCuisineCircles(
                   selectedCuisineId: _selectedCuisineId,
@@ -338,14 +352,14 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
     return GetBuilder<HomeController>(
       builder: (homeController) {
         final bool isRamadan = homeController.showRamadanDecorations;
-        return GetBuilder<StoreController>(
+        return GetBuilder<StoreListController>(
+          id: StoreListController.visitAgainId,
           builder: (storeController) {
             final stores = storeController.visitAgainStoreList;
             if (stores == null || stores.isEmpty) return const SizedBox();
             if (isRamadan) {
               return RamadanReorderSection(
                 stores: stores,
-                storeScreenBuilder: _storeScreenArguments,
                 titleFontSize: 20,
                 subtitleFontSize: 13,
                 listHeight: 170,
@@ -461,17 +475,19 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   ) {
     final store = data.store;
     final item = data.item;
-    final bool hasDiscount =
-        item.discount != null &&
-        item.discount! > 0 &&
-        item.discountType != null;
     final double originalPrice = item.price ?? 0;
-    final String formattedPrice = PriceConverter.convertPrice(
-      originalPrice,
-      discount: item.discount,
-      discountType: item.discountType,
+    final ItemPrice price = ItemPrice.from(
+      now:
+          PriceConverter.convertWithDiscount(
+            originalPrice,
+            item.discount ?? 0,
+            item.discountType,
+          ) ??
+          originalPrice,
+      was: originalPrice,
+      flat: item.discountType == 'amount',
     );
-    final String originalFormatted = PriceConverter.convertPrice(originalPrice);
+    final String formattedPrice = PriceConverter.convertPrice(price.now);
 
     return PressableScale(
       // Item first: this card leads with the dish, the store is context.
@@ -480,11 +496,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
         store.name?.trim(),
         formattedPrice,
       ].whereType<String>().where((e) => e.isNotEmpty).join(', '),
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: FoodStoreScreen(store: store, fromModule: false),
-          ),
+      onTap: () => StoreNavigator.open(store),
       child: Container(
         width: 220,
         margin: const EdgeInsets.only(right: Dimensions.paddingSizeMedium),
@@ -531,37 +543,17 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
                     ),
                   ),
                 ),
-                // Discount tag
-                if (hasDiscount)
-                  Positioned(
+                // The app's sale collar, solid for the photo.
+                if (price.onSale)
+                  PositionedDirectional(
                     top: -4,
-                    left: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        // Was a bare 0xFFFF3D00 — an orange-red from outside
-                        // the palette entirely, which put two different reds
-                        // for "money off" on one screen: this badge and the
-                        // ranked rail's coral offer pill. coralInk is the
-                        // discount colour everywhere else.
-                        color: WaddyColors.coralInk,
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusSmall,
-                        ),
-                      ),
-                      child: Text(
-                        item.discountType == 'percent'
-                            ? '${item.discount!.toInt()}%'
-                            : '-${PriceConverter.convertPrice(item.discount!)}',
-                        style: waddyBold.copyWith(
-                          fontSize: 9,
-                          color: WaddyColors.surface,
-                        ),
-                      ),
-                    ),
+                    start: -4,
+                    child:
+                        OfferCollarBadge.forPrice(
+                          price,
+                          compact: true,
+                          onPhoto: true,
+                        )!,
                   ),
               ],
             ),
@@ -631,82 +623,20 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Expanded(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              formattedPrice,
-                              style: waddyBold.copyWith(
-                                fontSize: 14,
-                                color: primaryColor,
-                              ),
+                      Expanded(child: PriceTag(price: price)),
+                      // The app's add square. Opens the sheet — this rail's
+                      // lightweight `Items` cannot tell a simple dish from one
+                      // with options — and counts what is already in the cart.
+                      // Its own Pressable wins the arena over the card's
+                      // store-navigation tap.
+                      GetBuilder<CartController>(
+                        filter: (cart) => cart.cartQuantity(item.id ?? -1),
+                        builder:
+                            (cart) => AddToCartSquare(
+                              inCart: cart.cartQuantity(item.id ?? -1),
+                              semanticLabel: item.name ?? '',
+                              onTap: () => _openItemSheet(context, item),
                             ),
-                            if (hasDiscount) ...[
-                              const SizedBox(width: 4),
-                              Text(
-                                originalFormatted,
-                                style: waddyRegular.copyWith(
-                                  fontSize: 10,
-                                  // Was grey.shade400 at 1.88:1 — effectively
-                                  // invisible, on the one number that tells
-                                  // the user how much the discount saves.
-                                  color: WaddyColors.inkLight,
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: WaddyColors.inkLight,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      // Own tap target so it wins the gesture arena — the
-                      // card's onTap (store navigation) must not fire here.
-                      //
-                      // The 28pt square is the *visual*; the target around it
-                      // is 44 (iOS HIG) / 48 (Material) because a near-miss
-                      // here does not do nothing — it falls through to the
-                      // card and navigates to the store instead of adding the
-                      // item, which is the most annoying possible failure for
-                      // a one-handed tap. The OverflowBox lets the 44pt
-                      // target spill past the 28pt slot without re-flowing
-                      // the row (a negative Container margin asserts).
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _openItemSheet(context, item),
-                        child: Semantics(
-                          button: true,
-                          label: '${'add_to_cart'.tr}, ${item.name ?? ''}',
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: OverflowBox(
-                              minWidth: 44,
-                              minHeight: 44,
-                              maxWidth: 44,
-                              maxHeight: 44,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                // Without this the plus is stretched to the
-                                // full 28pt square — see _FilterIconButton.
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusSmall,
-                                  ),
-                                ),
-                                child: const HugeIcon(
-                                  icon: HugeIcons.strokeRoundedPlusSign,
-                                  size: 18,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -742,7 +672,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   Widget _buildCatalogueHeader(BuildContext context) {
     return GetBuilder<CuisineController>(
       builder: (cuisineController) {
-        return GetBuilder<StoreController>(
+        return GetBuilder<StoreListController>(
+          id: StoreListController.storeListId,
           builder: (storeController) {
             return Padding(
               // No top pad: the section gap above already placed this header.
@@ -776,7 +707,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   /// most.
   String _catalogueHeadline(
     CuisineController cuisineController,
-    StoreController storeController,
+    StoreListController storeController,
   ) {
     final int? cuisineId = _selectedCuisineId;
     if (cuisineId == null) return 'all_restaurants'.tr;
@@ -814,7 +745,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   /// lives on the controller. Subscribing here is also the narrower repaint:
   /// toggling a chip redraws the strip, not the page.
   Widget _buildFilterChips(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeListId,
       builder: (_) => _filterChipsRow(context),
     );
   }
@@ -971,7 +903,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   /// be read once when the sheet opened and never updated as switches moved.
   void _showFiltersBottomSheet() {
     Get.bottomSheet(
-      GetBuilder<StoreController>(
+      GetBuilder<StoreListController>(
+        id: StoreListController.storeListId,
         builder: (storeController) {
           final ModuleStoreFilters filters = storeController.moduleFilters;
           final int? total = storeController.storeModel?.totalSize;
@@ -1056,7 +989,8 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   }
 
   Widget _buildStoreListSliver(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeListId,
       builder: (storeController) {
         final bool hasFilters =
             _selectedCuisineId != null || _hasActiveChipFilter;
@@ -1087,11 +1021,7 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
   Widget _buildStoreCard(BuildContext context, Store store) {
     return ModuleStoreRowCard(
       store: store,
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: FoodStoreScreen(store: store, fromModule: false),
-          ),
+      onTap: () => StoreNavigator.open(store),
     );
   }
 

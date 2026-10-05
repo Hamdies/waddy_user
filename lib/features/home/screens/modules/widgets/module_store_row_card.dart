@@ -90,8 +90,15 @@ class ModuleStoreRowCard extends StatelessWidget {
     return PressableScale(
       semanticLabel: moduleStoreSemanticLabel(store),
       onTap: onTap,
-      child: Opacity(
-        opacity: isOpen ? 1.0 : 0.55,
+      // No Opacity layer when the store is open.
+      //
+      // `Opacity` allocates an offscreen buffer and composites it back — even
+      // at 1.0, where it changes nothing. Most stores are open most of the
+      // time, so every row in the list was paying for a layer that did
+      // nothing. The dim is a real requirement for closed stores, so it stays
+      // for those; it just no longer taxes the common case.
+      child: _maybeDim(
+        isOpen: isOpen,
         child: Padding(
           // 10 a side = a 20pt gutter between neighbouring rows, tight enough
           // that five rows fit a viewport and the list reads as one column
@@ -535,7 +542,11 @@ class _MetaLine extends StatelessWidget {
 
     if (children.isEmpty) return const SizedBox();
 
+    // Shrink-wrapped: when Free Delivery rides this line, this Row and the
+    // chip are two Flexibles in one Row, and a full-width Row here claimed
+    // half of it — leaving the chip stranded mid-row, far from the time.
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Clipping the row rather than wrapping it: these three facts belong on
         // one line, and a name long enough to squeeze them should cost the
@@ -695,4 +706,16 @@ class _NewBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Dims [child] for a closed store, and adds no layer for an open one.
+///
+/// `Opacity` renders its subtree to an offscreen buffer and composites it
+/// back — at any value, including 1.0, where the result is identical to not
+/// wrapping at all. In a scrolling list that is one wasted layer per visible
+/// row, and the Mi 9T baseline is raster-bound (docs/performance_baseline.md
+/// §9), so wasted layers are the thing to remove.
+Widget _maybeDim({required bool isOpen, required Widget child}) {
+  if (isOpen) return child;
+  return Opacity(opacity: 0.55, child: child);
 }

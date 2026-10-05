@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/common/models/config_model.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/helper/date_converter.dart';
@@ -40,8 +41,8 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
   Widget build(BuildContext context) {
     return GetBuilder<CheckoutController>(
       builder: (checkoutController) {
-        return GetBuilder<StoreController>(
-          builder: (storeController) {
+        return Builder(
+          builder: (context) {
             return Container(
               width: context.width,
               constraints: BoxConstraints(
@@ -50,7 +51,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
               ),
               margin: const EdgeInsets.only(top: 30),
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: WaddyColors.surface,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(Dimensions.radiusExtraLarge),
                 ),
@@ -68,7 +69,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                           vertical: Dimensions.paddingSizeExtraSmall,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).disabledColor,
+                          color: WaddyColors.inkMuted,
                           borderRadius: BorderRadius.circular(
                             Dimensions.radiusDefault,
                           ),
@@ -97,7 +98,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                                     onTap: () {
                                       checkoutController.updateDateSlot(
                                         0,
-                                        Get.find<StoreController>()
+                                        checkoutController
                                             .store!
                                             .orderPlaceToScheduleInterval,
                                       );
@@ -115,7 +116,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                                     onTap: () {
                                       checkoutController.updateDateSlot(
                                         1,
-                                        Get.find<StoreController>()
+                                        checkoutController
                                             .store!
                                             .orderPlaceToScheduleInterval,
                                       );
@@ -171,15 +172,9 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                                                           checkoutController
                                                                   .selectedDateSlot ==
                                                               0 &&
-                                                          storeController
-                                                              .isStoreOpenNow(
-                                                                storeController
-                                                                    .store!
-                                                                    .active!,
-                                                                storeController
-                                                                    .store!
-                                                                    .schedules,
-                                                              ) &&
+                                                          checkoutController
+                                                              .store!
+                                                              .isOpenBySchedule() &&
                                                           (Get.find<
                                                                     SplashController
                                                                   >()
@@ -187,7 +182,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                                                                   .moduleConfig!
                                                                   .module!
                                                                   .orderPlaceToScheduleInterval!
-                                                              ? storeController
+                                                              ? checkoutController
                                                                       .store!
                                                                       .orderPlaceToScheduleInterval ==
                                                                   0
@@ -235,7 +230,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
                               height: null,
                               isBold: true,
                               buttonText: 'cancel'.tr,
-                              color: Theme.of(context).disabledColor,
+                              color: WaddyColors.inkMuted,
                               onPressed: () => Get.back(),
                             ),
                           ),
@@ -311,8 +306,8 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
     required bool isSelected,
     required Function() onTap,
   }) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+    final Color primaryColor = WaddyColors.primary;
+    final Color accentColor = WaddyColors.mint;
 
     return GestureDetector(
       onTap: onTap,
@@ -331,7 +326,7 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
             color:
                 isSelected
                     ? accentColor
-                    : Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                    : WaddyColors.inkMuted.withValues(alpha: 0.3),
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -340,9 +335,12 @@ class _TimeSlotBottomSheetState extends State<TimeSlotBottomSheet> {
             title,
             style:
                 isSelected
-                    ? waddyBold.copyWith(color: Colors.white, fontSize: 14)
+                    ? waddyBold.copyWith(
+                      color: WaddyColors.surface,
+                      fontSize: 14,
+                    )
                     : waddyMedium.copyWith(
-                      color: Theme.of(context).textTheme.bodyLarge!.color,
+                      color: WaddyColors.ink,
                       fontSize: 14,
                     ),
           ),

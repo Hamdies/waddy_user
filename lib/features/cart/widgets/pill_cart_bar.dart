@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
+import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
+import 'package:waddy_app/common/widgets/overhang_badge.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/cart_reward_state.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -63,7 +66,7 @@ class PillCartBar extends StatefulWidget {
   ///
   /// The reported height INCLUDES the bottom system inset, which this bar
   /// carries inside its own ground — a caller must not add the inset again. It
-  /// also INCLUDES [_Badge.overhang], the part of the badge painted above the
+  /// also INCLUDES [OverhangBadge.overhang], the part of the badge painted above the
   /// bar's box: it is outside layout but it is still on top of the content,
   /// and a caller cannot be expected to know that. Reserve this number as-is
   /// and add only the clearance the design wants.
@@ -75,6 +78,31 @@ class PillCartBar extends StatefulWidget {
     this.globalOnly = false,
     this.onHeightChanged,
   });
+
+  /// The store whose minimum order and delivery rules the bar applies.
+  ///
+  /// An EMPTY cart is judged by the store on screen: that is where the order
+  /// is about to start ("Add 100 LE to start your order" on Seoudi's page is
+  /// Seoudi's minimum). A cart that already holds items is judged by ITS OWN
+  /// store, wherever the user is browsing: on another store's page, that
+  /// page's minimum describes an order nobody is placing. It used to be the
+  /// page's store regardless, so a 150 LE Seoudi cart read "Add 50 LE to start
+  /// your order" — greyed out — on Al Dahan's page, against Al Dahan's 200 LE
+  /// minimum (device, 10-01; the cart bar's twin of ST-02).
+  ///
+  /// [cartStore] is `CartController.cartStore`; null while it loads, which
+  /// falls back to the admin-wide rules for that moment. Surfaces outside any
+  /// store ([page] null) keep the admin-wide rules, as before.
+  static Store? rulesStoreFor({
+    required Store? page,
+    required List<CartModel> cartList,
+    required Store? cartStore,
+  }) {
+    if (page == null || cartList.isEmpty) return page;
+    final int? cartStoreId = cartList.first.item?.storeId;
+    if (page.id == cartStoreId) return page;
+    return cartStore;
+  }
 
   @override
   State<PillCartBar> createState() => _PillCartBarState();
@@ -160,7 +188,7 @@ class _PillCartBarState extends State<PillCartBar>
           ctx == null
               ? 0
               : ((ctx.findRenderObject() as RenderBox?)?.size.height ?? 0) +
-                  _Badge.overhang;
+                  OverhangBadge.overhang;
       if ((h - _lastReportedHeight).abs() > 0.5) {
         _lastReportedHeight = h;
         widget.onHeightChanged?.call(h);
@@ -176,14 +204,34 @@ class _PillCartBarState extends State<PillCartBar>
     });
   }
 
+  /// XP the cart will earn, as the server awards it (per line, on the
+  /// undiscounted price) — the same estimate the cart screen shows. Zero when
+  /// leveling is off or the XP config has not loaded, so the bar never
+  /// promises a number it cannot back.
+  int _estimatedXp(CartController cart) {
+    if (!Get.isRegistered<XpController>()) return 0;
+    final XpController xp = Get.find<XpController>();
+    if (xp.xpConfig == null || !xp.xpConfig!.levelingEnabled) return 0;
+    return xp.estimateForCart(
+      cart.cartList,
+      cart.cartList.first.item?.moduleType ??
+          Get.find<SplashController>().module?.moduleType,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GetBuilder<CartController>(
       builder: (cart) {
         final bool empty = cart.cartList.isEmpty;
+        final Store? rulesStore = PillCartBar.rulesStoreFor(
+          page: widget.store,
+          cartList: cart.cartList,
+          cartStore: cart.cartStore,
+        );
 
         CartRewardState reward = CartRewardState.resolveFromContext(
-          store: widget.store,
+          store: rulesStore,
           subTotal: cart.subTotal,
           cartIsEmpty: empty,
           globalOnly: widget.globalOnly,
@@ -254,11 +302,19 @@ class _PillCartBarState extends State<PillCartBar>
         // strands them. It wears the design's grey, but it is not inert.
         final bool blocked = reward.kind == CartRewardKind.minimumOrder;
 
-        // No message to show: the ladder is silent and the cart carries no
-        // discount, so the bar is the pill alone. Must match `_MessageRow`'s
-        // own silence test, which is what actually suppresses the badge.
+        // The last thing left to say when there is no discount, no delivery
+        // reward and no minimum: what this order earns. Every order earns it,
+        // so the bar is never mute for want of news.
+        final int xp = empty ? 0 : _estimatedXp(cart);
+
+        // No message to show: the ladder is silent, the cart carries no
+        // discount and there is no XP to report, so the bar is the pill alone.
+        // Must match `_MessageRow`'s own silence test, which is what actually
+        // suppresses the badge.
         final bool silent =
-            reward.kind == CartRewardKind.hidden && cart.itemDiscountPrice <= 0;
+            reward.kind == CartRewardKind.hidden &&
+            cart.itemDiscountPrice <= 0 &&
+            xp <= 0;
 
         final Widget bar = Container(
           key: _barKey,
@@ -284,7 +340,7 @@ class _PillCartBarState extends State<PillCartBar>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _MessageRow(state: reward, saved: cart.itemDiscountPrice),
+              _MessageRow(state: reward, saved: cart.itemDiscountPrice, xp: xp),
               if (!empty) ...[
                 if (!silent) const SizedBox(height: 12),
                 Padding(
@@ -320,7 +376,14 @@ class _MessageRow extends StatelessWidget {
   final CartRewardState state;
   final double saved;
 
-  const _MessageRow({required this.state, required this.saved});
+  /// XP this cart will earn; shown only when nothing else has news.
+  final int xp;
+
+  const _MessageRow({
+    required this.state,
+    required this.saved,
+    required this.xp,
+  });
 
   bool get _isBlocker => state.kind == CartRewardKind.minimumOrder;
 
@@ -353,7 +416,8 @@ class _MessageRow extends StatelessWidget {
   /// state is `hidden` and which carries no discount. The badge must not
   /// render on its own: a lone circle overhanging the bar with nothing beside
   /// it reads as a rendering fault.
-  bool get _isSilent => state.kind == CartRewardKind.hidden && saved <= 0;
+  bool get _isSilent =>
+      state.kind == CartRewardKind.hidden && saved <= 0 && xp <= 0;
 
   @override
   Widget build(BuildContext context) {
@@ -364,12 +428,8 @@ class _MessageRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _Badge(
+          OverhangBadge(
             asset: _animation,
-            // Loop ONLY on the moment worth celebrating. waddi_coins is 228KB
-            // and delivery_order 80KB — looping either forever behind a static
-            // message is wasted battery on a screen users sit on.
-            repeat: state.celebrates,
             // The design greys the badge in the below-minimum state and greens
             // it otherwise; a mint tint is this app's stand-in for that green,
             // and it lets the Lottie artwork read in its own colours instead
@@ -532,7 +592,27 @@ class _MessageRow extends StatelessWidget {
       // alongside this text already states it, so printing it twice on one
       // row read as the same number said back-to-back.
       case CartRewardKind.hidden:
-        if (saved <= 0) return const SizedBox.shrink();
+        if (saved <= 0) {
+          if (xp <= 0) return const SizedBox.shrink();
+          // Nothing else to announce: say what the order earns. The number
+          // is set in the strong weight; its position in the sentence stays
+          // the translator's, as with the hero greeting.
+          final List<String> parts = 'youll_earn_xp'.tr.split('@xp');
+          return Text.rich(
+            TextSpan(
+              children: [
+                for (int i = 0; i < parts.length; i++) ...[
+                  if (parts[i].isNotEmpty)
+                    TextSpan(text: parts[i], style: base),
+                  if (i < parts.length - 1)
+                    TextSpan(text: '$xp', style: strong),
+                ],
+              ],
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          );
+        }
         return Text(
           'youre_saving'.tr,
           style: strong,
@@ -540,67 +620,6 @@ class _MessageRow extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         );
     }
-  }
-}
-
-/// The 56px circle that overhangs the bar's top edge.
-///
-/// `margin-top: -32px` in the design's terms, which is a NEGATIVE top margin:
-/// the circle's upper 32px sit outside the bar. Flutter has no negative
-/// margin, so the equivalent here is a [Transform.translate] on a box that
-/// reserves only the visible remainder — that way the row's height is the 24px
-/// of in-bar circle, and the rest paints over whatever is above.
-///
-/// The design's `box-shadow: 0 0 0 5px #fff` is a hard 5px spread with no blur:
-/// a solid ring, not a shadow. That is a [Border], not a [BoxShadow] — using a
-/// blurred shadow here would smear the punch-through effect the ring creates.
-class _Badge extends StatelessWidget {
-  final String asset;
-  final bool repeat;
-  final Color fill;
-
-  static const double _diameter = 56;
-
-  /// How far the badge circle rises above the bar's top edge.
-  ///
-  /// Painted, not reserved — so `_reportHeight` adds it back when telling a
-  /// scrolling caller how much room to leave.
-  static const double overhang = 32;
-  static const double _ring = 5;
-
-  const _Badge({required this.asset, required this.repeat, required this.fill});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: _diameter,
-      // Only the part of the circle that sits INSIDE the bar occupies layout
-      // space; the overhang is painted, not reserved.
-      height: _diameter - overhang,
-      child: OverflowBox(
-        maxHeight: _diameter + _ring * 4,
-        alignment: Alignment.topCenter,
-        child: Transform.translate(
-          offset: const Offset(0, -overhang),
-          child: Container(
-            width: _diameter,
-            height: _diameter,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: fill,
-              // The white ring that makes the badge read as punched through
-              // the bar's edge.
-              border: Border.all(color: WaddyColors.surface, width: _ring),
-            ),
-            // The ring is drawn INSIDE the 56px box, so the animation gets the
-            // remaining room; a little extra inset keeps the artwork off the
-            // ring rather than touching it.
-            padding: const EdgeInsets.all(4),
-            child: Lottie.asset(asset, fit: BoxFit.contain),
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -626,13 +645,15 @@ class _CartPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Below the minimum the design calls for a flat disabled look — `#f1f1f3`
-    // ground, `#a0a0a6` ink — which stays an explicit override because it is
-    // a real state, not a color choice. Otherwise the pill takes
-    // [CustomButton]'s own default brand look (mint fill, primary text/border)
-    // rather than restating the app's colours here.
+    // Below the minimum the pill goes flat — `#f1f1f3` ground, no mint —
+    // because the order can't be placed yet. But the pill still opens the
+    // cart, so "View Cart" keeps the brand's teal: all-grey ink read as a
+    // disabled button, and people with a cart to edit stopped tapping it.
+    // Otherwise the pill takes [CustomButton]'s own default brand look (mint
+    // fill, primary text/border) rather than restating the app's colours.
     final Color? ground = blocked ? WaddyColors.surfaceRaised : null;
-    final Color ink = blocked ? WaddyColors.inkMuted : WaddyColors.primary;
+    final Color ink = blocked ? WaddyColors.inkMid : WaddyColors.primary;
+    const Color action = WaddyColors.primary;
 
     final String label =
         '$count ${count == 1 ? 'cart_bar_item'.tr : 'cart_bar_items'.tr}'
@@ -670,7 +691,7 @@ class _CartPill extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               'view_cart'.tr,
-              style: waddyBold.copyWith(fontSize: 16, color: ink),
+              style: waddyBold.copyWith(fontSize: 16, color: action),
               maxLines: 1,
               softWrap: false,
             ),

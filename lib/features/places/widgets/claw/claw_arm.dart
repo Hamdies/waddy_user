@@ -323,12 +323,7 @@ class _ClawPainter extends CustomPainter {
       final markH = markW * (image.height / image.width);
       canvas.drawImageRect(
         image,
-        Rect.fromLTWH(
-          0,
-          0,
-          image.width.toDouble(),
-          image.height.toDouble(),
-        ),
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
         Rect.fromCenter(center: discCentre, width: markW, height: markH),
         Paint()..filterQuality = FilterQuality.medium,
       );

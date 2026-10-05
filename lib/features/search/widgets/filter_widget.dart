@@ -301,11 +301,11 @@ class _FilterWidgetState extends State<FilterWidget> {
           title:
               widget.isStore
                   ? (Get.find<SplashController>()
-                          .configModel
-                          .moduleConfig!
-                          .module!
-                          .showRestaurantText ??
-                              false
+                              .configModel
+                              .moduleConfig!
+                              .module!
+                              .showRestaurantText ??
+                          false
                       ? 'currently_opened_restaurants'.tr
                       : 'currently_opened_stores'.tr)
                   : 'currently_available_items'.tr,
@@ -326,11 +326,11 @@ class _FilterWidgetState extends State<FilterWidget> {
           title:
               widget.isStore
                   ? (Get.find<SplashController>()
-                          .configModel
-                          .moduleConfig!
-                          .module!
-                          .showRestaurantText ??
-                              false
+                              .configModel
+                              .moduleConfig!
+                              .module!
+                              .showRestaurantText ??
+                          false
                       ? 'discounted_restaurants'.tr
                       : 'discounted_stores'.tr)
                   : 'discounted_items'.tr,

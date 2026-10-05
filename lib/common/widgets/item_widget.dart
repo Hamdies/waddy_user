@@ -1,26 +1,22 @@
-import 'package:waddy_app/common/widgets/cart_count_view.dart';
-import 'package:waddy_app/common/widgets/corner_banner/banner.dart';
-import 'package:waddy_app/common/widgets/corner_banner/corner_discount_tag.dart';
+import 'package:waddy_app/common/widgets/add_to_cart_control.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_favourite_widget.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
-import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/date_converter.dart';
-import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/not_available_widget.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -55,9 +51,6 @@ class ItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool ltr = Get.find<LocalizationController>().isLtr;
-    double? discount;
-    String? discountType;
     bool isAvailable;
     String genericName = '';
 
@@ -69,13 +62,8 @@ class ItemWidget extends StatelessWidget {
       }
     }
     if (isStore) {
-      discount = store!.discount != null ? store!.discount!.discount : 0;
-      discountType =
-          store!.discount != null ? store!.discount!.discountType : 'percent';
       isAvailable = store!.open == 1 && store!.active!;
     } else {
-      discount = item!.discount;
-      discountType = item!.discountType;
       isAvailable = DateConverter.isAvailable(
         item!.availableTimeStarts,
         item!.availableTimeEnds,
@@ -97,20 +85,9 @@ class ItemWidget extends StatelessWidget {
             onTap: () {
               if (isStore) {
                 if (store != null) {
-                  if (isFeatured) {
-                    Get.find<SplashController>().activateModuleFor(
-                      store!.moduleId,
-                    );
-                  }
-                  Get.toNamed(
-                    RouteHelper.getStoreRoute(
-                      id: store!.id,
-                      page: isFeatured ? 'module' : 'item',
-                    ),
-                    arguments: StoreScreen(
-                      store: store,
-                      fromModule: isFeatured,
-                    ),
+                  StoreNavigator.open(
+                    store!,
+                    page: isFeatured ? 'module' : 'item',
                   );
                 }
               } else {
@@ -166,12 +143,24 @@ class ItemWidget extends StatelessWidget {
                               ),
                             ),
 
-                            (isStore || isCornerTag!)
-                                ? DiscountTag(
-                                  discount: discount,
-                                  discountType: discountType,
-                                  freeDelivery:
-                                      isStore ? store!.freeDelivery : false,
+                            // An item wears the app's sale collar, low on the
+                            // photo so it clears the favourite heart.
+                            if (!isStore && ItemPrice.of(item!).onSale)
+                              PositionedDirectional(
+                                bottom: 4,
+                                start: 4,
+                                child:
+                                    OfferCollarBadge.forItem(
+                                      item!,
+                                      compact: true,
+                                      onPhoto: true,
+                                    )!,
+                              ),
+
+                            isStore
+                                ? OfferCollarBadge.storeCorner(
+                                  store!,
+                                  atBottom: true,
                                 )
                                 : const SizedBox(),
 
@@ -248,22 +237,7 @@ class ItemWidget extends StatelessWidget {
                                       )
                                       : const SizedBox(),
 
-                                  (Get.find<SplashController>()
-                                              .configModel
-                                              .moduleConfig!
-                                              .module!
-                                              .unit! &&
-                                          item != null &&
-                                          item!.unitType != null)
-                                      ? Text(
-                                        '(${item!.unitType ?? ''})',
-                                        style: waddyRegular.copyWith(
-                                          fontSize:
-                                              Dimensions.fontSizeExtraSmall,
-                                          color: Theme.of(context).hintColor,
-                                        ),
-                                      )
-                                      : const SizedBox(),
+                                 
 
                                   SizedBox(
                                     width:
@@ -405,47 +379,7 @@ class ItemWidget extends StatelessWidget {
                                       ),
                                     ],
                                   )
-                                  : Row(
-                                    children: [
-                                      Text(
-                                        PriceConverter.convertPrice(
-                                          item!.price,
-                                          discount: discount,
-                                          discountType: discountType,
-                                        ),
-                                        style: waddyMedium.copyWith(
-                                          fontSize: Dimensions.fontSizeSmall,
-                                        ),
-                                        textDirection: TextDirection.ltr,
-                                      ),
-                                      SizedBox(
-                                        width:
-                                            discount! > 0
-                                                ? Dimensions
-                                                    .paddingSizeExtraSmall
-                                                : 0,
-                                      ),
-
-                                      discount > 0
-                                          ? Text(
-                                            PriceConverter.convertPrice(
-                                              item!.price,
-                                            ),
-                                            style: waddyMedium.copyWith(
-                                              fontSize:
-                                                  Dimensions.fontSizeExtraSmall,
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).disabledColor,
-                                              decoration:
-                                                  TextDecoration.lineThrough,
-                                            ),
-                                            textDirection: TextDirection.ltr,
-                                          )
-                                          : const SizedBox(),
-                                    ],
-                                  ),
+                                  : PriceTag.forItem(item!, oneLine: true),
                             ],
                           ),
                         ),
@@ -458,7 +392,10 @@ class ItemWidget extends StatelessWidget {
                           children: [
                             const SizedBox(),
 
-                            CartCountView(item: item!, index: index),
+                            SizedBox(
+                              height: Dimensions.minTapTarget,
+                              child: AddToCartControl(item: item!, inset: 0),
+                            ),
                           ],
                         ),
                       ],
@@ -469,23 +406,6 @@ class ItemWidget extends StatelessWidget {
             ),
           ),
         ),
-
-        (!isStore && isCornerTag! == false)
-            ? Positioned(
-              right: ltr ? 0 : null,
-              left: ltr ? null : 0,
-              child: CornerDiscountTag(
-                bannerPosition:
-                    ltr
-                        ? CornerBannerPosition.topRight
-                        : CornerBannerPosition.topLeft,
-                elevation: 0,
-                discount: discount,
-                discountType: discountType,
-                freeDelivery: isStore ? store!.freeDelivery : false,
-              ),
-            )
-            : const SizedBox(),
       ],
     );
   }

@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
+import 'package:waddy_app/util/swallow.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:waddy_app/api/api_checker.dart';
@@ -11,8 +15,11 @@ import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/checkout/domain/models/surge_price_model.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/store/domain/services/store_service_interface.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/util/parse.dart';
+import 'package:waddy_app/helper/module_helper.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
@@ -202,27 +209,34 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   Future<void> initCheckoutData(int? storeId) async {
-    Get.find<CouponController>().removeCouponData(false);
+    // A coupon applied on this store's cart rides into checkout; anything
+    // else is cleared, as before.
+    Get.find<CouponController>().keepOnlyFor(storeId);
     _storeLoadFailed = false;
 
-    // Reuse the store the previous screen already fetched.
+    // The store comes from the shared store cache (ST-10): the cart screen,
+    // or the store page before it, has almost always fetched this exact store
+    // already, so the peek answers without a round trip — and the shimmer is
+    // gated on `store != null`, so that round trip *was* the perceived load.
     //
-    // Checkout is reached from the cart, and the cart screen loads this exact
-    // store on entry (cart_screen.dart). Refetching it meant the whole
-    // checkout sat behind a round trip for something already in memory — and
-    // the shimmer is gated on `store != null`, so that round trip *was* the
-    // perceived load time.
-    //
-    // `getStoreDetails` short-circuits on a populated Store (`store.name !=
-    // null`), so handing it the cached one costs nothing and still applies the
-    // side effects checkout needs — time slots and the order type.
-    final Store? cached = Get.find<StoreController>().store;
-    final Store seed =
-        (cached != null && cached.id == storeId && cached.name != null)
-            ? cached
-            : Store(id: storeId);
-
-    _store = await Get.find<StoreController>().getStoreDetails(seed, false);
+    // It used to go through `StoreController.getStoreDetails`, which also
+    // wrote this store into `StoreController.store` — the field the store
+    // page under checkout renders its header from (ST-02) — and applied
+    // checkout's own setup as side effects of a method called "get". That
+    // setup is [_applyStore] now, here, where it belongs.
+    final String languageCode =
+        Get.find<LocalizationController>().locale.languageCode;
+    final StoreServiceInterface stores = Get.find<StoreServiceInterface>();
+    _store =
+        storeId == null
+            ? null
+            : stores.peekStoreDetails(storeId, languageCode: languageCode) ??
+                await stores.getCachedStoreDetails(
+                  storeId,
+                  languageCode: languageCode,
+                  moduleId: ModuleHelper.currentModuleId(),
+                  fromCart: true,
+                );
     if (_store == null) {
       // A bare `return` here left the screen shimmering indefinitely: the
       // shimmer is gated on `store != null`, and nothing else ever set it.
@@ -231,6 +245,7 @@ class CheckoutController extends GetxController implements GetxService {
       update();
       return;
     }
+    _applyStore(_store!);
     // Paint now. Everything above is resolved; surge only adjusts a fee.
     update();
 
@@ -239,9 +254,9 @@ class CheckoutController extends GetxController implements GetxService {
     // it delayed every row — the address, the items, the payment methods — for
     // a number that affects one line.
     //
-    // `initializeTimeSlot` is likewise absent: `getStoreDetails` already fires
-    // it as a side effect, so calling it again recomputed every schedule slot
-    // for nothing.
+    // Time slots are initialised exactly once, in [_applyStore]. They used to
+    // be a side effect of `getStoreDetails` AND called here, which ran the
+    // whole schedule loop twice.
     unawaited(
       getSurgePrice(
         zoneId: _store!.zoneId.toString(),
@@ -272,6 +287,60 @@ class CheckoutController extends GetxController implements GetxService {
     if (isUpdate) {
       update();
     }
+  }
+
+  static const String _preferredPaymentKey = 'waddi_preferred_payment_method';
+
+  /// Remembers a method the customer picked by hand, so the next checkout
+  /// opens with it already selected. Wallet is not remembered: whether it
+  /// covers the order depends on that order's total.
+  void rememberPaymentMethod(int index, {String? gateway}) {
+    final String value = switch (index) {
+      0 => 'cod',
+      2 => gateway != null ? 'digital:$gateway' : '',
+      3 => 'offline',
+      _ => '',
+    };
+    if (value.isEmpty) return;
+    try {
+      Get.find<SharedPreferences>().setString(_preferredPaymentKey, value);
+    } catch (e, s) {
+      swallow('remember preferred payment method', e, s);
+    }
+  }
+
+  /// Re-selects the remembered method when nothing is selected yet and this
+  /// store still offers it. Called from checkout's `build`, which reads the
+  /// selection right after, so it does not notify. Returns whether it
+  /// selected anything.
+  bool restorePaymentMethod({
+    required bool codActive,
+    required bool digitalActive,
+    required bool offlineActive,
+    required List<String> gateways,
+  }) {
+    if (_paymentMethodIndex != -1) return false;
+    String? saved;
+    try {
+      saved = Get.find<SharedPreferences>().getString(_preferredPaymentKey);
+    } catch (e, s) {
+      swallow('read preferred payment method', e, s);
+    }
+    if (saved == null) return false;
+
+    if (saved == 'cod' && codActive) {
+      _paymentMethodIndex = 0;
+    } else if (saved == 'offline' && offlineActive) {
+      _paymentMethodIndex = 3;
+    } else if (saved.startsWith('digital:') && digitalActive) {
+      final String gateway = saved.substring('digital:'.length);
+      if (!gateways.contains(gateway)) return false;
+      _paymentMethodIndex = 2;
+      _digitalPaymentName = gateway;
+    } else {
+      return false;
+    }
+    return true;
   }
 
   void changeDigitalPaymentName(String name, {bool willUpdate = true}) {
@@ -326,8 +395,10 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   void updateTips(int index, {bool notify = true}) {
+    // A saved index can outlive a shorter tips list; fall back to "no tip".
+    if (index < 0 || index >= AppConstants.tips.length) index = 0;
     _selectedTips = index;
-    if (_selectedTips == 0 || _selectedTips == 5) {
+    if (_selectedTips == 0 || _selectedTips == AppConstants.tips.length - 1) {
       _tips = 0;
     } else {
       _tips = double.parse(AppConstants.tips[index]);
@@ -349,9 +420,59 @@ class CheckoutController extends GetxController implements GetxService {
     _viewTotalPrice = amount;
   }
 
+  /// Address to select on the next checkout open. [clearPrevData] runs as
+  /// checkout opens and would otherwise reset the selection to the current
+  /// location.
+  int? _pendingAddressIndex;
+  void preselectAddressIndex(int index) => _pendingAddressIndex = index;
+
+  /// Keeps the selection inside checkout's address list, which can shrink
+  /// when the current location turns out to be a saved address and the two
+  /// merge. Called from `build`, so it does not notify.
+  void clampAddressIndex(int length) {
+    if (length > 0 && (_addressIndex == null || _addressIndex! >= length)) {
+      _addressIndex = 0;
+    }
+  }
+
+  /// What checkout needs from its store before it can price anything: the
+  /// schedule slots, the order type the store supports, and the delivery
+  /// distance. These ran as side effects of `StoreController.getStoreDetails`
+  /// on every store page open — two network calls (`distance-api`,
+  /// `extra_charge`) per open for a distance only checkout reads, and after
+  /// `clearPrevData` had wiped it anyway.
+  void _applyStore(Store store) {
+    initializeTimeSlot(store);
+    setOrderType(
+      (store.delivery ?? false) ? 'delivery' : 'take_away',
+      notify: false,
+    );
+    _computeDistanceTo(store);
+  }
+
+  /// Kicks off the store-to-user distance lookup when both ends are known. A
+  /// distance that cannot be computed is a missing distance, not a crash:
+  /// the saved address can be absent and the server can leave coordinates
+  /// null.
+  void _computeDistanceTo(Store store) {
+    final AddressModel? address = AddressHelper.getUserAddressFromSharedPref();
+    final double? userLat = Parse.coordinate(address?.latitude);
+    final double? userLng = Parse.coordinate(address?.longitude);
+    final double? storeLat = Parse.coordinate(store.latitude);
+    final double? storeLng = Parse.coordinate(store.longitude);
+    if (userLat == null ||
+        userLng == null ||
+        storeLat == null ||
+        storeLng == null) {
+      return;
+    }
+    getDistanceInKM(LatLng(userLat, userLng), LatLng(storeLat, storeLng));
+  }
+
   void clearPrevData() {
     _distance = null;
-    _addressIndex = 0;
+    _addressIndex = _pendingAddressIndex ?? 0;
+    _pendingAddressIndex = null;
     _acceptTerms = true;
     _paymentMethodIndex = -1;
     _selectedDateSlot = 0;
@@ -432,11 +553,15 @@ class CheckoutController extends GetxController implements GetxService {
   }
 
   bool isStoreClosed(bool today, bool active, List<Schedules>? schedules) {
-    return Get.find<StoreController>().isStoreClosed(today, active, schedules);
+    return StoreSchedule.isClosed(
+      today: today,
+      active: active,
+      schedules: schedules,
+    );
   }
 
   bool isStoreOpenNow(bool active, List<Schedules>? schedules) {
-    return Get.find<StoreController>().isStoreOpenNow(active, schedules);
+    return StoreSchedule.isOpenNow(active: active, schedules: schedules);
   }
 
   Future<double?> getDistanceInKM(
@@ -761,6 +886,14 @@ class CheckoutController extends GetxController implements GetxService {
     String userID,
   ) async {
     if (isSuccess) {
+      final cartList = Get.find<CartController>().cartList;
+      Get.find<XpController>().lastOrderXpEstimate =
+          fromCart && cartList.isNotEmpty
+              ? Get.find<XpController>().estimateForCart(
+                cartList,
+                cartList.first.item?.moduleType,
+              )
+              : null;
       if (fromCart) {
         Get.find<CartController>().clearCartList();
       }
@@ -806,6 +939,9 @@ class CheckoutController extends GetxController implements GetxService {
       }
       clearPrevData();
       Get.find<CouponController>().removeCouponData(false);
+      // A spent free-delivery prize must not stay selected for the next
+      // checkout of the same basket (X-15).
+      Get.find<XpController>().afterOrderPlaced();
       updateTips(
         getSharedPrefDmTipIndex().isNotEmpty
             ? int.parse(getSharedPrefDmTipIndex())

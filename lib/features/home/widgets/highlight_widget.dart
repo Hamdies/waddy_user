@@ -3,16 +3,15 @@ import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_favourite_widget.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/features/home/controllers/advertisement_controller.dart';
 import 'package:waddy_app/features/home/domain/models/advertisement_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -184,13 +183,7 @@ class HighlightStoreWidget extends StatelessWidget {
       ),
       child: InkWell(
         onTap: () {
-          Get.toNamed(
-            RouteHelper.getStoreRoute(id: advertisement.storeId, page: 'store'),
-            arguments: StoreScreen(
-              store: Store(id: advertisement.storeId),
-              fromModule: false,
-            ),
-          );
+          StoreNavigator.open(Store(id: advertisement.storeId));
         },
         child: Column(
           children: [
@@ -500,17 +493,8 @@ class _HighlightVideoWidgetState extends State<HighlightVideoWidget> {
 
                           InkWell(
                             onTap: () {
-                              Get.toNamed(
-                                RouteHelper.getStoreRoute(
-                                  id: widget.advertisement.storeId,
-                                  page: 'store',
-                                ),
-                                arguments: StoreScreen(
-                                  store: Store(
-                                    id: widget.advertisement.storeId,
-                                  ),
-                                  fromModule: false,
-                                ),
+                              StoreNavigator.open(
+                                Store(id: widget.advertisement.storeId),
                               );
                             },
                             child: Container(

@@ -1,3 +1,4 @@
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,11 +8,9 @@ import 'package:waddy_app/common/widgets/not_available_widget.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class VisitAgainCard extends StatelessWidget {
   final Store store;
@@ -49,10 +48,7 @@ class VisitAgainCard extends StatelessWidget {
           ),
           child: CustomInkWell(
             onTap: () {
-              Get.toNamed(
-                RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-                arguments: StoreScreen(store: store, fromModule: false),
-              );
+              StoreNavigator.open(store);
             },
             radius: Dimensions.radiusDefault,
             padding: const EdgeInsets.only(

@@ -19,6 +19,7 @@ import 'package:waddy_app/helper/route_helper.dart';
 ///   /store?id=5        /store/5
 ///   /item?id=7         /item/7         /item-details?id=7
 ///   /category?id=3&name=Pizza
+///   /order/42          (the iOS Live Activity tap)
 /// Anything unparseable is dropped: a deep link must never leave the user
 /// somewhere worse than no deep link would have.
 class DeepLinkHelper {
@@ -114,6 +115,9 @@ class DeepLinkHelper {
       case 'item-details':
         if (id == null) return null;
         return RouteHelper.getItemDetailsRoute(id, false);
+      case 'order':
+        if (id == null) return null;
+        return RouteHelper.getOrderDetailsRoute(id);
       case 'category':
       case 'category-item':
         if (id == null) return null;

@@ -21,6 +21,7 @@ abstract class OrderRepositoryInterface extends RepositoryInterface {
     String? guestId, {
     String? contactNumber,
   });
+  Future<Response> getRiderLocation(String orderID, {String? contactNumber});
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId});
   Future<Response> switchToCOD(String? orderID, {String? guestId});
   Future<Response> reorder(int orderId);

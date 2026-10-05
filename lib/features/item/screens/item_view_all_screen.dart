@@ -1,3 +1,6 @@
+import 'package:waddy_app/common/widgets/add_to_cart_control.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -15,17 +18,14 @@ import 'package:waddy_app/features/item/widgets/item_view_all_sort_bottom_sheet.
 import 'package:waddy_app/features/search/widgets/search_field_widget.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/common/widgets/cart_count_view.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/not_available_widget.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 
@@ -457,9 +457,6 @@ class ItemCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double? discount = item.discount;
-    String? discountType = item.discountType;
-
     return CustomCard(
       padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       child: CustomInkWell(
@@ -499,11 +496,23 @@ class ItemCardWidget extends StatelessWidget {
                       )
                       : const SizedBox(),
 
-                  DiscountTag(
-                    discount: discount,
-                    discountType: discountType,
-                    freeDelivery: false,
-                  ),
+                  if (ItemPrice.of(
+                    item,
+                    base: Get.find<ItemController>().getStartingPrice(item),
+                  ).onSale)
+                    PositionedDirectional(
+                      top: 6,
+                      start: 6,
+                      child:
+                          OfferCollarBadge.forItem(
+                            item,
+                            base: Get.find<ItemController>().getStartingPrice(
+                              item,
+                            ),
+                            compact: true,
+                            onPhoto: true,
+                          )!,
+                    ),
 
                   OrganicTag(item: item, placeInImage: false),
 
@@ -538,10 +547,10 @@ class ItemCardWidget extends StatelessWidget {
                       )
                       : const SizedBox(),
 
-                  Positioned(
-                    bottom: 10,
-                    right: 10,
-                    child: CartCountView(item: item),
+                  PositionedDirectional(
+                    bottom: 4,
+                    end: 4,
+                    child: AddToCartControl(item: item, inset: 0),
                   ),
 
                   Get.find<ItemController>().isAvailable(item)
@@ -637,34 +646,10 @@ class ItemCardWidget extends StatelessWidget {
                             : 0,
                   ),
 
-                  discount != null && discount > 0
-                      ? Text(
-                        PriceConverter.convertPrice(
-                          Get.find<ItemController>().getStartingPrice(item),
-                        ),
-                        style: waddyMedium.copyWith(
-                          fontSize: Dimensions.fontSizeExtraSmall,
-                          color: Theme.of(context).disabledColor,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                        textDirection: TextDirection.ltr,
-                      )
-                      : const SizedBox(),
-                  SizedBox(
-                    height:
-                        discount != null && discount > 0
-                            ? Dimensions.paddingSizeExtraSmall
-                            : 0,
-                  ),
-
-                  Text(
-                    PriceConverter.convertPrice(
-                      Get.find<ItemController>().getStartingPrice(item),
-                      discount: discount,
-                      discountType: discountType,
-                    ),
-                    textDirection: TextDirection.ltr,
-                    style: waddyMedium,
+                  PriceTag.forItem(
+                    item,
+                    base: Get.find<ItemController>().getStartingPrice(item),
+                    stacked: true,
                   ),
                 ],
               ),

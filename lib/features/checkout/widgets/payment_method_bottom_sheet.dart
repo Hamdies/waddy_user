@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:get/get.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
@@ -102,7 +103,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
               maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+              color: WaddyColors.surface,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(Dimensions.radiusLarge),
                 bottom: Radius.circular(0),
@@ -122,7 +123,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                       bottom: Dimensions.paddingSizeExtraSmall,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).disabledColor,
+                      color: WaddyColors.inkMuted,
                       borderRadius: BorderRadius.circular(
                         Dimensions.radiusDefault,
                       ),
@@ -155,7 +156,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                             'total_bill'.tr,
                             style: waddyMedium.copyWith(
                               fontSize: 14,
-                              color: Colors.grey.shade700,
+                              color: WaddyColors.inkLight,
                             ),
                           ),
                         ),
@@ -164,7 +165,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                           PriceConverter.convertPrice(widget.totalPrice),
                           style: waddyBold.copyWith(
                             fontSize: Dimensions.fontSizeExtraLarge,
-                            color: Theme.of(context).primaryColor,
+                            color: WaddyColors.primary,
                           ),
                         ),
                         const SizedBox(height: Dimensions.paddingSizeLarge),
@@ -196,7 +197,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                                   Dimensions.radiusSmall,
                                 ),
                                 border: Border.all(
-                                  color: Theme.of(context).disabledColor,
+                                  color: WaddyColors.inkMuted,
                                   width: 0.2,
                                 ),
                               ),
@@ -229,7 +230,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                                             .configModel
                                             .activePaymentMethodList
                                             ?.length ??
-                                                0,
+                                        0,
                                     shrinkWrap: true,
                                     physics:
                                         const NeverScrollableScrollPhysics(),
@@ -348,7 +349,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                         //   Text('pay_via_online'.tr, style: waddyBold.copyWith(fontSize: Dimensions.fontSizeDefault)),
                         //   Text(
                         //     'faster_and_secure_way_to_pay_bill'.tr,
-                        //     style: waddyRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: Theme.of(context).hintColor),
+                        //     style: waddyRegular.copyWith(fontSize: Dimensions.fontSizeSmall, color: WaddyColors.inkMuted),
                         //   ),
                         // ]) : const SizedBox(),
                         // SizedBox(height: widget.storeId == null && widget.isDigitalPaymentActive && notHideDigital ? Dimensions.paddingSizeLarge : 0),
@@ -367,9 +368,9 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                         //         },
                         //         child: Container(
                         //           decoration: BoxDecoration(
-                        //               color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+                        //               color: isSelected ? WaddyColors.primary.withValues(alpha: 0.1) : Colors.transparent,
                         //               borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                        //               border: Border.all(color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).disabledColor, width: 0.5)
+                        //               border: Border.all(color: isSelected ? WaddyColors.primary : WaddyColors.inkMuted, width: 0.5)
                         //           ),
                         //           padding: const EdgeInsets.symmetric(horizontal: Dimensions.paddingSizeSmall, vertical: Dimensions.paddingSizeLarge),
                         //           margin: const EdgeInsets.only(bottom: Dimensions.paddingSizeSmall),
@@ -377,10 +378,10 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                         //             Container(
                         //               height: 20, width: 20,
                         //               decoration: BoxDecoration(
-                        //                   shape: BoxShape.circle, color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).cardColor,
-                        //                   border: Border.all(color: Theme.of(context).disabledColor)
+                        //                   shape: BoxShape.circle, color: isSelected ? WaddyColors.primary : WaddyColors.surface,
+                        //                   border: Border.all(color: WaddyColors.inkMuted)
                         //               ),
-                        //               child: Icon(Icons.check, color: Theme.of(context).cardColor, size: 16),
+                        //               child: Icon(Icons.check, color: WaddyColors.surface, size: 16),
                         //             ),
                         //             const SizedBox(width: Dimensions.paddingSizeDefault),
                         //
@@ -470,7 +471,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                         'specify_the_amount_of_change_the_deliveryman_needs_to_bring_when_delivering_the_order'
                             .tr,
                         style: waddyRegular.copyWith(
-                          color: Theme.of(context).disabledColor,
+                          color: WaddyColors.inkMuted,
                         ),
                       ),
                       const SizedBox(height: Dimensions.paddingSizeExtraSmall),
@@ -504,7 +505,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
               padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
               child: Text(
                 showChangeAmount ? 'see_less'.tr : 'see_more'.tr,
-                style: waddyBold.copyWith(color: Colors.blue),
+                style: waddyBold.copyWith(color: WaddyColors.mintInk),
               ),
             ),
             const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -543,10 +544,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                border: Border.all(
-                  color: Theme.of(context).disabledColor,
-                  width: 0.3,
-                ),
+                border: Border.all(color: WaddyColors.inkMuted, width: 0.3),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -560,7 +558,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                             : 'wallet_balance'.tr,
                         style: waddyMedium.copyWith(
                           fontSize: 12,
-                          color: Colors.grey.shade700,
+                          color: WaddyColors.inkLight,
                         ),
                       ),
 
@@ -579,7 +577,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                             isWalletSelected ? ' (${'applied'.tr})' : '',
                             style: waddyMedium.copyWith(
                               fontSize: Dimensions.fontSizeDefault,
-                              color: Theme.of(context).primaryColor,
+                              color: WaddyColors.primary,
                             ),
                           ),
                         ],
@@ -608,14 +606,14 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     radius: 5,
                     child:
                         isWalletSelected
-                            ? const Icon(Icons.clear, color: Colors.red)
+                            ? const Icon(Icons.clear, color: WaddyColors.error)
                             : Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(
                                   Dimensions.radiusExtraSmall,
                                 ),
                                 border: Border.all(
-                                  color: Theme.of(context).primaryColor,
+                                  color: WaddyColors.primary,
                                   width: 1,
                                 ),
                               ),
@@ -627,7 +625,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                                 'apply'.tr,
                                 style: waddyMedium.copyWith(
                                   fontSize: 12,
-                                  color: Theme.of(context).primaryColor,
+                                  color: WaddyColors.primary,
                                 ),
                               ),
                             ),
@@ -642,7 +640,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                   bottom: Dimensions.paddingSizeSmall,
                 ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).disabledColor.withValues(alpha: 0.2),
+                  color: WaddyColors.inkMuted.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
                 ),
                 padding: const EdgeInsets.symmetric(
@@ -692,14 +690,14 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                               'paid_by_wallet'.tr,
                               style: waddyMedium.copyWith(
                                 fontSize: 14,
-                                color: Colors.grey.shade700,
+                                color: WaddyColors.inkLight,
                               ),
                             ),
                             Text(
                               PriceConverter.convertPrice(walletBalance),
                               style: waddyMedium.copyWith(
                                 fontSize: 14,
-                                color: Colors.grey.shade700,
+                                color: WaddyColors.inkLight,
                               ),
                             ),
                           ],
@@ -730,7 +728,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                       '* ${'please_select_a_option_to_pay_remain_billing_amount'.tr}',
                       style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeSmall,
-                        color: const Color(0xFFE74B4B),
+                        color: WaddyColors.coralInk,
                       ),
                     ),
                   const SizedBox(height: Dimensions.paddingSizeSmall),
@@ -761,8 +759,8 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     border: Border.all(
                       color:
                           isSelected
-                              ? Theme.of(context).primaryColor
-                              : Theme.of(context).disabledColor,
+                              ? WaddyColors.primary
+                              : WaddyColors.inkMuted,
                       width: 0.2,
                     ),
                   ),
@@ -774,10 +772,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     height: 20,
                     fit: BoxFit.contain,
                     image: image,
-                    color:
-                        disablePayments
-                            ? Theme.of(context).disabledColor
-                            : null,
+                    color: disablePayments ? WaddyColors.inkMuted : null,
                   )
                   : const SizedBox(),
               const SizedBox(width: Dimensions.paddingSizeSmall),
@@ -789,8 +784,8 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     fontSize: Dimensions.fontSizeSmall,
                     color:
                         disablePayments
-                            ? Theme.of(context).disabledColor
-                            : Theme.of(context).textTheme.bodyLarge!.color,
+                            ? WaddyColors.inkMuted
+                            : WaddyColors.ink,
                   ),
                 ),
               ),
@@ -800,10 +795,7 @@ class _PaymentMethodBottomSheetState extends State<PaymentMethodBottomSheet> {
                     ? Icons.radio_button_checked
                     : Icons.radio_button_off,
                 size: 24,
-                color:
-                    isSelected
-                        ? Theme.of(context).primaryColor
-                        : Theme.of(context).disabledColor,
+                color: isSelected ? WaddyColors.primary : WaddyColors.inkMuted,
               ),
             ],
           ),

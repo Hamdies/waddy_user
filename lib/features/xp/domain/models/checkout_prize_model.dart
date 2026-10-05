@@ -1,3 +1,6 @@
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_kind.dart';
+
 /// Model for prizes available at checkout
 class CheckoutPrize {
   final int id;
@@ -22,17 +25,14 @@ class CheckoutPrize {
 
   factory CheckoutPrize.fromJson(Map<String, dynamic> json) {
     return CheckoutPrize(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      type: json['type'] ?? json['prize_type'] ?? 'free_delivery',
-      value: json['value']?.toDouble(),
-      minOrderAmount: json['min_order_amount']?.toDouble(),
-      expiresAt:
-          json['expires_at'] != null
-              ? DateTime.tryParse(json['expires_at'].toString())
-              : null,
-      description: json['description'],
-      levelName: json['level_name'],
+      id: xpInt(json['id']),
+      title: xpStr(json['title']) ?? '',
+      type: xpStr(json['type']) ?? xpStr(json['prize_type']) ?? 'free_delivery',
+      value: xpDoubleOrNull(json['value']),
+      minOrderAmount: xpDoubleOrNull(json['min_order_amount']),
+      expiresAt: xpDate(json['expires_at']),
+      description: xpStr(json['description']),
+      levelName: xpStr(json['level_name']),
     );
   }
 
@@ -60,5 +60,7 @@ class CheckoutPrize {
     return diff.isNegative ? Duration.zero : diff;
   }
 
-  bool get isFreeDelivery => type == 'free_delivery';
+  PrizeKind get kind => PrizeKind.parse(type);
+
+  bool get isFreeDelivery => kind == PrizeKind.freeDelivery;
 }

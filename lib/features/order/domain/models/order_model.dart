@@ -76,6 +76,10 @@ class OrderModel {
   List<String?>? orderAttachmentFullUrl;
   String? chargePayer;
   String? moduleType;
+
+  /// Net XP this order actually earned, from the server's XP ledger. Only the
+  /// order list sends it; 0 elsewhere.
+  int xpEarned = 0;
   DeliveryMan? deliveryMan;
   Store? store;
   AddressModel? deliveryAddress;
@@ -248,6 +252,8 @@ class OrderModel {
     }
     chargePayer = json['charge_payer'];
     moduleType = json['module_type'];
+    final xp = json['xp_earned'];
+    xpEarned = xp is int ? xp : int.tryParse('${xp ?? ''}') ?? 0;
     deliveryMan =
         json['delivery_man'] != null
             ? DeliveryMan.fromJson(json['delivery_man'])
@@ -408,6 +414,24 @@ class DeliveryMan {
   String? lng;
   String? location;
 
+  /// When the rider's phone last reported [lat]/[lng], on this phone's clock.
+  /// Built from the server's `location_age_seconds`, so a wrong phone clock
+  /// can't make a live rider look stale. Null when the backend doesn't send
+  /// it, which counts as fresh.
+  DateTime? locationFixedAt;
+
+  /// The rider's app has stopped reporting: the position is no longer worth
+  /// drawing (LT-07).
+  bool get locationStale =>
+      locationFixedAt != null &&
+      DateTime.now().difference(locationFixedAt!) > const Duration(minutes: 2);
+
+  void setLocationAge(dynamic seconds) {
+    final int? age = seconds is num ? seconds.toInt() : int.tryParse('$seconds');
+    locationFixedAt =
+        age == null ? null : DateTime.now().subtract(Duration(seconds: age));
+  }
+
   DeliveryMan({
     this.id,
     this.fName,
@@ -440,6 +464,7 @@ class DeliveryMan {
     lat = json['lat'];
     lng = json['lng'];
     location = json['location'];
+    setLocationAge(json['location_age_seconds']);
   }
 
   Map<String, dynamic> toJson() {

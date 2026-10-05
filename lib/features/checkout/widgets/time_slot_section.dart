@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/features/checkout/widgets/checkout_card.dart';
 import 'package:get/get.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
@@ -39,7 +42,7 @@ class TimeSlotSection extends StatelessWidget {
                 cartList![0]!.item!.availableDateStarts == null
             ? Container(
               decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+                color: WaddyColors.surface,
                 boxShadow: [
                   BoxShadow(
                     color: Theme.of(
@@ -62,7 +65,7 @@ class TimeSlotSection extends StatelessWidget {
                       const SizedBox(width: Dimensions.paddingSizeExtraSmall),
 
                       JustTheTooltip(
-                        backgroundColor: Colors.black87,
+                        backgroundColor: WaddyColors.ink,
                         controller: tooltipController2,
                         preferredDirection: AxisDirection.right,
                         tailLength: 14,
@@ -73,12 +76,22 @@ class TimeSlotSection extends StatelessWidget {
                           ),
                           child: Text(
                             'schedule_time_tool_tip'.tr,
-                            style: waddyRegular.copyWith(color: Colors.white),
+                            style: waddyRegular.copyWith(
+                              color: WaddyColors.surface,
+                            ),
                           ),
                         ),
-                        child: InkWell(
+                        child: InkResponse(
                           onTap: () => tooltipController2.showTooltip(),
-                          child: const Icon(Icons.info_outline),
+                          radius: 22,
+                          // An 18pt glyph in a 44pt target.
+                          child: const Padding(
+                            padding: EdgeInsets.all(13),
+                            child: CheckoutIcon(
+                              icon: HugeIcons.strokeRoundedInformationCircle,
+                              size: 18,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -102,7 +115,7 @@ class TimeSlotSection extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Theme.of(context).primaryColor,
+                          color: WaddyColors.primary,
                           width: 0.3,
                         ),
                         borderRadius: BorderRadius.circular(
@@ -137,10 +150,13 @@ class TimeSlotSection extends StatelessWidget {
                                     ),
                           ),
 
-                          const Icon(Icons.arrow_drop_down, size: 28),
-                          Icon(
-                            Icons.access_time_filled_outlined,
-                            color: Theme.of(context).primaryColor,
+                          const CheckoutIcon(
+                            icon: HugeIcons.strokeRoundedArrowDown01,
+                            size: 20,
+                          ),
+                          CheckoutIcon(
+                            icon: HugeIcons.strokeRoundedClock01,
+                            color: WaddyColors.primary,
                           ),
                           const SizedBox(
                             width: Dimensions.paddingSizeExtraSmall,

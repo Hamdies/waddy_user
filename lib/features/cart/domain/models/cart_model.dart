@@ -17,6 +17,9 @@ class CartModel {
   int? _quantityLimit;
   bool? _isLoading;
 
+  /// The shopper's produce answer (`ready_to_eat`, `salad`…), or null.
+  String? _preference;
+
   CartModel(
     int? id,
     double? price,
@@ -32,6 +35,7 @@ class CartModel {
     Item? item,
     int? quantityLimit, {
     bool isLoading = false,
+    String? preference,
   }) {
     _id = id;
     _price = price;
@@ -47,6 +51,7 @@ class CartModel {
     _item = item;
     _quantityLimit = quantityLimit;
     _isLoading = isLoading;
+    _preference = preference;
   }
 
   int? get id => _id;
@@ -65,6 +70,7 @@ class CartModel {
   int? get stock => _stock;
   Item? get item => _item;
   int? get quantityLimit => _quantityLimit;
+  String? get preference => _preference;
   // ignore: unnecessary_getters_setters
   bool? get isLoading => _isLoading;
   set isLoading(bool? status) => _isLoading = status;
@@ -108,9 +114,13 @@ class CartModel {
       _item = Item.fromJson(json['item']);
     }
     if (json['quantity_limit'] != null) {
-      _quantityLimit = Parse.strictInt(json['quantity_limit'], 'quantity_limit');
+      _quantityLimit = Parse.strictInt(
+        json['quantity_limit'],
+        'quantity_limit',
+      );
     }
     _isLoading = json['is_loading'] ?? false;
+    _preference = json['preference'] is String ? json['preference'] : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -135,6 +145,7 @@ class CartModel {
     data['stock'] = _stock;
     data['item'] = _item!.toJson();
     data['quantity_limit'] = _quantityLimit?.toString();
+    data['preference'] = _preference;
     // data['is_loading'] = _isLoading?? false;
     return data;
   }

@@ -2,7 +2,7 @@ import 'package:waddy_app/common/widgets/card_design/store_card_with_distance.da
 import 'package:waddy_app/common/widgets/section_error_view.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/home/screens/home_screen.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/home/widgets/components/home_rail_shimmers.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -16,7 +16,8 @@ class RecommendedStoreView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.recommendedId,
       builder: (storeController) {
         List<Store>? storeList = storeController.recommendedStoreList;
 

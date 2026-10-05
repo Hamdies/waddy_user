@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:waddy_app/util/swallow.dart';
+import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/features/xp/domain/models/level_up_event_model.dart';
@@ -7,10 +8,13 @@ import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
 import 'package:waddy_app/features/xp/domain/models/user_streak_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 import 'package:waddy_app/features/xp/domain/services/xp_service_interface.dart';
+
+/// Things that change XP state, for [XpController.refreshAfter].
+enum XpEvent { orderPlaced, orderDelivered, prizeClaimed, challengeClaimed }
 
 class XpController extends GetxController implements GetxService {
   final XpServiceInterface xpServiceInterface;
@@ -44,9 +48,6 @@ class XpController extends GetxController implements GetxService {
   /// Leaderboard rows, the selected period and its loading flag.
   static const String idLeaderboard = 'xp-leaderboard';
 
-  /// XP transaction history and its loading flag.
-  static const String idHistory = 'xp-history';
-
   /// The checkout prize list, its loading flag and the current selection —
   /// the money path, so it is deliberately its own scope.
   static const String idCheckoutPrizes = 'xp-checkout-prizes';
@@ -72,6 +73,12 @@ class XpController extends GetxController implements GetxService {
       }
       final msg = body['message'];
       if (msg is String && msg.isNotEmpty) return msg;
+    }
+    // No body: ApiClient's own failure (status 1 = no connection) carries its
+    // message in statusText.
+    final text = response.statusText;
+    if (response.statusCode == 1 && text != null && text.isNotEmpty) {
+      return text;
     }
     return fallback;
   }
@@ -100,7 +107,9 @@ class XpController extends GetxController implements GetxService {
   /// is tied to a claim being available and nothing else. False until the
   /// challenge/prize calls land, which is the honest answer: we don't know yet.
   bool get hasUnclaimedRewards {
-    if (_prizeModel?.claimablePrizes.isNotEmpty ?? false) return true;
+    // Only prizes where claiming does something: a free delivery has no claim
+    // step, so counting it lit the badge until a no-op claim (X-26).
+    if (_prizeModel?.needsClaimPrizes.isNotEmpty ?? false) return true;
     final ChallengeModel? challenges = _challengeModel;
     if (challenges == null) return false;
     return challenges.dailyChallenges.any((c) => c.canClaim) ||
@@ -126,6 +135,77 @@ class XpController extends GetxController implements GetxService {
 
   bool _isPrizesLoading = false;
   bool get isPrizesLoading => _isPrizesLoading;
+
+  // Whether the last attempt at each payload failed (non-200, or a payload
+  // that would not parse). A failed *refresh* keeps the data already shown;
+  // these let a screen with nothing to show say "couldn't load" instead of
+  // rendering an outage as an empty list (X-13).
+  bool _challengesFailed = false;
+  bool get challengesFailed => _challengesFailed;
+  bool _prizesFailed = false;
+  bool get prizesFailed => _prizesFailed;
+
+  /// When each payload last arrived, for [revalidate].
+  final Map<String, DateTime> _fetchedAt = {};
+
+  /// A tab visit refetches anything older than this. Short enough that an
+  /// order delivered a minute ago shows up, long enough that flicking between
+  /// tabs is free.
+  static const Duration _staleAfter = Duration(seconds: 30);
+
+  bool _isStale(String id) {
+    final at = _fetchedAt[id];
+    return at == null || DateTime.now().difference(at) > _staleAfter;
+  }
+
+  // ============================================
+  // SINGLE FLIGHT (X-45)
+  // ============================================
+  //
+  // A tab visit, a claim's refresh and a push could each fire the same fetch,
+  // and GetConnect gives no ordering, so an older response could land last
+  // and overwrite a newer one. Now one request per payload is in flight.
+  //
+  // Joining is only safe when the caller wants "recent". After a mutation
+  // (a claim, a delivered order), a request that left *before* it carries the
+  // old state, so [fresh] callers queue one follow-up fetch behind the
+  // running one instead. Any number of fresh callers share that one
+  // follow-up.
+
+  final Map<String, Future<void>> _inFlight = {};
+  final Map<String, Future<void>> _queued = {};
+
+  Future<void> _single(
+    String id,
+    Future<void> Function() fetch, {
+    bool fresh = false,
+  }) {
+    final running = _inFlight[id];
+    if (running != null) {
+      if (!fresh) return running;
+      return _queued[id] ??= running.then((_) {
+        _queued.remove(id);
+        return _single(id, fetch);
+      });
+    }
+    // Registered before any `then` above, so the slot is free by the time a
+    // queued follow-up starts. Removes only its own entry: logout clears the
+    // map, and a request started after that must not be evicted by an older
+    // one finishing.
+    late final Future<void> f;
+    f = fetch().whenComplete(() {
+      if (identical(_inFlight[id], f)) _inFlight.remove(id);
+    });
+    _inFlight[id] = f;
+    return f;
+  }
+
+  /// Challenges claimed today, kept on screen in their "claimed" state. The
+  /// server stops returning a challenge once it is claimed and assigns the
+  /// next one only after midnight, so without this the card vanishes the
+  /// moment its reward lands (X-30).
+  final List<Challenge> _claimedToday = [];
+  DateTime? _claimedTodayDate;
 
   int? _claimingChallengeId;
   bool get isClaimingChallenge => _claimingChallengeId != null;
@@ -169,16 +249,6 @@ class XpController extends GetxController implements GetxService {
   int _selectedChallengeTab = 0;
   int get selectedChallengeTab => _selectedChallengeTab;
 
-  // Selected prize filter (0 = all, 1 = claimable, 2 = claimed, 3 = expired)
-  int _selectedPrizeFilter = 0;
-  int get selectedPrizeFilter => _selectedPrizeFilter;
-
-  // History
-  XpHistoryModel? _historyModel;
-  XpHistoryModel? get historyModel => _historyModel;
-  bool _isHistoryLoading = false;
-  bool get isHistoryLoading => _isHistoryLoading;
-
   // Streak
   UserStreakModel? _streak;
   UserStreakModel? get streak => _streak;
@@ -195,8 +265,14 @@ class XpController extends GetxController implements GetxService {
   List<LevelUpEvent> takePendingLevelUps() {
     final events = _pendingLevelUps;
     _pendingLevelUps = [];
+    _celebratedIds.addAll(events.map((e) => e.transactionId));
     return events;
   }
+
+  /// Level-ups already handed to the UI this session (X-34). Kept for the
+  /// session rather than cleared on ack: an ack that fails replays next app
+  /// open, which is the documented recovery, not a mid-session repeat.
+  final Set<int> _celebratedIds = {};
 
   /// Tell the server these level-ups have been celebrated so they're not
   /// re-sent. Fire-and-forget: a failure just means it replays next open.
@@ -223,16 +299,64 @@ class XpController extends GetxController implements GetxService {
   int get maxLevel => _xpConfig?.maxLevel ?? 10;
 
   /// Fetch challenges (daily & weekly)
-  Future<void> getChallenges({bool reload = false}) async {
+  Future<void> getChallenges({bool reload = false, bool fresh = false}) async {
     if (_challengeModel != null && !reload) return;
+    return _single(idChallenges, _fetchChallenges, fresh: fresh);
+  }
 
+  Future<void> _fetchChallenges() async {
     _isChallengesLoading = true;
     update([idChallenges]);
 
-    _challengeModel = await xpServiceInterface.getChallenges();
+    try {
+      final result = await xpServiceInterface.getChallenges();
+      _challengesFailed = result == null;
+      if (result != null) {
+        _challengeModel = _withClaimedToday(result);
+        _fetchedAt[idChallenges] = DateTime.now();
+      }
+    } catch (e, s) {
+      _challengesFailed = true;
+      swallow('xp challenges fetch', e, s, true);
+    } finally {
+      _isChallengesLoading = false;
+      update([idChallenges, idBadge]);
+    }
+  }
 
-    _isChallengesLoading = false;
-    update([idChallenges, idBadge]);
+  /// Merge today's claimed challenges back into a fetched model, dropping them
+  /// once the day has turned.
+  ChallengeModel _withClaimedToday(ChallengeModel model) {
+    final now = DateTime.now();
+    final d = _claimedTodayDate;
+    if (d == null ||
+        d.year != now.year ||
+        d.month != now.month ||
+        d.day != now.day) {
+      _claimedToday.clear();
+      return model;
+    }
+    List<Challenge> merge(List<Challenge> fetched, String type) => [
+      ...fetched,
+      ..._claimedToday.where(
+        (c) => c.type == type && fetched.every((f) => f.id != c.id),
+      ),
+    ];
+    return ChallengeModel(
+      dailyChallenges: merge(model.dailyChallenges, 'daily'),
+      weeklyChallenges: merge(model.weeklyChallenges, 'weekly'),
+      dailyResetTime: model.dailyResetTime,
+      weeklyResetTime: model.weeklyResetTime,
+    );
+  }
+
+  Challenge? _findChallenge(int id) {
+    final model = _challengeModel;
+    if (model == null) return null;
+    for (final c in [...model.dailyChallenges, ...model.weeklyChallenges]) {
+      if (c.id == id) return c;
+    }
+    return null;
   }
 
   /// Claim a completed challenge
@@ -245,11 +369,30 @@ class XpController extends GetxController implements GetxService {
     _claimingChallengeId = null;
 
     if (response.statusCode == 200) {
-      // Refresh challenges and level after claiming
-      await getChallenges(reload: true);
-      await getLevelDetails(reload: true);
-      showCustomSnackBar('challenge_claimed_successfully'.tr, isError: false);
+      // Keep the card on screen as claimed (X-30), then refresh what the claim
+      // changed in parallel (X-20). A level-up it caused lands in
+      // [pendingLevelUps] for the caller to celebrate.
+      final claimed = _findChallenge(challengeId);
+      if (claimed != null) {
+        _claimedTodayDate = DateTime.now();
+        _claimedToday
+          ..removeWhere((c) => c.id == challengeId)
+          ..add(claimed.asClaimed());
+        final model = _challengeModel;
+        if (model != null) {
+          List<Challenge> mark(List<Challenge> list) => [
+            for (final c in list) c.id == challengeId ? c.asClaimed() : c,
+          ];
+          _challengeModel = ChallengeModel(
+            dailyChallenges: mark(model.dailyChallenges),
+            weeklyChallenges: mark(model.weeklyChallenges),
+            dailyResetTime: model.dailyResetTime,
+            weeklyResetTime: model.weeklyResetTime,
+          );
+        }
+      }
       update([idChallenges, idBadge]);
+      await refreshAfter(XpEvent.challengeClaimed);
       return true;
     } else {
       showCustomSnackBar(
@@ -261,16 +404,29 @@ class XpController extends GetxController implements GetxService {
   }
 
   /// Fetch prizes
-  Future<void> getPrizes({bool reload = false}) async {
+  Future<void> getPrizes({bool reload = false, bool fresh = false}) async {
     if (_prizeModel != null && !reload) return;
+    return _single(idPrizes, _fetchPrizes, fresh: fresh);
+  }
 
+  Future<void> _fetchPrizes() async {
     _isPrizesLoading = true;
     update([idPrizes]);
 
-    _prizeModel = await xpServiceInterface.getPrizes();
-
-    _isPrizesLoading = false;
-    update([idPrizes, idBadge]);
+    try {
+      final result = await xpServiceInterface.getPrizes();
+      _prizesFailed = result == null;
+      if (result != null) {
+        _prizeModel = result;
+        _fetchedAt[idPrizes] = DateTime.now();
+      }
+    } catch (e, s) {
+      _prizesFailed = true;
+      swallow('xp prizes fetch', e, s, true);
+    } finally {
+      _isPrizesLoading = false;
+      update([idPrizes, idBadge]);
+    }
   }
 
   /// Claim a prize (using user's prize instance ID, NOT prize_id)
@@ -283,10 +439,24 @@ class XpController extends GetxController implements GetxService {
     _claimingPrizeId = null;
 
     if (response.statusCode == 200) {
-      // Refresh prizes after claiming
-      await getPrizes(reload: true);
-      showCustomSnackBar('prize_claimed_successfully'.tr, isError: false);
+      // Feedback first, then the refetch (X-44): the snackbar used to wait
+      // on two round trips.
+      // A discount prize comes back with the personal coupon it was minted
+      // into — say where it went, since that is where it gets spent.
+      final body = response.body;
+      final couponCode =
+          body is Map && body['prize'] is Map
+              ? body['prize']['coupon_code']
+              : null;
+      showCustomSnackBar(
+        couponCode is String && couponCode.isNotEmpty
+            ? 'xp_coupon_added'.trParams({'code': couponCode})
+            : 'prize_claimed_successfully'.tr,
+        isError: false,
+      );
       update([idPrizes, idBadge]);
+      // Both the prize list and the level payload's `is_claimed` changed.
+      await refreshAfter(XpEvent.prizeClaimed);
       return true;
     } else {
       showCustomSnackBar(_extractError(response, 'failed_to_claim_prize'.tr));
@@ -329,7 +499,14 @@ class XpController extends GetxController implements GetxService {
     _inFlightCheckoutAmount = orderAmount;
     update([idCheckoutPrizes]);
 
-    _checkoutPrizes = await xpServiceInterface.getCheckoutPrizes(orderAmount);
+    try {
+      _checkoutPrizes = await xpServiceInterface.getCheckoutPrizes(orderAmount);
+    } catch (e, s) {
+      // No list means nothing offered — and nothing selectable, so a stale
+      // selection is dropped below rather than trusted.
+      _checkoutPrizes = [];
+      swallow('xp checkout prizes fetch', e, s, true);
+    }
     _checkoutPrizesFetchedFor = orderAmount;
 
     // Re-validate the selection against what the user actually qualifies for
@@ -367,28 +544,6 @@ class XpController extends GetxController implements GetxService {
     update([idChallenges]);
   }
 
-  /// Change prize filter
-  void changePrizeFilter(int index) {
-    _selectedPrizeFilter = index;
-    update([idPrizes]);
-  }
-
-  /// Get filtered prizes based on selected filter
-  List<Prize> get filteredPrizes {
-    if (_prizeModel == null) return [];
-
-    switch (_selectedPrizeFilter) {
-      case 1: // Claimable
-        return _prizeModel!.claimablePrizes;
-      case 2: // Claimed
-        return _prizeModel!.claimedPrizes;
-      case 3: // Expired
-        return _prizeModel!.expiredPrizes;
-      default: // All
-        return _prizeModel!.prizes;
-    }
-  }
-
   /// Get current challenges based on tab
   List<Challenge> get currentChallenges {
     if (_challengeModel == null) return [];
@@ -403,14 +558,25 @@ class XpController extends GetxController implements GetxService {
     if (_xpConfig != null && !reload) {
       return;
     }
+    return _single(idConfig, _fetchXpConfig);
+  }
 
+  Future<void> _fetchXpConfig() async {
     _isXpConfigLoading = true;
     update([idConfig]);
 
-    _xpConfig = await xpServiceInterface.getXpConfig();
-
-    _isXpConfigLoading = false;
-    update([idConfig]);
+    try {
+      final result = await xpServiceInterface.getXpConfig();
+      if (result != null) {
+        _xpConfig = result;
+        _fetchedAt[idConfig] = DateTime.now();
+      }
+    } catch (e, s) {
+      swallow('xp config fetch', e, s, true);
+    } finally {
+      _isXpConfigLoading = false;
+      update([idConfig]);
+    }
   }
 
   /// Calculate estimated XP for a whole-order amount.
@@ -431,70 +597,61 @@ class XpController extends GetxController implements GetxService {
     return _xpConfig!.calculateEstimatedXpForItems(lines, moduleType);
   }
 
-  /// Fetch merged level details (replaces separate getCurrentLevel + getAllLevels)
-  Future<void> getLevelDetails({bool reload = false}) async {
-    if (_currentLevel != null && _levelsListModel != null && !reload) return;
+  /// The XP a cart will earn, exactly as the server awards it: per line, on the
+  /// unit price *before* the item discount (PlaceNewOrder passes the
+  /// undiscounted price to the detail row, and XP is computed from that row).
+  /// The one estimate every pre-order surface should show (X-23).
+  int estimateForCart(List<CartModel> items, String? moduleType) {
+    return calculateEstimatedXpForItems([
+      for (final c in items) (price: c.price ?? 0, quantity: c.quantity ?? 1),
+    ], moduleType);
+  }
 
+  /// The per-line XP estimate of the order just placed, handed over by
+  /// checkout before the cart is cleared, so the success screen can show the
+  /// same number the cart promised. Null for orders not placed from the cart.
+  int? lastOrderXpEstimate;
+
+  /// Fetch merged level details (replaces separate getCurrentLevel + getAllLevels)
+  Future<void> getLevelDetails({bool reload = false, bool fresh = false}) async {
+    if (_currentLevel != null && _levelsListModel != null && !reload) return;
+    return _single(idLevel, _fetchLevelDetails, fresh: fresh);
+  }
+
+  Future<void> _fetchLevelDetails() async {
     _isLevelLoading = true;
     _isLevelsLoading = true;
     update([idLevel]);
 
-    final data = await xpServiceInterface.getLevelDetails();
+    try {
+      final data = await xpServiceInterface.getLevelDetails();
+      if (data != null) {
+        _currentLevel = XpLevelModel.fromJson(data);
+        _levelsListModel = LevelsListModel.fromJson(data);
+        _fetchedAt[idLevel] = DateTime.now();
 
-    if (data != null) {
-      _currentLevel = XpLevelModel.fromJson(data);
-      _levelsListModel = LevelsListModel.fromJson(data);
+        final streak = xpMap(data['streak']);
+        if (streak != null) _streak = UserStreakModel.fromJson(streak);
 
-      // Parse streak if present
-      if (data['streak'] != null) {
-        _streak = UserStreakModel.fromJson(data['streak']);
+        // Queue any level-ups the server says we haven't celebrated yet,
+        // minus the ones already handed to the UI: their ack goes out only
+        // after the dialog closes, so until then the server still lists them
+        // and a fetch in between would replay the celebration (X-34).
+        if (data['pending_level_ups'] is List) {
+          _pendingLevelUps =
+              xpMapList(data['pending_level_ups'])
+                  .map(LevelUpEvent.fromJson)
+                  .where((e) => !_celebratedIds.contains(e.transactionId))
+                  .toList();
+        }
       }
-
-      // Queue any level-ups the server says we haven't celebrated yet.
-      final pending = data['pending_level_ups'];
-      if (pending is List) {
-        _pendingLevelUps =
-            pending
-                .whereType<Map<String, dynamic>>()
-                .map(LevelUpEvent.fromJson)
-                .toList();
-      }
+    } catch (e, s) {
+      swallow('xp level details fetch', e, s, true);
+    } finally {
+      _isLevelLoading = false;
+      _isLevelsLoading = false;
+      update([idLevel]);
     }
-
-    _isLevelLoading = false;
-    _isLevelsLoading = false;
-    update([idLevel]);
-  }
-
-  /// Fetch XP history
-  Future<void> getHistory({
-    bool reload = false,
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    if (_historyModel != null && !reload && offset == 0) return;
-
-    _isHistoryLoading = true;
-    update([idHistory]);
-
-    final result = await xpServiceInterface.getHistory(
-      limit: limit,
-      offset: offset,
-    );
-
-    if (offset > 0 && _historyModel != null && result != null) {
-      // Append for pagination
-      _historyModel = XpHistoryModel(
-        history: [..._historyModel!.history, ...result.history],
-        totalEarned: result.totalEarned,
-        totalItems: result.totalItems,
-      );
-    } else {
-      _historyModel = result;
-    }
-
-    _isHistoryLoading = false;
-    update([idHistory]);
   }
 
   /// Selected leaderboard period: 'alltime' | 'weekly' | 'monthly'.
@@ -516,13 +673,18 @@ class XpController extends GetxController implements GetxService {
     _isLeaderboardLoading = true;
     update([idLeaderboard]);
 
-    _leaderboardModel = await xpServiceInterface.getLeaderboard(
-      type: type,
-      period: _leaderboardPeriod,
-    );
-
-    _isLeaderboardLoading = false;
-    update([idLeaderboard]);
+    try {
+      final result = await xpServiceInterface.getLeaderboard(
+        type: type,
+        period: _leaderboardPeriod,
+      );
+      if (result != null) _leaderboardModel = result;
+    } catch (e, s) {
+      swallow('xp leaderboard fetch', e, s, true);
+    } finally {
+      _isLeaderboardLoading = false;
+      update([idLeaderboard]);
+    }
   }
 
   /// Switch the leaderboard period and refetch.
@@ -542,19 +704,89 @@ class XpController extends GetxController implements GetxService {
     _checkoutPrizesFetchedFor = null;
     _inFlightCheckoutAmount = null;
     _xpConfig = null;
-    _historyModel = null;
     _streak = null;
     _leaderboardModel = null;
     _pendingLevelUps = [];
-    update();
+    _challengesFailed = false;
+    _prizesFailed = false;
+    _fetchedAt.clear();
+    _claimedToday.clear();
+    _claimedTodayDate = null;
+    _celebratedIds.clear();
+    // Forget requests made under the old session, so the next login's fetch
+    // starts its own instead of joining one sent with the old token.
+    _inFlight.clear();
+    _queued.clear();
+    // Every XP builder is id-scoped, and an id builder never hears a bare
+    // `update()` (get 4.7.3), so logout used to repaint none of them (X-46).
+    update([
+      idLevel,
+      idChallenges,
+      idPrizes,
+      idLeaderboard,
+      idCheckoutPrizes,
+      idConfig,
+      idBadge,
+    ]);
   }
 
-  /// Initialize all XP data (uses merged endpoint)
-  Future<void> initializeXpData() async {
+  // ============================================
+  // FRESHNESS (X-19, X-20)
+  // ============================================
+
+  /// Everything the XP tab shows, fetched in parallel. [force] refetches even
+  /// fresh payloads (pull-to-refresh); otherwise only stale ones go out, so a
+  /// tab visit revalidates what the user is looking at without re-requesting
+  /// what just arrived. Cached data stays on screen while this runs.
+  ///
+  /// [fresh] is for callers reacting to a change on the server: a request
+  /// already in flight predates it, so they wait for a new one (X-45).
+  Future<void> revalidate({bool force = false, bool fresh = false}) async {
     await Future.wait([
-      getLevelDetails(reload: true),
-      getChallenges(reload: true),
+      if (force || _isStale(idLevel))
+        getLevelDetails(reload: true, fresh: fresh),
+      if (force || _isStale(idChallenges))
+        getChallenges(reload: true, fresh: fresh),
+      if (force || _isStale(idPrizes)) getPrizes(reload: true, fresh: fresh),
+      if (force || _isStale(idConfig)) getXpConfig(reload: true),
     ]);
+  }
+
+  /// Refresh what an event changed, in parallel.
+  Future<void> refreshAfter(XpEvent event) async {
+    switch (event) {
+      case XpEvent.orderDelivered:
+        // XP, challenge progress, streak, maybe a level and its prizes.
+        await revalidate(force: true, fresh: true);
+        break;
+      case XpEvent.orderPlaced:
+        await getPrizes(reload: true, fresh: true);
+        break;
+      case XpEvent.prizeClaimed:
+        await Future.wait([
+          getPrizes(reload: true, fresh: true),
+          getLevelDetails(reload: true, fresh: true),
+        ]);
+        break;
+      case XpEvent.challengeClaimed:
+        await Future.wait([
+          getChallenges(reload: true, fresh: true),
+          getLevelDetails(reload: true, fresh: true),
+        ]);
+        break;
+    }
+  }
+
+  /// An order went through. If it spent a free-delivery prize, that prize is
+  /// now `used`, but the selection and the amount-keyed cache would carry it
+  /// into the next checkout of the same basket, where the quote shows free
+  /// delivery and the server charges it (X-15). Drop both, then refetch.
+  void afterOrderPlaced() {
+    _selectedCheckoutPrize = null;
+    _checkoutPrizes = [];
+    _checkoutPrizesFetchedFor = null;
+    update([idCheckoutPrizes]);
+    refreshAfter(XpEvent.orderPlaced);
   }
 
   // ============================================
@@ -618,41 +850,5 @@ class XpController extends GetxController implements GetxService {
       }
     }
     return _currentLevel!.xpToNextLevel;
-  }
-
-  /// Get emoji icon for a reward type
-  String getRewardIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'free_delivery':
-        return '🚚';
-      case 'discount':
-        return '💰';
-      case 'wallet_credit':
-        return '💳';
-      case 'badge':
-        return '🏅';
-      case 'free_item':
-        return '🎁';
-      default:
-        return '🎯';
-    }
-  }
-
-  /// Get readable name for a reward type
-  String getRewardName(String type) {
-    switch (type.toLowerCase()) {
-      case 'free_delivery':
-        return 'Free Delivery';
-      case 'discount':
-        return 'Discount';
-      case 'wallet_credit':
-        return 'Wallet Credit';
-      case 'badge':
-        return 'Badge';
-      case 'free_item':
-        return 'Free Item';
-      default:
-        return 'Reward';
-    }
   }
 }

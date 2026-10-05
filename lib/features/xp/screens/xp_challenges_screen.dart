@@ -2,18 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:waddy_app/common/widgets/spots/spots_l10n.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
+import 'package:waddy_app/features/xp/screens/level_up_screen.dart';
+import 'package:waddy_app/features/xp/widgets/streak_rive_badge.dart';
+import 'package:waddy_app/features/xp/widgets/xp_motion.dart';
+import 'package:waddy_app/features/xp/widgets/xp_tokens.dart';
+import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/util/dimensions.dart';
 
 /// ─── WADDI XP — Quests ────────────────────────────────────────────────────────
-/// Native port of Challenges.dc.html: a dark deep-teal "Quests" screen with a
-/// streak card, then Daily and Weekly quest sections (shown together, each with
-/// its own reset countdown). Every quest is a compact card — emoji, title, an
-/// XP-reward chip that flips to "✓ CLAIMED", a progress track (green in
-/// progress, mint when complete), and a "N of M" / status line. Claiming is
-/// wired to the real backend via [XpController.claimChallenge].
+/// A dark deep-teal "Quests" screen: a streak card, then Daily and Weekly quest
+/// sections, each with its countdown. Every quest is a compact card — emoji,
+/// title, an XP-reward chip that becomes a claim button and then "✓ claimed",
+/// a progress track, and a "N of M" / status line.
+///
+/// Claiming is the payoff of the whole loop, so it is treated as one (X-30):
+/// the card stays and flips to claimed, the XP floats up off it, and a level-up
+/// the claim caused plays on the spot.
 class XpChallengesScreen extends StatefulWidget {
   const XpChallengesScreen({super.key});
 
@@ -29,12 +38,12 @@ class _XpChallengesScreenState extends State<XpChallengesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final xp = Get.find<XpController>();
-      xp.getChallenges();
-      // Streak lives on the level-details payload; ensure it's loaded so the
-      // streak card is real even when this screen is opened directly.
-      xp.getLevelDetails();
+      // Revalidate rather than serve the session cache: progress moves with
+      // every delivered order. Streak lives on the level payload.
+      xp.getChallenges(reload: true);
+      xp.getLevelDetails(reload: true);
     });
-    // Live reset countdown — tick each minute.
+    // Live countdown — tick each minute.
     _countdown = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -46,13 +55,27 @@ class _XpChallengesScreenState extends State<XpChallengesScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh() =>
-      Get.find<XpController>().getChallenges(reload: true);
+  Future<void> _refresh() async {
+    final xp = Get.find<XpController>();
+    await Future.wait([
+      xp.getChallenges(reload: true),
+      xp.getLevelDetails(reload: true),
+    ]);
+  }
+
+  Future<void> _claim(Challenge c) async {
+    final xp = Get.find<XpController>();
+    final ok = await xp.claimChallenge(c.id);
+    if (!ok || !mounted) return;
+    // The claim refetched the level payload; if it crossed a level, celebrate
+    // now rather than whenever the XP tab is next opened.
+    await LevelUpScreen.showQueue(xp);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _Q.panel,
+      backgroundColor: XpTokens.panel,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -64,50 +87,55 @@ class _XpChallengesScreenState extends State<XpChallengesScreen> {
                 id: XpController.idChallenges,
                 builder: (xp) {
                   final model = xp.challengeModel;
-                  if (xp.isChallengesLoading && model == null) {
+                  if (model == null) {
+                    if (xp.challengesFailed && !xp.isChallengesLoading) {
+                      return _ErrorState(onRetry: _refresh);
+                    }
                     return const Center(
-                      child: CircularProgressIndicator(color: _Q.mint),
+                      child: CircularProgressIndicator(color: XpTokens.mint),
                     );
                   }
 
-                  final daily = model?.dailyChallenges ?? [];
-                  final weekly = model?.weeklyChallenges ?? [];
-                  final streak = xp.streak?.currentStreak ?? 0;
-
                   return RefreshIndicator(
-                    color: _Q.mint,
-                    backgroundColor: _Q.panel,
+                    color: XpTokens.mint,
+                    backgroundColor: XpTokens.panel,
                     onRefresh: _refresh,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: ClampingScrollPhysics(),
                       ),
                       padding: EdgeInsets.fromLTRB(
-                        16,
-                        4,
-                        16,
+                        Dimensions.paddingSizeDefault,
+                        Dimensions.paddingSizeExtraSmall,
+                        Dimensions.paddingSizeDefault,
                         MediaQuery.of(context).padding.bottom + 28,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 16),
-                          _StreakCard(days: streak),
-                          _QuestSection(
-                            label: 'Daily quests',
-                            resetLabel: _dailyResetLabel(model?.dailyResetTime),
-                            quests: daily,
-                            emptyText: 'check_back_tomorrow'.tr,
-                            xp: xp,
+                          const SizedBox(height: Dimensions.paddingSizeDefault),
+                          GetBuilder<XpController>(
+                            id: XpController.idLevel,
+                            builder:
+                                (xp) => _StreakCard(
+                                  days: xp.streak?.currentStreak ?? 0,
+                                ),
                           ),
                           _QuestSection(
-                            label: 'Weekly quests',
-                            resetLabel: _weeklyResetLabel(
-                              model?.weeklyResetTime,
-                            ),
-                            quests: weekly,
+                            label: 'xp_daily_quests'.tr,
+                            weekly: false,
+                            quests: model.dailyChallenges,
+                            emptyText: 'check_back_tomorrow'.tr,
+                            xp: xp,
+                            onClaim: _claim,
+                          ),
+                          _QuestSection(
+                            label: 'xp_weekly_quests'.tr,
+                            weekly: true,
+                            quests: model.weeklyChallenges,
                             emptyText: 'check_back_next_week'.tr,
                             xp: xp,
+                            onClaim: _claim,
                           ),
                         ],
                       ),
@@ -121,58 +149,37 @@ class _XpChallengesScreenState extends State<XpChallengesScreen> {
       ),
     );
   }
+}
 
-  /// "8h 12m" style remaining-time label for the daily reset.
-  String _dailyResetLabel(DateTime? resetTime) {
-    if (resetTime == null) return '—';
-    final left = resetTime.difference(DateTime.now());
-    if (left.isNegative) return 'soon';
-    final h = left.inHours;
-    final m = left.inMinutes % 60;
-    if (h >= 24) {
-      final d = left.inDays;
-      final hh = left.inHours % 24;
-      return hh > 0 ? '${d}d ${hh}h' : '${d}d';
-    }
-    return h > 0 ? '${h}h ${m}m' : '${m}m';
+/// "Resets in 8h 12m" / "Resets Monday", from a quest's real deadline.
+///
+/// This used to read model-level reset keys the server never sends, so it was
+/// always blank (X-29). The daily quest is a rolling window from assignment,
+/// so its own `expires_at` is the true countdown.
+String? _resetPhrase(DateTime? deadline, {required bool weekly}) {
+  if (deadline == null) return null;
+  final left = deadline.difference(DateTime.now());
+  if (left.isNegative) return 'xp_resetting_now'.tr;
+  if (weekly && left.inHours >= 24) {
+    return 'xp_resets_on'.trParams({
+      'day': DateFormat.EEEE(Get.locale?.toString()).format(deadline),
+    });
   }
-
-  /// The weekday the weekly quests reset on (e.g. "Monday").
-  String _weeklyResetLabel(DateTime? resetTime) {
-    if (resetTime == null) return '—';
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    return days[(resetTime.weekday - 1).clamp(0, 6)];
+  if (left.inHours >= 24) {
+    return 'xp_resets_in_days'.trParams({'days': fmtCount(left.inDays)});
   }
+  final h = left.inHours;
+  final m = left.inMinutes % 60;
+  return h > 0
+      ? 'xp_resets_in_hm'.trParams({
+        'hours': fmtCount(h),
+        'minutes': fmtCount(m),
+      })
+      : 'xp_resets_in_m'.trParams({'minutes': fmtCount(m)});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THEME (matches the XP design tokens)
-// ─────────────────────────────────────────────────────────────────────────────
-class _Q {
-  _Q._();
-  static const Color mint = Color(0xFF1EF2A0);
-  static const Color teal = Color(0xFF134E4A);
-  static const Color panel = Color(0xFF0E3532);
-  static const Color border = Color(0xFF134E4A);
-  static const Color green = Color(0xFF22C55E);
-
-  static Color get onMed => Colors.white.withValues(alpha: 0.5);
-  static Color get faint => Colors.white.withValues(alpha: 0.45);
-  static Color get tileFill => Colors.white.withValues(alpha: 0.06);
-  static Color get tileBorder => Colors.white.withValues(alpha: 0.28);
-  static Color get track => Colors.white.withValues(alpha: 0.14);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HEADER — "WHAT'S NEXT / QUESTS" + a quiet back affordance
+// HEADER — kicker, title, a quiet back affordance
 // ─────────────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   const _Header();
@@ -180,31 +187,36 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.paddingSizeDefault,
+        14,
+        Dimensions.paddingSizeDefault,
+        10,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => Get.back(),
-            child: Container(
-              width: 38,
-              height: 38,
-              margin: const EdgeInsets.only(
-                top: 2,
-                right: Dimensions.paddingSizeMedium,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  width: 1.5,
+          Semantics(
+            button: true,
+            label: MaterialLocalizations.of(context).backButtonTooltip,
+            child: GestureDetector(
+              onTap: () => Get.back(),
+              child: Container(
+                width: Dimensions.minTapTarget,
+                height: Dimensions.minTapTarget,
+                margin: const EdgeInsetsDirectional.only(
+                  end: Dimensions.paddingSizeMedium,
                 ),
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
-                size: 16,
+                decoration: BoxDecoration(
+                  color: XpTokens.overlay(0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: XpTokens.overlay(0.2), width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
               ),
             ),
           ),
@@ -213,17 +225,17 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'WHAT\'S NEXT',
+                  displayCaps('xp_whats_next'.tr),
                   style: waddyBlack.copyWith(
                     fontSize: 10,
-                    color: _Q.onMed,
-                    letterSpacing: 0.1 * 10,
+                    color: XpTokens.onDarkMed,
+                    letterSpacing: displayTracking(0.1 * 10),
                     height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'QUESTS',
+                  displayCaps('xp_quests_title'.tr),
                   style: waddyBlack.copyWith(
                     fontSize: 22,
                     color: Colors.white,
@@ -232,10 +244,10 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Play at your pace — new quests roll in daily and weekly',
+                  'xp_quests_subtitle'.tr,
                   style: waddyBold.copyWith(
                     fontSize: 11,
-                    color: _Q.onMed,
+                    color: XpTokens.onDarkMed,
                     height: 1.3,
                   ),
                 ),
@@ -257,10 +269,16 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The streak is only drawn alive when it is (X-17): a broken one reads
+    // as "start one", not as a days count that no longer exists.
+    final alive = days > 0;
     return Container(
       decoration: BoxDecoration(
-        color: _Q.tileFill,
-        border: Border.all(color: _Q.tileBorder, width: 2.5),
+        color: XpTokens.overlay(0.06),
+        border: Border.all(
+          color: alive ? XpTokens.coral : XpTokens.overlay(0.28),
+          width: 2.5,
+        ),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       padding: const EdgeInsets.symmetric(
@@ -269,7 +287,19 @@ class _StreakCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text('🔥', style: TextStyle(fontSize: 26)),
+          // The same live flame as the XP home hero (X-43) — the one loop
+          // on this screen. A broken streak keeps the dim, still emoji.
+          if (alive)
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: IgnorePointer(child: StreakRiveBadge(streak: days)),
+            )
+          else
+            const Opacity(
+              opacity: 0.45,
+              child: Text('🔥', style: TextStyle(fontSize: 26)),
+            ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -277,21 +307,24 @@ class _StreakCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$days ${days == 1 ? 'DAY' : 'DAYS'} STREAK',
+                  displayCaps(
+                    alive
+                        ? 'xp_streak_title'.trParams({'count': fmtCount(days)})
+                        : 'xp_streak_none'.tr,
+                  ),
                   style: waddyBlack.copyWith(
                     fontSize: 14,
                     color: Colors.white,
                     height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
-                  'ONE ORDER A DAY KEEPS IT ALIVE',
+                  'xp_streak_hint'.tr,
                   style: waddyBold.copyWith(
-                    fontSize: 10,
-                    color: _Q.mint,
-                    letterSpacing: 0.03 * 10,
-                    height: 1,
+                    fontSize: 11,
+                    color: alive ? XpTokens.coral : XpTokens.mint,
+                    height: 1.2,
                   ),
                 ),
               ],
@@ -304,25 +337,41 @@ class _StreakCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QUEST SECTION — header row (label + reset) then quest cards
+// QUEST SECTION — header row (label + countdown) then quest cards
 // ─────────────────────────────────────────────────────────────────────────────
 class _QuestSection extends StatelessWidget {
   final String label;
-  final String resetLabel;
+  final bool weekly;
   final List<Challenge> quests;
   final String emptyText;
   final XpController xp;
+  final Future<void> Function(Challenge) onClaim;
 
   const _QuestSection({
     required this.label,
-    required this.resetLabel,
+    required this.weekly,
     required this.quests,
     required this.emptyText,
     required this.xp,
+    required this.onClaim,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Count down to the nearest live quest's deadline.
+    final deadlines =
+        quests
+            .where((q) => q.isActive)
+            .map((q) => q.expiresAt)
+            .whereType<DateTime>()
+            .toList()
+          ..sort();
+    final reset =
+        deadlines.isEmpty
+            ? null
+            : _resetPhrase(deadlines.first, weekly: weekly);
+    final visible = quests.where((q) => !q.isExpired || q.isCompleted).toList();
+
     return Padding(
       padding: const EdgeInsets.only(top: Dimensions.paddingSizeLarge),
       child: Column(
@@ -333,38 +382,40 @@ class _QuestSection extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  label.toUpperCase(),
+                  displayCaps(label),
                   style: waddyBlack.copyWith(
                     fontSize: 11,
                     color: Colors.white,
-                    letterSpacing: 0.08 * 11,
+                    letterSpacing: displayTracking(0.08 * 11),
                     height: 1,
                   ),
                 ),
               ),
-              Text(
-                _resetText(label, resetLabel),
-                style: waddyBold.copyWith(
-                  fontSize: 9.5,
-                  color: _Q.faint,
-                  height: 1,
+              if (reset != null)
+                Text(
+                  displayCaps(reset),
+                  style: waddyBold.copyWith(
+                    fontSize: 10,
+                    color: XpTokens.onDarkFaint,
+                    height: 1,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
-          if (quests.isEmpty)
+          if (visible.isEmpty)
             _EmptyQuest(text: emptyText)
           else
-            ...quests.map(
+            ...visible.map(
               (q) => Padding(
                 padding: const EdgeInsets.only(
                   bottom: Dimensions.paddingSizeSmall,
                 ),
                 child: _QuestCard(
+                  key: ValueKey('quest-${q.id}'),
                   challenge: q,
                   claiming: xp.isClaimingChallengeId(q.id),
-                  onClaim: q.canClaim ? () => xp.claimChallenge(q.id) : null,
+                  onClaim: q.canClaim ? () => onClaim(q) : null,
                 ),
               ),
             ),
@@ -372,33 +423,52 @@ class _QuestSection extends StatelessWidget {
       ),
     );
   }
-
-  String _resetText(String label, String reset) {
-    // Daily shows "RESETS IN 8h 12m"; weekly shows "RESETS MONDAY".
-    final isDaily = label.toLowerCase().startsWith('daily');
-    if (reset == '—') return '';
-    return isDaily
-        ? 'RESETS IN ${reset.toUpperCase()}'
-        : 'RESETS ${reset.toUpperCase()}';
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // QUEST CARD
 // ─────────────────────────────────────────────────────────────────────────────
-class _QuestCard extends StatelessWidget {
+class _QuestCard extends StatefulWidget {
   final Challenge challenge;
   final bool claiming;
   final VoidCallback? onClaim;
 
   const _QuestCard({
+    super.key,
     required this.challenge,
     required this.claiming,
     this.onClaim,
   });
 
   @override
+  State<_QuestCard> createState() => _QuestCardState();
+}
+
+class _QuestCardState extends State<_QuestCard>
+    with SingleTickerProviderStateMixin {
+  /// The "+N XP" that floats off the card when its claim lands.
+  late final AnimationController _flyUp = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  @override
+  void didUpdateWidget(covariant _QuestCard old) {
+    super.didUpdateWidget(old);
+    if (!old.challenge.isClaimed && widget.challenge.isClaimed) {
+      _flyUp.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _flyUp.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final challenge = widget.challenge;
     final done = challenge.isCompleted; // completed or claimed
     final claimed = challenge.isClaimed;
     final canClaim = challenge.canClaim;
@@ -408,21 +478,38 @@ class _QuestCard extends StatelessWidget {
             ? challenge.icon!
             : _fallbackEmoji(challenge);
 
-    final card = Container(
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
       decoration: BoxDecoration(
-        color: done ? _Q.mint.withValues(alpha: 0.08) : _Q.tileFill,
-        border: Border.all(color: done ? _Q.mint : _Q.tileBorder, width: 2.5),
+        color:
+            done
+                ? XpTokens.mint.withValues(alpha: 0.08)
+                : XpTokens.overlay(0.06),
+        border: Border.all(
+          color: done ? XpTokens.mint : XpTokens.overlay(0.28),
+          width: 2.5,
+        ),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       padding: const EdgeInsets.all(Dimensions.paddingSizeMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top: emoji · title · reward chip
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 20)),
+              // Known quest types get the animated icon, which plays on reveal
+              // and again when the quest completes or is claimed (XM-05).
+              // Unknown types keep the backend's emoji.
+              if (XpIcon.forChallengeType(challenge.challengeType)
+                  case final XpIcon motion)
+                XpRiveIcon(
+                  icon: motion,
+                  size: 30,
+                  fallbackColor: XpTokens.mint,
+                  playWhen: challenge.status,
+                )
+              else
+                Text(emoji, style: const TextStyle(fontSize: 20)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -441,43 +528,46 @@ class _QuestCard extends StatelessWidget {
                 xp: challenge.xpReward,
                 claimed: claimed,
                 canClaim: canClaim,
-                claiming: claiming,
-                onClaim: onClaim,
+                claiming: widget.claiming,
+                onClaim: widget.onClaim,
               ),
             ],
           ),
           const SizedBox(height: 11),
-          // Progress track
           ClipRRect(
             borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
             child: Stack(
               children: [
-                Container(height: 9, color: _Q.track),
-                FractionallySizedBox(
+                Container(height: 9, color: XpTokens.overlay(0.14)),
+                AnimatedFractionallySizedBox(
+                  duration: const Duration(milliseconds: 400),
                   widthFactor: done ? 1.0 : pct,
-                  child: Container(height: 9, color: done ? _Q.mint : _Q.green),
+                  child: Container(
+                    height: 9,
+                    color: done ? XpTokens.mint : XpTokens.green,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 7),
-          // Meta: N of M · status
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${challenge.currentProgress} of ${challenge.targetProgress}',
-                style: waddyBold.copyWith(
-                  fontSize: 10,
-                  color: _Q.onMed,
-                  height: 1,
+              Expanded(
+                child: Text(
+                  _progressLabel(challenge),
+                  style: waddyBold.copyWith(
+                    fontSize: 10,
+                    color: XpTokens.onDarkMed,
+                    height: 1,
+                  ),
                 ),
               ),
               Text(
-                _statusLabel(challenge),
+                displayCaps(_statusLabel(challenge)),
                 style: waddyBlack.copyWith(
                   fontSize: 10,
-                  color: done ? _Q.mint : _Q.onMed,
+                  color: done ? XpTokens.mint : XpTokens.onDarkMed,
                   height: 1,
                 ),
               ),
@@ -489,17 +579,88 @@ class _QuestCard extends StatelessWidget {
 
     // Tapping a claimable card claims it too (the chip is small); otherwise
     // the whole card is inert so an in-progress quest doesn't feel tappable.
-    if (canClaim && onClaim != null && !claiming) {
-      return GestureDetector(onTap: onClaim, child: card);
+    final tappable =
+        canClaim && widget.onClaim != null && !widget.claiming
+            ? GestureDetector(onTap: widget.onClaim, child: card)
+            : card;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        tappable,
+        PositionedDirectional(
+          end: Dimensions.paddingSizeMedium,
+          top: 0,
+          child: IgnorePointer(child: _flyUpLabel(challenge.xpReward)),
+        ),
+      ],
+    );
+  }
+
+  Widget _flyUpLabel(int xp) {
+    return AnimatedBuilder(
+      animation: _flyUp,
+      builder: (context, _) {
+        final t = _flyUp.value;
+        if (t == 0 || t == 1) return const SizedBox.shrink();
+        final reduce = MediaQuery.of(context).disableAnimations;
+        final rise = reduce ? 0.0 : Curves.easeOutCubic.transform(t) * 42;
+        final opacity = t < 0.7 ? 1.0 : (1 - (t - 0.7) / 0.3);
+        return Transform.translate(
+          offset: Offset(0, -rise),
+          child: Opacity(
+            opacity: opacity.clamp(0.0, 1.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeSmall,
+                vertical: Dimensions.paddingSizeExtraSmall,
+              ),
+              decoration: BoxDecoration(
+                color: XpTokens.mint,
+                border: Border.all(color: XpTokens.teal, width: 2),
+                borderRadius: BorderRadius.circular(XpTokens.rSm),
+              ),
+              child: Text(
+                'xp_plus_amount'.trParams({'xp': fmtCount(xp)}),
+                style: waddyBlack.copyWith(
+                  fontSize: 13,
+                  color: XpTokens.teal,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// "2 of 3", or for a spend quest "EGP 150 of EGP 250" — a bare "150 of
+  /// 250" never said what was being counted.
+  String _progressLabel(Challenge c) {
+    if (c.isBinaryChallenge) {
+      return 'xp_progress_of'.trParams({
+        'current': fmtCount(c.isCompleted ? 1 : c.currentProgress),
+        'target': fmtCount(1),
+      });
     }
-    return card;
+    if (c.challengeType == 'min_order_amount') {
+      return 'xp_progress_of'.trParams({
+        'current': PriceConverter.convertPrice(c.currentProgress.toDouble()),
+        'target': PriceConverter.convertPrice(c.targetProgress.toDouble()),
+      });
+    }
+    return 'xp_progress_of'.trParams({
+      'current': fmtCount(c.currentProgress),
+      'target': fmtCount(c.targetProgress),
+    });
   }
 
   String _statusLabel(Challenge c) {
-    if (c.isClaimed) return 'CLAIMED';
-    if (c.canClaim) return 'READY TO CLAIM';
-    if (c.isCompleted) return 'COMPLETE';
-    return 'IN PROGRESS';
+    if (c.isClaimed) return 'xp_challenge_claimed'.tr;
+    if (c.canClaim) return 'xp_challenge_claimable'.tr;
+    if (c.isCompleted) return 'xp_challenge_complete'.tr;
+    return 'xp_challenge_in_progress'.tr;
   }
 
   String _fallbackEmoji(Challenge c) {
@@ -518,7 +679,7 @@ class _QuestCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REWARD CHIP — "+N XP" / claim button / "✓ CLAIMED"
+// REWARD CHIP — "+N XP" / claim button / "✓ claimed"
 // ─────────────────────────────────────────────────────────────────────────────
 class _RewardChip extends StatelessWidget {
   final int xp;
@@ -537,77 +698,89 @@ class _RewardChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Claimed — outlined mint tag.
     if (claimed) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
-          border: Border.all(color: _Q.mint, width: 2),
+          border: Border.all(color: XpTokens.mint, width: 2),
           borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
         ),
         child: Text(
-          '✓ CLAIMED',
-          style: waddyBlack.copyWith(fontSize: 10.5, color: _Q.mint, height: 1),
+          '✓ ${displayCaps('xp_challenge_claimed'.tr)}',
+          style: waddyBlack.copyWith(
+            fontSize: 10.5,
+            color: XpTokens.mint,
+            height: 1,
+          ),
         ),
       );
     }
 
-    // Ready to claim — solid mint button that claims on tap.
     if (canClaim) {
-      return GestureDetector(
-        onTap: claiming ? null : onClaim,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeSmall,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: _Q.mint,
-            borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
-            border: Border.all(color: _Q.border, width: 2),
-          ),
-          child:
-              claiming
-                  ? const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(_Q.teal),
+      return Semantics(
+        button: true,
+        child: GestureDetector(
+          onTap: claiming ? null : onClaim,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 32),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeSmall,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: XpTokens.mint,
+              borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
+              border: Border.all(color: XpTokens.teal, width: 2),
+            ),
+            alignment: Alignment.center,
+            child:
+                claiming
+                    ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(XpTokens.teal),
+                      ),
+                    )
+                    : Text(
+                      displayCaps(
+                        'xp_claim_reward'.trParams({'xp': fmtCount(xp)}),
+                      ),
+                      style: waddyBlack.copyWith(
+                        fontSize: 10.5,
+                        color: XpTokens.teal,
+                        height: 1,
+                      ),
                     ),
-                  )
-                  : Text(
-                    'CLAIM +$xp',
-                    style: waddyBlack.copyWith(
-                      fontSize: 10.5,
-                      color: _Q.teal,
-                      height: 1,
-                    ),
-                  ),
+          ),
         ),
       );
     }
 
-    // In progress — plain mint reward chip.
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeSmall,
         vertical: Dimensions.paddingSizeExtraSmall,
       ),
       decoration: BoxDecoration(
-        color: _Q.mint,
+        color: XpTokens.mint,
         borderRadius: BorderRadius.circular(Dimensions.radiusExtraSmall),
       ),
       child: Text(
-        '+$xp XP',
-        style: waddyBlack.copyWith(fontSize: 10.5, color: _Q.teal, height: 1),
+        'xp_plus_amount'.trParams({'xp': fmtCount(xp)}),
+        style: waddyBlack.copyWith(
+          fontSize: 10.5,
+          color: XpTokens.teal,
+          height: 1,
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EMPTY STATE
+// EMPTY + ERROR STATES
 // ─────────────────────────────────────────────────────────────────────────────
 class _EmptyQuest extends StatelessWidget {
   final String text;
@@ -618,8 +791,8 @@ class _EmptyQuest extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _Q.tileFill,
-        border: Border.all(color: _Q.tileBorder, width: 2.5),
+        color: XpTokens.overlay(0.06),
+        border: Border.all(color: XpTokens.overlay(0.28), width: 2.5),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
       ),
       padding: const EdgeInsets.symmetric(
@@ -631,7 +804,7 @@ class _EmptyQuest extends StatelessWidget {
           const Text('🎯', style: TextStyle(fontSize: 26)),
           const SizedBox(height: 8),
           Text(
-            'All done for now',
+            'xp_all_done'.tr,
             style: waddyBlack.copyWith(
               fontSize: 13,
               color: Colors.white,
@@ -644,11 +817,54 @@ class _EmptyQuest extends StatelessWidget {
             textAlign: TextAlign.center,
             style: waddyBold.copyWith(
               fontSize: 11,
-              color: _Q.onMed,
+              color: XpTokens.onDarkMed,
               height: 1.3,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A failed load is not "all done" (X-13).
+class _ErrorState extends StatelessWidget {
+  final Future<void> Function() onRetry;
+  const _ErrorState({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Dimensions.paddingSizeLarge),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('📡', style: TextStyle(fontSize: 30)),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Text(
+              'failed_to_load'.tr,
+              textAlign: TextAlign.center,
+              style: waddyBlack.copyWith(fontSize: 14, color: Colors.white),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeDefault),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                backgroundColor: XpTokens.mint,
+                foregroundColor: XpTokens.teal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeLarge,
+                  vertical: Dimensions.paddingSizeSmall,
+                ),
+              ),
+              child: Text(
+                'retry'.tr,
+                style: waddyBlack.copyWith(fontSize: 13, color: XpTokens.teal),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,13 +9,15 @@ import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/features/cart/domain/models/online_cart_model.dart';
 import 'package:waddy_app/features/cart/domain/services/cart_service_interface.dart';
-import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/features/checkout/helpers/checkout_calculation_helper.dart';
+import 'package:waddy_app/features/checkout/helpers/order_payload_builder.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/language/controllers/language_controller.dart';
+import 'package:waddy_app/features/store/domain/services/store_service_interface.dart';
 import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/location/controllers/location_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_page_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
@@ -129,6 +133,96 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
+  /// Registered *and* already built — `Get.find` on it will not construct it.
+  static bool _isLive<T>() => Get.isRegistered<T>() && !Get.isPrepared<T>();
+
+  // ── The cart's own store (ST-02) ──────────────────────────────────────
+  //
+  // A cart holds lines from exactly one store, and that store is the cart's,
+  // not whichever store page was opened last. Cart and checkout used to read
+  // `StoreController.store` for it, and the cart screen wrote the cart's store
+  // back into that field — so a store page under the cart came back showing
+  // the cart's store's header over its own menu.
+
+  Store? _cartStore;
+
+  /// The store this cart's lines belong to; null while it loads, or when the
+  /// cart is empty.
+  Store? get cartStore {
+    final int? id = _cartStoreId;
+    return (id != null && _cartStore?.id == id) ? _cartStore : null;
+  }
+
+  int? get _cartStoreId =>
+      _cartList.isEmpty ? null : _cartList.first.item?.storeId;
+
+  int? _cartStoreLoadingId;
+
+  /// The cart's store if it is already known — held, or in the shared store
+  /// cache — and otherwise starts loading it and answers null for now. Never
+  /// waits: the bars call this on every quantity tap.
+  Store? _resolveCartStore() {
+    final int? id = _cartStoreId;
+    if (id == null) return null;
+    if (_cartStore?.id == id) return _cartStore;
+    // Only live services: the splash prefetches the cart before config and
+    // locale are guaranteed, and a lookup must not build them as a side effect.
+    if (!_isLive<StoreServiceInterface>() ||
+        !_isLive<LocalizationController>()) {
+      return null;
+    }
+    final String languageCode =
+        Get.find<LocalizationController>().locale.languageCode;
+    final Store? cached = Get.find<StoreServiceInterface>().peekStoreDetails(
+      id,
+      languageCode: languageCode,
+    );
+    if (cached != null) {
+      _cartStore = cached;
+      return cached;
+    }
+    if (_cartStoreLoadingId != id) {
+      _cartStoreLoadingId = id;
+      _loadCartStore(id, languageCode);
+    }
+    return null;
+  }
+
+  Future<void> _loadCartStore(int id, String languageCode) async {
+    final Store? store = await Get.find<StoreServiceInterface>()
+        .getCachedStoreDetails(
+          id,
+          languageCode: languageCode,
+          moduleId:
+              _cartList.isEmpty
+                  ? ModuleHelper.currentModuleId()
+                  : _cartList.first.item?.moduleId ??
+                      ModuleHelper.currentModuleId(),
+          fromCart: true,
+        );
+    if (_cartStoreLoadingId == id) _cartStoreLoadingId = null;
+    // The cart may have moved to another store while this was in flight.
+    if (store == null || _cartStoreId != id) return;
+    _cartStore = store;
+    // Re-price on the helper's path now that the store is here.
+    calculationCart();
+    update();
+  }
+
+  /// Loads the cart's store now and waits for it. For screens that need it
+  /// before they can render a line (the cart screen's header and fee gate).
+  Future<Store?> loadCartStore() async {
+    final Store? known = _resolveCartStore();
+    if (known != null) return known;
+    final int? id = _cartStoreId;
+    if (id == null || !_isLive<LocalizationController>()) return null;
+    await _loadCartStore(
+      id,
+      Get.find<LocalizationController>().locale.languageCode,
+    );
+    return cartStore;
+  }
+
   double calculationCart() {
     _addOnsList = [];
     _availableList = [];
@@ -228,12 +322,18 @@ class CartController extends GetxController implements GetxService {
     // in places where neither CheckoutController nor a fetched store is
     // guaranteed to exist. Falling back to the previous local arithmetic there
     // keeps the bars correct rather than showing a free cart.
-    final Store? store =
-        Get.isRegistered<CheckoutController>()
-            ? Get.find<CheckoutController>().store
-            : Get.isRegistered<StoreController>()
-            ? Get.find<StoreController>().store
-            : null;
+    //
+    // Only *live* instances are read. Both controllers are lazyPut, so
+    // `isRegistered` is true before they exist and `Get.find` would build
+    // them as a side effect — the splash prefetches the cart before config
+    // lands, and CheckoutController's constructor reads `configModel`.
+    //
+    // ST-02/ST-03: the store is the cart's own ([cartStore]). It used to be
+    // CheckoutController.store — the last store that went through checkout —
+    // else StoreController.store — the last store page opened. Neither was
+    // this cart's; the figure happened not to depend on it (the helper only
+    // null-checks the store on this path), but the next reader might.
+    final Store? store = _resolveCartStore();
 
     _subTotal =
         store != null
@@ -448,8 +548,9 @@ class CartController extends GetxController implements GetxService {
           line.id!: line.quantity!,
     };
     _cartList = [
-      ...cartServiceInterface
-          .formatOnlineCartToLocalCart(onlineCartModel: onlineCartList),
+      ...cartServiceInterface.formatOnlineCartToLocalCart(
+        onlineCartModel: onlineCartList,
+      ),
     ];
     for (final CartModel line in _cartList) {
       final int? quantity = local[line.id];
@@ -472,6 +573,8 @@ class CartController extends GetxController implements GetxService {
     final int? cartId = line.id;
 
     _cartList.removeAt(index);
+    final Completer<void> done = Completer<void>();
+    _pendingRemovals[line] = done.future;
     // The total is derived from the list, so it has to be recomputed before
     // the frame that shows the row gone; otherwise the cart bar keeps the
     // removed item's price until the next unrelated update.
@@ -479,16 +582,43 @@ class CartController extends GetxController implements GetxService {
     update();
     Get.find<ItemController>().cartIndexSet();
 
-    if (cartId == null) {
-      // Local-only line: persist the shortened list and stop.
-      await cartServiceInterface.addSharedPrefCartList(_cartList);
-    } else {
-      await removeCartItemOnline(cartId, item: item);
+    try {
+      if (cartId == null) {
+        // Local-only line: persist the shortened list and stop.
+        await cartServiceInterface.addSharedPrefCartList(_cartList);
+      } else {
+        await removeCartItemOnline(cartId, item: item);
+      }
+    } finally {
+      done.complete();
+      _pendingRemovals.remove(line);
     }
 
     if (Get.find<ItemController>().item != null) {
       Get.find<ItemController>().cartIndexSet();
     }
+  }
+
+  /// Deletes still in flight, keyed by the removed line, so [restoreLine] can
+  /// wait for its own delete to land before re-adding.
+  final Map<CartModel, Future<void>> _pendingRemovals = {};
+
+  /// Undo for [removeFromCart]: adds the removed [line] back as a new cart
+  /// line — same item, variations, add-ons and quantity.
+  ///
+  /// This is a fresh add, not a cancelled delete, so the server and the local
+  /// list never disagree. It waits for the line's own delete first: the add
+  /// endpoint refuses a duplicate of a line that still exists, so an Undo
+  /// tapped mid-delete would otherwise fail and the delete would still land.
+  Future<bool> restoreLine(CartModel line) async {
+    final Future<void>? pending = _pendingRemovals[line];
+    if (pending != null) await pending;
+    final List<OnlineCart> lines = OrderPayloadBuilder.buildCartLines(
+      cartList: [line],
+      isCampaign: line.isCampaign ?? false,
+    );
+    if (lines.isEmpty) return false;
+    return addToCartOnline(lines.first, localFallback: line);
   }
 
   Future<void> clearCartList({bool canRemoveOnline = true}) async {
@@ -503,18 +633,22 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
+  /// The line holding [itemID] in [variationType]. With [preference] set,
+  /// only the line with that produce answer; without it, any line.
   int isExistInCart(
     int? itemID,
     String variationType,
     bool isUpdate,
-    int? cartIndex,
-  ) {
+    int? cartIndex, {
+    String? preference,
+  }) {
     return cartServiceInterface.isExistInCart(
       _cartList,
       itemID,
       variationType,
       isUpdate,
       cartIndex,
+      preference: preference,
     );
   }
 
@@ -537,6 +671,40 @@ class CartController extends GetxController implements GetxService {
     }
   }
 
+  /// The out-of-zone add-to-cart gate. Returns true (and shows the NO DELIVERY
+  /// sheet) when this user cannot be delivered to.
+  ///
+  /// Out-of-zone users browse the whole catalogue normally — store pages, menus
+  /// and prices all render as they do in zone (see StoreLogic::get_stores). The
+  /// app says no exactly once, here, at the first action that would build a
+  /// cart they could never check out.
+  ///
+  /// [addToCartOnline] calls this itself, so the ~15 UI call sites need no
+  /// change. Call it DIRECTLY only from a path that would do something
+  /// destructive or expensive before reaching [addToCartOnline] — the
+  /// clear-your-cart conflict dialogs are the case that matters: without an
+  /// early check, an out-of-zone tap wipes a real cart and only then reveals
+  /// that the add was never possible.
+  Future<bool> blockedOutOfZone() async {
+    if (!Get.find<LocationController>().outOfServingZone) return false;
+    AnalyticsHelper.log('add_to_cart_blocked_out_of_zone', {
+      'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
+    });
+    // Pass the store they were trying to order from: this is the single
+    // highest-intent demand signal in the app — not just "someone in Nasr
+    // City wants Waddy" but "wants THIS restaurant" — which is what turns
+    // the expansion data into a merchant sign-up shortlist.
+    //
+    // The store PAGE on screen, which is where an add-to-cart tap comes from —
+    // deliberately not [cartStore]: the tap may be for a different store than
+    // the one the cart holds.
+    await GuestGate.showNoDeliverySheet(
+      source: 'add_to_cart',
+      storeId: StorePageController.top?.store?.id,
+    );
+    return true;
+  }
+
   /// Adds to the server cart for BOTH guests and logged-in users. Guests are
   /// identified by `guest_id` (sent by CartRepository) — the backend supports
   /// guest carts natively (is_guest scoping), so there's no separate local
@@ -546,24 +714,7 @@ class CartController extends GetxController implements GetxService {
     OnlineCart cart, {
     CartModel? localFallback,
   }) async {
-    // Out-of-zone users can browse the whole catalogue (see StoreLogic::get_stores)
-    // but must not build a cart they can never check out. Gating here — the one
-    // chokepoint every add-to-cart entry point funnels through — keeps the ~15 UI
-    // call sites unchanged; they all already handle a false return.
-    if (Get.find<LocationController>().outOfServingZone) {
-      AnalyticsHelper.log('add_to_cart_blocked_out_of_zone', {
-        'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
-      });
-      // Pass the store they were trying to order from: this is the single
-      // highest-intent demand signal in the app — not just "someone in Nasr
-      // City wants Waddy" but "wants THIS restaurant" — which is what turns
-      // the expansion data into a merchant sign-up shortlist.
-      await GuestGate.showNoDeliverySheet(
-        source: 'add_to_cart',
-        storeId: Get.find<StoreController>().store?.id,
-      );
-      return false;
-    }
+    if (await blockedOutOfZone()) return false;
 
     _isLoading = true;
     bool success = false;

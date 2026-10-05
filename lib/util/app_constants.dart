@@ -25,6 +25,7 @@ class AppConstants {
 
   static const bool payInWevView = false;
   static const int balanceInputLen = 10;
+
   /// The web host, per build flavor. See [AppEnvironment].
   static const String webHostedUrl = AppEnvironment.webHostedUrl;
   static const bool useReactWebsite = false;
@@ -41,6 +42,8 @@ class AppConstants {
   static const String cuisineStoreUri = '/api/v1/cuisine/stores/';
   static const String bannerUri = '/api/v1/banners';
   static const String storeItemUri = '/api/v1/items/latest';
+  static const String buyAgainUri = '/api/v1/items/buy-again';
+  static const String pairsWithUri = '/api/v1/items/pairs-with';
   static const String popularItemUri = '/api/v1/items/popular';
   static const String reviewedItemUri = '/api/v1/items/most-reviewed';
   static const String searchItemUri = '/api/v1/items/details/';
@@ -49,6 +52,8 @@ class AppConstants {
   static const String categoryStoreUri = '/api/v1/categories/stores/';
   static const String configUri = '/api/v1/config';
   static const String trackUri = '/api/v1/customer/order/track?order_id=';
+  static const String riderLocationUri =
+      '/api/v1/customer/order/rider-location?order_id=';
   static const String messageUri = '/api/v1/customer/message/get';
   static const String forgetPasswordUri = '/api/v1/auth/forgot-password';
   static const String verifyTokenUri = '/api/v1/auth/verify-token';
@@ -89,6 +94,7 @@ class AppConstants {
   static const String notificationUri = '/api/v1/customer/notifications';
   static const String updateProfileUri = '/api/v1/customer/update-profile';
   static const String searchUri = '/api/v1/';
+  static const String globalSearchUri = '/api/v1/search/global';
   static const String reviewUri = '/api/v1/items/reviews/submit';
   static const String itemDetailsUri = '/api/v1/items/details/';
   static const String lastLocationUri =
@@ -203,6 +209,15 @@ class AppConstants {
   /// XP & Leveling System
   // Level data is fetched via the merged xpLevelDetailsUri endpoint; the legacy
   // /xp/level and /xp/levels endpoints are no longer called by the client.
+  // Pets module (docs/pets_module_plan.md)
+  static const String petsListUri = '/api/v1/customer/pets/list';
+  static const String petsAddUri = '/api/v1/customer/pets/add';
+  static const String petsUpdateUri = '/api/v1/customer/pets/update/';
+  static const String petsDeleteUri = '/api/v1/customer/pets/delete/';
+  static const String petsClinicsUri = '/api/v1/pets/clinics';
+  static const String petsCategoriesUri = '/api/v1/pets/categories';
+  static const String petsUsualUri = '/api/v1/customer/pets/usual';
+  static const String petsRemindersUri = '/api/v1/customer/pets/reminders';
   static const String xpChallengesUri = '/api/v1/customer/xp/challenges';
   static const String xpClaimChallengeUri = '/api/v1/customer/xp/challenges/';
   static const String xpPrizesUri = '/api/v1/customer/xp/prizes';
@@ -213,7 +228,6 @@ class AppConstants {
   static const String xpLevelDetailsUri = '/api/v1/customer/xp/level-details';
   static const String xpAcknowledgeLevelUpsUri =
       '/api/v1/customer/xp/level-ups/acknowledge';
-  static const String xpHistoryUri = '/api/v1/customer/xp/history';
   static const String xpLeaderboardUri = '/api/v1/customer/xp/leaderboard';
 
   /// Places to Visit / Hidden Gems
@@ -272,6 +286,10 @@ class AppConstants {
   static const String notificationIdList = 'notification_id_list';
   static const String searchHistory = '6ammart_search_history';
   static const String intro = '6ammart_intro';
+
+  /// A guest's pet from onboarding, sent to the server after sign-in.
+  static const String petDraft = 'waddy_pet_draft';
+  static const String petOnboardingSeen = 'waddy_pet_onboarding_seen';
   static const String notificationCount = '6ammart_notification_count';
   static const String dmTipIndex = '6ammart_dm_tip_index';
   static const String earnPoint = '6ammart_earn_point';
@@ -339,7 +357,9 @@ class AppConstants {
   ];
 
   /// Delivery Tips
-  static List<String> tips = ['0', '15', '10', '20', '40', 'custom'];
+  /// Rider tip options. First is "no tip", last is "custom"; the checkout
+  /// tip card pairs each with a McCoin mood (sad → hi → happy → cool).
+  static List<String> tips = ['0', '10', '15', '20', 'custom'];
   static List<String> deliveryInstructionList = [
     'avoid_calling',
     'dont_ring_the_bell',
@@ -381,6 +401,7 @@ class AppConstants {
   static const String ecommerce = 'ecommerce';
   static const String grocery = 'grocery';
   static const String places = 'places';
+  static const String pets = 'pets';
 
   static List<LanguageModel> languages = [
     LanguageModel(

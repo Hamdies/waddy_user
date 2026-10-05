@@ -2,6 +2,8 @@ import 'package:country_code_picker/country_code_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/pets/controllers/pet_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:waddy_app/common/models/response_model.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
@@ -245,6 +247,12 @@ class AuthController extends GetxController implements GetxService {
 
   Future<bool> clearSharedData({bool removeToken = true}) async {
     Get.find<SplashController>().leaveModule();
+    // XP state is per user and cached for the session: without this the next
+    // account on the device inherits the last one's challenges, prizes and
+    // selected checkout prize (X-10).
+    Get.find<XpController>().clearXpData();
+    // Same for pets: the next account must not open the shop on this one's cat.
+    Get.find<PetController>().clearOnLogout();
     return await authServiceInterface.clearSharedData(removeToken: removeToken);
   }
 

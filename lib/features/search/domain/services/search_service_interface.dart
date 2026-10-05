@@ -1,5 +1,6 @@
 import 'package:get/get_connect/http/src/response/response.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/search/domain/models/global_search_model.dart';
 import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
 import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -32,4 +33,5 @@ abstract class SearchServiceInterface {
   );
   Future<SearchSuggestionModel?> getSearchSuggestions(String searchText);
   Future<List<PopularCategoryModel?>?> getPopularCategories();
+  Future<List<GlobalSearchStore>?> getGlobalSearch(String query);
 }

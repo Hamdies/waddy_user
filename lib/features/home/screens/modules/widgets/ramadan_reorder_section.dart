@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/module_store_semantics.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -16,7 +16,6 @@ const Color _ramadanBronze = Color(0xFF8B6914);
 /// order-again/buy-again section while Ramadan mode is on.
 class RamadanReorderSection extends StatelessWidget {
   final List<Store> stores;
-  final Object Function(Store store) storeScreenBuilder;
   final double titleFontSize;
   final double subtitleFontSize;
   final double listHeight;
@@ -26,7 +25,6 @@ class RamadanReorderSection extends StatelessWidget {
   const RamadanReorderSection({
     super.key,
     required this.stores,
-    required this.storeScreenBuilder,
     this.titleFontSize = 18,
     this.subtitleFontSize = 12,
     this.listHeight = 162,
@@ -110,7 +108,6 @@ class RamadanReorderSection extends StatelessWidget {
                   (context, index) => _RamadanChip(
                     store: stores[index],
                     primaryColor: primaryColor,
-                    storeScreenBuilder: storeScreenBuilder,
                   ),
             ),
           ),
@@ -123,13 +120,8 @@ class RamadanReorderSection extends StatelessWidget {
 class _RamadanChip extends StatelessWidget {
   final Store store;
   final Color primaryColor;
-  final Object Function(Store store) storeScreenBuilder;
 
-  const _RamadanChip({
-    required this.store,
-    required this.primaryColor,
-    required this.storeScreenBuilder,
-  });
+  const _RamadanChip({required this.store, required this.primaryColor});
 
   @override
   Widget build(BuildContext context) {
@@ -138,11 +130,7 @@ class _RamadanChip extends StatelessWidget {
 
     return PressableScale(
       semanticLabel: moduleStoreSemanticLabel(store),
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: storeScreenBuilder(store),
-          ),
+      onTap: () => StoreNavigator.open(store),
       child: Container(
         width: 200,
         margin: const EdgeInsetsDirectional.only(

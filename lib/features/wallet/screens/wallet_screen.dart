@@ -9,6 +9,7 @@ import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
@@ -55,24 +56,12 @@ class _WalletScreenState extends State<WalletScreen> {
               widget.fundStatus == 'cancel') &&
           Get.find<WalletController>().getWalletAccessToken() != widget.token) {
         Future.delayed(const Duration(seconds: 2), () {
-          Get.showSnackbar(
-            GetSnackBar(
-              backgroundColor:
-                  widget.fundStatus == 'fail' || widget.fundStatus == 'cancel'
-                      ? Colors.red
-                      : _neonGreen,
-              message:
-                  widget.fundStatus == 'success'
-                      ? 'fund_successfully_added_to_wallet'.tr
-                      : 'fund_not_added_to_wallet'.tr,
-              maxWidth: 500,
-              duration: const Duration(seconds: 3),
-              snackStyle: SnackStyle.FLOATING,
-              margin: const EdgeInsets.all(Dimensions.paddingSizeExtremeLarge),
-              borderRadius: Dimensions.radiusExtraLarge,
-              isDismissible: true,
-              dismissDirection: DismissDirection.horizontal,
-            ),
+          showCustomSnackBar(
+            widget.fundStatus == 'success'
+                ? 'fund_successfully_added_to_wallet'.tr
+                : 'fund_not_added_to_wallet'.tr,
+            isError: widget.fundStatus != 'success',
+            showDuration: 3,
           );
         }).then((value) {
           Get.find<WalletController>().setWalletAccessToken(widget.token ?? '');

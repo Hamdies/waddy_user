@@ -1,3 +1,6 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -5,18 +8,14 @@ import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/new_tag.dart';
 import 'package:waddy_app/common/widgets/not_available_widget.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class StoreCardWithDistance extends StatefulWidget {
   final Store store;
@@ -127,19 +126,7 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance>
               ),
               child: CustomInkWell(
                 onTap: () {
-                  Get.find<SplashController>().activateModuleFor(
-                    widget.store.moduleId,
-                  );
-                  Get.toNamed(
-                    RouteHelper.getStoreRoute(
-                      id: widget.store.id,
-                      page: 'store',
-                    ),
-                    arguments: StoreScreen(
-                      store: widget.store,
-                      fromModule: false,
-                    ),
-                  );
+                  StoreNavigator.open(widget.store);
                 },
                 radius: Dimensions.radiusDefault,
                 child: Column(
@@ -162,16 +149,10 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance>
                             ),
 
                             !widget.fromTopOffers!
-                                ? DiscountTag(
-                                  discount: Get.find<StoreController>()
-                                      .getDiscount(widget.store),
-                                  discountType: Get.find<StoreController>()
-                                      .getDiscountType(widget.store),
-                                  freeDelivery: widget.store.freeDelivery,
-                                )
+                                ? OfferCollarBadge.storeCorner(widget.store)
                                 : const SizedBox(),
 
-                            Get.find<StoreController>().isOpenNow(widget.store)
+                            widget.store.isOpenNow
                                 ? const SizedBox()
                                 : const NotAvailableWidget(isStore: true),
 
@@ -597,20 +578,7 @@ class _StoreCardWithDistanceState extends State<StoreCardWithDistance>
                                                 widget.fromAllStore ? 70 : 65,
                                             radius: Dimensions.radiusSmall,
                                             onPressed: () {
-                                              Get.find<SplashController>()
-                                                  .activateModuleFor(
-                                                    widget.store.moduleId,
-                                                  );
-                                              Get.toNamed(
-                                                RouteHelper.getStoreRoute(
-                                                  id: widget.store.id,
-                                                  page: 'store',
-                                                ),
-                                                arguments: StoreScreen(
-                                                  store: widget.store,
-                                                  fromModule: false,
-                                                ),
-                                              );
+                                              StoreNavigator.open(widget.store);
                                             },
                                             buttonText: 'shop_now'.tr,
                                             color:

@@ -45,6 +45,11 @@ class PlaceOrderBodyModel {
   String? idempotencyKey;
   String? deviceFingerprint;
 
+  /// The saved address this order delivers to, so the backend can carry its
+  /// voice note and written directions onto the order for the rider. Null for
+  /// guests and for addresses picked without saving.
+  int? addressId;
+
   PlaceOrderBodyModel({
     required List<OnlineCart> cart,
     required double? couponDiscountAmount,
@@ -173,7 +178,11 @@ class PlaceOrderBodyModel {
     // Money fields read strictly: an unreadable amount stays null and is
     // reported, rather than becoming a plausible zero that flows into a total.
     _couponDiscountAmount =
-        Parse.strictDouble(json['coupon_discount_amount'], 'coupon_discount_amount') ?? 0;
+        Parse.strictDouble(
+          json['coupon_discount_amount'],
+          'coupon_discount_amount',
+        ) ??
+        0;
     _orderAmount = Parse.strictDouble(json['order_amount'], 'order_amount');
     _orderType = json['order_type'];
     _paymentMethod = json['payment_method'];
@@ -182,7 +191,10 @@ class PlaceOrderBodyModel {
     _storeId = Parse.strictInt(json['store_id'], 'store_id');
     _distance = Parse.lenientDouble(json['distance']);
     _scheduleAt = json['schedule_at'];
-    _discountAmount = Parse.strictDouble(json['discount_amount'], 'discount_amount');
+    _discountAmount = Parse.strictDouble(
+      json['discount_amount'],
+      'discount_amount',
+    );
     _taxAmount = Parse.strictDouble(json['tax_amount'], 'tax_amount');
     _address = json['address'];
     _receiverDetails =
@@ -207,9 +219,11 @@ class PlaceOrderBodyModel {
     _dmTips = json['dm_tips'];
     _unavailableItemNote = json['unavailable_item_note'];
     _deliveryInstruction = json['delivery_instruction'];
-    _cutlery =
-        Parse.lenientInt(json['cutlery']);
-    _partialPayment = Parse.strictInt(json['partial_payment'], 'partial_payment');
+    _cutlery = Parse.lenientInt(json['cutlery']);
+    _partialPayment = Parse.strictInt(
+      json['partial_payment'],
+      'partial_payment',
+    );
     _guestId = Parse.strictInt(json['guest_id'], 'guest_id');
     _isBuyNow = Parse.lenientInt(json['is_buy_now']);
     _guestEmail = json['contact_person_email'];
@@ -276,6 +290,9 @@ class PlaceOrderBodyModel {
     data['dm_tips'] = _dmTips.toString();
     data['unavailable_item_note'] = _unavailableItemNote.toString();
     data['delivery_instruction'] = _deliveryInstruction.toString();
+    if (addressId != null) {
+      data['address_id'] = addressId.toString();
+    }
     if (_cutlery != null) {
       data['cutlery'] = _cutlery.toString();
     }
@@ -320,6 +337,7 @@ class OnlineCart {
   List<int?>? _addOnQtys;
   String? _model;
   String? _itemType;
+  String? _preference;
 
   OnlineCart(
     int? cartId,
@@ -335,6 +353,7 @@ class OnlineCart {
     List<int?> addOnQtys,
     String model, {
     String? itemType,
+    String? preference,
   }) {
     _cartId = cartId;
     _itemId = itemId;
@@ -349,7 +368,27 @@ class OnlineCart {
     _addOnQtys = addOnQtys;
     _model = model;
     _itemType = itemType;
+    _preference = preference;
   }
+
+  /// The same request aimed at another line or quantity — the item sheet
+  /// growing a line it matched instead of adding a duplicate.
+  OnlineCart copyWith({int? cartId, int? quantity}) => OnlineCart(
+    cartId ?? _cartId,
+    _itemId,
+    _itemCampaignId,
+    _price ?? '0',
+    _variant ?? '',
+    _variation,
+    _variations,
+    quantity ?? _quantity,
+    _addOnIds ?? const [],
+    _addOns,
+    _addOnQtys ?? const [],
+    _model ?? 'Item',
+    itemType: _itemType,
+    preference: _preference,
+  );
 
   int? get cartId => _cartId;
   int? get itemId => _itemId;
@@ -363,6 +402,7 @@ class OnlineCart {
   List<int?>? get addOnQtys => _addOnQtys;
   String? get model => _model;
   String? get itemType => _itemType;
+  String? get preference => _preference;
 
   OnlineCart.fromJson(Map<String, dynamic> json) {
     _cartId = json['cart_id'];
@@ -396,6 +436,7 @@ class OnlineCart {
     if (json['item_type'] != null && json['item_type'] != 'null') {
       _itemType = json['item_type'];
     }
+    _preference = json['preference'] is String ? json['preference'] : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -419,6 +460,9 @@ class OnlineCart {
     data['model'] = _model;
     if (_itemType != null) {
       data['item_type'] = _itemType;
+    }
+    if (_preference != null) {
+      data['preference'] = _preference;
     }
     return data;
   }

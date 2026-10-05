@@ -11,6 +11,14 @@ import 'package:waddy_app/features/location/domain/models/zone_request_model.dar
 import 'package:waddy_app/features/location/domain/repositories/location_repository_interface.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
+/// Returned by [LocationRepository.getAddressFromGeocode] when the lookup
+/// fails. It is a SENTINEL, not a label: it is untranslated English and must
+/// never reach the screen as an address. Callers detect it and render their
+/// own localized failure state — `pick_map_screen` refuses to enable its
+/// confirm button on it, so a user cannot save "Unknown Location Found" as
+/// the name of where they live.
+const String kUnknownAddressSentinel = 'Unknown Location Found';
+
 class LocationRepository implements LocationRepositoryInterface {
   final ApiClient apiClient;
 
@@ -24,8 +32,7 @@ class LocationRepository implements LocationRepositoryInterface {
   String get _guestId {
     try {
       final prefs = Get.find<SharedPreferences>();
-      final bool loggedIn =
-          AuthTokenStore.hasToken;
+      final bool loggedIn = AuthTokenStore.hasToken;
       if (loggedIn) return '';
       return prefs.getString(AppConstants.guestId) ?? '';
     } catch (_) {
@@ -39,14 +46,14 @@ class LocationRepository implements LocationRepositoryInterface {
       '${AppConstants.geocodeUri}?lat=${latLng.latitude}&lng=${latLng.longitude}',
       handleError: false,
     );
-    String address = 'Unknown Location Found';
+    String address = kUnknownAddressSentinel;
     if (response.statusCode == 200 && response.body['status'] == 'OK') {
       address = response.body['results'][0]['formatted_address'].toString();
     } else {
       // Silent. This runs continuously while the user DRAGS the map pin, so a
-      // toast per failed lookup buries the screen. The 'Unknown Location Found'
-      // fallback above is already the user-visible signal, and every caller
-      // renders it. See docs/snackbar_noise_plan.md RC3.
+      // toast per failed lookup buries the screen. Callers detect
+      // [kUnknownAddressSentinel] and render their own localized failure
+      // state. See docs/snackbar_noise_plan.md RC3.
       debugPrint(
         'geocode failed: ${response.body?['error_message'] ?? response.statusText}',
       );

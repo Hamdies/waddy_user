@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
+import 'package:waddy_app/common/widgets/mccoin_mood.dart';
+import 'package:waddy_app/features/checkout/widgets/checkout_card.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/custom_text_field.dart';
-import 'package:waddy_app/features/checkout/widgets/tips_widget.dart';
 
 class DeliveryManTipsSection extends StatefulWidget {
   final bool takeAway;
-  final JustTheController tooltipController3;
   final double totalPrice;
   final Function(double x) onTotalChange;
   final int? storeId;
   const DeliveryManTipsSection({
     super.key,
     required this.takeAway,
-    required this.tooltipController3,
     required this.totalPrice,
     required this.onTotalChange,
     this.storeId,
@@ -35,320 +34,320 @@ class DeliveryManTipsSection extends StatefulWidget {
 class _DeliveryManTipsSectionState extends State<DeliveryManTipsSection> {
   bool canCheckSmall = false;
 
+  int get _customIndex => AppConstants.tips.length - 1;
+
   @override
   Widget build(BuildContext context) {
-    double total = widget.totalPrice;
+    if (widget.takeAway ||
+        Get.find<SplashController>().configModel.dmTipsStatus != 1) {
+      return const SizedBox.shrink();
+    }
+
     return GetBuilder<CheckoutController>(
       builder: (checkoutController) {
-        return Column(
-          children: [
-            (!widget.takeAway &&
-                    Get.find<SplashController>().configModel.dmTipsStatus == 1)
-                ? Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(
-                          context,
-                        ).primaryColor.withValues(alpha: 0.05),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: Dimensions.paddingSizeLarge,
-                    horizontal: Dimensions.paddingSizeLarge,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text('delivery_man_tips'.tr, style: waddyMedium),
+        // Index 0 is "not now" and the last is "custom"; the chips show the
+        // amounts in between, sorted, and "not now" is reached by tapping the
+        // selected chip again.
+        final List<int> amountIndexes = [
+          for (int i = 1; i < _customIndex; i++) i,
+        ]..sort(
+          (a, b) => double.parse(
+            AppConstants.tips[a],
+          ).compareTo(double.parse(AppConstants.tips[b])),
+        );
+        final bool isCustom = checkoutController.selectedTips == _customIndex;
+        // A tip the user saved on an earlier order ("Save for later") comes
+        // back preselected. Say so, so the amount reads as their own choice
+        // carried over rather than a default the app picked.
+        final String savedIndex = checkoutController.getSharedPrefDmTipIndex();
+        final bool isUsualTip =
+            checkoutController.selectedTips > 0 &&
+            savedIndex == checkoutController.selectedTips.toString();
 
-                          JustTheTooltip(
-                            backgroundColor: Colors.black87,
-                            controller: widget.tooltipController3,
-                            preferredDirection: AxisDirection.right,
-                            tailLength: 14,
-                            tailBaseWidth: 20,
-                            content: Padding(
-                              padding: const EdgeInsets.all(
-                                Dimensions.paddingSizeSmall,
-                              ),
-                              child: Text(
-                                'it_s_a_great_way_to_show_your_appreciation_for_their_hard_work'
-                                    .tr,
-                                style: waddyRegular.copyWith(
-                                  color: Colors.white,
-                                ),
-                              ),
+        return CheckoutCard(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeLarge,
+            0,
+            Dimensions.paddingSizeDefault,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  end: Dimensions.paddingSizeDefault,
+                ),
+                child: Row(
+                  children: [
+                    // McCoin reacts to the tip: a new mood is a new
+                    // artboard, so the key forces a fresh load and the
+                    // switcher cross-fades over it.
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: McCoinMoodAnimation(
+                        key: ValueKey(_mood(checkoutController)),
+                        mood: _mood(checkoutController),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(width: Dimensions.paddingSizeMedium),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'say_thanks_with_a_tip'.tr,
+                            style: waddyBold.copyWith(
+                              fontSize: Dimensions.fontSizeDefault,
+                              color: WaddyColors.ink,
                             ),
-                            child: InkWell(
-                              onTap:
-                                  () => widget.tooltipController3.showTooltip(),
-                              child: const Icon(Icons.info_outline),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isUsualTip
+                                ? 'your_usual_tip_tap_to_change'.tr
+                                : 'it_s_a_great_way_to_show_your_appreciation_for_their_hard_work'
+                                    .tr,
+                            style: waddyRegular.copyWith(
+                              fontSize: Dimensions.fontSizeExtraSmall,
+                              color:
+                                  isUsualTip
+                                      ? WaddyColors.mintInk
+                                      : WaddyColors.inkLight,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: Dimensions.paddingSizeSmall),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Dimensions.paddingSizeDefault),
 
-                      SizedBox(
-                        height:
-                            (checkoutController.selectedTips ==
-                                        AppConstants.tips.length - 1) &&
-                                    checkoutController.canShowTipsField
-                                ? 0
-                                : 60,
-                        child:
-                            (checkoutController.selectedTips ==
-                                        AppConstants.tips.length - 1) &&
-                                    checkoutController.canShowTipsField
-                                ? const SizedBox()
-                                : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  shrinkWrap: true,
-                                  physics: const BouncingScrollPhysics(),
-                                  itemCount: AppConstants.tips.length,
-                                  itemBuilder: (context, index) {
-                                    return TipsWidget(
-                                      title:
-                                          AppConstants.tips[index] == '0'
-                                              ? 'not_now'.tr
-                                              : (index !=
-                                                  AppConstants.tips.length - 1)
-                                              ? PriceConverter.convertPrice(
-                                                double.parse(
-                                                  AppConstants.tips[index]
-                                                      .toString(),
-                                                ),
-                                                forDM: true,
-                                              )
-                                              : AppConstants.tips[index].tr,
-                                      isSelected:
-                                          checkoutController.selectedTips ==
-                                          index,
-                                      isSuggested:
-                                          index != 0 &&
-                                          AppConstants.tips[index] ==
-                                              checkoutController.mostDmTipAmount
-                                                  .toString(),
-                                      onTap: () async {
-                                        total = total - checkoutController.tips;
-                                        checkoutController.updateTips(index);
-                                        if (checkoutController.selectedTips !=
-                                            AppConstants.tips.length - 1) {
-                                          checkoutController.addTips(
-                                            double.parse(
-                                              AppConstants.tips[index],
-                                            ),
-                                          );
-                                        }
-                                        if (checkoutController.selectedTips ==
-                                            AppConstants.tips.length - 1) {
-                                          checkoutController.showTipsField();
-                                        }
-                                        checkoutController.tipController.text =
-                                            checkoutController.tips.toString();
-
-                                        if (checkoutController.isPartialPay ||
-                                            checkoutController
-                                                    .paymentMethodIndex ==
-                                                1) {
-                                          checkoutController.checkBalanceStatus(
-                                            (total + checkoutController.tips),
-                                            0,
-                                          );
-                                        }
-                                      },
-                                    );
-                                  },
-                                ),
-                      ),
-                      SizedBox(
-                        height:
-                            (checkoutController.selectedTips ==
-                                        AppConstants.tips.length - 1) &&
-                                    checkoutController.canShowTipsField
-                                ? Dimensions.paddingSizeExtraSmall
-                                : 0,
-                      ),
-
-                      checkoutController.selectedTips ==
-                              AppConstants.tips.length - 1
-                          ? const SizedBox()
-                          : ListTile(
-                            onTap: () => checkoutController.toggleDmTipSave(),
-                            leading: Checkbox(
-                              visualDensity: const VisualDensity(
-                                horizontal: -4,
-                                vertical: -4,
-                              ),
-                              activeColor: Theme.of(context).primaryColor,
-                              value: checkoutController.isDmTipSave,
-                              onChanged:
-                                  (bool? isChecked) =>
-                                      checkoutController.toggleDmTipSave(),
-                            ),
-                            title: Text(
-                              'save_for_later'.tr,
-                              style: waddyMedium.copyWith(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                            contentPadding: EdgeInsets.zero,
-                            visualDensity: const VisualDensity(
-                              horizontal: 0,
-                              vertical: -4,
-                            ),
-                            dense: true,
-                            horizontalTitleGap: 0,
-                          ),
-                      SizedBox(
-                        height:
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsetsDirectional.only(
+                  end: Dimensions.paddingSizeDefault,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int rank = 0; rank < amountIndexes.length; rank++)
+                      _TipChip(
+                        label: PriceConverter.convertPrice(
+                          double.parse(AppConstants.tips[amountIndexes[rank]]),
+                          forDM: true,
+                        ),
+                        selected:
                             checkoutController.selectedTips ==
-                                    AppConstants.tips.length - 1
-                                ? Dimensions.paddingSizeDefault
-                                : 0,
+                            amountIndexes[rank],
+                        mostTipped:
+                            AppConstants.tips[amountIndexes[rank]] ==
+                            checkoutController.mostDmTipAmount.toString(),
+                        onTap:
+                            () => _onTipTap(
+                              checkoutController,
+                              checkoutController.selectedTips ==
+                                      amountIndexes[rank]
+                                  ? 0
+                                  : amountIndexes[rank],
+                            ),
                       ),
+                    _TipChip(
+                      label: AppConstants.tips[_customIndex].tr,
+                      selected: isCustom,
+                      mostTipped: false,
+                      onTap:
+                          () => _onTipTap(
+                            checkoutController,
+                            isCustom ? 0 : _customIndex,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
 
-                      checkoutController.selectedTips ==
-                              AppConstants.tips.length - 1
-                          ? Row(
-                            children: [
-                              Expanded(
-                                child: CustomTextField(
-                                  titleText: 'enter_amount'.tr,
-                                  controller: checkoutController.tipController,
-                                  inputAction: TextInputAction.done,
-                                  inputType: TextInputType.number,
-                                  onChanged: (String value) async {
-                                    if (value.isNotEmpty) {
-                                      try {
-                                        if (double.parse(value) >= 0) {
-                                          if (AuthHelper.isLoggedIn()) {
-                                            total =
-                                                total - checkoutController.tips;
-                                            await checkoutController.addTips(
-                                              double.parse(value),
-                                            );
-                                            total =
-                                                total + checkoutController.tips;
-                                            widget.onTotalChange(total);
-                                            if (Get.find<ProfileController>()
-                                                        .userInfoModel!
-                                                        .walletBalance! <
-                                                    total &&
-                                                checkoutController
-                                                        .paymentMethodIndex ==
-                                                    1) {
-                                              checkoutController
-                                                  .checkBalanceStatus(total, 0);
-                                              canCheckSmall = true;
-                                            } else if (Get.find<
-                                                          ProfileController
-                                                        >()
-                                                        .userInfoModel!
-                                                        .walletBalance! >
-                                                    total &&
-                                                canCheckSmall &&
-                                                checkoutController
-                                                    .isPartialPay) {
-                                              checkoutController
-                                                  .checkBalanceStatus(total, 0);
-                                            }
-                                          } else {
-                                            checkoutController.addTips(
-                                              double.parse(value),
-                                            );
-                                          }
-                                        } else {
-                                          showCustomSnackBar(
-                                            'tips_can_not_be_negative'.tr,
-                                          );
-                                        }
-                                      } catch (e) {
-                                        showCustomSnackBar('invalid_input'.tr);
-                                        checkoutController.addTips(0.0);
-                                        checkoutController
-                                            .tipController
-                                            .text = checkoutController
-                                            .tipController
-                                            .text
-                                            .substring(
-                                              0,
-                                              checkoutController
-                                                      .tipController
-                                                      .text
-                                                      .length -
-                                                  1,
-                                            );
-                                        checkoutController
-                                                .tipController
-                                                .selection =
-                                            TextSelection.collapsed(
-                                              offset:
-                                                  checkoutController
-                                                      .tipController
-                                                      .text
-                                                      .length,
-                                            );
-                                      }
-                                    } else {
-                                      checkoutController.addTips(0.0);
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(
-                                width: Dimensions.paddingSizeSmall,
-                              ),
-
-                              InkWell(
-                                onTap: () {
-                                  checkoutController.updateTips(0);
-                                  checkoutController.showTipsField();
-                                  if (checkoutController.isPartialPay) {
-                                    checkoutController.changePartialPayment();
-                                  }
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Theme.of(
-                                      context,
-                                    ).primaryColor.withValues(alpha: 0.5),
-                                  ),
-                                  padding: const EdgeInsets.all(
-                                    Dimensions.paddingSizeSmall,
-                                  ),
-                                  child: const Icon(Icons.clear),
-                                ),
-                              ),
-                            ],
-                          )
-                          : const SizedBox(),
-                    ],
-                  ),
-                )
-                : const SizedBox.shrink(),
-
-            SizedBox(
-              height:
-                  (!widget.takeAway &&
-                          widget.storeId == null &&
-                          Get.find<SplashController>()
-                                  .configModel
-                                  .dmTipsStatus ==
-                              1)
-                      ? Dimensions.paddingSizeSmall
-                      : 0,
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsetsDirectional.only(
+                  end: Dimensions.paddingSizeDefault,
+                  top: Dimensions.paddingSizeMedium,
+                ),
+                child:
+                    isCustom
+                        ? CustomTextField(
+                          titleText: 'enter_amount'.tr,
+                          controller: checkoutController.tipController,
+                          inputAction: TextInputAction.done,
+                          inputType: TextInputType.number,
+                          onChanged:
+                              (value) =>
+                                  _onCustomChanged(checkoutController, value),
+                        )
+                        : CheckoutCheckRow(
+                          value: checkoutController.isDmTipSave,
+                          onTap: checkoutController.toggleDmTipSave,
+                          label: 'save_for_later'.tr,
+                        ),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  /// No tip → sad, then hi, happy, and cool for the top amount or a custom
+  /// one. Keyed off the tip amount, not the index, so reordering
+  /// [AppConstants.tips] cannot scramble the faces.
+  McCoinMood _mood(CheckoutController checkoutController) {
+    final int index = checkoutController.selectedTips;
+    if (index == _customIndex) return McCoinMood.cool;
+    if (index <= 0 || index >= AppConstants.tips.length) return McCoinMood.sad;
+    switch (AppConstants.tips[index]) {
+      case '10':
+        return McCoinMood.hi;
+      case '15':
+        return McCoinMood.happy;
+      case '20':
+        return McCoinMood.cool;
+      default:
+        return McCoinMood.sad;
+    }
+  }
+
+  void _onTipTap(CheckoutController checkoutController, int index) {
+    double total = widget.totalPrice - checkoutController.tips;
+    checkoutController.updateTips(index);
+    if (index != _customIndex) {
+      checkoutController.addTips(double.parse(AppConstants.tips[index]));
+    }
+    checkoutController.tipController.text = checkoutController.tips.toString();
+
+    if (checkoutController.isPartialPay ||
+        checkoutController.paymentMethodIndex == 1) {
+      checkoutController.checkBalanceStatus(
+        (total + checkoutController.tips),
+        0,
+      );
+    }
+  }
+
+  Future<void> _onCustomChanged(
+    CheckoutController checkoutController,
+    String value,
+  ) async {
+    double total = widget.totalPrice;
+    if (value.isEmpty) {
+      checkoutController.addTips(0.0);
+      return;
+    }
+    try {
+      if (double.parse(value) >= 0) {
+        if (AuthHelper.isLoggedIn()) {
+          total = total - checkoutController.tips;
+          await checkoutController.addTips(double.parse(value));
+          total = total + checkoutController.tips;
+          widget.onTotalChange(total);
+          final double walletBalance =
+              Get.find<ProfileController>().userInfoModel!.walletBalance!;
+          if (walletBalance < total &&
+              checkoutController.paymentMethodIndex == 1) {
+            checkoutController.checkBalanceStatus(total, 0);
+            canCheckSmall = true;
+          } else if (walletBalance > total &&
+              canCheckSmall &&
+              checkoutController.isPartialPay) {
+            checkoutController.checkBalanceStatus(total, 0);
+          }
+        } else {
+          checkoutController.addTips(double.parse(value));
+        }
+      } else {
+        showCustomSnackBar('tips_can_not_be_negative'.tr);
+      }
+    } catch (e) {
+      showCustomSnackBar('invalid_input'.tr);
+      checkoutController.addTips(0.0);
+      final String text = checkoutController.tipController.text;
+      checkoutController.tipController.text = text.substring(
+        0,
+        text.length - 1,
+      );
+      checkoutController.tipController.selection = TextSelection.collapsed(
+        offset: checkoutController.tipController.text.length,
+      );
+    }
+  }
+}
+
+class _TipChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool mostTipped;
+  final VoidCallback onTap;
+  const _TipChip({
+    required this.label,
+    required this.selected,
+    required this.mostTipped,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(
+        end: Dimensions.paddingSizeSmall,
+      ),
+      child: Column(
+        children: [
+          Semantics(
+            button: true,
+            selected: selected,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(100),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                height: 44,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeMedium,
+                ),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      selected ? WaddyColors.mintSurface : WaddyColors.surface,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(
+                    color: selected ? WaddyColors.primary : WaddyColors.divider,
+                    width: selected ? 1.5 : 1,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  textDirection: TextDirection.ltr,
+                  style: waddyBold.copyWith(
+                    fontSize: Dimensions.fontSizeExtraSmall,
+                    color: WaddyColors.ink,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (mostTipped)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                'most_tipped'.tr,
+                style: waddyMedium.copyWith(
+                  fontSize: Dimensions.fontSizeOverSmall,
+                  color: WaddyColors.mintInk,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

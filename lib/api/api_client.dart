@@ -120,7 +120,7 @@ class ApiClient extends GetxService {
       // (500), not an empty result. "[]" is the only safe way to say "out of
       // zone": present for the hasHeader guards, and a valid array downstream.
       // Backends decide what an empty list means; see ModuleController.
-      AppConstants.zoneId: zoneIDs != null ? jsonEncode(zoneIDs) : '',
+      AppConstants.zoneId: jsonEncode(zoneIDs ?? const <int>[]),
 
       ///this will add in ride module
       // AppConstants.operationAreaId: operationIds != null ? jsonEncode(operationIds) : '',

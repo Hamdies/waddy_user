@@ -189,11 +189,11 @@ class MenuDrawerState extends State<MenuDrawer>
           icon: Images.restaurantJoin,
           title:
               Get.find<SplashController>()
-                      .configModel
-                      .moduleConfig!
-                      .module!
-                      .showRestaurantText ??
-                          false
+                          .configModel
+                          .moduleConfig!
+                          .module!
+                          .showRestaurantText ??
+                      false
                   ? 'join_as_a_restaurant'.tr
                   : 'join_as_a_store'.tr,
           onTap: () {

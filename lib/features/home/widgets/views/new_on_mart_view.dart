@@ -1,5 +1,5 @@
 import 'package:waddy_app/common/widgets/card_design/store_card_with_distance.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/home/widgets/components/home_rail_shimmers.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -25,7 +25,8 @@ class NewOnMartView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.latestId,
       builder: (storeController) {
         List<Store>? storeList = storeController.latestStoreList;
 
@@ -109,7 +110,7 @@ class NewOnMartView extends StatelessWidget {
 }
 
 class PopularStoreShimmer extends StatelessWidget {
-  final StoreController storeController;
+  final StoreListController storeController;
   const PopularStoreShimmer({super.key, required this.storeController});
 
   @override

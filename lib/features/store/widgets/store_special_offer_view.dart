@@ -1,11 +1,12 @@
+import 'package:waddy_app/common/widgets/add_to_cart_control.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
-import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/route_helper.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/home/widgets/ramadan/ramadan_string_light_wrapper.dart';
@@ -37,9 +38,6 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView>
   static const double kImageHeight = 90.0;
   static const double kImageBorderRadius = 10.0;
   static const double kProductNameSize = 14.0;
-  static const double kOriginalPriceSize = 11.0;
-  static const double kDiscountPriceSize = 16.0;
-  static const double kDiscountBadgeSize = 12.0;
   static const double kBannerTextSize = 13.0;
   static const double kDecorativeTextSize = 15.0;
   static const double kCarouselHeight = 240.0;
@@ -293,14 +291,7 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView>
     final Color primaryTeal = Theme.of(context).primaryColor;
     final Color accentGreen = Theme.of(context).secondaryHeaderColor;
     final Color ovalBackground = accentGreen.withValues(alpha: 0.08);
-    double price = item.price ?? 0;
-    double discount = item.discount ?? 0;
-    double discountPrice =
-        PriceConverter.convertWithDiscount(price, discount, item.discountType)!;
-    bool hasDiscount = discount > 0;
-
-    String originalPriceDisplay = PriceConverter.convertPrice(price);
-    String discountPriceDisplay = PriceConverter.convertPrice(discountPrice);
+    final ItemPrice price = ItemPrice.of(item);
 
     return GestureDetector(
       onTap: () => Get.toNamed(RouteHelper.getItemDetailsRoute(item.id, false)),
@@ -343,31 +334,16 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView>
                     ),
                   ),
                 ),
-                if (hasDiscount)
-                  Positioned(
+                if (price.onSale)
+                  PositionedDirectional(
                     top: 4,
-                    left: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusExtraSmall,
-                        ),
-                      ),
-                      child: Text(
-                        item.discountType == 'percent'
-                            ? '-${item.discount?.toInt()}%'
-                            : '-${PriceConverter.convertPrice(item.discount ?? 0)}',
-                        style: waddyBold.copyWith(
-                          fontSize: kDiscountBadgeSize,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    start: 4,
+                    child:
+                        OfferCollarBadge.forPrice(
+                          price,
+                          compact: true,
+                          onPhoto: true,
+                        )!,
                   ),
               ],
             ),
@@ -385,75 +361,10 @@ class _StoreSpecialOfferViewState extends State<StoreSpecialOfferView>
               ),
             ),
             const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (hasDiscount)
-                  Text(
-                    originalPriceDisplay,
-                    style: waddyMedium.copyWith(
-                      fontSize: kOriginalPriceSize,
-                      color: Colors.grey[600],
-                      decoration: TextDecoration.lineThrough,
-                      decorationColor: Colors.grey[600],
-                    ),
-                  ),
-                if (hasDiscount) const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions.paddingSizeSmall,
-                    vertical: Dimensions.paddingSizeExtraSmall,
-                  ),
-                  decoration: BoxDecoration(
-                    color: primaryTeal,
-                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  ),
-                  child: Text(
-                    hasDiscount ? discountPriceDisplay : originalPriceDisplay,
-                    style: waddyBold.copyWith(
-                      fontSize: kDiscountPriceSize,
-                      color: accentGreen,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            GestureDetector(
-              onTap:
-                  () => Get.find<ItemController>().itemDirectlyAddToCart(
-                    item,
-                    context,
-                  ),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: Dimensions.paddingSizeSmall,
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                decoration: BoxDecoration(
-                  color: accentGreen,
-                  borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentGreen.withValues(alpha: 0.3),
-                      offset: const Offset(0, 2),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    'ADD',
-                    style: waddyBold.copyWith(
-                      fontSize: 14,
-                      color: primaryTeal,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ),
+            PriceTag(price: price, oneLine: true),
+            SizedBox(
+              height: Dimensions.minTapTarget,
+              child: AddToCartControl(item: item, inset: 0),
             ),
           ],
         ),

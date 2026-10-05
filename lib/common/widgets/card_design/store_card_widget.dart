@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class StoreCardWidget extends StatefulWidget {
   final Store? store;
@@ -32,7 +30,8 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
     bool isAvailable = store.open == 1 && store.active!;
     bool hasDiscount = discount != null && discount > 0;
 
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeRecommendedItemsId,
       builder: (storeController) {
         // Get store-specific recommended items from the cache
         List<Item> storeItems =
@@ -70,11 +69,7 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
           child: CustomInkWell(
             onTap: () {
               if (store != null) {
-                Get.find<SplashController>().activateModuleFor(store.moduleId);
-                Get.toNamed(
-                  RouteHelper.getStoreRoute(id: store.id, page: 'item'),
-                  arguments: StoreScreen(store: store, fromModule: false),
-                );
+                StoreNavigator.open(store, page: 'item');
               }
             },
             radius: 16,

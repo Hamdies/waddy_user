@@ -1,17 +1,22 @@
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/category/controllers/category_page_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/util/dimensions.dart';
 
 class CategoryFilterWidget extends StatefulWidget {
+  /// The category page whose filters this sheet edits (ST-16). A bottom
+  /// sheet sits outside the page's widget tree, so it is handed the page's
+  /// controller.
+  final CategoryPageController page;
   final double? maxValue;
   final String? categoryID;
   const CategoryFilterWidget({
     super.key,
+    required this.page,
     required this.maxValue,
     this.categoryID,
   });
@@ -37,7 +42,8 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
           top: Radius.circular(Dimensions.radiusExtraLarge),
         ),
       ),
-      child: GetBuilder<CategoryController>(
+      child: GetBuilder<CategoryPageController>(
+        tag: widget.page.tag,
         builder: (catController) {
           double maxVal = widget.maxValue ?? 1000;
           double lowerValue = catController.lowerValue.clamp(0, maxVal);
@@ -103,7 +109,10 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
     );
   }
 
-  Widget _buildTabRail(Color primaryColor, CategoryController catController) {
+  Widget _buildTabRail(
+    Color primaryColor,
+    CategoryPageController catController,
+  ) {
     return SizedBox(
       width: 100,
       child: Column(
@@ -182,7 +191,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
   Widget _buildContent(
     BuildContext context,
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
     double lowerValue,
     double upperValue,
     double maxVal,
@@ -209,7 +218,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
 
   Widget _buildSortContent(
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
   ) {
     final sortOptions = [
       'default'.tr,
@@ -259,7 +268,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
 
   Widget _buildFilterContent(
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
   ) {
     bool isFood = Get.find<SplashController>().module?.type == ModuleType.food;
 
@@ -335,7 +344,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
 
   Widget _buildPriceContent(
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
     double lowerValue,
     double upperValue,
     double maxVal,
@@ -430,7 +439,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
 
   Widget _buildRatingContent(
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
   ) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
@@ -509,7 +518,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
   Widget _buildBottomButtons(
     BuildContext context,
     Color primaryColor,
-    CategoryController catController,
+    CategoryPageController catController,
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -541,7 +550,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
               flex: 3,
               child: GestureDetector(
                 onTap: () {
-                  final catCtrl = Get.find<CategoryController>();
+                  final catCtrl = widget.page;
                   final catId =
                       catCtrl.subCategoryIndex == 0
                           ? widget.categoryID

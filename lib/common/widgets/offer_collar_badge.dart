@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
+import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/theme/light_theme.dart';
@@ -91,18 +93,57 @@ class OfferCollarBadge extends StatelessWidget {
   /// size.
   final bool compact;
 
+  /// Laid over a product photo. The pill is solid instead of fading out —
+  /// the fade reads as intended on a white card and as a smudge on a photo,
+  /// where the label would sit on bare image — and gets a white rim so it
+  /// separates from busy packaging.
+  final bool onPhoto;
+
   const OfferCollarBadge({
     super.key,
     required this.label,
     required this.tone,
     this.compact = false,
+    this.onPhoto = false,
   });
+
+  /// An item's own markdown — "15% OFF", or "50 LE OFF" for a flat one — or
+  /// null when it is not on sale. Same tone and shape as the store badges, so
+  /// "money off" looks the same on a store card and on a product.
+  static OfferCollarBadge? forItem(
+    Item item, {
+    double? base,
+    bool compact = false,
+    bool onPhoto = false,
+  }) => forPrice(
+    ItemPrice.of(item, base: base),
+    compact: compact,
+    onPhoto: onPhoto,
+  );
+
+  static OfferCollarBadge? forPrice(
+    ItemPrice price, {
+    bool compact = false,
+    bool onPhoto = false,
+  }) {
+    if (!price.onSale) return null;
+    return OfferCollarBadge(
+      label: price.offLabel!,
+      tone: OfferCollarTone.sale,
+      compact: compact,
+      onPhoto: onPhoto,
+    );
+  }
 
   /// The store's best money-off perk, or null when there is none.
   ///
   /// Discount wins over free delivery when a store has both and only one slot
   /// is available — a percentage is the larger claim.
-  static OfferCollarBadge? forDiscount(Store store, {bool compact = false}) {
+  static OfferCollarBadge? forDiscount(
+    Store store, {
+    bool compact = false,
+    bool onPhoto = false,
+  }) {
     final discount = store.discount;
     if (discount?.discount == null || discount!.discount! <= 0) return null;
     return OfferCollarBadge(
@@ -112,12 +153,32 @@ class OfferCollarBadge extends StatelessWidget {
               : '${PriceConverter.convertPrice(discount.discount!)} ${'off'.tr}',
       tone: OfferCollarTone.sale,
       compact: compact,
+      onPhoto: onPhoto,
+    );
+  }
+
+  /// "Up to 30% OFF" — the deepest markdown on any item the store sells, or
+  /// null when it has no item on sale. Distinct from [forDiscount], which is a
+  /// store-wide offer applied to the whole basket.
+  static OfferCollarBadge? forMaxItemDiscount(
+    Store store, {
+    bool compact = false,
+    bool onPhoto = false,
+  }) {
+    final int? percent = store.maxItemDiscount;
+    if (percent == null || percent <= 0) return null;
+    return OfferCollarBadge(
+      label: '${'up_to'.tr} $percent% ${'off'.tr}',
+      tone: OfferCollarTone.sale,
+      compact: compact,
+      onPhoto: onPhoto,
     );
   }
 
   static OfferCollarBadge? forFreeDelivery(
     Store store, {
     bool compact = false,
+    bool onPhoto = false,
   }) {
     final bool free =
         store.freeDelivery == true || store.minimumShippingCharge == 0;
@@ -126,7 +187,47 @@ class OfferCollarBadge extends StatelessWidget {
       label: 'free_delivery'.tr,
       tone: OfferCollarTone.delivery,
       compact: compact,
+      onPhoto: onPhoto,
     );
+  }
+
+  /// The store's best perk as a photo-corner badge, or nothing — for a
+  /// store card's cover or logo. Money off wins over free delivery.
+  ///
+  /// [atBottom] for a slot whose top-start corner already holds something
+  /// (the favourite heart).
+  static Widget storeCorner(
+    Store store, {
+    double inset = 6,
+    bool atBottom = false,
+  }) {
+    final OfferCollarBadge? badge =
+        forDiscount(store, compact: true, onPhoto: true) ??
+        forFreeDelivery(store, compact: true, onPhoto: true);
+    if (badge == null) return const SizedBox.shrink();
+    return PositionedDirectional(
+      top: atBottom ? null : inset,
+      bottom: atBottom ? inset : null,
+      start: inset,
+      child: badge,
+    );
+  }
+
+  /// An item's sale collar on its photo's top-start corner, or nothing.
+  static Widget itemCorner(
+    Item item, {
+    double? base,
+    double top = 6,
+    double start = 6,
+  }) {
+    final OfferCollarBadge? badge = forItem(
+      item,
+      base: base,
+      compact: true,
+      onPhoto: true,
+    );
+    if (badge == null) return const SizedBox.shrink();
+    return PositionedDirectional(top: top, start: start, child: badge);
   }
 
   @override
@@ -183,12 +284,26 @@ class OfferCollarBadge extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(height),
-                  gradient: LinearGradient(
-                    begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
-                    end: rtl ? Alignment.centerLeft : Alignment.centerRight,
-                    stops: const [0.55, 1.0],
-                    colors: [c.surface, c.surface.withValues(alpha: 0)],
-                  ),
+                  color: onPhoto ? c.surface : null,
+                  border:
+                      onPhoto
+                          ? Border.all(color: WaddyColors.surface, width: 1)
+                          : null,
+                  gradient:
+                      onPhoto
+                          ? null
+                          : LinearGradient(
+                            begin:
+                                rtl
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                            end:
+                                rtl
+                                    ? Alignment.centerLeft
+                                    : Alignment.centerRight,
+                            stops: const [0.55, 1.0],
+                            colors: [c.surface, c.surface.withValues(alpha: 0)],
+                          ),
                 ),
                 // Centre the label in the pill on both axes.
                 //

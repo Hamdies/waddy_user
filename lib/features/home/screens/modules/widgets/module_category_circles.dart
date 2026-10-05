@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
 import 'package:waddy_app/features/cuisine/controllers/cuisine_controller.dart';
 import 'package:waddy_app/features/cuisine/domain/models/cuisine_model.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/store_logo_slideshow.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -48,16 +48,21 @@ const double _kLabelHeight = 1.15;
 /// Text scale is applied here rather than clamped: this strip is vertical, so
 /// growing it pushes content down instead of off the side, and a user at a
 /// large accessibility size gets labels that fit rather than ellipsized.
-double _stripHeight(BuildContext context, {required bool twoLines}) {
+double _stripHeight(
+  BuildContext context, {
+  required bool twoLines,
+  double labelSize = _kLabelSize,
+  double tileSize = _kTileSize,
+}) {
   final double lineHeight =
-      _kLabelSize * _kLabelHeight * MediaQuery.textScalerOf(context).scale(1.0);
+      labelSize * _kLabelHeight * MediaQuery.textScalerOf(context).scale(1.0);
   // +2: the TextPainter used to decide `twoLines` measures the same style at
   // the same width as the real Text, but font-fallback/hinting can still
   // round the actual RenderParagraph a hair taller than the painter's
   // estimate — enough, at the boundary, to overflow the Column by a pixel or
   // two. A couple of points of slack costs nothing visually and removes that
   // boundary case entirely.
-  return _kTileSize + _kLabelGap + lineHeight * (twoLines ? 2 : 1) + 2;
+  return tileSize + _kLabelGap + lineHeight * (twoLines ? 2 : 1) + 2;
 }
 
 /// Whether any of [labels] will wrap to a second line at [_kTileSize] wide.
@@ -66,14 +71,19 @@ double _stripHeight(BuildContext context, {required bool twoLines}) {
 /// tile's real width is the only way to know whether "Middle Eastern" wraps
 /// where "Pizza" does not, and guessing by character count breaks the moment
 /// the app is in Arabic.
-bool _needsTwoLines(BuildContext context, List<String> labels) {
+bool _needsTwoLines(
+  BuildContext context,
+  List<String> labels, {
+  double labelSize = _kLabelSize,
+  double tileSize = _kTileSize,
+}) {
   final double scale = MediaQuery.textScalerOf(context).scale(1.0);
   for (final String label in labels) {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
         style: waddyMedium.copyWith(
-          fontSize: _kLabelSize,
+          fontSize: labelSize,
           height: _kLabelHeight,
           fontWeight: FontWeight.w600,
         ),
@@ -81,7 +91,7 @@ bool _needsTwoLines(BuildContext context, List<String> labels) {
       maxLines: 2,
       textDirection: Directionality.of(context),
       textScaler: TextScaler.linear(scale),
-    )..layout(maxWidth: _kTileSize);
+    )..layout(maxWidth: tileSize);
     if (painter.didExceedMaxLines || painter.computeLineMetrics().length > 1) {
       return true;
     }
@@ -90,6 +100,55 @@ bool _needsTwoLines(BuildContext context, List<String> labels) {
 }
 
 /// Gap between tiles.
+/// Smallest the strip will shrink its labels to. Below this the label stops
+/// being the thing you steer by, so an even longer word is left to wrap.
+const double _kMinLabelSize = 10;
+
+/// One label size for the whole strip, small enough that its longest single
+/// word fits the tile.
+///
+/// `maxLines: 2` only helps when a label has a space to wrap at. A single
+/// word wider than the tile — "Supermarkets" at a large text setting — has
+/// none, so Flutter broke it mid-word ("Supermar / kets"). Shrinking is the
+/// fix; ellipsizing would cut the one word that names the category.
+///
+/// Strip-wide rather than per tile, so neighbouring labels never sit at
+/// different sizes.
+double _fitLabelSize(
+  BuildContext context,
+  List<String> labels, {
+  double tileSize = _kTileSize,
+}) {
+  final double scale = MediaQuery.textScalerOf(context).scale(1.0);
+  double widest = 0;
+  for (final String label in labels) {
+    for (final String word in label.split(RegExp(r'\s+'))) {
+      if (word.isEmpty) continue;
+      final painter = TextPainter(
+        text: TextSpan(
+          text: word,
+          style: waddyMedium.copyWith(
+            fontSize: _kLabelSize,
+            height: _kLabelHeight,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        maxLines: 1,
+        textDirection: Directionality.of(context),
+        textScaler: TextScaler.linear(scale),
+      )..layout();
+      if (painter.width > widest) widest = painter.width;
+    }
+  }
+  if (widest <= tileSize) return _kLabelSize;
+  // -1: the same rounding slack `_stripHeight` allows for, so a word that
+  // fits by the painter's estimate still fits the real paragraph.
+  return (_kLabelSize * (tileSize - 1) / widest).clamp(
+    _kMinLabelSize,
+    _kLabelSize,
+  );
+}
+
 const double _kTileGap = 12;
 
 /// The mint wash beneath a dish: deepest at the top, fading to near-white at
@@ -115,115 +174,6 @@ const LinearGradient _kTileGradient = LinearGradient(
 /// a faster way to reach the 24th cuisine than swiping to it.
 const int kDefaultVisibleCuisines = 10;
 
-/// Horizontal category strip: leading "all" tile with a store-logo slideshow,
-/// then one tile per category.
-class ModuleCategoryCircles extends StatelessWidget {
-  final int? selectedCategoryId;
-  final ValueChanged<int?> onCategoryTap;
-
-  /// Printed on the leading tile. Keep it short — it shares a 76pt tile with
-  /// the cuisine names beside it.
-  final String allLabel;
-
-  /// Spoken for the leading tile when [allLabel] is an abbreviation.
-  /// Falls back to [allLabel] when the two are the same.
-  final String? allSemanticLabel;
-
-  /// Rendered glyph shown when no logo is available — a `Widget` rather than
-  /// an [IconData] so callers can pass a Material `Icon` or a `HugeIcon`.
-  final Widget fallbackIcon;
-
-  /// Show at most this many categories (null = all).
-  final int? maxCategories;
-  final double bottomPadding;
-
-  const ModuleCategoryCircles({
-    super.key,
-    required this.selectedCategoryId,
-    required this.onCategoryTap,
-    required this.allLabel,
-    this.allSemanticLabel,
-    required this.fallbackIcon,
-    this.maxCategories,
-    this.bottomPadding = 6,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color primaryColor = Theme.of(context).primaryColor;
-    final Color accentColor = Theme.of(context).secondaryHeaderColor;
-
-    return GetBuilder<CategoryController>(
-      builder: (categoryController) {
-        if (categoryController.categoryList == null) {
-          return const ModuleCategoryCirclesShimmer();
-        }
-        if (categoryController.categoryList!.isEmpty) return const SizedBox();
-
-        final allCategories = categoryController.categoryList!;
-        final visibleCategories =
-            (maxCategories != null && allCategories.length > maxCategories!)
-                ? allCategories.take(maxCategories!).toList()
-                : allCategories;
-
-        final storeController = Get.find<StoreController>();
-        final stores =
-            storeController.popularStoreList ??
-            storeController.latestStoreList ??
-            <Store>[];
-
-        final List<String> labels = [
-          allLabel,
-          for (final c in visibleCategories) c.name ?? '',
-        ];
-
-        return Padding(
-          padding: EdgeInsets.only(bottom: bottomPadding),
-          child: SizedBox(
-            height: _stripHeight(
-              context,
-              twoLines: _needsTwoLines(context, labels),
-            ),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              clipBehavior: Clip.none,
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeDefault,
-              ),
-              children: List.generate(visibleCategories.length + 1, (index) {
-                if (index == 0) {
-                  return _AllStoresItem(
-                    isSelected: selectedCategoryId == null,
-                    primaryColor: primaryColor,
-                    accentColor: accentColor,
-                    stores: stores,
-                    label: allLabel,
-                    semanticLabel: allSemanticLabel ?? allLabel,
-                    fallbackIcon: fallbackIcon,
-                    onTap: () => onCategoryTap(null),
-                  );
-                }
-                final category = visibleCategories[index - 1];
-                return _CategoryItem(
-                  isSelected: selectedCategoryId == category.id,
-                  label: category.name ?? '',
-                  imageUrl: category.imageFullUrl,
-                  imageVariants: category.imageVariants,
-                  primaryColor: primaryColor,
-                  accentColor: accentColor,
-                  onTap: () => onCategoryTap(category.id),
-                  index: index,
-                );
-              }),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _AllStoresItem extends StatelessWidget {
   final bool isSelected;
   final Color primaryColor;
@@ -244,6 +194,9 @@ class _AllStoresItem extends StatelessWidget {
   final Widget fallbackIcon;
   final VoidCallback onTap;
 
+  /// The strip's fitted label size — see [_fitLabelSize].
+  final double labelSize;
+
   const _AllStoresItem({
     required this.isSelected,
     required this.primaryColor,
@@ -253,6 +206,7 @@ class _AllStoresItem extends StatelessWidget {
     required this.semanticLabel,
     required this.fallbackIcon,
     required this.onTap,
+    this.labelSize = _kLabelSize,
   });
 
   @override
@@ -311,7 +265,7 @@ class _AllStoresItem extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   style: waddyMedium.copyWith(
-                    fontSize: _kLabelSize,
+                    fontSize: labelSize,
                     height: _kLabelHeight,
                     color: isSelected ? primaryColor : WaddyColors.ink,
                     fontWeight: FontWeight.w600,
@@ -342,6 +296,17 @@ class _CategoryItem extends StatelessWidget {
   final VoidCallback onTap;
   final int index;
 
+  /// The strip's fitted label size — see [_fitLabelSize].
+  final double labelSize;
+
+  /// Tile edge. The strips use [_kTileSize]; a store's aisle grid sizes its
+  /// tiles to fill the row.
+  final double tileSize;
+
+  /// Space after the tile. The strips space tiles with it; a grid spaces
+  /// its own columns and passes 0.
+  final double trailingGap;
+
   const _CategoryItem({
     required this.isSelected,
     required this.label,
@@ -351,6 +316,9 @@ class _CategoryItem extends StatelessWidget {
     required this.accentColor,
     required this.onTap,
     required this.index,
+    this.labelSize = _kLabelSize,
+    this.tileSize = _kTileSize,
+    this.trailingGap = _kTileGap,
   });
 
   @override
@@ -364,7 +332,7 @@ class _CategoryItem extends StatelessWidget {
     // *changes* (selection, filtering), which the AnimatedContainers below
     // still spend it on.
     return Padding(
-      padding: const EdgeInsetsDirectional.only(end: _kTileGap),
+      padding: EdgeInsetsDirectional.only(end: trailingGap),
       child: PressableScale(
         // Selection is the whole point of these, and it is conveyed only by
         // a ring and a label colour — so it has to be spoken, not painted.
@@ -377,14 +345,14 @@ class _CategoryItem extends StatelessWidget {
         child: ClipRect(
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
-            width: _kTileSize,
+            width: tileSize,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
-                  width: _kTileSize,
-                  height: _kTileSize,
+                  width: tileSize,
+                  height: tileSize,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                     gradient: _kTileGradient,
@@ -410,7 +378,7 @@ class _CategoryItem extends StatelessWidget {
                         fit: BoxFit.cover,
                         variants: imageVariants,
                         // Decode to the padded box, not the tile.
-                        decodeWidth: _kTileSize - _kTileInset * 2,
+                        decodeWidth: tileSize - _kTileInset * 2,
                       ),
                     ),
                   ),
@@ -419,7 +387,7 @@ class _CategoryItem extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 200),
                   style: waddyMedium.copyWith(
-                    fontSize: _kLabelSize,
+                    fontSize: labelSize,
                     height: _kLabelHeight,
                     // Cuisine names are how you steer this list — they
                     // were 10.5px grey, smaller than the meta text on the
@@ -475,7 +443,7 @@ class ModuleCategoryCirclesShimmer extends StatelessWidget {
                           borderRadius: BorderRadius.circular(
                             Dimensions.radiusLarge,
                           ),
-                          color: Colors.grey.shade200,
+                          color: WaddyColors.divider,
                         ),
                       ),
                     ),
@@ -485,7 +453,7 @@ class ModuleCategoryCirclesShimmer extends StatelessWidget {
                         width: 52,
                         height: 15,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
+                          color: WaddyColors.divider,
                           borderRadius: BorderRadius.circular(
                             Dimensions.radiusExtraSmall,
                           ),
@@ -506,7 +474,8 @@ class ModuleCategoryCirclesShimmer extends StatelessWidget {
 /// Food restaurants are grouped by what they ARE (burgers, pizza, seafood),
 /// and the Food module has no category rows at all — so the food home screen
 /// reads CuisineController while grocery and the rest stay on categories.
-/// Item chrome is shared with [ModuleCategoryCircles]; only the source differs.
+/// Tile chrome (`_CategoryItem`) is shared with [StoreCategoryTiles]; only the
+/// source differs.
 class ModuleCuisineCircles extends StatelessWidget {
   final int? selectedCuisineId;
   final ValueChanged<int?> onCuisineTap;
@@ -592,12 +561,15 @@ class ModuleCuisineCircles extends StatelessWidget {
           if (hasOverflow) 'view_all'.tr,
         ];
 
+        final double labelSize = _fitLabelSize(context, labels);
+
         return Padding(
           padding: EdgeInsets.only(bottom: bottomPadding),
           child: SizedBox(
             height: _stripHeight(
               context,
-              twoLines: _needsTwoLines(context, labels),
+              twoLines: _needsTwoLines(context, labels, labelSize: labelSize),
+              labelSize: labelSize,
             ),
             child: ListView(
               scrollDirection: Axis.horizontal,
@@ -612,7 +584,7 @@ class ModuleCuisineCircles extends StatelessWidget {
                 leadingCount + visible.length + (hasOverflow ? 1 : 0),
                 (index) {
                   if (showAllTile && index == 0) {
-                    final storeController = Get.find<StoreController>();
+                    final storeController = Get.find<StoreListController>();
                     final stores =
                         storeController.popularStoreList ??
                         storeController.latestStoreList ??
@@ -626,6 +598,7 @@ class ModuleCuisineCircles extends StatelessWidget {
                       semanticLabel: allSemanticLabel ?? allLabel,
                       fallbackIcon: fallbackIcon,
                       onTap: () => onCuisineTap(null),
+                      labelSize: labelSize,
                     );
                   }
                   if (hasOverflow && index == leadingCount + visible.length) {
@@ -638,6 +611,7 @@ class ModuleCuisineCircles extends StatelessWidget {
                             selectedCuisineId: selectedCuisineId,
                             onCuisineTap: onCuisineTap,
                           ),
+                      labelSize: labelSize,
                     );
                   }
                   final CuisineModel cuisine = visible[index - leadingCount];
@@ -650,6 +624,7 @@ class ModuleCuisineCircles extends StatelessWidget {
                     accentColor: accentColor,
                     onTap: () => onCuisineTap(cuisine.id),
                     index: index,
+                    labelSize: labelSize,
                   );
                 },
               ),
@@ -659,6 +634,171 @@ class ModuleCuisineCircles extends StatelessWidget {
       },
     );
   }
+}
+
+/// The store-type tiles, fed by one store's own item categories (its aisles):
+/// a fixed four-column grid of [maxVisible] slots, sized to fill the row.
+///
+/// Fixed rather than a sideways scroll: two full rows are all visible at
+/// once. When the store has more aisles than slots, the last slot is a
+/// "+N / View all" tile — the store-type strip's overflow tile — that calls
+/// [onViewAll], so the grid itself says how many more there are.
+///
+/// Callers pass [categories] already in priority order.
+///
+/// A tap opens the aisle rather than filtering a list below it, so no tile
+/// carries a selected ring and there is no leading "all" tile.
+class StoreCategoryTiles extends StatelessWidget {
+  final List<CategoryModel> categories;
+  final ValueChanged<CategoryModel> onCategoryTap;
+
+  /// Opens the full list; see [showAllStoreCategoriesSheet].
+  final VoidCallback onViewAll;
+  final int maxVisible;
+
+  const StoreCategoryTiles({
+    super.key,
+    required this.categories,
+    required this.onCategoryTap,
+    required this.onViewAll,
+    this.maxVisible = kStoreCategoryTilesVisible,
+  });
+
+  static const int _kColumns = 4;
+
+  /// Between columns: the strips' tile gap.
+  static const double _kColumnGap = _kTileGap;
+
+  /// Between rows: a label needs air from the tile under it.
+  static const double _kRowGap = Dimensions.paddingSizeMedium;
+
+  /// A step up from the strips' 76 on a typical phone (≈81 at 393pt wide),
+  /// capped so a large phone doesn't turn the aisles into posters.
+  static const double _kMaxTileSize = 92;
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox();
+
+    final bool hasOverflow = categories.length > maxVisible;
+    // The overflow tile takes the last slot, so one fewer aisle shows.
+    final List<CategoryModel> visible =
+        categories.take(hasOverflow ? maxVisible - 1 : maxVisible).toList();
+    final int hiddenCount = categories.length - visible.length;
+    final Color primaryColor = Theme.of(context).primaryColor;
+    final Color accentColor = Theme.of(context).secondaryHeaderColor;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double tileSize = ((constraints.maxWidth -
+                      _kColumnGap * (_kColumns - 1)) /
+                  _kColumns)
+              .clamp(_kTileSize, _kMaxTileSize);
+          final List<String> labels = [
+            for (final c in visible) c.name ?? '',
+            if (hasOverflow) 'view_all'.tr,
+          ];
+          final double labelSize = _fitLabelSize(
+            context,
+            labels,
+            tileSize: tileSize,
+          );
+          // One height for every row, so tiles line up across rows even when
+          // only one label in the set wraps.
+          final double rowHeight = _stripHeight(
+            context,
+            twoLines: _needsTwoLines(
+              context,
+              labels,
+              labelSize: labelSize,
+              tileSize: tileSize,
+            ),
+            labelSize: labelSize,
+            tileSize: tileSize,
+          );
+
+          final List<Widget> tiles = [
+            for (int i = 0; i < visible.length; i++)
+              _CategoryItem(
+                isSelected: false,
+                label: visible[i].name ?? '',
+                imageUrl: visible[i].imageFullUrl,
+                imageVariants: visible[i].imageVariants,
+                primaryColor: primaryColor,
+                accentColor: accentColor,
+                onTap: () => onCategoryTap(visible[i]),
+                index: i,
+                labelSize: labelSize,
+                tileSize: tileSize,
+                trailingGap: 0,
+              ),
+            if (hasOverflow)
+              _MoreCuisinesItem(
+                hiddenCount: hiddenCount,
+                primaryColor: primaryColor,
+                onTap: onViewAll,
+                labelSize: labelSize,
+                tileSize: tileSize,
+                trailingGap: 0,
+              ),
+          ];
+
+          final List<Widget> rows = [];
+          for (int start = 0; start < tiles.length; start += _kColumns) {
+            final List<Widget> row = tiles.skip(start).take(_kColumns).toList();
+            if (rows.isNotEmpty) rows.add(const SizedBox(height: _kRowGap));
+            rows.add(
+              SizedBox(
+                height: rowHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < row.length; i++) ...[
+                      if (i > 0) const SizedBox(width: _kColumnGap),
+                      row[i],
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }
+          return Column(mainAxisSize: MainAxisSize.min, children: rows);
+        },
+      ),
+    );
+  }
+}
+
+/// Slots in a store page's aisle grid (two full rows). With more aisles than
+/// this, the last slot is the "+N / View all" tile.
+const int kStoreCategoryTilesVisible = 8;
+
+/// Every aisle of a store, in the same sheet the all-cuisines list uses.
+void showAllStoreCategoriesSheet({
+  required List<CategoryModel> categories,
+  required ValueChanged<CategoryModel> onCategoryTap,
+}) {
+  Get.bottomSheet(
+    _AllTilesSheet(
+      title: 'categories'.tr,
+      entries: [
+        for (final CategoryModel c in categories)
+          (
+            label: c.name ?? '',
+            imageUrl: c.imageFullUrl,
+            imageVariants: c.imageVariants,
+            isSelected: false,
+            onTap: () => onCategoryTap(c),
+          ),
+      ],
+    ),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+  );
 }
 
 // ═══════════════════════════════════════════
@@ -679,27 +819,37 @@ class _MoreCuisinesItem extends StatelessWidget {
   final Color primaryColor;
   final VoidCallback onTap;
 
+  /// The strip's fitted label size — see [_fitLabelSize].
+  final double labelSize;
+
+  /// Tile edge and trailing space — see the same fields on [_CategoryItem].
+  final double tileSize;
+  final double trailingGap;
+
   const _MoreCuisinesItem({
     required this.hiddenCount,
     required this.primaryColor,
     required this.onTap,
+    this.labelSize = _kLabelSize,
+    this.tileSize = _kTileSize,
+    this.trailingGap = _kTileGap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsetsDirectional.only(end: _kTileGap),
+      padding: EdgeInsetsDirectional.only(end: trailingGap),
       child: PressableScale(
         semanticLabel: '${'view_all'.tr}, $hiddenCount ${'more'.tr}',
         onTap: onTap,
         child: SizedBox(
-          width: _kTileSize,
+          width: tileSize,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: _kTileSize,
-                height: _kTileSize,
+                width: tileSize,
+                height: tileSize,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
                   gradient: _kTileGradient,
@@ -735,7 +885,7 @@ class _MoreCuisinesItem extends StatelessWidget {
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: waddyMedium.copyWith(
-                  fontSize: _kLabelSize,
+                  fontSize: labelSize,
                   height: _kLabelHeight,
                   color: WaddyColors.ink,
                   fontWeight: FontWeight.w600,
@@ -763,26 +913,42 @@ void showAllCuisinesSheet({
   required ValueChanged<int?> onCuisineTap,
 }) {
   Get.bottomSheet(
-    _AllCuisinesSheet(
-      cuisines: cuisines,
-      selectedCuisineId: selectedCuisineId,
-      onCuisineTap: onCuisineTap,
+    _AllTilesSheet(
+      title: 'all_cuisines'.tr,
+      entries: [
+        for (final CuisineModel c in cuisines)
+          (
+            label: c.name ?? '',
+            imageUrl: c.imageFullUrl,
+            imageVariants: c.imageVariants,
+            isSelected: selectedCuisineId == c.id,
+            onTap: () => onCuisineTap(c.id),
+          ),
+      ],
     ),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   );
 }
 
-class _AllCuisinesSheet extends StatelessWidget {
-  final List<CuisineModel> cuisines;
-  final int? selectedCuisineId;
-  final ValueChanged<int?> onCuisineTap;
+/// One tile in [_AllTilesSheet].
+typedef _SheetEntry =
+    ({
+      String label,
+      String? imageUrl,
+      ImageVariants? imageVariants,
+      bool isSelected,
+      VoidCallback onTap,
+    });
 
-  const _AllCuisinesSheet({
-    required this.cuisines,
-    required this.selectedCuisineId,
-    required this.onCuisineTap,
-  });
+/// The full list behind a strip's overflow — every cuisine, or every aisle
+/// of a store — as a titled grid in a bottom sheet. A tap closes the sheet
+/// and then runs the entry's action.
+class _AllTilesSheet extends StatelessWidget {
+  final String title;
+  final List<_SheetEntry> entries;
+
+  const _AllTilesSheet({required this.title, required this.entries});
 
   @override
   Widget build(BuildContext context) {
@@ -822,7 +988,7 @@ class _AllCuisinesSheet extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'all_cuisines'.tr,
+                  title,
                   style: waddyBold.copyWith(
                     fontSize: Dimensions.fontSizeLarge,
                     color: WaddyColors.ink,
@@ -830,7 +996,7 @@ class _AllCuisinesSheet extends StatelessWidget {
                 ),
                 const SizedBox(width: Dimensions.paddingSizeSmall),
                 Text(
-                  '${cuisines.length}',
+                  '${entries.length}',
                   textDirection: TextDirection.ltr,
                   style: waddyMedium.copyWith(
                     fontSize: Dimensions.fontSizeLarge,
@@ -857,15 +1023,14 @@ class _AllCuisinesSheet extends StatelessWidget {
                 // so a cuisine looks identical in both places.
                 childAspectRatio: 0.78,
               ),
-              itemCount: cuisines.length,
+              itemCount: entries.length,
               itemBuilder: (context, index) {
-                final CuisineModel cuisine = cuisines[index];
-                return _SheetCuisineTile(
-                  cuisine: cuisine,
-                  isSelected: selectedCuisineId == cuisine.id,
+                final _SheetEntry entry = entries[index];
+                return _SheetTile(
+                  entry: entry,
                   onTap: () {
                     Get.back();
-                    onCuisineTap(cuisine.id);
+                    entry.onTap();
                   },
                 );
               },
@@ -877,27 +1042,23 @@ class _AllCuisinesSheet extends StatelessWidget {
   }
 }
 
-/// One cuisine inside the sheet grid.
+/// One tile inside the sheet grid.
 ///
 /// Deliberately not [_CategoryItem]: that tile is built for a horizontal strip
 /// with a fixed 76pt width and its own entrance animation keyed to a scroll
 /// index. In a grid the tile has to take the column width it is given, and
 /// forty staggered entrance animations firing at once is noise.
-class _SheetCuisineTile extends StatelessWidget {
-  final CuisineModel cuisine;
-  final bool isSelected;
+class _SheetTile extends StatelessWidget {
+  final _SheetEntry entry;
   final VoidCallback onTap;
 
-  const _SheetCuisineTile({
-    required this.cuisine,
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _SheetTile({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
-    final String label = cuisine.name ?? '';
+    final String label = entry.label;
+    final bool isSelected = entry.isSelected;
 
     return PressableScale(
       semanticLabel: isSelected ? '$label, ${'selected'.tr}' : label,
@@ -921,8 +1082,8 @@ class _SheetCuisineTile extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: CustomImage(
-                    image: cuisine.imageFullUrl ?? '',
-                    variants: cuisine.imageVariants,
+                    image: entry.imageUrl ?? '',
+                    variants: entry.imageVariants,
                     fit: BoxFit.contain,
                     decodeWidth: _kTileSize,
                   ),

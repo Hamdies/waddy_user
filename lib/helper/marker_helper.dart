@@ -5,8 +5,76 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:waddy_app/util/images.dart';
 
 class MarkerHelper {
+  /// The helmet's bounds inside rider_w.png. The art carries a halo of spark
+  /// lines around it that would shrink the helmet to a speck at marker size.
+  static const Rect riderHelmetCrop = Rect.fromLTRB(300, 315, 1030, 1020);
+
+  static final Map<double, Future<BitmapDescriptor>> _riderMarkers = {};
+
+  /// The rider's map marker: the helmet on a white-ringed mint disc, drawn
+  /// once per size and shared by every tracking map.
+  static Future<BitmapDescriptor> riderMarker({double diameter = 48}) =>
+      _riderMarkers[diameter] ??= _drawRiderMarker(diameter);
+
+  static Future<BitmapDescriptor> _drawRiderMarker(double diameter) async {
+    const double dpr = 3;
+    const double shadowPad = 4;
+    final double px = (diameter + shadowPad * 2) * dpr;
+    final Offset center = Offset(px / 2, px / 2);
+    final double radius = diameter * dpr / 2;
+    try {
+      final ByteData data = await rootBundle.load(Images.riderHelmet);
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+      );
+      final ui.Image helmet = (await codec.getNextFrame()).image;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.drawCircle(
+        center.translate(0, 1.5 * dpr),
+        radius,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.24)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3 * dpr),
+      );
+      canvas.drawCircle(center, radius, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        center,
+        radius - 2.5 * dpr,
+        Paint()..color = WaddyColors.mintSurface,
+      );
+      final double side = (radius - 2.5 * dpr) * 1.62;
+      canvas.drawImageRect(
+        helmet,
+        riderHelmetCrop,
+        Rect.fromCenter(center: center, width: side, height: side),
+        Paint()..filterQuality = FilterQuality.high,
+      );
+
+      final ui.Image image = await recorder.endRecording().toImage(
+        px.round(),
+        px.round(),
+      );
+      final ByteData? bytes = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      return BitmapDescriptor.bytes(
+        bytes!.buffer.asUint8List(),
+        imagePixelRatio: dpr,
+      );
+    } catch (e, s) {
+      swallow('rider marker bitmap', e, s);
+      // Don't cache a failure: the next tracking screen retries.
+      _riderMarkers.remove(diameter);
+      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+    }
+  }
+
   static Future<BitmapDescriptor> convertAssetToBitmapDescriptor({
     required final String imagePath,
     final int? width,

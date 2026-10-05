@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/card_design/store_list_card.dart'
     show kMinRatingsToShow;
 import 'package:waddy_app/common/widgets/pressable.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -35,12 +33,7 @@ class SearchStoreRow extends StatelessWidget {
   const SearchStoreRow({super.key, required this.store});
 
   void _openStore() {
-    final splashController = Get.find<SplashController>();
-    Get.find<SplashController>().activateModuleFor(store.moduleId);
-    Get.toNamed(
-      RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-      arguments: StoreScreen(store: store, fromModule: false),
-    );
+    StoreNavigator.open(store);
   }
 
   @override

@@ -1,6 +1,6 @@
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_page_controller.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:flutter/material.dart';
@@ -8,8 +8,11 @@ import 'package:get/get.dart';
 import 'package:waddy_app/util/dimensions.dart';
 
 class FilterWidget extends StatefulWidget {
+  /// The store page whose filters this sheet edits. A bottom sheet sits
+  /// outside the page's widget tree, so it is handed the page's controller.
+  final StorePageController page;
   final double? maxValue;
-  const FilterWidget({super.key, required this.maxValue});
+  const FilterWidget({super.key, required this.page, required this.maxValue});
 
   @override
   State<FilterWidget> createState() => _FilterWidgetState();
@@ -38,7 +41,8 @@ class _FilterWidgetState extends State<FilterWidget> {
           top: Radius.circular(Dimensions.radiusExtraLarge),
         ),
       ),
-      child: GetBuilder<StoreController>(
+      child: GetBuilder<StorePageController>(
+        tag: widget.page.tag,
         builder: (storeController) {
           double lowerValue = storeController.lowerValue.clamp(
             0,
@@ -127,7 +131,7 @@ class _FilterWidgetState extends State<FilterWidget> {
   Widget _buildTabRail(
     Color primaryColor,
     Color accentColor,
-    StoreController storeController,
+    StorePageController storeController,
   ) {
     return SizedBox(
       width: 100,
@@ -199,7 +203,7 @@ class _FilterWidgetState extends State<FilterWidget> {
     BuildContext context,
     Color primaryColor,
     Color accentColor,
-    StoreController storeController,
+    StorePageController storeController,
     double lowerValue,
     double upperValue,
   ) {
@@ -225,7 +229,7 @@ class _FilterWidgetState extends State<FilterWidget> {
 
   Widget _buildSortContent(
     Color primaryColor,
-    StoreController storeController,
+    StorePageController storeController,
   ) {
     final sortOptions = [
       'default'.tr,
@@ -278,7 +282,7 @@ class _FilterWidgetState extends State<FilterWidget> {
 
   Widget _buildFilterContent(
     Color primaryColor,
-    StoreController storeController,
+    StorePageController storeController,
   ) {
     bool isFood = Get.find<SplashController>().module?.type == ModuleType.food;
 
@@ -355,7 +359,7 @@ class _FilterWidgetState extends State<FilterWidget> {
   Widget _buildPriceContent(
     Color primaryColor,
     Color accentColor,
-    StoreController storeController,
+    StorePageController storeController,
     double lowerValue,
     double upperValue,
   ) {
@@ -455,7 +459,7 @@ class _FilterWidgetState extends State<FilterWidget> {
 
   Widget _buildRatingContent(
     Color primaryColor,
-    StoreController storeController,
+    StorePageController storeController,
   ) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
@@ -535,7 +539,7 @@ class _FilterWidgetState extends State<FilterWidget> {
     BuildContext context,
     Color primaryColor,
     Color accentColor,
-    StoreController storeController,
+    StorePageController storeController,
   ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -569,6 +573,8 @@ class _FilterWidgetState extends State<FilterWidget> {
               flex: 3,
               child: GestureDetector(
                 onTap: () {
+                  // The aisle page's rails carry the filters too.
+                  storeController.resetStoreRails();
                   storeController.getStoreItemList(
                     storeController.store!.id,
                     1,

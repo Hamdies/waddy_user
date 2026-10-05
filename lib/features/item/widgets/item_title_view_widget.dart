@@ -1,10 +1,12 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/helper/price_converter.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
@@ -30,7 +32,6 @@ class ItemTitleViewWidget extends StatelessWidget {
       print(inStock ? 'out_of_stock'.tr : 'in_stock'.tr);
     }
     double? startingPrice;
-    double? endingPrice;
     if (item!.variations!.isNotEmpty) {
       List<double?> priceList = [];
       for (var variation in item!.variations!) {
@@ -38,15 +39,9 @@ class ItemTitleViewWidget extends StatelessWidget {
       }
       priceList.sort((a, b) => a!.compareTo(b!));
       startingPrice = priceList[0];
-      if (priceList[0]! < priceList[priceList.length - 1]!) {
-        endingPrice = priceList[priceList.length - 1];
-      }
     } else {
       startingPrice = item!.price;
     }
-
-    double? discount = Get.find<ItemController>().item!.discount;
-    String? discountType = Get.find<ItemController>().item!.discountType;
 
     return Container(
       decoration: const BoxDecoration(
@@ -95,49 +90,23 @@ class ItemTitleViewWidget extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Dimensions.paddingSizeSmall,
-                          vertical: Dimensions.paddingSizeExtraSmall,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).secondaryHeaderColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(
-                            Dimensions.radiusDefault,
-                          ),
-                        ),
-                        child: Text(
-                          PriceConverter.convertPrice(
-                            startingPrice,
-                            discount: discount,
-                            discountType: discountType,
-                          ),
-                          style: waddyBlack.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            fontSize: 18,
-                            letterSpacing: -0.5,
-                          ),
-                          textDirection: TextDirection.ltr,
-                        ),
+                      // The app's price line and sale collar, at the
+                      // details page's size.
+                      PriceTag.forItem(
+                        item!,
+                        base: startingPrice,
+                        size: PriceTagSize.large,
+                        stacked: true,
                       ),
-                      if (discount != null && discount > 0)
+                      if (ItemPrice.of(item!, base: startingPrice).onSale)
                         Padding(
-                          padding: const EdgeInsets.only(
-                            top: Dimensions.paddingSizeExtraSmall,
-                          ),
-                          child: Text(
-                            PriceConverter.convertPrice(startingPrice),
-                            textDirection: TextDirection.ltr,
-                            style: waddyMedium.copyWith(
-                              color: Theme.of(context).colorScheme.error,
-                              fontSize: Dimensions.fontSizeDefault,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor:
-                                  Theme.of(context).colorScheme.error,
-                            ),
-                          ),
+                          padding: const EdgeInsets.only(top: 6),
+                          child:
+                              OfferCollarBadge.forItem(
+                                item!,
+                                base: startingPrice,
+                                compact: true,
+                              )!,
                         ),
                       Builder(
                         builder: (context) {
@@ -219,11 +188,10 @@ class ItemTitleViewWidget extends StatelessWidget {
                         if (inStorePage) {
                           Get.back();
                         } else {
-                          Get.offNamed(
-                            RouteHelper.getStoreRoute(
-                              id: item!.storeId,
-                              page: 'item',
-                            ),
+                          StoreNavigator.open(
+                            Store(id: item!.storeId, moduleId: item!.moduleId),
+                            page: 'item',
+                            replace: true,
                           );
                         }
                       },

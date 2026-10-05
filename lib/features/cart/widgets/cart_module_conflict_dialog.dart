@@ -1,26 +1,53 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/util/app_design_tokens.dart';
-import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/common/widgets/mccoin_mood.dart';
+import 'package:waddy_app/common/widgets/pressable.dart';
+import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/util/motion.dart';
+import 'package:waddy_app/util/styles.dart';
 
-/// Dialog shown when user tries to add items from a different module
-/// while cart already has items from another module.
+/// "Start a new cart?" — the one dialog for an add that would empty the cart:
+/// the cart holds another category's items (Groceries → Food), or another
+/// store's ([CartModuleConflictDialog.forStore]).
 ///
-/// Example: Cart has "Food" items, user tries to add "Grocery" items.
-class CartModuleConflictDialog extends StatelessWidget {
-  final String currentModuleName;
-  final String newModuleName;
-  final VoidCallback onClearCart;
+/// McCoin wears "Meh" instead of a warning glyph: emptying a cart is a small
+/// letdown, not a hazard, and the old orange swap disc and red "Are you sure
+/// want to reset?" read as an error the shopper had caused.
+class CartModuleConflictDialog extends StatefulWidget {
+  /// What's in the cart now, and what the add comes from — bolded in the
+  /// copy on a mint highlight. Either null falls back to the generic line.
+  final String? currentName;
+  final String? newName;
+
+  /// Empties the cart and adds. When it returns a future, the button holds a
+  /// spinner until it settles, so a second tap can't clear twice.
+  final FutureOr<void> Function() onClearCart;
   final VoidCallback onCancel;
 
   const CartModuleConflictDialog({
     super.key,
-    required this.currentModuleName,
-    required this.newModuleName,
+    required String currentModuleName,
+    required String newModuleName,
     required this.onClearCart,
     required this.onCancel,
-  });
+  }) : currentName = currentModuleName,
+       newName = newModuleName;
+
+  /// The cart holds another store's items. The current store's name is read
+  /// from the cart itself.
+  CartModuleConflictDialog.forStore({
+    super.key,
+    required String? newStoreName,
+    required this.onClearCart,
+    VoidCallback? onCancel,
+  }) : currentName =
+           Get.find<CartController>().cartList.firstOrNull?.item?.storeName,
+       newName = newStoreName,
+       onCancel = onCancel ?? Get.back;
 
   /// Show the dialog and return true if user chose to clear cart
   static Future<bool> show({
@@ -43,219 +70,182 @@ class CartModuleConflictDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
-      ),
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      child: _buildDialogContent(context),
-    );
+  State<CartModuleConflictDialog> createState() =>
+      _CartModuleConflictDialogState();
+}
+
+class _CartModuleConflictDialogState extends State<CartModuleConflictDialog> {
+  bool _busy = false;
+
+  Future<void> _confirm() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onClearCart();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  Widget _buildDialogContent(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Dimensions.paddingSizeExtraLarge),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+  /// The body line with both names bolded in teal. The template carries
+  /// `@current` and `@next` so each language can order them its own way.
+  List<TextSpan> _body() {
+    final String? current = widget.currentName?.trim();
+    final String? next = widget.newName?.trim();
+    if (current == null ||
+        current.isEmpty ||
+        next == null ||
+        next.isEmpty ||
+        current == next) {
+      return [TextSpan(text: 'cart_conflict_body_generic'.tr)];
+    }
+    // The square full-mint highlight the app puts on a deal price (teal on
+    // mint), painted behind the text so a long name still wraps. The
+    // non-breaking spaces are the block's side padding.
+    final TextStyle bold = waddyBold.copyWith(
+      color: WaddyColors.primary,
+      background: Paint()..color = WaddyColors.mint,
+    );
+    final List<TextSpan> spans = [];
+    'cart_conflict_body'.tr.splitMapJoin(
+      RegExp(r'@current|@next'),
+      onMatch: (m) {
+        spans.add(
+          TextSpan(
+            text: '\u00A0${m[0] == '@current' ? current : next}\u00A0',
+            style: bold,
           ),
-        ],
+        );
+        return '';
+      },
+      onNonMatch: (text) {
+        if (text.isNotEmpty) spans.add(TextSpan(text: text));
+        return '';
+      },
+    );
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: WaddyColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeExtraLarge,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Warning Icon
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.orange.shade400, Colors.orange.shade600],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          Dimensions.paddingSizeLarge,
+          Dimensions.paddingSizeExtraLarge,
+          Dimensions.paddingSizeLarge,
+          Dimensions.paddingSizeLarge,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // McCoin on a mint disc — the brand's colour carries the moment,
+            // not a warning orange.
+            Container(
+              width: 120,
+              height: 120,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    WaddyColors.mintSurfaceDeep,
+                    WaddyColors.mintSurface,
+                  ],
                 ),
-              ],
+              ),
+              child: const McCoinMoodAnimation(mood: McCoinMood.meh, size: 104),
             ),
-            child: const Icon(
-              Icons.swap_horiz_rounded,
-              color: Colors.white,
-              size: 36,
+            const SizedBox(height: Dimensions.paddingSizeLarge),
+            Text(
+              'cart_conflict_title'.tr,
+              textAlign: TextAlign.center,
+              style: waddyBold.copyWith(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: displayTracking(-0.4),
+                color: WaddyColors.ink,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-
-          // Title
-          Text(
-            'switch_module'.tr,
-            style: waddyBold.copyWith(
-              fontSize: 20,
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-
-          // Description
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Text.rich(
+              TextSpan(children: _body()),
+              textAlign: TextAlign.center,
               style: waddyRegular.copyWith(
-                fontSize: 14,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color?.withValues(alpha: 0.8),
+                fontSize: 15,
                 height: 1.5,
+                color: WaddyColors.inkMid,
               ),
-              children: [
-                TextSpan(text: 'your_cart_contains_items_from'.tr),
-                TextSpan(
-                  text: ' $currentModuleName',
-                  style: waddyBold.copyWith(
-                    fontSize: 14,
-                    color: AppDesignTokens.primaryDark,
-                  ),
-                ),
-                TextSpan(text: '. ${'adding_items_from'.tr}'),
-                TextSpan(
-                  text: ' $newModuleName ',
-                  style: waddyBold.copyWith(
-                    fontSize: 14,
-                    color: AppDesignTokens.primaryDark,
-                  ),
-                ),
-                TextSpan(text: 'will_reset_your_cart'.tr),
-              ],
             ),
-          ),
-          const SizedBox(height: 8),
-
-          // Warning note
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.paddingSizeMedium,
-              vertical: Dimensions.paddingSizeSmall,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 16,
-                  color: Colors.orange.shade700,
+            const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+            // Mint + teal underline: the app's add button, since this one
+            // still adds — it just empties the cart first.
+            Pressable(
+              onTap: _busy ? null : _confirm,
+              semanticLabel: 'clear_and_add'.tr,
+              scale: WaddyMotion.pressCard,
+              child: Container(
+                height: 52,
+                width: double.infinity,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: WaddyColors.mint,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(color: WaddyColors.primary, offset: Offset(0, 2)),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'this_action_cannot_be_undone'.tr,
-                    style: waddyMedium.copyWith(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Buttons
-          Row(
-            children: [
-              // Cancel Button
-              Expanded(
-                child: GestureDetector(
-                  onTap: onCancel,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: Dimensions.paddingSizeMedium,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).dividerColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(
-                        Dimensions.radiusDefault,
-                      ),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).dividerColor.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Text(
-                      'keep_cart'.tr,
-                      style: waddyMedium.copyWith(
-                        fontSize: 14,
-                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Clear & Add Button
-              Expanded(
-                child: GestureDetector(
-                  onTap: onClearCart,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: Dimensions.paddingSizeMedium,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppDesignTokens.primaryDark,
-                          Color(0xFF1A5F5A),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(
-                        Dimensions.radiusDefault,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppDesignTokens.primaryDark.withValues(
-                            alpha: 0.3,
+                child:
+                    _busy
+                        ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: WaddyColors.primary,
                           ),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                        )
+                        : Text(
+                          'clear_and_add'.tr,
+                          style: waddyBold.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: WaddyColors.primary,
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      'clear_and_add'.tr,
-                      style: waddyMedium.copyWith(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            Pressable(
+              onTap: _busy ? null : widget.onCancel,
+              semanticLabel: 'keep_cart'.tr,
+              scale: WaddyMotion.pressControl,
+              minSize: Dimensions.minTapTarget,
+              child: SizedBox(
+                height: 48,
+                width: double.infinity,
+                child: Center(
+                  child: Text(
+                    'keep_cart'.tr,
+                    style: waddyBold.copyWith(
+                      fontSize: 15,
+                      color: WaddyColors.inkLight,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

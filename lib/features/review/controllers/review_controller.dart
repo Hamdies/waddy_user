@@ -42,14 +42,18 @@ class ReviewController extends GetxController implements GetxService {
     update();
   }
 
-  void initRatingData(List<OrderDetailsModel> orderDetailsList) {
+  void initRatingData(
+    List<OrderDetailsModel> orderDetailsList, {
+    int initialRating = 0,
+  }) {
+    final int seed = initialRating.clamp(0, 5);
     _ratingList = [];
     _reviewList = [];
     _loadingList = [];
     _submitList = [];
-    _deliveryManRating = 0;
+    _deliveryManRating = seed;
     for (var orderDetails in orderDetailsList) {
-      _ratingList.add(0);
+      _ratingList.add(seed);
       _reviewList.add('');
       _loadingList.add(false);
       _submitList.add(false);

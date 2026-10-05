@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,7 +12,6 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/cart_count_view.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 
 class MedicineItemCard extends StatelessWidget {
@@ -22,8 +22,6 @@ class MedicineItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isShop =
         Get.find<SplashController>().module?.type == ModuleType.ecommerce;
-    double? discount = item.discount;
-    String? discountType = item.discountType;
 
     return Container(
       width: isShop ? 200 : 180,
@@ -57,11 +55,7 @@ class MedicineItemCard extends StatelessWidget {
 
                   AddFavouriteView(item: item),
 
-                  DiscountTag(
-                    discount: discount,
-                    discountType: discountType,
-                    freeDelivery: false,
-                  ),
+                  OfferCollarBadge.itemCorner(item),
 
                   OrganicTag(item: item, placeInImage: false),
 

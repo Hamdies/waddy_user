@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
@@ -8,12 +9,14 @@ import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/common/widgets/animated_quantity_text.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
+import 'package:waddy_app/common/widgets/quantity_stepper.dart';
+import 'package:waddy_app/common/widgets/waddy_toast.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/item/domain/produce_preference.dart';
 
 class CartItemWidget extends StatefulWidget {
   final CartModel cart;
@@ -21,6 +24,11 @@ class CartItemWidget extends StatefulWidget {
   final List<AddOns> addOns;
   final bool isAvailable;
   final bool showDivider;
+
+  /// The line total to print, from [PriceConverter.allocateRounded] across
+  /// the whole basket so the lines add up to the cart's total. Null prints
+  /// the line's own rounded total.
+  final double? displayPrice;
   const CartItemWidget({
     super.key,
     required this.cart,
@@ -28,28 +36,47 @@ class CartItemWidget extends StatefulWidget {
     required this.isAvailable,
     required this.addOns,
     required this.showDivider,
+    this.displayPrice,
   });
+
+  /// This line's total after item discounts, unrounded — what the cart
+  /// screen allocates display rounding over.
+  static double lineTotal(CartModel cart) =>
+      _CartItemWidgetState._calculatePriceWithVariation(
+        cartModel: cart,
+        discount: cart.item!.discount,
+        discountType: cart.item!.discountType,
+      );
 
   @override
   State<CartItemWidget> createState() => _CartItemWidgetState();
 }
 
 class _CartItemWidgetState extends State<CartItemWidget> {
-  /// Removes the item, immediately.
+  /// Removes the item immediately, then offers Undo.
   ///
-  /// There is no undo window. The previous version held the server-side delete
-  /// behind a 4-second timer and offered an Undo toast, which created a gap
-  /// where the line was gone locally but still on the server — so any cart
-  /// refetch in that window (the cart screen refetches on entry, and a module
-  /// change refetches too) brought the deleted item straight back.
-  ///
-  /// Removing an item is cheap to reverse by hand: the item is still in the
-  /// store, one tap away. That is not worth a window in which the cart can
-  /// disagree with itself.
+  /// The delete is NOT held back. An earlier version delayed the server-side
+  /// delete behind a timer, which left a window where the line was gone
+  /// locally but still on the server, so any refetch in that window brought
+  /// it back. Here the delete goes out at once and Undo is a fresh add of the
+  /// same line ([CartController.restoreLine]), so the cart never disagrees
+  /// with itself.
   void _remove() {
+    final CartModel line = widget.cart;
     Get.find<CartController>().removeFromCart(
       widget.cartIndex,
-      item: widget.cart.item,
+      item: line.item,
+    );
+    _showUndo(line);
+  }
+
+  void _showUndo(CartModel line) {
+    WaddyToast.show(
+      '${line.item?.name ?? ''} · ${'removed_from_cart'.tr}',
+      icon: Icons.delete_outline_rounded,
+      duration: const Duration(seconds: 4),
+      actionLabel: 'undo'.tr,
+      onAction: () => Get.find<CartController>().restoreLine(line),
     );
   }
 
@@ -87,15 +114,20 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       discount: 0,
       discountType: 'amount',
     );
+    // Printed figure: the basket-wide allocation when given, so the lines
+    // sum to the total. The saving follows it, so struck-through minus shown
+    // is what the banner adds up.
+    if (widget.displayPrice != null) totalPrice = widget.displayPrice!;
     double savings = originalPrice - totalPrice;
 
-    // Subtitle. The design shows the item's chosen options — the line under
-    // the name is what the customer picked, not catalogue metadata, so
-    // variation/add-on text leads and unit/store are omitted entirely.
-    String subtitle = '';
-    if (variationText != null && variationText.isNotEmpty) {
-      subtitle = variationText;
-    }
+    // Under the name: what the customer picked (variations, then add-ons),
+    // then the line price. The stepper stands alone on the right.
+    final String? preference = ProducePreference.label(widget.cart.preference);
+    final String options = [
+      if (preference != null) preference,
+      if (variationText != null && variationText.isNotEmpty) variationText,
+      if (addOnText.isNotEmpty) addOnText,
+    ].join(' · ');
 
     return Slidable(
       key: UniqueKey(),
@@ -118,335 +150,141 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                     : Dimensions.radiusDefault,
               ),
             ),
-            foregroundColor: Colors.white,
+            foregroundColor: WaddyColors.surface,
             icon: CupertinoIcons.delete,
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Padding(
-            // Mockup: 18px above, 16px below each row.
-            padding: const EdgeInsets.fromLTRB(
-              0,
-              Dimensions.paddingSizeDefault,
-              0,
-              Dimensions.paddingSizeDefault,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Product image — 64x64 @ r12 per the mockup.
-                GestureDetector(
-                  onTap: () => _openItemSheet(),
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: WaddyColors.surfaceWarmAlt,
-                      borderRadius: BorderRadius.circular(
-                        Dimensions.radiusDefault,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          vertical: Dimensions.paddingSizeSmall,
+        ),
+        decoration: BoxDecoration(
+          border:
+              widget.showDivider
+                  ? const Border(bottom: BorderSide(color: WaddyColors.divider))
+                  : null,
+        ),
+        child: Row(
+          children: [
+            GestureDetector(onTap: _openItemSheet, child: _thumbnail()),
+            const SizedBox(width: Dimensions.paddingSizeMedium),
+            Expanded(
+              child: GestureDetector(
+                onTap: _openItemSheet,
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.cart.item!.name!,
+                      style: waddyBold.copyWith(
+                        fontSize: Dimensions.fontSizeSmall,
+                        color: WaddyColors.ink,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            Dimensions.radiusDefault,
-                          ),
-                          child: CustomImage(
-                            image: '${widget.cart.item!.imageFullUrl}',
-                            height: 64,
-                            width: 64,
-                            fit: BoxFit.cover,
-                          ),
+                    if (options.isNotEmpty) ...[
+                      const SizedBox(
+                        height: Dimensions.paddingSizeExtraSmall / 2,
+                      ),
+                      Text(
+                        options,
+                        style: waddyMedium.copyWith(
+                          fontSize: Dimensions.fontSizeExtraSmall,
+                          color: WaddyColors.inkLight,
                         ),
-                        if (!widget.isAvailable)
-                          Positioned.fill(
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(
-                                  Dimensions.radiusDefault,
-                                ),
-                                color: Colors.black.withValues(alpha: 0.55),
-                              ),
-                              child: Text(
-                                'not_available_now_break'.tr,
-                                textAlign: TextAlign.center,
-                                style: waddyRegular.copyWith(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: Dimensions.paddingSizeMedium),
-
-                // Right of the image is one column with two rows, per the
-                // mockup: name/price on top, then (notes + edit) beside the
-                // stepper. The stepper moved out of the text column so it can
-                // bottom-align against the meta block.
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Row 1 — name left, price right, baseline-shared.
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _openItemSheet(),
-                              child: Text(
-                                widget.cart.item!.name!,
-                                style: waddyBold.copyWith(
-                                  fontSize: 17,
-                                  height: 1.25,
-                                  letterSpacing: -0.2,
-                                  color: WaddyColors.ink,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: Dimensions.paddingSizeSmall),
-                          // Struck-through original sits INLINE before the live
-                          // price when discounted (mockup's "Water For Driver").
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (savings > 0) ...[
-                                Text(
-                                  PriceConverter.convertPrice(originalPrice),
-                                  style: waddyRegular.copyWith(
-                                    fontSize: 13,
-                                    color: WaddyColors.ink,
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationColor: WaddyColors.error,
-                                  ),
-                                  textDirection: TextDirection.ltr,
-                                ),
-                                const SizedBox(
-                                  width: Dimensions.paddingSizeSmall,
-                                ),
-                              ],
-                              Text(
-                                PriceConverter.convertPrice(totalPrice),
-                                style: waddyBold.copyWith(
-                                  fontSize: 17,
-                                  letterSpacing: -0.2,
-                                  color: WaddyColors.ink,
-                                ),
-                                textDirection: TextDirection.ltr,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                      // Row 2 — meta column (promo, note, edit) vs stepper,
-                      // bottom-aligned as in the mockup.
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // No "Promo" badge and no "Edit" link: tapping
-                                // the row (image or name) already opens the item
-                                // sheet, and the struck-through price alongside
-                                // the live one already says the line is
-                                // discounted.
-                                if (subtitle.isNotEmpty)
-                                  Text(
-                                    subtitle,
-                                    style: waddyRegular.copyWith(
-                                      fontSize: 15,
-                                      height: 1.4,
-                                      color: WaddyColors.inkLight,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-
-                                if (addOnText.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Text(
-                                      addOnText,
-                                      style: waddyRegular.copyWith(
-                                        fontSize: 13,
-                                        color: WaddyColors.inkMuted,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(width: Dimensions.paddingSizeMedium),
-
-                          // Quantity stepper — bordered pill, r10, per mockup.
-                          GetBuilder<CartController>(
-                            builder: (cartController) {
-                              // No isLoading dimming or gating here: the quantity is
-                              // applied optimistically, so the stepper stays live
-                              // and rapid taps all register.
-                              return Container(
-                                decoration: BoxDecoration(
-                                  // Explicit white: without it the stepper
-                                  // picked up the row's ground and read grey.
-                                  color: WaddyColors.surface,
-                                  border: Border.all(
-                                    color: WaddyColors.divider,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    Dimensions.radiusSmall,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.04,
-                                      ),
-                                      blurRadius: 2,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: IntrinsicWidth(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          if (widget.cart.quantity! > 1) {
-                                            Get.find<CartController>()
-                                                .setQuantity(
-                                                  false,
-                                                  widget.cartIndex,
-                                                  widget.cart.stock,
-                                                  widget.cart.quantityLimit,
-                                                );
-                                          } else {
-                                            _remove();
-                                          }
-                                        },
-                                        borderRadius: const BorderRadius.only(
-                                          topLeft: Radius.circular(
-                                            Dimensions.radiusSmall,
-                                          ),
-                                          bottomLeft: Radius.circular(
-                                            Dimensions.radiusSmall,
-                                          ),
-                                        ),
-                                        child: const SizedBox(
-                                          width: 34,
-                                          height: 34,
-                                          child: Center(
-                                            // The design draws a trash can on
-                                            // every row, including the one at
-                                            // quantity 2, so the glyph is fixed
-                                            // rather than swapping minus/trash.
-                                            // The ACTION still decrements above
-                                            // 1 and only removes at 1.
-                                            child: Icon(
-                                              CupertinoIcons.delete,
-                                              size: 16,
-                                              color: WaddyColors.ink,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        width: 28,
-                                        height: 34,
-                                        child: Center(
-                                          child: AnimatedQuantityText(
-                                            quantity: widget.cart.quantity ?? 0,
-                                            style: waddyBold.copyWith(
-                                              fontSize: 16,
-                                              color: WaddyColors.ink,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          if (Get.find<CartController>()
-                                              .cartList
-                                              .isEmpty)
-                                            return;
-                                          Get.find<CartController>()
-                                              .forcefullySetModule(
-                                                Get.find<CartController>()
-                                                    .cartList[0]
-                                                    .item!
-                                                    .moduleId!,
-                                              );
-                                          Get.find<CartController>()
-                                              .setQuantity(
-                                                true,
-                                                widget.cartIndex,
-                                                widget.cart.stock,
-                                                widget.cart.quantityLimit,
-                                              );
-                                        },
-                                        borderRadius: const BorderRadius.only(
-                                          topRight: Radius.circular(
-                                            Dimensions.radiusSmall,
-                                          ),
-                                          bottomRight: Radius.circular(
-                                            Dimensions.radiusSmall,
-                                          ),
-                                        ),
-                                        child: const SizedBox(
-                                          width: 34,
-                                          height: 34,
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.add_rounded,
-                                              size: 16,
-                                              color: WaddyColors.ink,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ),
+                    const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+                    // The app's price line: the line total on the mint block
+                    // when it is discounted, the undiscounted total struck
+                    // through after it — the same drawing as every product
+                    // card, so a deal reads the same in the cart.
+                    PriceTag(
+                      price: ItemPrice.from(
+                        now: totalPrice,
+                        was: savings > 0 ? originalPrice : totalPrice,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-
-          if (widget.showDivider)
-            const Divider(height: 1, thickness: 1, color: WaddyColors.divider),
-        ],
+            const SizedBox(width: Dimensions.paddingSizeMedium),
+            _stepper(),
+          ],
+        ),
       ),
     );
   }
 
-  double _calculatePriceWithVariation({
+  Widget _thumbnail() {
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(color: WaddyColors.surfaceWarmAlt),
+            CustomImage(
+              image: '${widget.cart.item!.imageFullUrl}',
+              height: 52,
+              width: 52,
+              fit: BoxFit.cover,
+            ),
+            if (!widget.isAvailable)
+              Container(
+                alignment: Alignment.center,
+                color: WaddyColors.ink.withValues(alpha: 0.6),
+                child: Text(
+                  'not_available_now_break'.tr,
+                  textAlign: TextAlign.center,
+                  style: waddyBold.copyWith(
+                    color: WaddyColors.surface,
+                    fontSize: Dimensions.fontSizeOverSmall,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Minus at quantity 1 is a trash glyph and removes the line (with Undo).
+  Widget _stepper() {
+    return QuantityStepper(
+      quantity: widget.cart.quantity ?? 0,
+      itemName: widget.cart.item?.name,
+      onDecrement:
+          () => Get.find<CartController>().setQuantity(
+            false,
+            widget.cartIndex,
+            widget.cart.stock,
+            widget.cart.quantityLimit,
+          ),
+      onRemove: _remove,
+      onIncrement: () {
+        final CartController cart = Get.find<CartController>();
+        if (cart.cartList.isEmpty) return;
+        cart.forcefullySetModule(cart.cartList[0].item!.moduleId!);
+        cart.setQuantity(
+          true,
+          widget.cartIndex,
+          widget.cart.stock,
+          widget.cart.quantityLimit,
+        );
+      },
+    );
+  }
+
+  static double _calculatePriceWithVariation({
     required CartModel cartModel,
     required double? discount,
     required String? discountType,
@@ -588,7 +426,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     return addOnText;
   }
 
-  double _calculateAddonPrice(CartModel cartModel) {
+  static double _calculateAddonPrice(CartModel cartModel) {
     List<AddOns> addOnList = [];
     double addonPrice = 0;
     for (var addOnId in cartModel.addOnIds!) {

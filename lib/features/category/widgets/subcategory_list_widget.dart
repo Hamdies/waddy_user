@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/category/controllers/category_page_controller.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
 class SubcategoryListWidget extends StatelessWidget {
-  final CategoryController catController;
+  final CategoryPageController catController;
   final String? categoryID;
   final Key? scaffoldKey;
   final double? width;

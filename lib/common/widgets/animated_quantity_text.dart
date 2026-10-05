@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/util/motion.dart';
 
-/// The number inside a quantity stepper, animated so the count *reads* as
-/// counting rather than blinking to a new glyph.
+/// The number inside a quantity stepper.
 ///
-/// The digit slides in the direction of travel — up on increment, down on
-/// decrement — so the motion says which button was pressed even when the user's
-/// thumb is covering it. A plain [AnimatedSwitcher] cross-fades both ways and
-/// reads as a flicker at these sizes; the direction is the whole point.
+/// The new number is on screen, fully opaque, on the frame the tap lands. The
+/// only motion is a short nudge in the direction of travel — up on increment,
+/// down on decrement — so the count still says which button was pressed when
+/// a thumb covers it.
 ///
-/// Direction has to be tracked here because [AnimatedSwitcher] hands its
-/// transition builder no history — only the child being animated. So we record
-/// the previous quantity in [didUpdateWidget] and let every transition in flight
-/// share that one direction.
+/// This used to be an [AnimatedSwitcher] cross-fade: the incoming digit
+/// started at opacity 0 and the outgoing one lingered, so for the first ~100ms
+/// after a tap the number was mostly invisible, and rapid taps stacked several
+/// half-transparent digits in one slot. The count was correct but read as
+/// late — which is what "laggy" is to a stepper. One [Text], one controller
+/// restarted per change, translate + scale only: paint-time transforms, no
+/// layout, no extra children.
 class AnimatedQuantityText extends StatefulWidget {
   final int quantity;
   final TextStyle? style;
@@ -22,74 +25,66 @@ class AnimatedQuantityText extends StatefulWidget {
   State<AnimatedQuantityText> createState() => _AnimatedQuantityTextState();
 }
 
-class _AnimatedQuantityTextState extends State<AnimatedQuantityText> {
-  /// Slide distance as a fraction of the digit's own height. Short on purpose:
-  /// a counter that travels a full line reads as a slot machine, and at 14sp the
-  /// glyph only needs to move a little to register as having changed.
-  static const double _slideExtent = 0.4;
+class _AnimatedQuantityTextState extends State<AnimatedQuantityText>
+    with SingleTickerProviderStateMixin {
+  /// Travel as a fraction of the glyph's height. Enough to register, short
+  /// enough to stay inside a 32pt pill.
+  static const double _nudge = 0.3;
 
-  /// Fast enough to keep up with repeated tapping. Anything past ~180ms and a
-  /// second tap lands while the first digit is still moving, which is what makes
-  /// a stepper feel laggy even when the number is already correct.
-  static const Duration _duration = Duration(milliseconds: 150);
-  static const Duration _reverseDuration = Duration(milliseconds: 110);
+  /// Short enough that a second tap never lands mid-motion on a stale-looking
+  /// digit; each change restarts it anyway.
+  static const Duration _duration = Duration(milliseconds: 140);
 
-  /// True when the last change was an increase. Seeded to `true` so the very
-  /// first build — which does not animate anyway — has a defined direction.
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: _duration,
+    // Seeded at rest so the first build draws the number still.
+    value: 1,
+  );
+  late final Animation<double> _settle = CurvedAnimation(
+    parent: _controller,
+    curve: WaddyMotion.easeOut,
+  );
+
   bool _countingUp = true;
 
   @override
   void didUpdateWidget(AnimatedQuantityText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.quantity != oldWidget.quantity) {
-      _countingUp = widget.quantity > oldWidget.quantity;
-    }
+    if (widget.quantity == oldWidget.quantity) return;
+    _countingUp = widget.quantity > oldWidget.quantity;
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+    _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Incoming digits travel toward zero from the far side; the outgoing digit
-    // runs its animation in reverse, which carries it back out the opposite
-    // edge for free. That is what keeps the two digits from crossing.
-    final Offset begin = Offset(0, _countingUp ? _slideExtent : -_slideExtent);
-
-    return AnimatedSwitcher(
-      duration: _duration,
-      reverseDuration: _reverseDuration,
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      // Without this the outgoing digit is laid out beside the incoming one and
-      // the stepper's width jitters mid-transition.
-      layoutBuilder:
-          (current, previous) => Stack(
-            alignment: Alignment.center,
-            children: <Widget>[...previous, if (current != null) current],
-          ),
-      transitionBuilder:
-          (child, animation) => FadeTransition(
-            // Opacity runs ahead of position so the arriving digit is already solid
-            // by the time it settles. Fading linearly over the whole slide leaves
-            // both digits translucent in the middle, which is the muddy look.
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
-            ),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: begin,
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          ),
-      child: Text(
-        '${widget.quantity}',
-        // The key is what tells AnimatedSwitcher a new digit arrived; without it
-        // the Text is reused in place and nothing animates at all.
-        key: ValueKey<int>(widget.quantity),
-        textAlign: TextAlign.center,
-        style: widget.style,
+    final Text text = Text(
+      '${widget.quantity}',
+      textAlign: TextAlign.center,
+      // Tabular figures: "9" → "10" and "1" → "2" keep the slot width steady,
+      // so the pill does not twitch as the count changes.
+      style: (widget.style ?? const TextStyle()).copyWith(
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
+    );
+
+    return AnimatedBuilder(
+      animation: _settle,
+      child: text,
+      builder: (context, child) {
+        final double remaining = 1 - _settle.value;
+        return FractionalTranslation(
+          translation: Offset(0, (_countingUp ? _nudge : -_nudge) * remaining),
+          child: Transform.scale(scale: 1 + 0.12 * remaining, child: child),
+        );
+      },
     );
   }
 }

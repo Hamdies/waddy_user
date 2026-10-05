@@ -1,4 +1,5 @@
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/section_error_view.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/home/screens/home_screen.dart';
@@ -7,6 +8,7 @@ import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/domain/models/place_model.dart';
 import 'package:waddy_app/features/places/domain/spots_round.dart';
 import 'package:waddy_app/features/places/widgets/place_vote_action.dart';
+import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
@@ -23,15 +25,14 @@ import 'package:waddy_app/common/widgets/staggered_entrance.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
+import 'package:waddy_app/features/order/widgets/order_tracking_bar.dart';
 import 'package:waddy_app/features/home/widgets/home_hero_banner_widget.dart';
 import 'package:waddy_app/features/home/widgets/ramadan/ramadan_celebrate_button_wrapper.dart';
 import 'package:waddy_app/features/home/widgets/views/recommended_store_view.dart';
 import 'package:waddy_app/features/home/widgets/views/top_restaurants_view.dart';
 import 'package:waddy_app/features/home/widgets/views/grocery_shelf_view.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 
 /// Vertical rhythm for the home feed.
@@ -87,9 +88,6 @@ class ModuleView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverMainAxisGroup(
       slivers: [
-        // 0. Current Order — elevated hero when active, tight spacing otherwise
-        if (AuthHelper.isLoggedIn())
-          const SliverToBoxAdapter(child: CurrentOrderWidget()),
         // The banner carries its own 12pt bottom padding, so this is the
         // remainder of the seam (36 total when a current order is showing),
         // not the whole of it. Most of the time there is no running order, so
@@ -178,7 +176,7 @@ class ModuleView extends StatelessWidget {
         // want, so the shortcut stays bound to the chart it introduces: your
         // usual first, then what is fastest right now. Collapses to nothing
         // when signed out or with no history.
-        const SliverToBoxAdapter(child: _OrderAgainRow()),
+        // const SliverToBoxAdapter(child: _OrderAgainRow()),
 
         // 4. The chart — the first thing on this screen you can actually order
         // from, with names, ratings and prices visible.
@@ -210,6 +208,8 @@ class ModuleView extends StatelessWidget {
         SliverToBoxAdapter(
           child: SizedBox(height: Dimensions.bottomNavReserve(context)),
         ),
+        // The order-tracking bar stacks above the nav while an order runs.
+        const SliverToBoxAdapter(child: OrderTrackingReserve()),
       ],
     );
   }
@@ -258,6 +258,7 @@ class ModuleView extends StatelessWidget {
         // voices — the exact inconsistency WaddyMotion exists to prevent.
         itemBuilder:
             (context, i) => StaggeredEntrance(
+              group: 'home-modules',
               index: i,
               child: _ModuleTile(
                 module: normalModules[i]['module'],
@@ -398,10 +399,17 @@ class _ModuleTile extends StatelessWidget {
                         Dimensions.paddingSizeSmall,
                         Dimensions.paddingSizeExtraSmall,
                       ),
+                      // Transparent while loading and no fade: the default grey
+                      // tile with the Waddy mark painted a box and a "W" over
+                      // the gradient, right under the title, on every visit
+                      // until the picture arrived. The tile is already a
+                      // finished gradient; the artwork just lands on it.
                       child: CustomImage(
                         image: '${module.iconFullUrl}',
                         fit: BoxFit.contain,
                         width: double.infinity,
+                        fallback: const SizedBox.shrink(),
+                        fadeInDuration: Duration.zero,
                       ),
                     ),
                   ),
@@ -449,11 +457,7 @@ class _ModuleTile extends StatelessWidget {
 /// Opens a store from the aggregated dashboard: the target module must be
 /// activated first (dashboard has none selected), then route to the store.
 void _openStoreFromDashboard(Store store) {
-  Get.find<SplashController>().activateModuleFor(store.moduleId);
-  Get.toNamed(
-    RouteHelper.getStoreRoute(id: store.id, page: 'module'),
-    arguments: StoreScreen(store: store, fromModule: true),
-  );
+  StoreNavigator.open(store, page: 'module');
 }
 
 /// A section that has no content: an error row if the fetch failed, nothing at
@@ -494,7 +498,8 @@ class _QuickStoresSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.dashboardRailsId,
       builder: (storeController) {
         final stores = storeController.mostOrderedFoodStores;
         if (stores == null || stores.isEmpty) {
@@ -546,7 +551,8 @@ class _GrocerySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.dashboardRailsId,
       builder: (storeController) {
         final stores = storeController.quickGroceryStores;
         if (stores == null || stores.isEmpty) {
@@ -600,9 +606,13 @@ class _OrderAgainRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!AuthHelper.isLoggedIn()) return const SizedBox.shrink();
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.visitAgainId,
       builder: (storeController) {
-        final stores = storeController.visitAgainStoreList ?? <Store>[];
+        // The dashboard's own list: every module's stores, not whichever
+        // module home loaded last.
+        final stores =
+            storeController.dashboardVisitAgainStoreList ?? <Store>[];
         if (stores.isEmpty) return const SizedBox.shrink();
 
         return Column(
@@ -871,25 +881,38 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
     return Pressable(
       onTap: widget.onTap,
       semanticLabel: 'places_to_visit'.tr,
+      // PlacesController only ever calls id-scoped update([...]), and a
+      // GetBuilder without an id is not in any id's listener group — so the
+      // un-id'd builder that used to sit here never rebuilt after its first
+      // frame. The card was built while the leaderboard was in flight, painted
+      // the skeleton, and stayed there until something unrelated happened to
+      // plain-update the controller (a manual pull-to-refresh did). The card
+      // reads both the leaderboard and the places list (liveStandings falls
+      // back to the second), so it listens on both ids.
       child: GetBuilder<PlacesController>(
-        builder: (c) {
-          final standings = c.liveStandings;
-          // Loading is not the same fact as "nobody has entered", and this card
-          // used to state the second while the first was true. On every cold
-          // start the standings are empty for as long as the leaderboard is in
-          // flight, so the most prominent card in the fold greeted the user
-          // with "Be the first to make a move." — and then, a beat later,
-          // replaced it with a live 1v1 that had been running all week. The
-          // one card whose entire job is to say "this is happening right now"
-          // opened by claiming nothing was happening.
-          if (standings.isEmpty &&
-              (c.isLeaderboardLoading || c.isPlacesLoading)) {
-            return _matchCard(null, null, loading: true);
-          }
-          final leader = standings.isNotEmpty ? standings[0] : null;
-          final runner = standings.length > 1 ? standings[1] : null;
-          return _matchCard(leader, runner, fieldSize: c.contenderTotal);
-        },
+        id: PlacesController.idLeaderboard,
+        builder:
+            (_) => GetBuilder<PlacesController>(
+              id: PlacesController.idPlaces,
+              builder: (c) {
+                final standings = c.liveStandings;
+                // Loading is not the same fact as "nobody has entered", and this card
+                // used to state the second while the first was true. On every cold
+                // start the standings are empty for as long as the leaderboard is in
+                // flight, so the most prominent card in the fold greeted the user
+                // with "Be the first to make a move." — and then, a beat later,
+                // replaced it with a live 1v1 that had been running all week. The
+                // one card whose entire job is to say "this is happening right now"
+                // opened by claiming nothing was happening.
+                if (standings.isEmpty &&
+                    (c.isLeaderboardLoading || c.isPlacesLoading)) {
+                  return _matchCard(null, null, loading: true);
+                }
+                final leader = standings.isNotEmpty ? standings[0] : null;
+                final runner = standings.length > 1 ? standings[1] : null;
+                return _matchCard(leader, runner, fieldSize: c.contenderTotal);
+              },
+            ),
       ),
     );
   }
@@ -943,7 +966,10 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
           // sentence could only paraphrase the row above it — and it was the
           // most expensive row on the card at 29pt with its seam.
           const SizedBox(height: _kCardSeam),
-          if (loading) _buttonSkeleton() else _actionButton(runner, fieldSize),
+          if (loading)
+            _buttonSkeleton()
+          else
+            _actionButton(runner, fieldSize, empty: leader == null),
         ],
       ),
     );
@@ -1389,13 +1415,33 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
 
   /// Nobody has entered yet. One quiet line — the button underneath is the
   /// whole call to action, so this only has to set it up.
+  ///
+  /// The live Rive trophy sits centred above the line: an empty board is an open
+  /// crown, and a bare sentence on a dark panel read as a broken card rather
+  /// than an invitation. The whole card (and the button) lead into the Places
+  /// module, where the user picks the spot to put the first vote on.
   Widget _noEntrants() {
-    return Text(
-      'places_first_votes'.tr,
-      style: waddyRegular.copyWith(
-        fontSize: 13,
-        height: 1.3,
-        color: Colors.white.withValues(alpha: 0.72),
+    // Full width on purpose: a shrink-wrapped Column is as wide as its text and
+    // the parent pins it to the start edge, so "centred" meant centred over the
+    // text, which sat on the left of the card.
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const SpotsTrophyGlyph(size: 64),
+          const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+          Text(
+            'places_first_votes'.tr,
+            textAlign: TextAlign.center,
+            style: waddyRegular.copyWith(
+              fontSize: 13,
+              height: 1.3,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1407,7 +1453,7 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
   // mint was a full-bleed slab with a *dark* pill inside it: the biggest,
   // brightest region was decoration, and the button read as a hole punched in
   // it rather than as a raised control.
-  Widget _actionButton(Place? runner, int? fieldSize) {
+  Widget _actionButton(Place? runner, int? fieldSize, {bool empty = false}) {
     // The label now names where the button actually goes.
     //
     // It used to read "Settle it" and then open the standings table, because a
@@ -1422,7 +1468,9 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
     // is no table worth opening.
     final bool countable = fieldSize != null && fieldSize > 2;
     final String label =
-        runner == null
+        empty
+            ? 'spots_crown_open_cta'.tr
+            : runner == null
             ? 'places_add_rival'.tr
             : countable
             ? 'places_see_all_count'.trParams({'count': '$fieldSize'})
@@ -1439,7 +1487,9 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
     // the one control on the screen that answered a tap with nothing.
     return Pressable(
       onTap:
-          primary ? () => Get.toNamed(RouteHelper.placeSubmit) : widget.onTap,
+          primary && !empty
+              ? () => Get.toNamed(RouteHelper.placeSubmit)
+              : widget.onTap,
       semanticLabel: label,
       scale: WaddyMotion.pressCard,
       child: Container(
@@ -1551,7 +1601,8 @@ class _RecommendedFallbackSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.recommendedId,
       builder: (storeController) {
         final stores = storeController.recommendedStoreList;
         if (stores == null || stores.isEmpty) {

@@ -55,14 +55,14 @@ metric is both hit *and* CI-locked.
 | M1 | Money bugs | 1 known, 0 tests | 0 ✅, 51 PHP vectors | P0 | `money-parity-guard` |
 | M2 | Unguarded parses at the JSON boundary | 26 | **0 ✅** (183 elsewhere, ratcheted) | P2 | `parse-guard` |
 | M3 | Dead files | 132 (30,216 LOC) | **0 ✅** | P2 | `dead-code-guard` (budget 0) |
-| M4 | Unscoped `update()` | 527 | < 50 | P4 | lint + guard |
+| M4 | Unscoped `update()` | 526 | **not a perf metric** — see §22 | P4 | maintainability only |
 | M5 | Unguarded **optional-field** bangs | ~60 | 0 ✅ (money/gating) | P3 | `sparse_config_test` |
 | M6 | Silent `catch (_) {}` | 50 | 0 ✅ | P3 | `silent-failure-guard` |
-| M7 | Test LOC / prod LOC | 3.1% | 15% on critical paths | P1–P6 | coverage gate |
+| M7 | Tier-1 money paths covered | 0 | **done ✅** — ratio is the wrong measure, §22 | P1 | contract tests |
 | M8 | Guarded sensitive routes | 6 / 75 | 22 / 22 ✅ | P3 | `route-guard` |
 | M9 | Build flavors | 0 | 3 ✅ (iOS schemes pending) | P5→P0.5 | `flavor-guard` |
-| M10 | Cold start to first paint | unmeasured | measured + budgeted | P6 | perf test |
-| M11 | Crash-free sessions | unmeasured | > 99.5% | P6 | Crashlytics |
+| M10 | Cold start to first paint | ~1,014ms frame | **instrumented ✅**, baseline pending | P6 | `BootStats` |
+| M11 | Crash-free sessions | anonymous reports | **context attached ✅**, alert pending | P6 | `CrashContext` |
 | M12 | Real secrets in repo | 1 (HMAC) | 0 ✅ | P0 | secret scan |
 
 ---
@@ -1311,3 +1311,77 @@ drives work that does not reduce risk. Each time, checking what the number
 *meant* before acting on it saved days. Worth doing before the remaining
 metrics — **M4's 527 unscoped `update()` is the next one to interrogate**, and
 §12.7 already says to profile before trusting it.
+
+---
+
+## 22. M4 and M7 measured the wrong things — recorded, not quietly dropped
+
+### 22.1 M4 is not a performance metric
+
+The scoreboard set "526 unscoped `update()` → under 50" as the P4 target, at
+three weeks.
+
+**The Mi 9T baseline says not to do it.** Build averages **2.7–4.6ms against a
+16.7ms budget** — already inside. Raster averages 2–3× build on every window
+measured. Halving build time saves ~3ms on a frame losing 12–14ms to raster.
+
+M4 stays on the board as a **maintainability** metric: 526 bare `update()`
+calls is still a smell, and `places_controller` (18 bare / 30 scoped) is still
+the reference for anyone touching one. But it is not what is costing customers
+frames, and completing it "because it is on the list" would be weeks aimed at
+the smaller half of the cost.
+
+Revisit if a future measurement comes back build-bound.
+
+### 22.2 M7 counted lines, not coverage
+
+"Test LOC / prod LOC, 3.1% → 15%" is not a goal, it is a ratio that moves when
+either number changes for unrelated reasons — deleting 30,216 lines of dead
+code (§19) improved it without adding a single test.
+
+What the metric was reaching for is done: **Tier-1 money paths are exhaustively
+covered.** `PriceConverter` against 51 PHP-generated vectors,
+`CheckoutCalculationHelper` including the six previously untested methods,
+`OrderPayloadBuilder`, the cart mixing guards, `OrderSecurityHelper`.
+
+Tests went 424 → 586 over this work, all of it aimed at seams that had burned
+the project before.
+
+### 22.3 M10 — instrumented
+
+`BootStats` brackets the five serial awaits in `main()`: Firebase, `di.init`,
+notifications, deep links, locale data. Every trace opens with
+`Skipped 61 frames` and a ~1,014ms frame before anything is on screen, and
+neither `FrameStats` (measures frames) nor `ApiStats` (measures network) can
+see it.
+
+**Deliberately not "optimised" yet.** The obvious move — defer
+`initializeDateFormatting` past `runApp` — risks a `LocaleDataException` on
+home, which uses `DateFormat` directly. Which of the five actually costs the
+second is not knowable by reading the code; Firebase alone can be 50ms or
+600ms depending on whether Play Services is warm.
+
+Measure, then parallelise by size. That is the discipline the rest of this
+work established, and §13.1 is the fifth reminder of what skipping it costs.
+
+### 22.4 M11 — context attached
+
+Crashlytics was recording crashes anonymously: no flavor, no module, no
+signed-in state. "3 users affected" that nobody can act on — a staging crash
+and a production crash were indistinguishable, and so were a guest-path bug and
+a signed-in one.
+
+`CrashContext` attaches, as **custom keys** (grouped and filterable in the
+console, unlike a log line):
+
+- `flavor` and `backend` — once at boot
+- `signed_in`, and the account id as the Crashlytics user identifier — on
+  profile load, cleared on sign-out
+- `module_type` and `module_id` — on every module change
+
+No personal data: the id is the account id the backend already issues, used to
+count distinct affected users. Debug builds are excluded, so a developer's
+crashes stay out of the dashboard the release metric is read from.
+
+**Still outstanding, and it is a console setting rather than code:** a velocity
+alert on crash-free sessions below 99.5%.

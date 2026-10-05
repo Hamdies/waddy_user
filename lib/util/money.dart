@@ -67,8 +67,7 @@ double roundLikeServer(double value, int digits) {
   // significant digits. If the requested `digits` is inside that window, round
   // there first to snap the value back onto the decimal the author wrote, then
   // do the real rounding.
-  final int precisionPlaces =
-      14 - (math.log(value.abs()) / math.ln10).floor();
+  final int precisionPlaces = 14 - (math.log(value.abs()) / math.ln10).floor();
   if (precisionPlaces > digits && precisionPlaces - 15 < digits) {
     final double f2 =
         math.pow(10.0, (precisionPlaces - digits).abs()).toDouble();
@@ -130,8 +129,7 @@ class Money implements Comparable<Money> {
       Money.fromMinorUnits(minorUnits - other.minorUnits);
 
   /// Multiplies by a whole quantity. Exact — this is the cart line case.
-  Money operator *(int quantity) =>
-      Money.fromMinorUnits(minorUnits * quantity);
+  Money operator *(int quantity) => Money.fromMinorUnits(minorUnits * quantity);
 
   /// Applies a rate (a tax or percentage discount) and rounds the result to a
   /// whole minor unit, half away from zero, matching the server.
@@ -149,8 +147,7 @@ class Money implements Comparable<Money> {
   bool get isNegative => minorUnits < 0;
 
   /// Clamps at zero. Discounts must never push a line negative.
-  Money get clampedToZero =>
-      minorUnits < 0 ? Money.zero : this;
+  Money get clampedToZero => minorUnits < 0 ? Money.zero : this;
 
   static Money sum(Iterable<Money> amounts) =>
       amounts.fold(Money.zero, (a, b) => a + b);

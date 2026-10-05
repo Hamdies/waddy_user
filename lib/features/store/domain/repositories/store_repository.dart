@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/store/domain/models/buy_again_line.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
 import 'dart:convert';
 import 'package:waddy_app/helper/module_helper.dart';
 import 'package:waddy_app/helper/auth_token_store.dart';
@@ -334,9 +336,12 @@ class StoreRepository implements StoreRepositoryInterface {
     // rail silently never appeared rather than crashing the screen — which is
     // why it went unnoticed.
     //
-    // The fallback is the last module in play, which is the one whose
-    // visit-again stores the user expects to see.
-    final int? moduleId = ModuleHelper.currentModuleId();
+    // Keyed on the module the request actually CARRIES — the one the user is
+    // in, `none` on the dashboard. Not `currentModuleId()`: that falls back to
+    // the last module in play, but the dashboard's request goes out with no
+    // module at all, so its reply was being cached as, say, food's — and a
+    // food home inside the TTL then served the dashboard's answer.
+    final int? moduleId = ModuleHelper.getModule()?.id;
     final String cacheId =
         '${AppConstants.visitAgainStoreUri}-${moduleId ?? 'none'}';
 
@@ -499,12 +504,17 @@ class StoreRepository implements StoreRepositoryInterface {
       addressModel?.longitude,
       setHeader: false,
     );
-    Response response = await apiClient.getData(
-      '${AppConstants.cartStoreSuggestedItemsUri}?recommended=1&store_id=$storeId&offset=1&limit=50',
-      headers: header,
-    );
-    if (response.statusCode == 200) {
+    // Store-flagged "recommended" items first. Few stores flag any (no seed
+    // data does), and an empty answer left the cart's suggestion rail
+    // silently missing — so fall back to the store's best-reviewed items.
+    for (final String recommended in const ['1', '0']) {
+      Response response = await apiClient.getData(
+        '${AppConstants.cartStoreSuggestedItemsUri}?recommended=$recommended&store_id=$storeId&offset=1&limit=50',
+        headers: header,
+      );
+      if (response.statusCode != 200) break;
       cartSuggestItemModel = CartSuggestItemModel.fromJson(response.body);
+      if (cartSuggestItemModel.items?.isNotEmpty ?? false) break;
     }
     return cartSuggestItemModel;
   }
@@ -672,6 +682,18 @@ class StoreRepository implements StoreRepositoryInterface {
   }
 
   @override
+  Future<List<CategoryModel>?> getStoreSubCategories(
+    int? storeId,
+    int? categoryId,
+  ) async {
+    final Response response = await apiClient.getData(
+      '${AppConstants.subCategoryUri}$categoryId?store_id=$storeId',
+    );
+    if (response.statusCode != 200 || response.body is! List) return null;
+    return [for (final c in response.body as List) CategoryModel.fromJson(c)];
+  }
+
+  @override
   Future<List<StoreBundleModel>?> getStoreBundleList(
     int? storeId, {
     int offset = 1,
@@ -688,6 +710,48 @@ class StoreRepository implements StoreRepositoryInterface {
       );
     }
     return bundleList;
+  }
+
+  /// What the signed-in customer received in their last few delivered orders
+  /// here. Null on any failure — including a backend without the route yet —
+  /// so the rail stays hidden rather than guessing.
+  @override
+  Future<({int orderCount, List<BuyAgainLine> lines})?> getBuyAgainItems(
+    int storeId,
+  ) async {
+    final Response response = await apiClient.getData(
+      '${AppConstants.buyAgainUri}?store_id=$storeId',
+      handleError: false,
+    );
+    final dynamic body = response.body;
+    if (response.statusCode != 200 || body is! Map) return null;
+    final dynamic products = body['products'];
+    return (
+      orderCount: body['order_count'] is int ? body['order_count'] as int : 0,
+      lines: [
+        if (products is List)
+          for (final p in products)
+            if (p is Map<String, dynamic>) BuyAgainLine.fromJson(p),
+      ],
+    );
+  }
+
+  /// What was bought alongside [itemId] in other customers' orders. A bare
+  /// list on success, empty when nothing has been paired often enough; null
+  /// on any failure — including a backend without the route yet — so the rail
+  /// stays hidden rather than guessing.
+  @override
+  Future<List<Item>?> getPairedItems(int itemId) async {
+    final Response response = await apiClient.getData(
+      '${AppConstants.pairsWithUri}/$itemId',
+      handleError: false,
+    );
+    final dynamic body = response.body;
+    if (response.statusCode != 200 || body is! List) return null;
+    return [
+      for (final p in body)
+        if (p is Map<String, dynamic>) Item.fromJson(p),
+    ];
   }
 
   @override

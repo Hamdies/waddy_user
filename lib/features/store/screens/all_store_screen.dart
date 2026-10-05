@@ -1,5 +1,5 @@
 import 'package:waddy_app/common/models/module_model.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -37,15 +37,15 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
     super.initState();
 
     if (widget.isFeatured) {
-      Get.find<StoreController>().getFeaturedStoreList();
+      Get.find<StoreListController>().getFeaturedStoreList();
     } else if (widget.isPopular) {
-      Get.find<StoreController>().getPopularStoreList(false, 'all', false);
+      Get.find<StoreListController>().getPopularStoreList(false, 'all', false);
     } else if (widget.isTopOfferStore) {
-      Get.find<StoreController>().getTopOfferStoreList(false, false);
+      Get.find<StoreListController>().getTopOfferStoreList(false, false);
     } else if (widget.isRecommendedStore) {
-      Get.find<StoreController>().getRecommendedStoreList();
+      Get.find<StoreListController>().getRecommendedStoreList();
     } else {
-      Get.find<StoreController>().getLatestStoreList(false, 'all', false);
+      Get.find<StoreListController>().getLatestStoreList(false, 'all', false);
     }
   }
 
@@ -53,7 +53,8 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
   Widget build(BuildContext context) {
     bool isFood = Get.find<SplashController>().module?.type == ModuleType.food;
 
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.allStoresId,
       builder: (storeController) {
         return Scaffold(
           appBar: CustomAppBar(
@@ -62,11 +63,11 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                     ? 'featured_stores'.tr
                     : widget.isPopular
                     ? Get.find<SplashController>()
-                            .configModel
-                            .moduleConfig!
-                            .module!
-                            .showRestaurantText ??
-                                false
+                                .configModel
+                                .moduleConfig!
+                                .module!
+                                .showRestaurantText ??
+                            false
                         ? widget.isNearbyStore
                             ? 'best_store_nearby'.tr
                             : 'popular_restaurants'.tr
@@ -84,13 +85,13 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                     ? null
                     : (String type) {
                       if (widget.isPopular) {
-                        Get.find<StoreController>().getPopularStoreList(
+                        Get.find<StoreListController>().getPopularStoreList(
                           true,
                           type,
                           true,
                         );
                       } else {
-                        Get.find<StoreController>().getLatestStoreList(
+                        Get.find<StoreListController>().getLatestStoreList(
                           true,
                           type,
                           true,
@@ -103,19 +104,19 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
           body: RefreshIndicator(
             onRefresh: () async {
               if (widget.isFeatured) {
-                await Get.find<StoreController>().getFeaturedStoreList();
+                await Get.find<StoreListController>().getFeaturedStoreList();
               } else if (widget.isPopular) {
-                await Get.find<StoreController>().getPopularStoreList(
+                await Get.find<StoreListController>().getPopularStoreList(
                   true,
-                  Get.find<StoreController>().type,
+                  Get.find<StoreListController>().type,
                   false,
                 );
               } else if (widget.isRecommendedStore) {
-                await Get.find<StoreController>().getRecommendedStoreList();
+                await Get.find<StoreListController>().getRecommendedStoreList();
               } else {
-                await Get.find<StoreController>().getLatestStoreList(
+                await Get.find<StoreListController>().getLatestStoreList(
                   true,
-                  Get.find<StoreController>().type,
+                  Get.find<StoreListController>().type,
                   false,
                 );
               }
@@ -127,7 +128,8 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                   children: [
                     SizedBox(
                       width: Dimensions.maxContentWidth,
-                      child: GetBuilder<StoreController>(
+                      child: GetBuilder<StoreListController>(
+                        id: StoreListController.allStoresId,
                         builder: (storeController) {
                           return ItemsView(
                             isStore: true,
@@ -137,11 +139,11 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
                                 widget.isFeatured
                                     ? 'no_store_available'.tr
                                     : Get.find<SplashController>()
-                                        .configModel
-                                        .moduleConfig!
-                                        .module!
-                                        .showRestaurantText ??
-                                            false
+                                            .configModel
+                                            .moduleConfig!
+                                            .module!
+                                            .showRestaurantText ??
+                                        false
                                     ? 'no_restaurant_available'.tr
                                     : 'no_store_available'.tr,
                             stores:

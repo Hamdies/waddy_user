@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+
 class XpLeaderboardModel {
   final List<LeaderboardEntry> entries;
   final LeaderboardEntry? currentUser;
@@ -10,33 +12,32 @@ class XpLeaderboardModel {
   });
 
   factory XpLeaderboardModel.fromJson(Map<String, dynamic> json) {
-    // Parse current user: try nested object first, then flat fields
+    // Current user: nested object first, then flat fields.
     LeaderboardEntry? currentUser;
-    if (json['current_user'] != null) {
-      currentUser = LeaderboardEntry.fromJson(json['current_user']);
+    final nested = xpMap(json['current_user']);
+    if (nested != null) {
+      currentUser = LeaderboardEntry.fromJson(nested);
     } else if (json['my_rank'] != null || json['my_xp'] != null) {
       currentUser = LeaderboardEntry(
-        userId: json['my_id'] ?? 0,
-        name: json['my_name'] ?? 'You',
-        image: json['my_image'],
-        rank: json['my_rank'] ?? 0,
-        totalXp: json['my_xp'] ?? 0,
-        level: json['my_level'] ?? 1,
+        userId: xpInt(json['my_id']),
+        name: xpStr(json['my_name']) ?? 'You',
+        image: xpStr(json['my_image']),
+        rank: xpInt(json['my_rank']),
+        totalXp: xpInt(json['my_xp']),
+        level: xpInt(json['my_level'], 1),
         isMe: true,
-        delta: json['my_delta'] ?? 0,
-        movement: json['my_movement'] ?? 'none',
+        delta: xpInt(json['my_delta']),
+        movement: xpStr(json['my_movement']) ?? 'none',
       );
     }
 
     return XpLeaderboardModel(
       entries:
-          json['leaderboard'] != null
-              ? (json['leaderboard'] as List)
-                  .map((e) => LeaderboardEntry.fromJson(e))
-                  .toList()
-              : [],
+          xpMapList(
+            json['leaderboard'],
+          ).map(LeaderboardEntry.fromJson).toList(),
       currentUser: currentUser,
-      totalParticipants: json['total_participants'] ?? 0,
+      totalParticipants: xpInt(json['total_participants']),
     );
   }
 }
@@ -77,17 +78,17 @@ class LeaderboardEntry {
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     return LeaderboardEntry(
-      userId: json['user_id'] ?? json['id'] ?? 0,
-      name: json['name'] ?? json['f_name'] ?? 'User',
-      image: json['image'],
-      rank: json['rank'] ?? 0,
-      totalXp: json['total_xp'] ?? json['xp'] ?? 0,
-      level: json['level'] ?? json['current_level'] ?? 1,
-      levelName: json['level_name'],
-      levelBadge: json['level_badge'],
-      isMe: json['is_me'] ?? false,
-      delta: json['delta'] ?? 0,
-      movement: json['movement'] ?? 'none',
+      userId: xpInt(json['user_id'] ?? json['id']),
+      name: xpStr(json['name']) ?? xpStr(json['f_name']) ?? 'User',
+      image: xpStr(json['image']),
+      rank: xpInt(json['rank']),
+      totalXp: xpInt(json['total_xp'] ?? json['xp']),
+      level: xpInt(json['level'] ?? json['current_level'], 1),
+      levelName: xpStr(json['level_name']),
+      levelBadge: xpStr(json['level_badge']),
+      isMe: xpBool(json['is_me']),
+      delta: xpInt(json['delta']),
+      movement: xpStr(json['movement']) ?? 'none',
     );
   }
 

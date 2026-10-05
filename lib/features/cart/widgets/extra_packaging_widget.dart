@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -12,9 +11,9 @@ class ExtraPackagingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        return storeController.store?.extraPackagingStatus ?? false
+    return GetBuilder<CartController>(
+      builder: (cart) {
+        return cart.cartStore?.extraPackagingStatus ?? false
             ? Container(
               padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
               decoration: BoxDecoration(
@@ -48,7 +47,7 @@ class ExtraPackagingWidget extends StatelessWidget {
                       children: [
                         Text('need_extra_packaging'.tr, style: waddyMedium),
                         Text(
-                          '${'additional'.tr} ${PriceConverter.convertPrice(storeController.store?.extraPackagingAmount)} '
+                          '${'additional'.tr} ${PriceConverter.convertPrice(cart.cartStore?.extraPackagingAmount)} '
                           '${'change_will_be_added_for_extra_packaging'.tr}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

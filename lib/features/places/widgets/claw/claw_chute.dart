@@ -24,11 +24,7 @@ import 'package:waddy_app/util/styles.dart';
 /// Decorative, like the cabinet: every name here is repeated as real text in
 /// the winner list, so the screen wraps this in [ExcludeSemantics].
 class ClawChute extends StatelessWidget {
-  const ClawChute({
-    super.key,
-    required this.winners,
-    required this.totalPulls,
-  });
+  const ClawChute({super.key, required this.winners, required this.totalPulls});
 
   /// The entrants pulled so far, in pull order.
   final List<DrawEntrant> winners;
@@ -120,8 +116,7 @@ class _Slot extends StatelessWidget {
     // (see `DrawEntrant.shortName`); a screen reader has no such limit, so
     // it gets the masked name whole. Reading "Mariam ellipsis A." aloud
     // would export a layout constraint into audio, where it means nothing.
-    final spoken =
-        hasName ? entrant!.name.trim() : 'spots_a_waddi_voter'.tr;
+    final spoken = hasName ? entrant!.name.trim() : 'spots_a_waddi_voter'.tr;
     final name =
         filled
             ? (hasName ? entrant!.shortName : 'spots_a_waddi_voter'.tr)

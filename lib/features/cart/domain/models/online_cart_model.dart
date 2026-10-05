@@ -18,6 +18,9 @@ class OnlineCartModel {
   String? updatedAt;
   product_variation.Item? item;
 
+  /// The shopper's produce answer on this line, or null.
+  String? preference;
+
   OnlineCartModel({
     this.id,
     this.userId,
@@ -57,6 +60,7 @@ class OnlineCartModel {
         }
       });
     }
+    preference = json['preference'] is String ? json['preference'] : null;
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
     item =
@@ -83,6 +87,7 @@ class OnlineCartModel {
     if (productVariation != null) {
       data['variation'] = productVariation!.map((v) => v.toJson()).toList();
     }
+    data['preference'] = preference;
     data['created_at'] = createdAt;
     data['updated_at'] = updatedAt;
     if (item != null) {

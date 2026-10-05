@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
+import 'package:waddy_app/api/api_checker.dart';
 import 'package:waddy_app/api/api_client.dart';
+import 'package:waddy_app/features/coupon/domain/models/coupon_apply_result.dart';
 import 'package:waddy_app/features/coupon/domain/models/coupon_model.dart';
 import 'package:waddy_app/features/coupon/domain/repositories/coupon_repository_interface.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -30,16 +32,31 @@ class CouponRepository implements CouponRepositoryInterface {
     return couponList;
   }
 
+  /// Unhandled, so a scratch-card refusal's `code` reaches the promo card
+  /// instead of collapsing into "invalid". Every other failure goes through
+  /// [ApiChecker] as before (the 401 sweep, no toast).
   @override
-  Future<CouponModel?> applyCoupon(String couponCode, int? storeID) async {
-    CouponModel? couponModel;
+  Future<CouponApplyResult> applyCoupon(String couponCode, int? storeID) async {
     Response response = await apiClient.getData(
-      '${AppConstants.couponApplyUri}$couponCode&store_id=$storeID',
+      '${AppConstants.couponApplyUri}${Uri.encodeQueryComponent(couponCode)}'
+      '&store_id=$storeID',
+      handleError: false,
     );
     if (response.statusCode == 200) {
-      couponModel = CouponModel.fromJson(response.body);
+      return CouponApplyResult(coupon: CouponModel.fromJson(response.body));
     }
-    return couponModel;
+    final dynamic body = response.body;
+    if (body is Map && body['errors'] is List && body['errors'].isNotEmpty) {
+      final dynamic error = body['errors'][0];
+      if (error is Map && CouponApplyResult.worded.contains(error['code'])) {
+        return CouponApplyResult(
+          errorCode: error['code'],
+          availableOn: error['available_on']?.toString(),
+        );
+      }
+    }
+    ApiChecker.checkApi(response);
+    return const CouponApplyResult();
   }
 
   @override

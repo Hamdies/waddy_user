@@ -61,7 +61,9 @@ class XpProgressBar extends StatelessWidget {
                           gradient: LinearGradient(
                             colors: [
                               Theme.of(context).primaryColor,
-                              Theme.of(context).primaryColor.withOpacity(0.7),
+                              Theme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.7),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(
@@ -146,7 +148,7 @@ class XpProgressBar extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor.withOpacity(0.7),
+                          Theme.of(context).primaryColor.withValues(alpha: 0.7),
                           Theme.of(context).colorScheme.secondary,
                         ],
                       ),
@@ -154,7 +156,7 @@ class XpProgressBar extends StatelessWidget {
                         BoxShadow(
                           color: Theme.of(
                             context,
-                          ).primaryColor.withOpacity(0.3),
+                          ).primaryColor.withValues(alpha: 0.3),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -171,9 +173,9 @@ class XpProgressBar extends StatelessWidget {
                       shaderCallback: (bounds) {
                         return LinearGradient(
                           colors: [
-                            Colors.white.withOpacity(0),
-                            Colors.white.withOpacity(0.3),
-                            Colors.white.withOpacity(0),
+                            Colors.white.withValues(alpha: 0),
+                            Colors.white.withValues(alpha: 0.3),
+                            Colors.white.withValues(alpha: 0),
                           ],
                           stops: const [0.0, 0.5, 1.0],
                         ).createShader(bounds);

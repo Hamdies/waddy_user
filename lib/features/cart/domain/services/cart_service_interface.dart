@@ -59,8 +59,9 @@ abstract class CartServiceInterface {
     int? itemID,
     String variationType,
     bool isUpdate,
-    int? cartIndex,
-  );
+    int? cartIndex, {
+    String? preference,
+  });
   bool existAnotherStoreItem(
     int? storeID,
     int? moduleId,

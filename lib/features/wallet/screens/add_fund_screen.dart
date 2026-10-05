@@ -146,9 +146,7 @@ class _AddFundScreenState extends State<AddFundScreen> {
       body: GetBuilder<WalletController>(
         builder: (wc) {
           final methods =
-              Get.find<SplashController>()
-                  .configModel
-                  .activePaymentMethodList!;
+              Get.find<SplashController>().configModel.activePaymentMethodList!;
 
           return Column(
             children: [

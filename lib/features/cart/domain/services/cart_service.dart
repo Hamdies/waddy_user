@@ -443,6 +443,7 @@ class CartService implements CartServiceInterface {
           stock,
           cart.item,
           quantityLimit,
+          preference: cart.preference,
         ),
       );
     }
@@ -456,13 +457,17 @@ class CartService implements CartServiceInterface {
     int? itemID,
     String variationType,
     bool isUpdate,
-    int? cartIndex,
-  ) {
+    int? cartIndex, {
+    String? preference,
+  }) {
     for (int index = 0; index < cartList.length; index++) {
       if (cartList[index].item!.id == itemID &&
           (cartList[index].variation!.isNotEmpty
               ? cartList[index].variation![0].type == variationType
-              : true)) {
+              : true) &&
+          // A produce answer is part of the line: "ripe later" and "ready
+          // to eat" bananas are two lines.
+          (preference == null || cartList[index].preference == preference)) {
         if ((isUpdate && index == cartIndex)) {
           return -1;
         } else {

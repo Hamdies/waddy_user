@@ -9,7 +9,6 @@ abstract class XpRepositoryInterface implements RepositoryInterface {
   Future<dynamic> claimPrize(int prizeId);
   Future<dynamic> getCheckoutPrizes(double orderAmount);
   Future<dynamic> getXpConfig();
-  Future<dynamic> getHistory({int limit = 20, int offset = 0});
   Future<dynamic> getLeaderboard({
     String type = 'global',
     String period = 'alltime',

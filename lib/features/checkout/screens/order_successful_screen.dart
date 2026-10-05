@@ -1,23 +1,23 @@
 import 'dart:async';
-import 'package:intl/intl.dart' hide TextDirection;
-import 'package:lottie/lottie.dart';
+import 'package:waddy_app/features/scratch_card/widgets/scratch_card_badge.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
-import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
+import 'package:waddy_app/features/checkout/widgets/order_receipt_widget.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
+import 'package:waddy_app/util/motion.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
-import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/features/checkout/widgets/payment_failed_dialog.dart';
 import 'package:waddy_app/services/live_activity_service.dart';
@@ -43,17 +43,36 @@ class OrderSuccessfulScreen extends StatefulWidget {
 }
 
 class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   bool? _isCashOnDeliveryActive = false;
   String? orderId;
-  bool _animationsStarted = false;
   Timer? _liveActivityTimer;
   String? _lastLiveActivityStatus;
 
-  late AnimationController _heroAnim;
-  late AnimationController _cardAnim;
-  late AnimationController _xpAnim;
-  late AnimationController _buttonAnim;
+  // ── Receipt print ──
+  // The receipt feeds out of the printer slot, then the thank-you and the
+  // CTAs arrive and the page scrolls down to them.
+  static const Duration _printDuration = Duration(milliseconds: 3200);
+  static const Duration _printDelay = Duration(milliseconds: 450);
+
+  /// How long the print waits for the item lines before starting without
+  /// them, so a slow details call never holds the whole screen hostage.
+  static const Duration _detailsWait = Duration(seconds: 2);
+
+  /// Bottom edge of the printer slot (6pt gap + slot). The scroll area starts
+  /// 8pt above it so the paper visibly emerges from under the slot.
+  static const double _slotBottom = 6 + ReceiptPrinterSlot.height;
+  static const double _slotOverlap = 8;
+
+  late final AnimationController _print;
+  late final Animation<double> _feed;
+  final ScrollController _scroll = ScrollController();
+  Timer? _printTimer;
+  Timer? _detailsTimer;
+  Timer? _scrollTimer;
+  bool _printScheduled = false;
+  bool _detailsWaitExpired = false;
+  bool _done = false;
 
   @override
   void initState() {
@@ -80,27 +99,13 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Get.find<XpController>().getXpConfig();
-      if (AuthHelper.isLoggedIn()) {
-        Get.find<XpController>().getChallenges(reload: true);
-      }
     });
 
-    _heroAnim = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _cardAnim = AnimationController(
-      duration: const Duration(milliseconds: 650),
-      vsync: this,
-    );
-    _xpAnim = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _buttonAnim = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
+    _print = AnimationController(duration: _printDuration, vsync: this)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) _onPrinted();
+      });
+    _feed = CurvedAnimation(parent: _print, curve: const PrinterFeedCurve());
   }
 
   /// Order ids already reported as Purchase this session. The screen can be
@@ -123,21 +128,6 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     );
   }
 
-  void _startAnimations() {
-    if (_animationsStarted) return;
-    _animationsStarted = true;
-    _heroAnim.forward();
-    Future.delayed(const Duration(milliseconds: 350), () {
-      if (mounted) _cardAnim.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) _xpAnim.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 780), () {
-      if (mounted) _buttonAnim.forward();
-    });
-  }
-
   void _startLiveActivity() {
     final orderController = Get.find<OrderController>();
     final trackModel = orderController.trackModel;
@@ -148,6 +138,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
       status: trackModel.orderStatus ?? 'pending',
       subStatus: trackModel.subStatus,
       eta: trackModel.estimatedDelivery,
+      arrivalAt: LiveActivityHelper.parseArrival(
+        trackModel.estimatedDeliveryAt,
+      ),
       storeName: trackModel.store?.name,
       storeLogoUrl: trackModel.store?.logoFullUrl,
       deliveryManName:
@@ -156,6 +149,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   .trim()
               : null,
       orderType: trackModel.orderType ?? 'delivery',
+      moduleType: trackModel.moduleType,
     );
   }
 
@@ -176,7 +170,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
       if (status == _lastLiveActivityStatus) return;
       _lastLiveActivityStatus = status;
       if (LiveActivityHelper.isTerminalStatus(status)) {
-        LiveActivityService.endActivity(trackModel.id ?? 0);
+        LiveActivityService.endActivity(trackModel.id ?? 0, status: status);
         _liveActivityTimer?.cancel();
       } else {
         LiveActivityService.updateActivity(
@@ -184,6 +178,9 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
           status: status,
           subStatus: trackModel.subStatus,
           eta: trackModel.estimatedDelivery,
+          arrivalAt: LiveActivityHelper.parseArrival(
+            trackModel.estimatedDeliveryAt,
+          ),
           storeName: trackModel.store?.name,
           deliveryManName:
               trackModel.deliveryMan != null
@@ -199,146 +196,69 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
   @override
   void dispose() {
     _liveActivityTimer?.cancel();
-    _heroAnim.dispose();
-    _cardAnim.dispose();
-    _xpAnim.dispose();
-    _buttonAnim.dispose();
+    _printTimer?.cancel();
+    _detailsTimer?.cancel();
+    _scrollTimer?.cancel();
+    _print.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  // ── Animation helpers ─────────────────────────────────────────────────────
+  // ── Print sequencing ──────────────────────────────────────────────────────
 
-  Animation<Offset> _slide(AnimationController c, Offset begin) =>
-      Tween<Offset>(
-        begin: begin,
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic));
+  /// The controller outlives this screen, so both models can still hold the
+  /// previous order until the fetches for this one land.
+  bool _isThisOrder(OrderModel? m) =>
+      m != null && m.id != null && m.id.toString() == orderId;
 
-  Animation<double> _fade(AnimationController c) => Tween<double>(
-    begin: 0.0,
-    end: 1.0,
-  ).animate(CurvedAnimation(parent: c, curve: Curves.easeOut));
-
-  Animation<double> _scaleElastic(AnimationController c) => Tween<double>(
-    begin: 0.6,
-    end: 1.0,
-  ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut));
-
-  // ── Date formatters ───────────────────────────────────────────────────────
-
-  String _formatDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return '';
-    try {
-      DateTime dt;
-      try {
-        dt = DateFormat('yyyy-MM-dd HH:mm:ss').parse(dateStr);
-      } catch (_) {
-        dt = DateTime.parse(dateStr);
-      }
-      return DateFormat('EEE, dd MMM yyyy  ·  h:mm a').format(dt);
-    } catch (_) {
-      return dateStr;
-    }
+  List<OrderDetailsModel>? _detailsFor(OrderController oc) {
+    final details = oc.orderDetails;
+    if (details == null || details.isEmpty) return details;
+    return details.first.orderId?.toString() == orderId ? details : null;
   }
 
-  String _paymentMethodLabel(String? method) {
-    switch (method) {
-      case 'cash_on_delivery':
-        return 'Cash on delivery';
-      case 'digital_payment':
-        return 'Online payment';
-      case 'partial_payment':
-        return 'Partial payment';
-      case 'wallet':
-        return 'Wallet';
-      default:
-        return method?.replaceAll('_', ' ').capitalize ?? '';
+  /// Starts the print once this order's receipt can be drawn in full, or once
+  /// [_detailsWait] runs out — whichever comes first.
+  void _maybeStartPrint(OrderController oc) {
+    if (_printScheduled || !mounted) return;
+    if (!_isThisOrder(oc.trackModel)) return;
+    if (_detailsFor(oc) == null && !_detailsWaitExpired) {
+      _detailsTimer ??= Timer(_detailsWait, () {
+        _detailsWaitExpired = true;
+        if (mounted) _maybeStartPrint(Get.find<OrderController>());
+      });
+      return;
     }
+    _printScheduled = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _print.value = 1;
+      return;
+    }
+    _printTimer = Timer(_printDelay, () {
+      if (mounted) _print.forward();
+    });
   }
 
-  String _orderStatusMessage(dynamic order) {
-    final status = order.orderStatus ?? 'pending';
-    final storeName = order.store?.name ?? '';
-    switch (status) {
-      case 'pending':
-        return storeName.isNotEmpty
-            ? '$storeName ${'is_reviewing_your_order'.tr}'
-            : 'your_order_is_being_reviewed'.tr;
-      case 'confirmed':
-      case 'accepted':
-        return storeName.isNotEmpty
-            ? '$storeName ${'is_preparing_your_order'.tr}'
-            : 'preparing_your_order'.tr;
-      case 'processing':
-        return storeName.isNotEmpty
-            ? '$storeName ${'is_preparing_your_order'.tr}'
-            : 'preparing_your_order'.tr;
-      default:
-        return storeName.isNotEmpty
-            ? '$storeName ${'is_preparing_your_order'.tr}'
-            : 'preparing_your_order'.tr;
-    }
+  /// Tap anywhere on the paper to tear it off early.
+  void _skipPrint() {
+    if (!_printScheduled || _done) return;
+    _printTimer?.cancel();
+    _print.stop();
+    _print.value = 1;
   }
 
-  /// ETA chip: shows backend ETA range when available (after confirmed),
-  /// falls back to store's static delivery time, or nothing if neither exists.
-  Widget _buildEtaChip(dynamic order, Color primary) {
-    // 1. Backend estimated_delivery_at (set after store confirms)
-    if (order.estimatedDelivery != null &&
-        order.estimatedDelivery!.isNotEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingSizeMedium,
-          vertical: Dimensions.paddingSizeSmall,
-        ),
-        decoration: BoxDecoration(
-          color: primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
-          border: Border.all(color: primary.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.schedule_rounded, size: 15, color: primary),
-            const SizedBox(width: 6),
-            Text(
-              '${'estimated_delivery'.tr}: ${order.estimatedDelivery}',
-              style: waddyMedium.copyWith(fontSize: 12, color: primary),
-            ),
-          ],
-        ),
+  void _onPrinted() {
+    if (!mounted || _done) return;
+    setState(() => _done = true);
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    _scrollTimer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 900),
+        curve: WaddyMotion.easeInOut,
       );
-    }
-    // 2. Fallback: store's static delivery time (rough estimate while pending)
-    final storeTime = order.store?.deliveryTime;
-    if (storeTime != null && storeTime.isNotEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.paddingSizeMedium,
-          vertical: Dimensions.paddingSizeSmall,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.schedule_rounded, size: 15, color: Colors.grey.shade600),
-            const SizedBox(width: 6),
-            Text(
-              '${'estimated_delivery'.tr}: $storeTime ',
-              style: waddyMedium.copyWith(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    return const SizedBox.shrink();
+    });
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -346,18 +266,18 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
   @override
   Widget build(BuildContext context) {
     final Color primary = Theme.of(context).primaryColor;
-    final Color accent = Theme.of(context).secondaryHeaderColor;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult:
           (_, __) async => Get.offAllNamed(RouteHelper.getInitialRoute()),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F8F5),
+        backgroundColor: WaddyColors.surfaceRaised,
         appBar: null,
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
         body: SafeArea(
+          bottom: false,
           child: GetBuilder<OrderController>(
             builder: (oc) {
               double loyaltyPts = 0;
@@ -376,17 +296,23 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                     oc.trackModel!.paymentMethod == 'partial_payment';
                 parcel = oc.trackModel!.paymentMethod == 'parcel';
 
-                for (ZoneData z
-                    in AddressHelper.getUserAddressFromSharedPref()!
-                        .zoneData!) {
-                  for (Modules m in z.modules!) {
-                    if (m.id == Get.find<SplashController>().module!.id) {
-                      maxCod = m.pivot!.maximumCodOrderAmount;
+                // This screen stays in the stack after the user goes home,
+                // where no module is selected; rebuilds from OrderController
+                // then crashed on `module!`. Fall back to the order's module.
+                final address = AddressHelper.getUserAddressFromSharedPref();
+                final int? moduleId = Get.find<SplashController>().module?.id;
+                for (ZoneData z in address?.zoneData ?? const <ZoneData>[]) {
+                  for (Modules m in z.modules ?? const <Modules>[]) {
+                    final bool isOrderModule =
+                        moduleId != null
+                            ? m.id == moduleId
+                            : m.moduleType == oc.trackModel!.moduleType;
+                    if (isOrderModule) {
+                      maxCod = m.pivot?.maximumCodOrderAmount;
                       break;
                     }
                   }
-                  if (z.id ==
-                      AddressHelper.getUserAddressFromSharedPref()!.zoneId) {
+                  if (z.id == address?.zoneId) {
                     _isCashOnDeliveryActive = z.cashOnDelivery;
                   }
                 }
@@ -410,16 +336,17 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
                   });
                 }
 
-                WidgetsBinding.instance.addPostFrameCallback(
-                  (_) => _startAnimations(),
-                );
+                if (success) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _maybeStartPrint(oc),
+                  );
+                }
               }
 
-              if (oc.trackModel == null) {
-                return Center(child: CircularProgressIndicator(color: primary));
-              }
               if (!success) return _failureView(primary, loyaltyPts);
-              return _successView(context, oc, loyaltyPts, primary, accent);
+              // Until this order's track lands, the empty printer slot is the
+              // loading state — the receipt feeding out of it is the reveal.
+              return _successView(oc, loyaltyPts);
             },
           ),
         ),
@@ -469,634 +396,263 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
 
   // ── Success view ──────────────────────────────────────────────────────────
 
-  Widget _successView(
-    BuildContext ctx,
-    OrderController oc,
-    double loyaltyPts,
-    Color primary,
-    Color accent,
-  ) {
-    final order = oc.trackModel!;
-    final details = oc.orderDetails;
+  Widget _successView(OrderController oc, double loyaltyPts) {
+    final OrderModel? order =
+        _isThisOrder(oc.trackModel) ? oc.trackModel : null;
+    final double bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    final double total = order.orderAmount ?? 0;
-    final double tax = order.totalTaxAmount ?? 0;
-    final double tips = order.dmTips ?? 0;
-    final double delivery = order.deliveryCharge ?? 0;
-    final double subtotal = total - tax - tips - delivery;
-
-    final bool showRewards =
-        Get.find<SplashController>().configModel.loyaltyPointStatus == 1 &&
-        loyaltyPts.floor() > 0 &&
-        AuthHelper.isLoggedIn();
-
-    final xpCtrl = Get.find<XpController>();
+    // The cart's own per-line estimate, handed over at checkout. The
+    // fallback (an order not placed from the cart) estimates on the order
+    // total, which includes delivery and tax and so reads high (X-23).
+    final XpController xpController = Get.find<XpController>();
     final int xp =
-        AuthHelper.isLoggedIn()
-            ? xpCtrl.calculateEstimatedXp(
-              total,
-              Get.find<SplashController>().module?.moduleType,
-            )
+        order != null && AuthHelper.isLoggedIn()
+            ? (xpController.lastOrderXpEstimate ??
+                xpController.calculateEstimatedXp(
+                  order.orderAmount ?? 0,
+                  Get.find<SplashController>().module?.moduleType,
+                ))
             : 0;
 
-    final challenges = xpCtrl.challengeModel;
-    final List<Challenge> orderChallenges = [];
-    if (challenges != null) {
-      for (final c in [
-        ...challenges.dailyChallenges,
-        ...challenges.weeklyChallenges,
-      ]) {
-        if (c.actionType == 'order' || c.actionType == 'spend') {
-          orderChallenges.add(c);
-        }
-      }
-    }
-
-    final String orderNumber = '#${order.id ?? orderId}';
-    final String dateFormatted = _formatDate(order.createdAt);
-    final String paymentMethod = _paymentMethodLabel(order.paymentMethod);
-    final String? storeLogo = order.store?.logoFullUrl;
-
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: _body(
-              ctx,
-              order,
-              details,
-              storeLogo,
-              orderNumber,
-              dateFormatted,
-              paymentMethod,
-              subtotal,
-              tax,
-              tips,
-              delivery,
-              total,
-              showRewards,
-              loyaltyPts,
-              xp,
-              orderChallenges,
-              primary,
-              accent,
-            ),
-          ),
-        ),
-
-        // ── Bottom buttons ──
-        SlideTransition(
-          position: _slide(_buttonAnim, const Offset(0, 1)),
-          child: FadeTransition(
-            opacity: _fade(_buttonAnim),
-            child: Container(
-              color: const Color(0xFFF2F8F5),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CustomButton(
-                        buttonText: 'track_order'.tr,
-                        textColor: Colors.white,
-                        onPressed: () {
-                          if (AuthHelper.isLoggedIn()) {
-                            Get.find<AuthController>().saveEarningPoint(
-                              loyaltyPts.toStringAsFixed(0),
-                            );
-                          }
-                          Get.offAllNamed(
-                            RouteHelper.getOrderDetailsRoute(
-                              int.tryParse(orderId ?? ''),
-                              contactNumber: widget.contactPersonNumber,
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      CustomButton(
-                        buttonText: 'back_to_home'.tr,
-                        transparent: true,
-                        onPressed: () {
-                          if (AuthHelper.isLoggedIn()) {
-                            Get.find<AuthController>().saveEarningPoint(
-                              loyaltyPts.toStringAsFixed(0),
-                            );
-                          }
-                          Get.offAllNamed(RouteHelper.getInitialRoute());
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Body ──────────────────────────────────────────────────────────────────
-
-  Widget _body(
-    BuildContext ctx,
-    dynamic order,
-    List<OrderDetailsModel>? details,
-    String? storeLogo,
-    String orderNumber,
-    String dateFormatted,
-    String paymentMethod,
-    double subtotal,
-    double tax,
-    double tips,
-    double delivery,
-    double total,
-    bool showRewards,
-    double loyaltyPts,
-    int xp,
-    List<Challenge> orderChallenges,
-    Color primary,
-    Color accent,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeDefault,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 32),
-
-          // ── Hero: Lottie + confirmation text ──
-          SlideTransition(
-            position: _slide(_heroAnim, const Offset(0, -0.2)),
-            child: FadeTransition(
-              opacity: _fade(_heroAnim),
+        // ── Paper ──
+        Positioned.fill(
+          top: _slotBottom - _slotOverlap,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _skipPrint,
+            child: SingleChildScrollView(
+              controller: _scroll,
+              physics:
+                  _done
+                      ? const BouncingScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ── Checkmark + title inline ──
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 20,
+                  if (order != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Dimensions.paddingSizeExtremeLarge,
+                      ),
+                      child: AnimatedBuilder(
+                        animation: _feed,
+                        builder:
+                            (context, child) => FractionalTranslation(
+                              translation: Offset(0, _feed.value - 1),
+                              child: child,
+                            ),
+                        child: OrderReceiptWidget(
+                          order: order,
+                          details: _detailsFor(oc),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'order_confirmed'.tr,
-                        style: waddyBold.copyWith(
-                          fontSize: 22,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'your_order_is_confirmed'.tr,
-                    style: waddyRegular.copyWith(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: Colors.black45,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  // ── Status message ──
-                  Text(
-                    _orderStatusMessage(order),
-                    style: waddyRegular.copyWith(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: Colors.black54,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  // ── Estimated delivery chip with icon ──
-                  // Shows ETA range when backend provides it (after store confirms),
-                  // otherwise shows store's static delivery time as rough estimate.
-                  _buildEtaChip(order, primary),
-                  const SizedBox(height: 12),
-                  Text(
-                    orderNumber,
-                    style: waddyBold.copyWith(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
-                  ),
+                  if (order != null) _thanks(order, xp, bottomInset),
                 ],
               ),
             ),
           ),
+        ),
 
-          const SizedBox(height: 28),
-
-          // ── Order card ──
-          SlideTransition(
-            position: _slide(_cardAnim, const Offset(0, 0.15)),
-            child: FadeTransition(
-              opacity: _fade(_cardAnim),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(
-                    Dimensions.radiusExtraLarge,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Card header: store + date + payment ──
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                      child: Row(
-                        children: [
-                          if (storeLogo != null && storeLogo.isNotEmpty) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                Dimensions.radiusDefault,
-                              ),
-                              child: CustomImage(
-                                image: storeLogo,
-                                height: 48,
-                                width: 48,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                          ],
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (dateFormatted.isNotEmpty)
-                                  Text(
-                                    dateFormatted,
-                                    style: waddyRegular.copyWith(
-                                      fontSize: 12,
-                                      height: 1.4,
-                                      color: Colors.black45,
-                                    ),
-                                  ),
-                                if (paymentMethod.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    paymentMethod,
-                                    style: waddyMedium.copyWith(
-                                      fontSize: 13,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Divider ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Dimensions.paddingSizeExtraLarge,
-                        vertical: Dimensions.paddingSizeLarge,
-                      ),
-                      child: Container(
-                        height: 1,
-                        color: const Color(0xFFEEEEEE),
-                      ),
-                    ),
-
-                    // ── Items ──
-                    if (details != null && details.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Dimensions.paddingSizeExtraLarge,
-                        ),
-                        child: Column(
-                          children: [
-                            ...details.asMap().entries.map(
-                              (e) => Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: e.key < details.length - 1 ? 16 : 0,
-                                ),
-                                child: _itemRow(e.value),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Dimensions.paddingSizeExtraLarge,
-                          vertical: Dimensions.paddingSizeLarge,
-                        ),
-                        child: Container(
-                          height: 1,
-                          color: const Color(0xFFEEEEEE),
-                        ),
-                      ),
-                    ],
-
-                    // ── Price breakdown ──
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Dimensions.paddingSizeExtraLarge,
-                      ),
-                      child: Column(
-                        children: [
-                          _priceRow(
-                            'subtotal'.tr,
-                            PriceConverter.convertPrice(
-                              subtotal > 0 ? subtotal : total - tax,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _priceRow('tax'.tr, PriceConverter.convertPrice(tax)),
-                          if (tips > 0) ...[
-                            const SizedBox(height: 12),
-                            _priceRow(
-                              'staff_tip'.tr,
-                              PriceConverter.convertPrice(tips),
-                            ),
-                          ],
-                          if (delivery > 0) ...[
-                            const SizedBox(height: 12),
-                            _priceRow(
-                              'delivery'.tr,
-                              PriceConverter.convertPrice(delivery),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    // ── Total ──
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                      child: Container(
-                        height: 1,
-                        color: const Color(0xFFEEEEEE),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'total'.tr,
-                            style: waddyBold.copyWith(
-                              fontSize: 16,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          Text(
-                            PriceConverter.convertPrice(total),
-                            style: waddyBold.copyWith(
-                              fontSize: 16,
-                              color: Colors.black87,
-                            ),
-                            textDirection: TextDirection.ltr,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── Rewards section ──
-                    if (showRewards || orderChallenges.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                        child: Text(
-                          'rewards'.tr.toUpperCase(),
-                          style: waddyMedium.copyWith(
-                            fontSize: 11,
-                            letterSpacing: 2,
-                            color: Colors.black38,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      if (showRewards)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Dimensions.paddingSizeExtraLarge,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                '+${loyaltyPts.floor()} ${'points'.tr}',
-                                style: waddyBold.copyWith(
-                                  color: accent,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'loyalty_reward'.tr,
-                                  style: waddyRegular.copyWith(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ...orderChallenges.map(
-                        (c) => Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-                          child: Row(
-                            children: [
-                              Text(
-                                '+1 ${'stamp'.tr}',
-                                style: waddyBold.copyWith(
-                                  color: accent,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  c.title,
-                                  style: waddyRegular.copyWith(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-                  ],
+        // ── Slot shade: the paper darkens as it slides under the lip ──
+        const Positioned(
+          top: _slotBottom - _slotOverlap,
+          left: 0,
+          right: 0,
+          height: 14,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0x38134E4A), Color(0x00134E4A)],
                 ),
               ),
             ),
           ),
+        ),
 
-          // ── XP pill ──
-          if (xp > 0)
-            FadeTransition(
-              opacity: _fade(_xpAnim),
-              child: ScaleTransition(
-                scale: _scaleElastic(_xpAnim),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    top: Dimensions.paddingSizeMedium,
-                  ),
-                  child: _xpPill(xp, primary, accent),
-                ),
-              ),
+        // ── Printer ──
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              Dimensions.paddingSizeMedium,
+              6,
+              Dimensions.paddingSizeMedium,
+              0,
             ),
+            child: ReceiptPrinterSlot(),
+          ),
+        ),
 
-          // ── Thank you ──
-          FadeTransition(
-            opacity: _fade(_xpAnim),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                'thank_you'.tr,
-                style: waddyRegular.copyWith(
-                  fontSize: 13,
-                  color: Colors.black38,
-                ),
-              ),
+        // ── CTAs ──
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: IgnorePointer(
+            ignoring: !_done,
+            child: _reveal(
+              slide: 0.12,
+              curve: const Interval(0.25, 1, curve: WaddyMotion.easeOut),
+              duration: const Duration(milliseconds: 600),
+              child: _ctas(loyaltyPts, bottomInset),
             ),
           ),
+        ),
+      ],
+    );
+  }
 
-          // Account creation
-          if (widget.createAccount!) ...[
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('and_create_account_successfully'.tr, style: waddyMedium),
-                InkWell(
-                  onTap:
-                      () => Get.toNamed(
-                        RouteHelper.getSignInRoute(RouteHelper.splash),
-                      ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(
-                      Dimensions.paddingSizeExtraSmall,
-                    ),
-                    child: Text(
-                      'sign_in'.tr,
-                      style: waddyMedium.copyWith(
-                        color: Theme.of(ctx).primaryColor,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-
-          // Guest order ID (guest mode disabled)
-          const SizedBox(height: 32),
-        ],
+  /// Fades and lifts [child] into place once the receipt has printed.
+  Widget _reveal({
+    required Widget child,
+    required double slide,
+    Curve curve = WaddyMotion.easeOut,
+    Duration duration = const Duration(milliseconds: 500),
+  }) {
+    return AnimatedOpacity(
+      opacity: _done ? 1 : 0,
+      duration: duration,
+      curve: curve,
+      child: AnimatedSlide(
+        offset: _done ? Offset.zero : Offset(0, slide),
+        duration: duration,
+        curve: curve,
+        child: child,
       ),
     );
   }
 
-  // ── XP pill ───────────────────────────────────────────────────────────────
+  Widget _thanks(OrderModel order, int xp, double bottomInset) {
+    final String? eta = order.estimatedDelivery ?? order.store?.deliveryTime;
 
-  Widget _xpPill(int xp, Color primary, Color accent) {
+    return _reveal(
+      slide: 0.06,
+      child: Padding(
+        // Bottom room so the last line can scroll clear of the CTA stack.
+        padding: EdgeInsets.fromLTRB(
+          Dimensions.paddingSizeDefault,
+          Dimensions.paddingSizeExtraOverLarge,
+          Dimensions.paddingSizeDefault,
+          190 + bottomInset,
+        ),
+        child: Column(
+          children: [
+            Text(
+              'thanks_for_your_order'.tr,
+              textAlign: TextAlign.center,
+              style: waddyDisplayFace(
+                44,
+                weight: FontWeight.w900,
+                height: 0.95,
+                color: WaddyColors.primary,
+              ),
+            ),
+            if (eta != null && eta.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.paddingSizeMedium),
+              Text(
+                '${'arriving_in'.tr.capitalizeFirst} $eta',
+                textAlign: TextAlign.center,
+                style: waddyBold.copyWith(
+                  fontSize: Dimensions.fontSizeDefault,
+                  fontWeight: FontWeight.w600,
+                  color: WaddyColors.inkMid,
+                ),
+              ),
+            ],
+            if (xp > 0) ...[
+              const SizedBox(height: Dimensions.paddingSizeExtraLarge),
+              _xpChip(xp),
+            ],
+            // The printed card is in the bag: a bar under the XP chip, in its
+            // style (docs/scratch_card_plan.md §3a).
+            if (order.orderType != 'parcel' && ScratchCardBadge.inBags) ...[
+              SizedBox(
+                height:
+                    xp > 0
+                        ? Dimensions.paddingSizeMedium
+                        : Dimensions.paddingSizeExtraLarge,
+              ),
+              const ScratchCardBar(moment: ScratchTeaserMoment.placed),
+            ],
+            if (widget.createAccount!) ...[
+              const SizedBox(height: Dimensions.paddingSizeMedium),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'and_create_account_successfully'.tr,
+                    style: waddyMedium,
+                  ),
+                  InkWell(
+                    onTap:
+                        () => Get.toNamed(
+                          RouteHelper.getSignInRoute(RouteHelper.splash),
+                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        Dimensions.paddingSizeExtraSmall,
+                      ),
+                      child: Text(
+                        'sign_in'.tr,
+                        style: waddyMedium.copyWith(color: WaddyColors.primary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _xpChip(int xp) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeDefault,
+        horizontal: Dimensions.paddingSizeMedium,
         vertical: Dimensions.paddingSizeMedium,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            accent.withValues(alpha: 0.15),
-            accent.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+        color: WaddyColors.mintSurface,
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        border: Border.all(
+          color: WaddyColors.mint.withValues(alpha: 0.5),
+          width: 1.5,
         ),
-        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Lottie.asset(
-            'assets/animation/waddi_coins.json',
-            width: 36,
-            height: 36,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'xp_earned'.tr,
-                      style: waddyBold.copyWith(fontSize: 14, color: primary),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          '+$xp XP ',
-                          style: waddyBold.copyWith(
-                            fontSize: 18,
-                            color: primary,
-                          ),
-                        ),
-                        Image.asset(
-                          'assets/image/waddy_coin.png',
-                          width: 18,
-                          height: 18,
-                        ),
-                      ],
-                    ),
-                  ],
+          Image.asset('assets/image/waddy_coin.png', width: 24, height: 24),
+          const SizedBox(width: Dimensions.paddingSizeSmall),
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                style: waddyMedium.copyWith(
+                  fontSize: Dimensions.fontSizeSmall,
+                  color: WaddyColors.mintInk,
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  'closer_to_next_level'.tr,
-                  style: waddyRegular.copyWith(
-                    fontSize: 12,
-                    color: Colors.black45,
+                children: [
+                  TextSpan(
+                    text: '${'you_will_earn'.tr} $xp XP',
+                    style: waddyBold.copyWith(
+                      fontSize: 15,
+                      color: WaddyColors.mintInk,
+                    ),
                   ),
-                ),
-              ],
+                  TextSpan(text: ' ${'earn_with_order'.tr}'),
+                ],
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -1104,110 +660,67 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     );
   }
 
-  // ── Item row ──────────────────────────────────────────────────────────────
+  Widget _ctas(double loyaltyPts, double bottomInset) {
+    void saveEarning() {
+      if (AuthHelper.isLoggedIn()) {
+        Get.find<AuthController>().saveEarningPoint(
+          loyaltyPts.toStringAsFixed(0),
+        );
+      }
+    }
 
-  Widget _itemRow(OrderDetailsModel d) {
-    final String name = d.itemDetails?.name ?? '';
-    final int qty = d.quantity ?? 1;
-    final double price = (d.price ?? 0) * qty;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F8F5),
-            borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '$qty',
-            style: waddyMedium.copyWith(fontSize: 13, color: Colors.black54),
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            WaddyColors.surfaceRaised.withValues(alpha: 0),
+            WaddyColors.surfaceRaised,
+          ],
+          stops: const [0, 0.3],
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: waddyMedium.copyWith(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: Colors.black87,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (d.addOns != null && d.addOns!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                ...d.addOns!.map(
-                  (a) => Padding(
-                    padding: const EdgeInsets.only(
-                      top: Dimensions.paddingSizeExtraSmall,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '+ ${a.name ?? ''}',
-                            style: waddyRegular.copyWith(
-                              fontSize: 12,
-                              height: 1.4,
-                              color: Colors.black38,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          PriceConverter.convertPrice(
-                            (a.price ?? 0) * (a.quantity ?? 1),
-                          ),
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: Colors.black38,
-                          ),
-                          textDirection: TextDirection.ltr,
-                        ),
-                      ],
-                    ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          Dimensions.paddingSizeDefault,
+          Dimensions.paddingSizeExtraLarge,
+          Dimensions.paddingSizeDefault,
+          Dimensions.paddingSizeDefault + bottomInset,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomButton(
+              buttonText: 'track_order'.tr,
+              height: 54,
+              radius: 999,
+              fontSize: Dimensions.fontSizeDefault + 2,
+              onPressed: () {
+                saveEarning();
+                Get.offAllNamed(
+                  RouteHelper.getOrderDetailsRoute(
+                    int.tryParse(orderId ?? ''),
+                    contactNumber: widget.contactPersonNumber,
                   ),
-                ),
-              ],
-            ],
-          ),
+                );
+              },
+            ),
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            CustomButton(
+              buttonText: 'back_to_home'.tr,
+              transparent: true,
+              height: 50,
+              radius: 999,
+              fontSize: Dimensions.fontSizeDefault + 1,
+              onPressed: () {
+                saveEarning();
+                Get.offAllNamed(RouteHelper.getInitialRoute());
+              },
+            ),
+          ],
         ),
-        const SizedBox(width: 14),
-        Text(
-          PriceConverter.convertPrice(price),
-          style: waddyMedium.copyWith(fontSize: 15, color: Colors.black87),
-          textDirection: TextDirection.ltr,
-        ),
-      ],
-    );
-  }
-
-  // ── Price row ─────────────────────────────────────────────────────────────
-
-  Widget _priceRow(
-    String label,
-    String value, {
-    TextStyle? labelStyle,
-    TextStyle? valueStyle,
-  }) {
-    final ts = waddyRegular.copyWith(
-      fontSize: 14,
-      height: 1.5,
-      color: Colors.black54,
-    );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: labelStyle ?? ts),
-        Text(value, style: valueStyle ?? ts, textDirection: TextDirection.ltr),
-      ],
+      ),
     );
   }
 }

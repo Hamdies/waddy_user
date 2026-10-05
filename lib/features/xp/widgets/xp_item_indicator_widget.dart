@@ -61,8 +61,8 @@ class XpItemIndicatorWidget extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF134E4A).withOpacity(0.9),
-                const Color(0xFF0D7377).withOpacity(0.9),
+                const Color(0xFF134E4A).withValues(alpha: 0.9),
+                const Color(0xFF0D7377).withValues(alpha: 0.9),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,

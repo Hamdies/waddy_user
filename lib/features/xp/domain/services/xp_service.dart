@@ -3,7 +3,6 @@ import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 import 'package:waddy_app/features/xp/domain/repositories/xp_repository_interface.dart';
 import 'package:waddy_app/features/xp/domain/services/xp_service_interface.dart';
@@ -55,10 +54,6 @@ class XpService implements XpServiceInterface {
     return await xpRepositoryInterface.getXpConfig();
   }
 
-  @override
-  Future<XpHistoryModel?> getHistory({int limit = 20, int offset = 0}) async {
-    return await xpRepositoryInterface.getHistory(limit: limit, offset: offset);
-  }
 
   @override
   Future<XpLeaderboardModel?> getLeaderboard({

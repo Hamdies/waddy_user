@@ -28,15 +28,18 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_dropdown.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
-import 'package:waddy_app/common/widgets/footer_view.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/common/widgets/not_logged_in_screen.dart';
 import 'package:waddy_app/helper/guest_gate_helper.dart';
 import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/features/checkout/widgets/checkout_screen_shimmer_view.dart';
 import 'package:waddy_app/features/checkout/widgets/payment_method_bottom_sheet.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/checkout/widgets/bottom_section.dart';
+import 'package:waddy_app/features/checkout/widgets/checkout_bottom_bar.dart';
+import 'package:waddy_app/features/checkout/widgets/checkout_header.dart';
+import 'package:waddy_app/features/cart/widgets/basket_top_bar.dart';
 import 'package:waddy_app/features/checkout/widgets/top_section.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:flutter/material.dart';
@@ -64,20 +67,20 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   final ScrollController _scrollController = ScrollController();
   final JustTheController tooltipController1 = JustTheController();
   final JustTheController tooltipController2 = JustTheController();
-  final JustTheController tooltipController3 = JustTheController();
+
+  /// On the "Pay with" heading; the bottom bar scrolls it into view.
+  final GlobalKey _payWithKey = GlobalKey();
 
   // CS-01, partially open. The pricing that used to be computed in `build()`
   // is a `CheckoutPricing` snapshot now, and the three tooltip fields that
-  // went with it are locals. These four remain State because, unlike those,
+  // went with it are locals. These remain State because, unlike those,
   // they are genuinely read outside the `build()` that writes them —
   // `_setSinglePaymentActive` and the place-order handler both consult them.
   //
-  // Making them locals means threading four more values through
-  // `_buildBottomPlaceOrderButton` and `_orderPlaceButton`, which already take
-  // eleven positional parameters each. They belong on `CheckoutController`
+  // Making them locals means threading more values through
+  // `_placeOrderHandler`, which already takes ten positional parameters. They belong on `CheckoutController`
   // with the rest of the order's options; that is Phase 5's shape, not a
   // by-product of the pricing move.
-  double? _taxPercent = 0;
   bool? _isCashOnDeliveryActive = false;
   bool? _isDigitalPaymentActive = false;
   bool _isOfflinePaymentActive = false;
@@ -107,6 +110,14 @@ class CheckoutScreenState extends State<CheckoutScreen> {
   bool _firstTimeCheckPayment = false;
   bool _calledOrderTax = false;
   bool _authPromptLogged = false;
+
+  /// The remembered payment method is restored once per checkout, on the
+  /// first build that has the store — after that the customer's taps rule.
+  bool _triedRestorePayment = false;
+
+  /// Bumped to make the "Pay with" card pulse after the bottom bar scrolls
+  /// to it.
+  final ValueNotifier<int> _payAttention = ValueNotifier(0);
 
   @override
   void initState() {
@@ -167,6 +178,11 @@ class CheckoutScreenState extends State<CheckoutScreen> {
       widget.fromCart
           ? _cartList!.addAll(Get.find<CartController>().cartList)
           : _cartList!.addAll(widget.cartList!);
+      // Only the cart's own coupon carries over. A buy-now basket is a
+      // different basket, even at the same store.
+      if (!widget.fromCart) {
+        Get.find<CouponController>().removeCouponData(false);
+      }
       if (_cartList != null && _cartList!.isNotEmpty) {
         await Get.find<CheckoutController>().initCheckoutData(
           _cartList![0]!.item!.storeId,
@@ -246,6 +262,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    _payAttention.dispose();
     super.dispose();
 
     guestContactPersonNameController.dispose();
@@ -258,29 +275,16 @@ class CheckoutScreenState extends State<CheckoutScreen> {
         Get.find<SplashController>().configModel.moduleConfig!.module;
     bool isLoggedIn = AuthHelper.isLoggedIn();
 
-    final Color primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
-      backgroundColor: WaddyColors.canvas,
-      appBar: AppBar(
-        backgroundColor: WaddyColors.surface,
-        elevation: 0.5,
-        surfaceTintColor: WaddyColors.surface,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_rounded,
-            size: 20,
-            color: primaryColor,
-          ),
-          onPressed: () => Get.back(),
-        ),
-        centerTitle: true,
-        title: Text(
-          'checkout'.tr,
-          style: waddyBold.copyWith(fontSize: 18, color: WaddyColors.ink),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: WaddyColors.divider),
+      backgroundColor: WaddyColors.surface,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kBasketHeaderHeight),
+        child: GetBuilder<CheckoutController>(
+          builder:
+              (checkoutController) => CheckoutHeader(
+                storeName: checkoutController.store?.name,
+                cartList: _cartList,
+              ),
         ),
       ),
       endDrawer: const MenuDrawer(),
@@ -298,6 +302,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                     addressList: Get.find<AddressController>().addressList,
                     store: checkoutController.store,
                   );
+                  checkoutController.clampAddressIndex(address.length);
 
                   bool todayClosed = false;
                   bool tomorrowClosed = false;
@@ -320,6 +325,27 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             AddressHelper.getUserAddressFromSharedPref(),
                         checkoutController: checkoutController,
                       );
+                  if (!_triedRestorePayment &&
+                      checkoutController.store != null &&
+                      widget.storeId == null) {
+                    _triedRestorePayment = true;
+                    if (checkoutController.restorePaymentMethod(
+                      codActive: _isCashOnDeliveryActive ?? false,
+                      digitalActive: _isDigitalPaymentActive ?? false,
+                      offlineActive: _isOfflinePaymentActive,
+                      gateways: [
+                        for (final m
+                            in Get.find<SplashController>()
+                                    .configModel
+                                    .activePaymentMethodList ??
+                                [])
+                          if (m.getWay != null) m.getWay!,
+                      ],
+                    )) {
+                      // Don't let the single-gateway auto-pick override it.
+                      _firstTimeCheckPayment = true;
+                    }
+                  }
                   if (checkoutController.store != null) {
                     todayClosed = checkoutController.isStoreClosed(
                       true,
@@ -331,7 +357,6 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                       checkoutController.store!.active!,
                       checkoutController.store!.schedules,
                     );
-                    _taxPercent = checkoutController.store!.tax;
                   }
                   // Reads nothing off `xpController` directly, but the
                   // pricing below calls `_calcHelper.calculatePrice`, which
@@ -399,12 +424,20 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           final double price = pricing.price;
                           final double addOns = pricing.addOns;
                           final double variations = pricing.variations;
-                          final double extraDiscount = pricing.extraDiscount;
                           final double discount = pricing.discount;
                           final double subTotal = pricing.subTotal;
                           final double referralDiscount =
                               pricing.referralDiscount;
                           final double orderAmount = pricing.orderAmount;
+                          // What the server measures an XP prize's minimum
+                          // against: the subtotal *before* the coupon and
+                          // referral (PlaceNewOrder). `orderAmount` has both
+                          // taken off, which hid prizes the user qualified
+                          // for (X-24).
+                          final double prizeEligibleAmount =
+                              orderAmount +
+                              (Get.find<CouponController>().discount ?? 0) +
+                              referralDiscount;
 
                           // Deferred out of the build phase, not delayed.
                           // This was `Future.delayed(50ms)` — enough to get a
@@ -525,16 +558,12 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                             }
                           });
 
-                          final double originalCharge =
-                              pricing.originalDeliveryCharge;
                           final double deliveryCharge = pricing.deliveryCharge;
-                          // CS-01 / CS-09: locals, not State. These were three
+                          // CS-01 / CS-09: locals, not State. These were
                           // fields written from `build()` and read a few lines
                           // later in the same `build()` — never across frames —
                           // so the field was only ever a way to carry a value
                           // down the widget tree without naming it.
-                          final double badWeatherChargeForToolTip =
-                              pricing.badWeatherChargeForToolTip;
                           final double extraChargeForToolTip =
                               pricing.extraChargeForToolTip;
                           final bool isPassedVariationPrice =
@@ -588,6 +617,19 @@ class CheckoutScreenState extends State<CheckoutScreen> {
 
                           _setSinglePaymentActive();
 
+                          final VoidCallback? placeOrder = _placeOrderHandler(
+                            checkoutController,
+                            todayClosed,
+                            tomorrowClosed,
+                            orderAmount,
+                            subTotal,
+                            checkoutController.orderTax!,
+                            discount,
+                            total,
+                            maxCodOrderAmount,
+                            isPrescriptionRequired,
+                          );
+
                           // Gated on the store alone.
                           //
                           // This also required `distance != null`, which made
@@ -609,147 +651,123 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                           return (checkoutController.store != null)
                               ? Column(
                                 children: [
-                                  const SizedBox(),
+                                  CheckoutSavingsBanner(
+                                    storeName: checkoutController.store?.name,
+                                    amount:
+                                        discount +
+                                        (couponController.discount ?? 0) +
+                                        referralDiscount,
+                                  ),
 
                                   Expanded(
-                                    child: SingleChildScrollView(
-                                      controller: _scrollController,
-                                      physics: const BouncingScrollPhysics(),
-                                      child: FooterView(
-                                        child: SizedBox(
-                                          width: Dimensions.maxContentWidth,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              TopSection(
-                                                checkoutController:
-                                                    checkoutController,
-                                                charge: originalCharge,
-                                                deliveryCharge: deliveryCharge,
-                                                addressList: addressList,
-                                                tomorrowClosed: tomorrowClosed,
-                                                todayClosed: todayClosed,
-                                                module: module,
-                                                price: price,
-                                                discount: discount,
-                                                addOns: addOns,
-                                                address: address,
-                                                cartList: _cartList,
-                                                isCashOnDeliveryActive:
-                                                    _isCashOnDeliveryActive!,
-                                                isDigitalPaymentActive:
-                                                    _isDigitalPaymentActive!,
-                                                isWalletActive: _isWalletActive,
-                                                storeId: widget.storeId,
-                                                total: total,
-                                                isOfflinePaymentActive:
-                                                    _isOfflinePaymentActive,
-                                                guestNameTextEditingController:
-                                                    guestContactPersonNameController,
-                                                guestNumberTextEditingController:
-                                                    guestContactPersonNumberController,
-                                                guestNumberNode:
-                                                    guestNumberNode,
-                                                guestEmailController:
-                                                    guestEmailController,
-                                                guestEmailNode: guestEmailNode,
-                                                tooltipController1:
-                                                    tooltipController1,
-                                                tooltipController2:
-                                                    tooltipController2,
-                                                dmTipsTooltipController:
-                                                    tooltipController3,
-                                                guestPasswordController:
-                                                    guestPasswordController,
-                                                guestConfirmPasswordController:
-                                                    guestConfirmPasswordController,
-                                                guestPasswordNode:
-                                                    guestPasswordNode,
-                                                guestConfirmPasswordNode:
-                                                    guestConfirmPasswordNode,
-                                                variationPrice:
-                                                    isPassedVariationPrice
-                                                        ? variations
-                                                        : 0,
-                                                deliveryChargeForView:
-                                                    _deliveryChargeForView,
-                                                badWeatherCharge:
-                                                    badWeatherChargeForToolTip,
-                                                extraChargeForToolTip:
-                                                    extraChargeForToolTip,
-                                              ),
+                                    child: BasketScrollFade(
+                                      child: SingleChildScrollView(
+                                        controller: _scrollController,
+                                        physics: const BouncingScrollPhysics(),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          Dimensions.paddingSizeDefault,
+                                          Dimensions.paddingSizeMedium,
+                                          Dimensions.paddingSizeDefault,
+                                          Dimensions.paddingSizeExtraLarge,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            TopSection(
+                                              checkoutController:
+                                                  checkoutController,
+                                              deliveryCharge: deliveryCharge,
+                                              addressList: addressList,
+                                              tomorrowClosed: tomorrowClosed,
+                                              todayClosed: todayClosed,
+                                              module: module,
+                                              price: price,
+                                              discount: discount,
+                                              addOns: addOns,
+                                              address: address,
+                                              cartList: _cartList,
+                                              storeId: widget.storeId,
+                                              total: total,
+                                              guestNameTextEditingController:
+                                                  guestContactPersonNameController,
+                                              guestNumberTextEditingController:
+                                                  guestContactPersonNumberController,
+                                              guestNumberNode: guestNumberNode,
+                                              guestEmailController:
+                                                  guestEmailController,
+                                              guestEmailNode: guestEmailNode,
+                                              tooltipController1:
+                                                  tooltipController1,
+                                              tooltipController2:
+                                                  tooltipController2,
+                                              guestPasswordController:
+                                                  guestPasswordController,
+                                              guestConfirmPasswordController:
+                                                  guestConfirmPasswordController,
+                                              guestPasswordNode:
+                                                  guestPasswordNode,
+                                              guestConfirmPasswordNode:
+                                                  guestConfirmPasswordNode,
+                                              variationPrice:
+                                                  isPassedVariationPrice
+                                                      ? variations
+                                                      : 0,
+                                              deliveryChargeForView:
+                                                  _deliveryChargeForView,
+                                            ),
+                                            const SizedBox(
+                                              height:
+                                                  Dimensions.paddingSizeDefault,
+                                            ),
 
-                                              BottomSection(
-                                                checkoutController:
-                                                    checkoutController,
-                                                total: total,
-                                                module: module!,
-                                                subTotal: subTotal,
-                                                discount: discount,
-                                                couponController:
-                                                    couponController,
-                                                taxIncluded:
-                                                    (checkoutController
-                                                            .taxIncluded ==
-                                                        1),
-                                                tax:
-                                                    checkoutController
-                                                        .orderTax!,
-                                                deliveryCharge: deliveryCharge,
-                                                todayClosed: todayClosed,
-                                                tomorrowClosed: tomorrowClosed,
-                                                orderAmount: orderAmount,
-                                                maxCodOrderAmount:
-                                                    maxCodOrderAmount,
-                                                storeId: widget.storeId,
-                                                taxPercent: _taxPercent,
-                                                price: price,
-                                                addOns: addOns,
-                                                isPrescriptionRequired:
-                                                    isPrescriptionRequired,
-                                                checkoutButton:
-                                                    _orderPlaceButton(
-                                                      checkoutController,
-                                                      todayClosed,
-                                                      tomorrowClosed,
-                                                      orderAmount,
-                                                      subTotal,
-                                                      deliveryCharge,
-                                                      checkoutController
-                                                          .orderTax!,
-                                                      discount,
-                                                      total,
-                                                      maxCodOrderAmount,
-                                                      isPrescriptionRequired,
-                                                    ),
-                                                referralDiscount:
-                                                    referralDiscount,
-                                                variationPrice:
-                                                    isPassedVariationPrice
-                                                        ? variations
-                                                        : 0,
-                                                extraDiscount: extraDiscount,
-                                              ),
-                                            ],
-                                          ),
+                                            BottomSection(
+                                              checkoutController:
+                                                  checkoutController,
+                                              total: total,
+                                              module: module!,
+                                              subTotal: subTotal,
+                                              discount: discount,
+                                              itemDiscount:
+                                                  pricing.itemDiscount,
+                                              couponController:
+                                                  couponController,
+                                              taxIncluded:
+                                                  (checkoutController
+                                                          .taxIncluded ==
+                                                      1),
+                                              tax: checkoutController.orderTax!,
+                                              deliveryCharge: deliveryCharge,
+                                              orderAmount: prizeEligibleAmount,
+                                              storeId: widget.storeId,
+                                              isPrescriptionRequired:
+                                                  isPrescriptionRequired,
+                                              referralDiscount:
+                                                  referralDiscount,
+                                              isCashOnDeliveryActive:
+                                                  _isCashOnDeliveryActive!,
+                                              isDigitalPaymentActive:
+                                                  _isDigitalPaymentActive!,
+                                              isWalletActive: _isWalletActive,
+                                              isOfflinePaymentActive:
+                                                  _isOfflinePaymentActive,
+                                              extraChargeForToolTip:
+                                                  extraChargeForToolTip,
+                                              payWithKey: _payWithKey,
+                                              payAttention: _payAttention,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
                                   ),
 
-                                  _buildBottomPlaceOrderButton(
-                                    checkoutController,
-                                    todayClosed,
-                                    tomorrowClosed,
-                                    orderAmount,
-                                    subTotal,
-                                    deliveryCharge,
-                                    checkoutController.orderTax!,
-                                    discount,
-                                    total,
-                                    maxCodOrderAmount,
-                                    isPrescriptionRequired,
+                                  CheckoutBottomBar(
+                                    checkoutController: checkoutController,
+                                    address: address,
+                                    storeId: widget.storeId,
+                                    onPlaceOrder: placeOrder,
+                                    onChoosePayment: _scrollToPayWith,
                                   ),
                                 ],
                               )
@@ -765,7 +783,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                     () => Get.find<CheckoutController>()
                                         .initCheckoutData(
                                           widget.storeId ??
-                                              _cartList?.firstOrNull
+                                              _cartList
+                                                  ?.firstOrNull
                                                   ?.item
                                                   ?.storeId,
                                         ),
@@ -809,7 +828,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
             Icon(
               Icons.lock_outline_rounded,
               size: 64,
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
+              color: WaddyColors.primary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: Dimensions.paddingSizeLarge),
             Text(
@@ -823,7 +842,7 @@ class CheckoutScreenState extends State<CheckoutScreen> {
               textAlign: TextAlign.center,
               style: waddyRegular.copyWith(
                 fontSize: Dimensions.fontSizeSmall,
-                color: Theme.of(context).disabledColor,
+                color: WaddyColors.inkMuted,
               ),
             ),
             const SizedBox(height: Dimensions.paddingSizeExtraLarge),
@@ -846,53 +865,25 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildBottomPlaceOrderButton(
-    CheckoutController checkoutController,
-    bool todayClosed,
-    bool tomorrowClosed,
-    double orderAmount,
-    // CS-02: the order payload sends this as `order_amount`, matching the tax
-    // quote. Threaded through because the pricing lives in `build()` (CS-01);
-    // it becomes one field on the snapshot in Phase 2.
-    double subTotal,
-    double? deliveryCharge,
-    double tax,
-    double? discount,
-    double total,
-    double? maxCodOrderAmount,
-    bool isPrescriptionRequired,
-  ) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: WaddyColors.shadowDeep,
-            blurRadius: 12,
-            offset: Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: _orderPlaceButton(
-          checkoutController,
-          todayClosed,
-          tomorrowClosed,
-          orderAmount,
-          subTotal,
-          deliveryCharge,
-          tax,
-          discount,
-          total,
-          maxCodOrderAmount,
-          isPrescriptionRequired,
-        ),
-      ),
+  /// Brings "Pay with" into view — the bottom bar's answer to "no payment
+  /// method yet" and to tapping "Pay using".
+  Future<void> _scrollToPayWith() async {
+    final BuildContext? target = _payWithKey.currentContext;
+    if (target == null) return;
+    await Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+      alignment: 0.05,
     );
+    // Arrived — now point at what needs choosing.
+    _payAttention.value++;
   }
 
-  Widget _orderPlaceButton(
+  /// The place-order action, or null while it cannot run (terms not
+  /// accepted). Every guard below is unchanged; only the button that calls it
+  /// moved, into [CheckoutBottomBar].
+  VoidCallback? _placeOrderHandler(
     CheckoutController checkoutController,
     bool todayClosed,
     bool tomorrowClosed,
@@ -901,385 +892,336 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     // quote. Threaded through because the pricing lives in `build()` (CS-01);
     // it becomes one field on the snapshot in Phase 2.
     double subTotal,
-    double? deliveryCharge,
     double tax,
     double? discount,
     double total,
     double? maxCodOrderAmount,
     bool isPrescriptionRequired,
   ) {
-    return Container(
-      width: Dimensions.maxContentWidth,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(
-        vertical: Dimensions.paddingSizeSmall,
-        horizontal: Dimensions.paddingSizeLarge,
-      ),
-      child: SafeArea(
-        child: CustomButton(
-          isLoading: checkoutController.isLoading,
-          buttonText: 'place_order'.tr,
-          onPressed:
-              checkoutController.acceptTerms
-                  ? () {
-                    bool isAvailable = true;
-                    DateTime scheduleStartDate = DateTime.now();
-                    DateTime scheduleEndDate = DateTime.now();
-                    if (checkoutController.timeSlots == null ||
-                        checkoutController.timeSlots!.isEmpty) {
-                      isAvailable = false;
-                    } else {
-                      DateTime date =
-                          checkoutController.selectedDateSlot == 0
-                              ? DateTime.now()
-                              : DateTime.now().add(const Duration(days: 1));
-                      DateTime startTime =
-                          checkoutController
-                              .timeSlots![checkoutController.selectedTimeSlot]
-                              .startTime!;
-                      DateTime endTime =
-                          checkoutController
-                              .timeSlots![checkoutController.selectedTimeSlot]
-                              .endTime!;
-                      scheduleStartDate = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        startTime.hour,
-                        startTime.minute + 1,
-                      );
-                      scheduleEndDate = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        endTime.hour,
-                        endTime.minute + 1,
-                      );
-                      if (_cartList != null) {
-                        for (CartModel? cart in _cartList!) {
-                          if (!DateConverter.isAvailable(
-                                cart!.item!.availableTimeStarts,
-                                cart.item!.availableTimeEnds,
-                                time:
-                                    checkoutController.store!.scheduleOrder!
-                                        ? scheduleStartDate
-                                        : null,
-                              ) &&
-                              !DateConverter.isAvailable(
-                                cart.item!.availableTimeStarts,
-                                cart.item!.availableTimeEnds,
-                                time:
-                                    checkoutController.store!.scheduleOrder!
-                                        ? scheduleEndDate
-                                        : null,
-                              )) {
-                            isAvailable = false;
-                            break;
-                          }
-                        }
-                      }
-                    }
+    return checkoutController.acceptTerms
+        ? () {
+          bool isAvailable = true;
+          DateTime scheduleStartDate = DateTime.now();
+          DateTime scheduleEndDate = DateTime.now();
+          if (checkoutController.timeSlots == null ||
+              checkoutController.timeSlots!.isEmpty) {
+            isAvailable = false;
+          } else {
+            DateTime date =
+                checkoutController.selectedDateSlot == 0
+                    ? DateTime.now()
+                    : DateTime.now().add(const Duration(days: 1));
+            DateTime startTime =
+                checkoutController
+                    .timeSlots![checkoutController.selectedTimeSlot]
+                    .startTime!;
+            DateTime endTime =
+                checkoutController
+                    .timeSlots![checkoutController.selectedTimeSlot]
+                    .endTime!;
+            scheduleStartDate = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              startTime.hour,
+              startTime.minute + 1,
+            );
+            scheduleEndDate = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              endTime.hour,
+              endTime.minute + 1,
+            );
+            if (_cartList != null) {
+              for (CartModel? cart in _cartList!) {
+                if (!DateConverter.isAvailable(
+                      cart!.item!.availableTimeStarts,
+                      cart.item!.availableTimeEnds,
+                      time:
+                          checkoutController.store!.scheduleOrder!
+                              ? scheduleStartDate
+                              : null,
+                    ) &&
+                    !DateConverter.isAvailable(
+                      cart.item!.availableTimeStarts,
+                      cart.item!.availableTimeEnds,
+                      time:
+                          checkoutController.store!.scheduleOrder!
+                              ? scheduleEndDate
+                              : null,
+                    )) {
+                  isAvailable = false;
+                  break;
+                }
+              }
+            }
+          }
 
-                    // Zone gate FIRST — `checkoutGuard` only runs on the guest
-                    // LOG IN path above, so a logged-in user whose address is
-                    // out of zone (e.g. changed after the cart was built) would
-                    // otherwise walk this whole chain and place an order we
-                    // cannot fulfil. Read the getter, not `checkoutGuard`: this
-                    // chain is sync, the user is already past auth, and
-                    // `outOfServingZone` re-reads the saved address off disk on
-                    // every call, so it can never be stale at tap time.
-                    if (Get.find<LocationController>().outOfServingZone) {
-                      AnalyticsHelper.log('place_order_blocked_out_of_zone', {
-                        'auth_state':
-                            AuthHelper.isLoggedIn() ? 'user' : 'guest',
-                      });
-                      GuestGate.showNoDeliverySheet(source: 'checkout');
-                    } else if (isPrescriptionRequired &&
-                        checkoutController.pickedPrescriptions.isEmpty) {
-                      showCustomSnackBar(
-                        'you_must_upload_prescription_for_this_order'.tr,
-                      );
-                    } else if (!_isCashOnDeliveryActive! &&
-                        !_isDigitalPaymentActive! &&
-                        !_isWalletActive) {
-                      showCustomSnackBar('no_payment_method_is_enabled'.tr);
-                    } else if (checkoutController.paymentMethodIndex == -1) {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder:
-                            (con) => PaymentMethodBottomSheet(
-                              isCashOnDeliveryActive: _isCashOnDeliveryActive!,
-                              isDigitalPaymentActive: _isDigitalPaymentActive!,
-                              isWalletActive: _isWalletActive,
-                              storeId: widget.storeId,
-                              totalPrice: total,
-                              isOfflinePaymentActive: _isOfflinePaymentActive,
-                            ),
-                      );
-                    } else if (orderAmount <
-                            checkoutController.store!.minimumOrder! &&
-                        widget.storeId == null) {
-                      showCustomSnackBar(
-                        '${'minimum_order_amount_is'.tr} ${checkoutController.store!.minimumOrder}',
-                      );
-                    } else if (checkoutController
-                            .tipController
-                            .text
-                            .isNotEmpty &&
-                        checkoutController.tipController.text != 'not_now' &&
-                        double.parse(
-                              checkoutController.tipController.text.trim(),
-                            ) <
-                            0) {
-                      showCustomSnackBar('tips_can_not_be_negative'.tr);
-                    } else if ((checkoutController.selectedDateSlot == 0 &&
-                            todayClosed) ||
-                        (checkoutController.selectedDateSlot == 1 &&
-                            tomorrowClosed)) {
-                      showCustomSnackBar(
-                        Get.find<SplashController>()
-                                .configModel
-                                .moduleConfig!
-                                .module!
-                                .showRestaurantText!
-                            ? 'restaurant_is_closed'.tr
-                            : 'store_is_closed'.tr,
-                      );
-                    } else if (checkoutController.paymentMethodIndex == 0 &&
-                        _isCashOnDeliveryActive! &&
-                        maxCodOrderAmount != null &&
-                        maxCodOrderAmount != 0 &&
-                        (total > maxCodOrderAmount) &&
-                        widget.storeId == null) {
-                      showCustomSnackBar(
-                        '${'you_cant_order_more_then'.tr} ${PriceConverter.convertPrice(maxCodOrderAmount)} ${'in_cash_on_delivery'.tr}',
-                      );
-                    } else if (checkoutController.paymentMethodIndex != 0 &&
-                        widget.storeId != null) {
-                      showCustomSnackBar('payment_method_is_not_available'.tr);
-                    } else if (checkoutController.timeSlots == null ||
-                        checkoutController.timeSlots!.isEmpty) {
-                      if (checkoutController.store!.scheduleOrder!) {
-                        showCustomSnackBar('select_a_time'.tr);
-                      } else {
-                        showCustomSnackBar(
-                          Get.find<SplashController>()
-                                  .configModel
-                                  .moduleConfig!
-                                  .module!
-                                  .showRestaurantText!
-                              ? 'restaurant_is_closed'.tr
-                              : 'store_is_closed'.tr,
-                        );
-                      }
-                    } else if (!isAvailable) {
-                      showCustomSnackBar(
-                        'one_or_more_products_are_not_available_for_this_selected_time'
-                            .tr,
-                      );
-                    } else if (checkoutController.orderType != 'take_away' &&
-                        checkoutController.distance == -1) {
-                      // `distance == -1` alone now. This used to also require
-                      // `deliveryCharge == -1`, but the sentinel is absorbed
-                      // inside calculateDeliveryCharge so that it cannot leak
-                      // into the displayed total as a one-pound discount —
-                      // so that half of the condition could never fire again.
-                      //
-                      // The distance check is the real question anyway: a
-                      // delivery order whose distance has not resolved cannot
-                      // be priced, whatever the charge currently reads.
-                      showCustomSnackBar('delivery_fee_not_set_yet'.tr);
-                    } else if (widget.storeId != null &&
-                        checkoutController.pickedPrescriptions.isEmpty) {
-                      showCustomSnackBar(
-                        'please_upload_your_prescription_images'.tr,
-                      );
-                    } else if (!checkoutController.acceptTerms) {
-                      showCustomSnackBar(
-                        'please_accept_privacy_policy_trams_conditions_refund_policy_first'
-                            .tr,
-                      );
-                    } else {
-                      AddressModel finalAddress =
-                          address[checkoutController.addressIndex!];
+          // Zone gate FIRST — `checkoutGuard` only runs on the guest
+          // LOG IN path above, so a logged-in user whose address is
+          // out of zone (e.g. changed after the cart was built) would
+          // otherwise walk this whole chain and place an order we
+          // cannot fulfil. Read the getter, not `checkoutGuard`: this
+          // chain is sync, the user is already past auth, and
+          // `outOfServingZone` re-reads the saved address off disk on
+          // every call, so it can never be stale at tap time.
+          if (Get.find<LocationController>().outOfServingZone) {
+            AnalyticsHelper.log('place_order_blocked_out_of_zone', {
+              'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
+            });
+            GuestGate.showNoDeliverySheet(source: 'checkout');
+          } else if (isPrescriptionRequired &&
+              checkoutController.pickedPrescriptions.isEmpty) {
+            showCustomSnackBar(
+              'you_must_upload_prescription_for_this_order'.tr,
+            );
+          } else if (!_isCashOnDeliveryActive! &&
+              !_isDigitalPaymentActive! &&
+              !_isWalletActive) {
+            showCustomSnackBar('no_payment_method_is_enabled'.tr);
+          } else if (checkoutController.paymentMethodIndex == -1) {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder:
+                  (con) => PaymentMethodBottomSheet(
+                    isCashOnDeliveryActive: _isCashOnDeliveryActive!,
+                    isDigitalPaymentActive: _isDigitalPaymentActive!,
+                    isWalletActive: _isWalletActive,
+                    storeId: widget.storeId,
+                    totalPrice: total,
+                    isOfflinePaymentActive: _isOfflinePaymentActive,
+                  ),
+            );
+          } else if (orderAmount < checkoutController.store!.minimumOrder! &&
+              widget.storeId == null) {
+            showCustomSnackBar(
+              '${'minimum_order_amount_is'.tr} ${checkoutController.store!.minimumOrder}',
+            );
+          } else if (checkoutController.tipController.text.isNotEmpty &&
+              checkoutController.tipController.text != 'not_now' &&
+              double.parse(checkoutController.tipController.text.trim()) < 0) {
+            showCustomSnackBar('tips_can_not_be_negative'.tr);
+          } else if ((checkoutController.selectedDateSlot == 0 &&
+                  todayClosed) ||
+              (checkoutController.selectedDateSlot == 1 && tomorrowClosed)) {
+            showCustomSnackBar(
+              Get.find<SplashController>()
+                      .configModel
+                      .moduleConfig!
+                      .module!
+                      .showRestaurantText!
+                  ? 'restaurant_is_closed'.tr
+                  : 'store_is_closed'.tr,
+            );
+          } else if (checkoutController.paymentMethodIndex == 0 &&
+              _isCashOnDeliveryActive! &&
+              maxCodOrderAmount != null &&
+              maxCodOrderAmount != 0 &&
+              (total > maxCodOrderAmount) &&
+              widget.storeId == null) {
+            showCustomSnackBar(
+              '${'you_cant_order_more_then'.tr} ${PriceConverter.convertPrice(maxCodOrderAmount)} ${'in_cash_on_delivery'.tr}',
+            );
+          } else if (checkoutController.paymentMethodIndex != 0 &&
+              widget.storeId != null) {
+            showCustomSnackBar('payment_method_is_not_available'.tr);
+          } else if (checkoutController.timeSlots == null ||
+              checkoutController.timeSlots!.isEmpty) {
+            if (checkoutController.store!.scheduleOrder!) {
+              showCustomSnackBar('select_a_time'.tr);
+            } else {
+              showCustomSnackBar(
+                Get.find<SplashController>()
+                        .configModel
+                        .moduleConfig!
+                        .module!
+                        .showRestaurantText!
+                    ? 'restaurant_is_closed'.tr
+                    : 'store_is_closed'.tr,
+              );
+            }
+          } else if (!isAvailable) {
+            showCustomSnackBar(
+              'one_or_more_products_are_not_available_for_this_selected_time'
+                  .tr,
+            );
+          } else if (checkoutController.orderType != 'take_away' &&
+              checkoutController.distance == -1) {
+            // `distance == -1` alone now. This used to also require
+            // `deliveryCharge == -1`, but the sentinel is absorbed
+            // inside calculateDeliveryCharge so that it cannot leak
+            // into the displayed total as a one-pound discount —
+            // so that half of the condition could never fire again.
+            //
+            // The distance check is the real question anyway: a
+            // delivery order whose distance has not resolved cannot
+            // be priced, whatever the charge currently reads.
+            showCustomSnackBar('delivery_fee_not_set_yet'.tr);
+          } else if (widget.storeId != null &&
+              checkoutController.pickedPrescriptions.isEmpty) {
+            showCustomSnackBar('please_upload_your_prescription_images'.tr);
+          } else if (!checkoutController.acceptTerms) {
+            showCustomSnackBar(
+              'please_accept_privacy_policy_trams_conditions_refund_policy_first'
+                  .tr,
+            );
+          } else {
+            AddressModel finalAddress =
+                address[checkoutController.addressIndex!];
 
-                      if (finalAddress.contactPersonNumber == 'null') {
-                        finalAddress.contactPersonNumber =
-                            Get.find<ProfileController>().userInfoModel!.phone;
-                      }
+            if (finalAddress.contactPersonNumber == 'null') {
+              finalAddress.contactPersonNumber =
+                  Get.find<ProfileController>().userInfoModel!.phone;
+            }
 
-                      if (widget.storeId == null) {
-                        final List<OnlineCart> carts =
-                            OrderPayloadBuilder.buildCartLines(
-                              cartList: _cartList,
-                              isCampaign: !widget.fromCart,
-                            );
-                        PlaceOrderBodyModel
-                        placeOrderBody = PlaceOrderBodyModel(
-                          cart: carts,
-                          couponDiscountAmount:
-                              Get.find<CouponController>().discount,
-                          distance: checkoutController.distance,
-                          scheduleAt:
-                              !checkoutController.store!.scheduleOrder!
-                                  ? null
-                                  : (checkoutController.selectedDateSlot == 0 &&
-                                      checkoutController.selectedTimeSlot == 0)
-                                  ? null
-                                  : DateConverter.dateToDateAndTime(
-                                    scheduleEndDate,
-                                  ),
-                          // CS-02: the tax quote above sends `subTotal`; this
-                          // sent `total`, which already contains delivery,
-                          // tips, packaging and the tax figure itself — so the
-                          // number the customer was quoted tax on was not the
-                          // number the order carried, and the order's was
-                          // inflated circularly.
-                          //
-                          // Settled on `subTotal` after reading the backend
-                          // (2026-09-16): `PlaceNewOrder.php` overwrites
-                          // `order_amount` with its own figure at `:472` and
-                          // `:516` before using it, and `getCalculatedTax`
-                          // recomputes `$product_price` from the cart for
-                          // non-parcel orders — so today this changes no
-                          // charge. It is sent as the quote's figure so that a
-                          // future amount- or zone-sensitive tax rule reads
-                          // one consistent number instead of two.
-                          orderAmount: subTotal,
-                          orderNote: checkoutController.noteController.text,
-                          orderType: checkoutController.orderType,
-                          paymentMethod:
-                              checkoutController.paymentMethodIndex == 0
-                                  ? 'cash_on_delivery'
-                                  : checkoutController.paymentMethodIndex == 1
-                                  ? 'wallet'
-                                  : checkoutController.paymentMethodIndex == 2
-                                  ? 'digital_payment'
-                                  : 'offline_payment',
-                          couponCode:
-                              (Get.find<CouponController>().discount! > 0 ||
-                                      (Get.find<CouponController>().coupon !=
-                                              null &&
-                                          Get.find<CouponController>()
-                                              .freeDelivery))
-                                  ? Get.find<CouponController>().coupon!.code
-                                  : null,
-                          storeId: _cartList![0]!.item!.storeId,
-                          address: finalAddress.address,
-                          latitude: finalAddress.latitude,
-                          longitude: finalAddress.longitude,
-                          senderZoneId: null,
-                          addressType: finalAddress.addressType,
-                          contactPersonName:
-                              finalAddress.contactPersonName ??
-                              '${Get.find<ProfileController>().userInfoModel!.fName} '
-                                  '${Get.find<ProfileController>().userInfoModel!.lName}',
-                          contactPersonNumber:
-                              finalAddress.contactPersonNumber ??
-                              Get.find<ProfileController>()
-                                  .userInfoModel!
-                                  .phone,
-                          streetNumber:
-                              checkoutController.streetNumberController.text
-                                  .trim(),
-                          house: checkoutController.houseController.text.trim(),
-                          floor: checkoutController.floorController.text.trim(),
-                          discountAmount: discount,
-                          taxAmount: tax,
-                          receiverDetails: null,
-                          parcelCategoryId: null,
-                          chargePayer: null,
-                          dmTips:
-                              (checkoutController.orderType == 'take_away' ||
-                                      checkoutController.tipController.text ==
-                                          'not_now')
-                                  ? ''
-                                  : checkoutController.tipController.text
-                                      .trim(),
-                          cutlery:
-                              Get.find<CartController>().addCutlery ? 1 : 0,
-                          unavailableItemNote:
-                              Get.find<CartController>().notAvailableIndex != -1
-                                  ? Get.find<CartController>()
-                                      .notAvailableList[Get.find<
-                                        CartController
-                                      >()
-                                      .notAvailableIndex]
-                                  : '',
-                          deliveryInstruction:
-                              checkoutController.getSelectedInstructionsText(),
-                          partialPayment:
-                              checkoutController.isPartialPay ? 1 : 0,
-                          guestId: 0,
-                          isBuyNow: widget.fromCart ? 0 : 1,
-                          guestEmail: null,
-                          extraPackagingAmount:
-                              Get.find<CartController>().needExtraPackage
-                                  ? checkoutController
-                                      .store!
-                                      .extraPackagingAmount
-                                  : 0,
-                          createNewUser: 0,
-                          password: '',
-                          usePrizeId:
-                              Get.find<XpController>()
-                                  .selectedCheckoutPrize
-                                  ?.id,
-                        );
+            if (widget.storeId == null) {
+              final List<OnlineCart> carts = OrderPayloadBuilder.buildCartLines(
+                cartList: _cartList,
+                isCampaign: !widget.fromCart,
+              );
+              PlaceOrderBodyModel placeOrderBody = PlaceOrderBodyModel(
+                cart: carts,
+                couponDiscountAmount: Get.find<CouponController>().discount,
+                distance: checkoutController.distance,
+                scheduleAt:
+                    !checkoutController.store!.scheduleOrder!
+                        ? null
+                        : (checkoutController.selectedDateSlot == 0 &&
+                            checkoutController.selectedTimeSlot == 0)
+                        ? null
+                        : DateConverter.dateToDateAndTime(scheduleEndDate),
+                // CS-02: the tax quote above sends `subTotal`; this
+                // sent `total`, which already contains delivery,
+                // tips, packaging and the tax figure itself — so the
+                // number the customer was quoted tax on was not the
+                // number the order carried, and the order's was
+                // inflated circularly.
+                //
+                // Settled on `subTotal` after reading the backend
+                // (2026-09-16): `PlaceNewOrder.php` overwrites
+                // `order_amount` with its own figure at `:472` and
+                // `:516` before using it, and `getCalculatedTax`
+                // recomputes `$product_price` from the cart for
+                // non-parcel orders — so today this changes no
+                // charge. It is sent as the quote's figure so that a
+                // future amount- or zone-sensitive tax rule reads
+                // one consistent number instead of two.
+                orderAmount: subTotal,
+                orderNote: checkoutController.noteController.text,
+                orderType: checkoutController.orderType,
+                paymentMethod:
+                    checkoutController.paymentMethodIndex == 0
+                        ? 'cash_on_delivery'
+                        : checkoutController.paymentMethodIndex == 1
+                        ? 'wallet'
+                        : checkoutController.paymentMethodIndex == 2
+                        ? 'digital_payment'
+                        : 'offline_payment',
+                couponCode:
+                    (Get.find<CouponController>().discount! > 0 ||
+                            (Get.find<CouponController>().coupon != null &&
+                                Get.find<CouponController>().freeDelivery))
+                        ? Get.find<CouponController>().coupon!.code
+                        : null,
+                storeId: _cartList![0]!.item!.storeId,
+                address: finalAddress.address,
+                latitude: finalAddress.latitude,
+                longitude: finalAddress.longitude,
+                senderZoneId: null,
+                addressType: finalAddress.addressType,
+                contactPersonName:
+                    finalAddress.contactPersonName ??
+                    '${Get.find<ProfileController>().userInfoModel!.fName} '
+                        '${Get.find<ProfileController>().userInfoModel!.lName}',
+                contactPersonNumber:
+                    finalAddress.contactPersonNumber ??
+                    Get.find<ProfileController>().userInfoModel!.phone,
+                streetNumber:
+                    checkoutController.streetNumberController.text.trim(),
+                house: checkoutController.houseController.text.trim(),
+                floor: checkoutController.floorController.text.trim(),
+                discountAmount: discount,
+                taxAmount: tax,
+                receiverDetails: null,
+                parcelCategoryId: null,
+                chargePayer: null,
+                dmTips:
+                    (checkoutController.orderType == 'take_away' ||
+                            checkoutController.tipController.text == 'not_now')
+                        ? ''
+                        : checkoutController.tipController.text.trim(),
+                cutlery: Get.find<CartController>().addCutlery ? 1 : 0,
+                unavailableItemNote:
+                    Get.find<CartController>().notAvailableIndex != -1
+                        ? Get.find<CartController>()
+                            .notAvailableList[Get.find<CartController>()
+                            .notAvailableIndex]
+                        : '',
+                deliveryInstruction:
+                    checkoutController.getSelectedInstructionsText(),
+                partialPayment: checkoutController.isPartialPay ? 1 : 0,
+                guestId: 0,
+                isBuyNow: widget.fromCart ? 0 : 1,
+                guestEmail: null,
+                extraPackagingAmount:
+                    Get.find<CartController>().needExtraPackage
+                        ? checkoutController.store!.extraPackagingAmount
+                        : 0,
+                createNewUser: 0,
+                password: '',
+                usePrizeId: Get.find<XpController>().selectedCheckoutPrize?.id,
+              )..addressId = finalAddress.id;
 
-                        if (checkoutController.paymentMethodIndex == 3) {
-                          Get.toNamed(
-                            RouteHelper.getOfflinePaymentScreen(
-                              placeOrderBody: placeOrderBody,
-                              zoneId: checkoutController.store!.zoneId!,
-                              total: checkoutController.viewTotalPrice!,
-                              maxCodOrderAmount: maxCodOrderAmount,
-                              fromCart: widget.fromCart,
-                              isCodActive: _isCashOnDeliveryActive,
-                              forParcel: false,
-                            ),
-                          );
-                        } else {
-                          checkoutController.placeOrder(
-                            placeOrderBody,
-                            checkoutController.store!.zoneId,
-                            total,
-                            maxCodOrderAmount,
-                            widget.fromCart,
-                            _isCashOnDeliveryActive!,
-                            checkoutController.pickedPrescriptions,
-                          );
-                        }
-                      } else {
-                        checkoutController.placePrescriptionOrder(
-                          widget.storeId,
-                          checkoutController.store!.zoneId,
-                          checkoutController.distance,
-                          finalAddress.address!,
-                          finalAddress.longitude!,
-                          finalAddress.latitude!,
-                          checkoutController.noteController.text,
-                          checkoutController.pickedPrescriptions,
-                          (checkoutController.orderType == 'take_away' ||
-                                  checkoutController.tipController.text ==
-                                      'not_now')
-                              ? ''
-                              : checkoutController.tipController.text.trim(),
-                          checkoutController.getSelectedInstructionsText(),
-                          0,
-                          0,
-                          widget.fromCart,
-                          _isCashOnDeliveryActive!,
-                        );
-                      }
-                    }
-                  }
-                  : null,
-        ),
-      ),
-    );
+              if (checkoutController.paymentMethodIndex == 3) {
+                Get.toNamed(
+                  RouteHelper.getOfflinePaymentScreen(
+                    placeOrderBody: placeOrderBody,
+                    zoneId: checkoutController.store!.zoneId!,
+                    total: checkoutController.viewTotalPrice!,
+                    maxCodOrderAmount: maxCodOrderAmount,
+                    fromCart: widget.fromCart,
+                    isCodActive: _isCashOnDeliveryActive,
+                    forParcel: false,
+                  ),
+                );
+              } else {
+                checkoutController.placeOrder(
+                  placeOrderBody,
+                  checkoutController.store!.zoneId,
+                  total,
+                  maxCodOrderAmount,
+                  widget.fromCart,
+                  _isCashOnDeliveryActive!,
+                  checkoutController.pickedPrescriptions,
+                );
+              }
+            } else {
+              checkoutController.placePrescriptionOrder(
+                widget.storeId,
+                checkoutController.store!.zoneId,
+                checkoutController.distance,
+                finalAddress.address!,
+                finalAddress.longitude!,
+                finalAddress.latitude!,
+                checkoutController.noteController.text,
+                checkoutController.pickedPrescriptions,
+                (checkoutController.orderType == 'take_away' ||
+                        checkoutController.tipController.text == 'not_now')
+                    ? ''
+                    : checkoutController.tipController.text.trim(),
+                checkoutController.getSelectedInstructionsText(),
+                0,
+                0,
+                widget.fromCart,
+                _isCashOnDeliveryActive!,
+              );
+            }
+          }
+        }
+        : null;
   }
 
   List<DropdownItem<int>> _getDropdownAddressList({
@@ -1335,18 +1277,52 @@ class CheckoutScreenState extends State<CheckoutScreen> {
     required List<AddressModel>? addressList,
     required Store? store,
   }) {
-    List<AddressModel> address = [];
+    final AddressModel current = AddressHelper.getUserAddressFromSharedPref()!;
+    final List<AddressModel> saved = [
+      if (addressList != null && store != null)
+        for (final a in addressList)
+          if (a.zoneIds!.contains(store.zoneId)) a,
+    ];
 
-    address.add(AddressHelper.getUserAddressFromSharedPref()!);
+    // The app's "current location" is saved as its own untyped address
+    // ('others', no id) whenever the user sets a pin — even a pin on top of
+    // their saved Home. Leading with that copy made checkout say "Delivering
+    // to Others" for a customer with a Home address, and sent the order
+    // without an address id, so Home's floor/house and saved voice note were
+    // not attached. When the current location IS a saved address, lead with
+    // the saved one instead.
+    final int match = _matchSavedAddress(current, saved);
+    if (match != -1) {
+      final AddressModel home = saved.removeAt(match);
+      return [home, ...saved];
+    }
+    return [current, ...saved];
+  }
 
-    if (addressList != null && store != null) {
-      for (int index = 0; index < addressList.length; index++) {
-        if (addressList[index].zoneIds!.contains(store.zoneId)) {
-          address.add(addressList[index]);
-        }
+  /// Index in [saved] of the address [current] refers to: the same id, or
+  /// failing that the nearest one within 100 m of the pin. -1 when none.
+  int _matchSavedAddress(AddressModel current, List<AddressModel> saved) {
+    if (current.id != null) {
+      final int byId = saved.indexWhere((a) => a.id == current.id);
+      if (byId != -1) return byId;
+    }
+    final double? lat = double.tryParse(current.latitude ?? '');
+    final double? lng = double.tryParse(current.longitude ?? '');
+    if (lat == null || lng == null) return -1;
+
+    int best = -1;
+    double bestMeters = 100;
+    for (int i = 0; i < saved.length; i++) {
+      final double? aLat = double.tryParse(saved[i].latitude ?? '');
+      final double? aLng = double.tryParse(saved[i].longitude ?? '');
+      if (aLat == null || aLng == null) continue;
+      final double meters = Geolocator.distanceBetween(lat, lng, aLat, aLng);
+      if (meters <= bestMeters) {
+        best = i;
+        bestMeters = meters;
       }
     }
-    return address;
+    return best;
   }
 
   bool _checkPrescriptionRequired() {

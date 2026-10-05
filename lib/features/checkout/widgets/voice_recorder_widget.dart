@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:waddy_app/util/swallow.dart';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:waddy_app/util/loud_speaker_audio_context.dart';
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/features/checkout/widgets/checkout_card.dart';
 import 'package:flutter/services.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -12,15 +15,36 @@ import 'package:path_provider/path_provider.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 
 class VoiceRecorderWidget extends StatefulWidget {
   final Function(String? path) onRecordingChanged;
   final String? existingRecordingPath;
 
+  /// A voice note already saved on the delivery address. Shown ready to play
+  /// when there is no fresh recording; the backend attaches it to the order
+  /// by itself (PlaceNewOrder copies the address's note when none is
+  /// uploaded), so recording a new one is an override, not a requirement.
+  final String? savedRemoteUrl;
+
+  /// Render as one square tile for the delivery-instructions row instead of
+  /// the full-width panel.
+  final bool asTile;
+  final double tileWidth;
+  final double tileHeight;
+
+  /// Any tap inside the widget. Lets the parent retire its hint.
+  final VoidCallback? onInteract;
+
   const VoiceRecorderWidget({
     super.key,
     required this.onRecordingChanged,
     this.existingRecordingPath,
+    this.savedRemoteUrl,
+    this.asTile = false,
+    this.tileWidth = 88,
+    this.tileHeight = 84,
+    this.onInteract,
   });
 
   @override
@@ -46,6 +70,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
   @override
   void initState() {
     super.initState();
+    useLoudSpeaker(_player);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -55,6 +80,9 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
 
     if (widget.existingRecordingPath != null) {
       _recordingPath = widget.existingRecordingPath;
+      _state = RecordingState.recorded;
+      _loadRecordingDuration();
+    } else if (_hasRemote) {
       _state = RecordingState.recorded;
       _loadRecordingDuration();
     }
@@ -86,10 +114,20 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
     _recorderInitialized = true;
   }
 
+  bool get _hasRemote =>
+      widget.savedRemoteUrl != null && widget.savedRemoteUrl!.isNotEmpty;
+
+  /// Playing the address's saved note rather than a fresh recording.
+  bool get _playingRemote => _recordingPath == null && _hasRemote;
+
   Future<void> _loadRecordingDuration() async {
-    if (_recordingPath != null) {
+    if (_recordingPath != null || _hasRemote) {
       try {
-        await _player.setSourceDeviceFile(_recordingPath!);
+        if (_recordingPath != null) {
+          await _player.setSourceDeviceFile(_recordingPath!);
+        } else {
+          await _player.setSourceUrl(widget.savedRemoteUrl!);
+        }
         final duration = await _player.getDuration();
         if (duration != null && mounted) {
           setState(() => _recordingDuration = duration);
@@ -152,10 +190,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.mic_off_rounded,
-                color: Theme.of(Get.context!).primaryColor,
-                size: 100,
+              CheckoutIcon(
+                icon: HugeIcons.strokeRoundedMicOff01,
+                color: WaddyColors.primary,
+                size: 64,
               ),
               const SizedBox(height: Dimensions.paddingSizeLarge),
               Text(
@@ -247,9 +285,13 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
   }
 
   Future<void> _playRecording() async {
-    if (_recordingPath == null) return;
+    if (_recordingPath == null && !_hasRemote) return;
     try {
-      await _player.play(DeviceFileSource(_recordingPath!));
+      await _player.play(
+        _recordingPath != null
+            ? DeviceFileSource(_recordingPath!)
+            : UrlSource(widget.savedRemoteUrl!),
+      );
       setState(() => _state = RecordingState.playing);
     } catch (e) {
       debugPrint('Playback error: $e');
@@ -278,8 +320,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
       _recordingPath = null;
       _recordingDuration = Duration.zero;
       _playbackPosition = Duration.zero;
-      _state = RecordingState.idle;
+      // Discarding a fresh recording falls back to the address's saved note.
+      _state = _hasRemote ? RecordingState.recorded : RecordingState.idle;
     });
+    if (_hasRemote) _loadRecordingDuration();
     widget.onRecordingChanged(null);
   }
 
@@ -291,6 +335,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.asTile) return _buildTile(context);
     switch (_state) {
       case RecordingState.idle:
         return _buildIdleState(context);
@@ -312,10 +357,10 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
           vertical: Dimensions.paddingSizeSmall,
         ),
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
+          color: WaddyColors.primary.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
           border: Border.all(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.15),
+            color: WaddyColors.primary.withValues(alpha: 0.15),
           ),
         ),
         child: Row(
@@ -324,13 +369,13 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                color: WaddyColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.mic_rounded,
-                color: Theme.of(context).primaryColor,
-                size: 22,
+              child: CheckoutIcon(
+                icon: HugeIcons.strokeRoundedMic01,
+                color: WaddyColors.primary,
+                size: 20,
               ),
             ),
             const SizedBox(width: Dimensions.paddingSizeSmall),
@@ -342,7 +387,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                     'tap_to_record_voice'.tr,
                     style: waddyMedium.copyWith(
                       fontSize: Dimensions.fontSizeSmall,
-                      color: Theme.of(context).primaryColor,
+                      color: WaddyColors.primary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -350,7 +395,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                     '${'max'.tr} ${_maxDurationSeconds}s',
                     style: waddyRegular.copyWith(
                       fontSize: Dimensions.fontSizeExtraSmall,
-                      color: Theme.of(context).hintColor,
+                      color: WaddyColors.inkMuted,
                     ),
                   ),
                 ],
@@ -369,9 +414,9 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
         vertical: Dimensions.paddingSizeSmall,
       ),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.06),
+        color: WaddyColors.error.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+        border: Border.all(color: WaddyColors.error.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -382,15 +427,15 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(
+                  color: WaddyColors.error.withValues(
                     alpha: 0.15 + (_pulseController.value * 0.15),
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.mic_rounded,
-                  color: Colors.red,
-                  size: 22,
+                child: const CheckoutIcon(
+                  icon: HugeIcons.strokeRoundedMic01,
+                  color: WaddyColors.error,
+                  size: 20,
                 ),
               );
             },
@@ -404,7 +449,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                   'recording'.tr,
                   style: waddyMedium.copyWith(
                     fontSize: Dimensions.fontSizeSmall,
-                    color: Colors.red,
+                    color: WaddyColors.error,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -414,7 +459,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Colors.red,
+                        color: WaddyColors.error,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -423,14 +468,14 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                       _formatDuration(_recordingDuration),
                       style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
-                        color: Colors.red.shade700,
+                        color: WaddyColors.coralInk,
                       ),
                     ),
                     Text(
                       ' / ${_maxDurationSeconds}s',
                       style: waddyRegular.copyWith(
                         fontSize: Dimensions.fontSizeExtraSmall,
-                        color: Theme.of(context).hintColor,
+                        color: WaddyColors.inkMuted,
                       ),
                     ),
                   ],
@@ -438,19 +483,27 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
               ],
             ),
           ),
-          InkWell(
+          InkResponse(
             onTap: _stopRecording,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.stop_rounded,
-                color: Colors.white,
-                size: 20,
+            radius: 22,
+            // Drawn at 36, hit at 44.
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: WaddyColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const CheckoutIcon(
+                    icon: HugeIcons.strokeRoundedStop,
+                    color: WaddyColors.surface,
+                    size: 18,
+                  ),
+                ),
               ),
             ),
           ),
@@ -470,27 +523,36 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
     return Container(
       padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
+        color: WaddyColors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-        border: Border.all(
-          color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: WaddyColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          InkWell(
+          InkResponse(
             onTap: isPlaying ? _pausePlayback : _playRecording,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 22,
+            radius: 22,
+            // Drawn at 40, hit at 44.
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: WaddyColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: CheckoutIcon(
+                    icon:
+                        isPlaying
+                            ? HugeIcons.strokeRoundedPause
+                            : HugeIcons.strokeRoundedPlay,
+                    color: WaddyColors.surface,
+                    size: 20,
+                  ),
+                ),
               ),
             ),
           ),
@@ -507,7 +569,7 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                       context,
                     ).primaryColor.withValues(alpha: 0.15),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).primaryColor,
+                      WaddyColors.primary,
                     ),
                     minHeight: 4,
                   ),
@@ -519,26 +581,34 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
                       : _formatDuration(_recordingDuration),
                   style: waddyRegular.copyWith(
                     fontSize: Dimensions.fontSizeExtraSmall,
-                    color: Theme.of(context).primaryColor,
+                    color: WaddyColors.primary,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: Dimensions.paddingSizeSmall),
-          InkWell(
+          InkResponse(
             onTap: _deleteRecording,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.red.shade600,
-                size: 20,
+            radius: 22,
+            // Drawn at 36, hit at 44.
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: WaddyColors.error.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: CheckoutIcon(
+                    icon: HugeIcons.strokeRoundedDelete02,
+                    color: WaddyColors.coralInk,
+                    size: 18,
+                  ),
+                ),
               ),
             ),
           ),
@@ -546,6 +616,193 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget>
       ),
     );
   }
+
+  // ── Tile mode ──────────────────────────────────────────────────────────
+  //
+  // One square in the delivery-instructions row: a big glyph and an action
+  // on top, the label underneath. Tap the tile to record, stop, play or
+  // pause; the corner action deletes a fresh recording, or records over the
+  // address's saved note.
+  Widget _buildTile(BuildContext context) {
+    final bool recording = _state == RecordingState.recording;
+    final bool playing = _state == RecordingState.playing;
+    final bool hasAudio =
+        _state == RecordingState.recorded || _state == RecordingState.playing;
+    final bool active = recording || hasAudio;
+
+    final Widget glyph;
+    final VoidCallback onTap;
+    final Widget label;
+    Widget? corner;
+
+    if (recording) {
+      glyph = FadeTransition(
+        opacity: Tween(begin: 1.0, end: 0.35).animate(_pulseController),
+        child: const CheckoutIcon(
+          icon: HugeIcons.strokeRoundedStopCircle,
+          size: 22,
+          color: WaddyColors.error,
+        ),
+      );
+      onTap = _stopRecording;
+      label = _tileLabel(
+        'recording'.tr,
+        _formatDuration(_recordingDuration),
+        WaddyColors.error,
+      );
+    } else if (hasAudio) {
+      glyph = CheckoutIcon(
+        icon:
+            playing
+                ? HugeIcons.strokeRoundedPause
+                : HugeIcons.strokeRoundedPlay,
+        size: 24,
+        color: WaddyColors.mintInk,
+      );
+      onTap = playing ? _pausePlayback : _playRecording;
+      label = _tileLabel(
+        'play'.tr,
+        _formatDuration(
+          playing
+              ? _playbackPosition
+              : (_recordingDuration > Duration.zero
+                  ? _recordingDuration
+                  : _playbackDuration),
+        ),
+        WaddyColors.mintInk,
+      );
+      corner = _TileCornerButton(
+        icon:
+            _playingRemote
+                ? HugeIcons.strokeRoundedMic01
+                : HugeIcons.strokeRoundedDelete02,
+        semanticLabel: _playingRemote ? 'record_again'.tr : 'delete'.tr,
+        onTap: () {
+          widget.onInteract?.call();
+          if (_playingRemote) {
+            _player.stop();
+            _startRecording();
+          } else {
+            _deleteRecording();
+          }
+        },
+      );
+    } else {
+      glyph = const CheckoutIcon(
+        icon: HugeIcons.strokeRoundedMic01,
+        size: 22,
+        color: WaddyColors.ink,
+      );
+      onTap = _startRecording;
+      label = Text(
+        'directions_to_reach'.tr,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: waddyMedium.copyWith(
+          fontSize: Dimensions.fontSizeExtraSmall,
+          color: WaddyColors.ink,
+          height: 1.2,
+        ),
+      );
+    }
+
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: () {
+          widget.onInteract?.call();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: widget.tileWidth,
+          height: widget.tileHeight,
+          padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
+          decoration: BoxDecoration(
+            color: active ? WaddyColors.mintSurface : WaddyColors.surface,
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            border: Border.all(
+              color:
+                  recording
+                      ? WaddyColors.error
+                      : active
+                      ? WaddyColors.primary
+                      : WaddyColors.divider,
+              width: active ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [glyph, const Spacer(), if (corner != null) corner],
+              ),
+              label,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tileLabel(String title, String time, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: waddyBold.copyWith(
+            fontSize: Dimensions.fontSizeSmall,
+            color: color,
+          ),
+        ),
+        Text(
+          time,
+          textDirection: TextDirection.ltr,
+          style: waddyBold.copyWith(
+            fontSize: Dimensions.fontSizeExtraSmall,
+            color: WaddyColors.ink,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 enum RecordingState { idle, recording, recorded, playing }
+
+class _TileCornerButton extends StatelessWidget {
+  final List<List<dynamic>> icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+  const _TileCornerButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Its own gesture arena winner, so it does not also fire the tile.
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        // 32 is as far as this can grow inside the 88x84 tile without
+        // pushing the label out; 2 of padding made it a 24pt target.
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: CheckoutIcon(icon: icon, size: 20, color: WaddyColors.ink),
+        ),
+      ),
+    );
+  }
+}

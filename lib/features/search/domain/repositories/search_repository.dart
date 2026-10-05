@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/search/domain/models/global_search_model.dart';
 import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
 import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
 import 'package:waddy_app/features/search/domain/repositories/search_repository_interface.dart';
@@ -115,5 +116,19 @@ class SearchRepository implements SearchRepositoryInterface {
       });
     }
     return popularCategoryList;
+  }
+
+  @override
+  Future<List<GlobalSearchStore>?> getGlobalSearch(String query) async {
+    final Response response = await apiClient.getData(
+      '${AppConstants.globalSearchUri}?name=${Uri.encodeQueryComponent(query)}',
+    );
+    if (response.statusCode != 200) return null;
+    final dynamic stores = response.body?['stores'];
+    if (stores is! List) return null;
+    return <GlobalSearchStore>[
+      for (final dynamic s in stores)
+        GlobalSearchStore.fromJson(s as Map<String, dynamic>),
+    ];
   }
 }

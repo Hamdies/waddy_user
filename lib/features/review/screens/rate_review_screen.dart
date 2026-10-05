@@ -14,11 +14,16 @@ class RateReviewScreen extends StatefulWidget {
   final List<OrderDetailsModel> orderDetailsList;
   final DeliveryMan? deliveryMan;
   final int? orderID;
+
+  /// Stars already tapped on the order screen; pre-fills every rating so the
+  /// tap isn't lost. 0 leaves them empty.
+  final int initialRating;
   const RateReviewScreen({
     super.key,
     required this.orderDetailsList,
     required this.deliveryMan,
     required this.orderID,
+    this.initialRating = 0,
   });
 
   @override
@@ -40,7 +45,10 @@ class RateReviewScreenState extends State<RateReviewScreen>
       initialIndex: 0,
       vsync: this,
     );
-    Get.find<ReviewController>().initRatingData(widget.orderDetailsList);
+    Get.find<ReviewController>().initRatingData(
+      widget.orderDetailsList,
+      initialRating: widget.initialRating,
+    );
   }
 
   @override

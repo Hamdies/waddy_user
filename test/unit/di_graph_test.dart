@@ -33,7 +33,7 @@ import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/review/controllers/review_controller.dart';
 import 'package:waddy_app/features/search/controllers/search_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/verification/controllers/verification_controller.dart';
 import 'package:waddy_app/features/wallet/controllers/wallet_controller.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
@@ -117,17 +117,17 @@ void main() {
     // were unregistered, but because every one had already been built by the
     // time init() returned.
     expect(Get.isPrepared<ApiClient>(), isTrue);
-    expect(Get.isPrepared<StoreController>(), isTrue);
+    expect(Get.isPrepared<StoreListController>(), isTrue);
     expect(Get.isPrepared<HomeController>(), isTrue);
     expect(Get.isPrepared<ChatController>(), isTrue);
     expect(Get.isPrepared<ParcelController>(), isTrue);
   });
 
   test('resolving one controller does not drag in the rest of the graph', () {
-    Get.find<StoreController>();
+    Get.find<StoreListController>();
 
     // Built now.
-    expect(Get.isPrepared<StoreController>(), isFalse);
+    expect(Get.isPrepared<StoreListController>(), isFalse);
     expect(Get.isPrepared<ApiClient>(), isFalse);
 
     // Unrelated features remain unbuilt — this is the cost that used to be
@@ -154,7 +154,7 @@ void main() {
       () => Get.find<CategoryController>(),
       () => Get.find<ItemController>(),
       () => Get.find<CartController>(),
-      () => Get.find<StoreController>(),
+      () => Get.find<StoreListController>(),
       () => Get.find<FavouriteController>(),
       () => Get.find<HomeController>(),
       () => Get.find<SearchController>(),

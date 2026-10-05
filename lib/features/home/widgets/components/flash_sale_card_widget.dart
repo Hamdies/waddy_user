@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,7 +9,6 @@ import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/cart_count_view.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 
 class FlashSaleCard extends StatefulWidget {
@@ -89,8 +89,6 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
   }
 
   Widget carouselCard(int index, ActiveProducts activeProduct) {
-    double? discount = activeProduct.item!.discount;
-    String? discountType = activeProduct.item!.discountType;
     return Column(
       children: [
         Expanded(
@@ -138,12 +136,7 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
                         ),
                       ),
 
-                      DiscountTag(
-                        discount: discount,
-                        discountType: discountType,
-                        freeDelivery: false,
-                        isFloating: true,
-                      ),
+                      OfferCollarBadge.itemCorner(activeProduct.item!),
 
                       OrganicTag(
                         item: activeProduct.item!,

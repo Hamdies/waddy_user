@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+
 class ChallengeModel {
   final List<Challenge> dailyChallenges;
   final List<Challenge> weeklyChallenges;
@@ -12,55 +14,26 @@ class ChallengeModel {
   });
 
   factory ChallengeModel.fromJson(Map<String, dynamic> json) {
-    List<Challenge> daily = [];
-    List<Challenge> weekly = [];
+    // API format: { "challenges": { "daily": {...}, "weekly": {...} } }.
+    // PHP serializes an empty challenges array as [] rather than {}, which is
+    // why this reads through xpMap instead of indexing directly.
+    final challenges = xpMap(json['challenges']);
 
-    // API format: { "challenges": { "daily": {...}, "weekly": {...} }, "has_daily": true }
-    if (json['challenges'] != null) {
-      final challenges = json['challenges'];
-
-      // Parse daily challenge(s)
-      if (challenges['daily'] != null) {
-        final dailyData = challenges['daily'];
-        if (dailyData is List) {
-          daily = dailyData.map((c) => Challenge.fromJson(c)).toList();
-        } else if (dailyData is Map<String, dynamic>) {
-          daily = [Challenge.fromJson(dailyData)];
-        }
-      }
-
-      // Parse weekly challenge(s)
-      if (challenges['weekly'] != null) {
-        final weeklyData = challenges['weekly'];
-        if (weeklyData is List) {
-          weekly = weeklyData.map((c) => Challenge.fromJson(c)).toList();
-        } else if (weeklyData is Map<String, dynamic>) {
-          weekly = [Challenge.fromJson(weeklyData)];
-        }
-      }
+    List<Challenge> parse(dynamic data) {
+      if (data is List) return xpMapList(data).map(Challenge.fromJson).toList();
+      final one = xpMap(data);
+      return one == null ? const [] : [Challenge.fromJson(one)];
     }
 
-    // Parse reset times
-    DateTime? dailyReset;
-    DateTime? weeklyReset;
-
-    if (json['daily_reset_time'] != null) {
-      dailyReset = DateTime.tryParse(json['daily_reset_time'].toString());
-    } else if (json['daily_reset'] != null) {
-      dailyReset = DateTime.tryParse(json['daily_reset'].toString());
-    }
-
-    if (json['weekly_reset_time'] != null) {
-      weeklyReset = DateTime.tryParse(json['weekly_reset_time'].toString());
-    } else if (json['weekly_reset'] != null) {
-      weeklyReset = DateTime.tryParse(json['weekly_reset'].toString());
-    }
-
+    // The server sends no reset keys (X-29); each challenge's own
+    // `expires_at` is its real deadline. These stay for older payloads only.
     return ChallengeModel(
-      dailyChallenges: daily,
-      weeklyChallenges: weekly,
-      dailyResetTime: dailyReset,
-      weeklyResetTime: weeklyReset,
+      dailyChallenges: parse(challenges?['daily']),
+      weeklyChallenges: parse(challenges?['weekly']),
+      dailyResetTime: xpDate(json['daily_reset_time'] ?? json['daily_reset']),
+      weeklyResetTime: xpDate(
+        json['weekly_reset_time'] ?? json['weekly_reset'],
+      ),
     );
   }
 }
@@ -104,68 +77,54 @@ class Challenge {
   });
 
   factory Challenge.fromJson(Map<String, dynamic> json) {
-    final status = json['status'] ?? 'active';
-    final challengeType = json['challenge_type'] ?? 'complete_order';
+    final status = xpStr(json['status']) ?? 'active';
+    final challengeType = xpStr(json['challenge_type']) ?? 'complete_order';
 
-    // Parse dynamic progress object based on challenge_type
-    int currentProgress = 0;
-    int targetProgress = 1;
-
-    if (json['progress'] != null && json['progress'] is Map) {
-      final progress = json['progress'] as Map<String, dynamic>;
+    // Progress is a per-type object; fall back to flat fields.
+    int currentProgress;
+    int targetProgress;
+    final progress = xpMap(json['progress']);
+    if (progress != null) {
       switch (challengeType) {
         case 'min_order_amount':
-          currentProgress = (progress['amount_spent'] ?? 0).toInt();
-          targetProgress = (progress['target'] ?? 1).toInt();
+          currentProgress = xpInt(progress['amount_spent']);
+          targetProgress = xpInt(progress['target'], 1);
           break;
         case 'multiple_orders':
-          currentProgress = (progress['orders_completed'] ?? 0).toInt();
-          targetProgress = (progress['target'] ?? 1).toInt();
+          currentProgress = xpInt(progress['orders_completed']);
+          targetProgress = xpInt(progress['target'], 1);
           break;
         case 'complete_order':
         case 'new_store':
-          currentProgress = (progress['completed'] == true) ? 1 : 0;
+          currentProgress = xpBool(progress['completed']) ? 1 : 0;
           targetProgress = 1;
           break;
         default:
-          currentProgress = (progress['current'] ?? 0).toInt();
-          targetProgress = (progress['target'] ?? 1).toInt();
+          currentProgress = xpInt(progress['current']);
+          targetProgress = xpInt(progress['target'], 1);
       }
     } else {
-      // Fallback: try flat fields for backwards compatibility
-      currentProgress = json['current_progress'] ?? 0;
-      targetProgress = json['target_progress'] ?? 1;
+      currentProgress = xpInt(json['current_progress']);
+      targetProgress = xpInt(json['target_progress'], 1);
     }
 
     return Challenge(
-      id: json['id'] ?? 0,
-      challengeId: json['challenge_id'],
-      type: json['type'] ?? 'daily',
+      id: xpInt(json['id']),
+      challengeId: xpIntOrNull(json['challenge_id']),
+      type: xpStr(json['type']) ?? 'daily',
       challengeType: challengeType,
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      xpReward: json['xp_reward'] ?? 0,
+      title: xpStr(json['title']) ?? '',
+      description: xpStr(json['description']) ?? '',
+      xpReward: xpInt(json['xp_reward']),
       status: status,
       currentProgress: currentProgress,
       targetProgress: targetProgress,
-      conditions:
-          json['conditions'] is Map<String, dynamic>
-              ? json['conditions']
-              : null,
-      startedAt:
-          json['started_at'] != null
-              ? DateTime.tryParse(json['started_at'])
-              : null,
-      expiresAt:
-          json['expires_at'] != null
-              ? DateTime.tryParse(json['expires_at'].toString())
-              : null,
-      completedAt:
-          json['completed_at'] != null
-              ? DateTime.tryParse(json['completed_at'])
-              : null,
-      icon: json['icon'],
-      actionType: json['action_type'] ?? json['challenge_type'],
+      conditions: xpMap(json['conditions']),
+      startedAt: xpDate(json['started_at']),
+      expiresAt: xpDate(json['expires_at']),
+      completedAt: xpDate(json['completed_at']),
+      icon: xpStr(json['icon']),
+      actionType: xpStr(json['action_type']) ?? challengeType,
     );
   }
 
@@ -190,6 +149,26 @@ class Challenge {
     };
   }
 
+  /// This challenge after a successful claim — full progress, `claimed`.
+  Challenge asClaimed() => Challenge(
+    id: id,
+    challengeId: challengeId,
+    type: type,
+    challengeType: challengeType,
+    title: title,
+    description: description,
+    xpReward: xpReward,
+    status: 'claimed',
+    currentProgress: targetProgress,
+    targetProgress: targetProgress,
+    conditions: conditions,
+    startedAt: startedAt,
+    expiresAt: expiresAt,
+    completedAt: completedAt ?? DateTime.now(),
+    icon: icon,
+    actionType: actionType,
+  );
+
   double get progressPercentage {
     if (targetProgress == 0) return 0;
     return (currentProgress / targetProgress).clamp(0.0, 1.0);
@@ -197,7 +176,22 @@ class Challenge {
 
   bool get isCompleted => status == 'completed' || status == 'claimed';
   bool get isClaimed => status == 'claimed';
-  bool get isActive => status == 'active';
+
+  /// Past its deadline. The server only flips `status` to expired hourly
+  /// (X-18), so an "active" row can already be dead.
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
+
+  bool get isActive => status == 'active' && !isExpired;
+
+  /// Time left before this challenge expires; null when there is no deadline
+  /// or it has passed. This is the real countdown (X-29).
+  Duration? get timeLeft {
+    final t = expiresAt;
+    if (t == null) return null;
+    final left = t.difference(DateTime.now());
+    return left.isNegative ? null : left;
+  }
+
   bool get isBinaryChallenge =>
       challengeType == 'complete_order' || challengeType == 'new_store';
   bool get canClaim => status == 'completed';

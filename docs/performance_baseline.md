@@ -401,9 +401,8 @@ overlays too, so it is doing real work rather than just rounding a photo.
 and `maxWidthDiskCache` from the laid-out width and device pixel ratio, capped
 at 1080px. The bytes-in-memory half was done before this.
 
-**The 54 `Opacity` widgets** are next if another pass is needed. Each allocates
-an offscreen layer; many could be a colour with an alpha channel instead. Not
-touched yet — one change at a time, measured.
+**The "54 `Opacity` widgets"** was a miscount — see §13.1. There are six, and
+only two are on a scrolling path.
 
 ### 10.4 Re-measure before doing more
 
@@ -572,3 +571,203 @@ Clearing is by `identical()` so a stale completion cannot clear a newer fetch.
 
 **Refresh remains the worst case** — 55.3% on the populated one this run. Still
 raster, still the `Opacity` pass in §10.3 as the next lever.
+
+---
+
+## 13. The Opacity pass, and what it was actually worth
+
+### 13.1 The count was wrong — 6, not 54
+
+§9.3 listed "54 `Opacity` uses" as the third lever. That grep matched
+`.withOpacity(...)` **colour calls**, which are free — they produce a colour
+value, not a layer. Actual `Opacity` **widgets** in home and the shared
+widgets: **six**.
+
+That is the fifth miscount in this plan (§21.5 lists the first four). The
+pattern is identical every time: a grep-able proxy adopted as the metric,
+without checking that the thing being counted is the thing that costs.
+
+### 13.2 The two that mattered
+
+Both are the "closed store" dim, in `module_store_row_card` and the grocery
+home list:
+
+```dart
+Opacity(opacity: isOpen ? 1.0 : 0.55, child: ...)
+```
+
+`Opacity` allocates an offscreen buffer and composites it back **at any value,
+including 1.0** — where the result is identical to not wrapping at all. Most
+stores are open most of the time, so every row in a scrolling list paid for a
+layer that did nothing.
+
+Both now skip the wrapper entirely when the store is open. The dim stays for
+closed stores, where it is a real requirement.
+
+The other four are in dialogs and a letter animation — one-shot surfaces, not
+scrolling lists. Left alone.
+
+### 13.3 What is deliberately NOT being removed
+
+Each card still carries four small blurs on **badges inside it**: a logo tile
+lifted off the cover photo, a rating pill, a discount tag, a coloured
+info chip. They are genuine visual design — the thing that makes a card read as
+layered rather than flat.
+
+Removing them would buy raster time, and it is a **design decision, not a
+performance fix**. Flagging rather than doing it: if the brand is willing to
+lose the badge lift, there is measurable time in it. That is a call for whoever
+owns the look, not something to take unilaterally.
+
+The card's own shadow (one per card, already halved in §10.1) stays regardless.
+
+### 13.4 Expected effect
+
+Small. Two layers per visible row in two lists, against a cold raster average
+already down to 6.7ms. The refresh case — 55-75% janky, raster 12-14ms — is
+where the remaining cost is, and it is spread across many small paints rather
+than concentrated in one fixable thing.
+
+Measure before assuming otherwise.
+
+---
+
+## 14. Orders and tracking
+
+Reported as "orders and order tracking so slow, and order updates". Three
+separate causes, none of them rendering.
+
+### 14.1 The dashboard downloaded 50 orders to light a badge
+
+`getRunningOrders(1, fromDashboard: true)` requested **limit 50**, and the
+dashboard used the result for exactly one thing:
+
+```dart
+hasRunningOrders: orderController.runningOrderModel!.orders!.isNotEmpty
+```
+
+37.3 KB on every home load and every refresh — and the traces show
+`running-orders` appearing in nearly every window — to answer a boolean. One
+order answers `isNotEmpty` as well as fifty, and `total_size` in the response
+carries the real count for anything that needs it.
+
+`fromDashboard` now requests **1**. The order screen still asks for 10; it
+renders the list.
+
+### 14.2 The tracking poll rebuilt everything every 10 seconds
+
+`timerTrackOrder` fires every 10s while a tracking screen is open and called a
+bare `update()` on each tick — rebuilding all **15**
+`GetBuilder<OrderController>` trees, the map included, whether or not anything
+had changed. A rider stopped at a light still cost a full rebuild every ten
+seconds, for the length of the delivery.
+
+It now compares the fields a user can actually see — status, rider lat/lng,
+rider identity, amount — and only rebuilds when one moved. A failed poll still
+updates, because the error state has to show.
+
+This is the one place where M4's rebuild story *is* the cost, and it is worth
+noting why: not because 15 builders is many, but because it repeats on a timer.
+A rebuild that happens once when a screen opens is invisible; the same rebuild
+on a 10-second loop is a stutter the user learns to expect.
+
+### 14.3 The marker was always one tick behind
+
+```dart
+Get.find<OrderController>().timerTrackOrder(...);   // not awaited
+updateMarker(...trackModel...);                     // reads the OLD model
+```
+
+Every rider position was drawn from the *previous* poll — ten seconds stale,
+permanently — and the first tick drew against whatever the screen happened to
+load with. Now awaited.
+
+The same call also banged through `trackModel!`, which took the screen down on
+a dropped connection mid-delivery. Read once, null-checked, then used.
+
+### 14.4 What was not the problem
+
+Order history and running orders are **not** module-scoped server-side
+(`Order::scopeScopedToRequester` filters by user or guest only), so the
+`moduleId` header bug that emptied the cart does not apply here.
+
+`OrderController` has 25 bare `update()` calls and 0 scoped. Only the polling
+one was worth changing — the others fire on user actions, where a rebuild is
+both expected and invisible.
+
+---
+
+## 15. Cold start measured — and it was one thing
+
+```
+── BOOT to runApp ────────────────────
+total: 2039ms   measured: 2034ms
+   1500ms   74%  firebase.init
+    503ms   25%  di.init
+     18ms    1%  notifications
+     13ms    1%  deeplinks
+      0ms    0%  intl.localeData
+      5ms    0%  (unmeasured)
+```
+
+Two seconds before the first frame. That is the `Skipped 61-79 frames` line
+every trace has opened with, and it is the single largest number in this whole
+exercise — bigger than any rendering cost measured.
+
+### 15.1 The instinct was wrong again
+
+§22.3 named `initializeDateFormatting` as the obvious thing to defer, and
+flagged the risk of a `LocaleDataException` in exchange.
+
+**It costs 0ms.** The locale data is compiled in, not fetched. Deferring it
+would have risked a crash on home to save nothing at all — the sixth time in
+this plan that acting on an untested guess would have been wasted or harmful
+work (§13.1 lists the first five).
+
+Notifications and deep links are 31ms between them. Nothing but Firebase and DI
+matters here.
+
+### 15.2 `di.init` never needed to wait
+
+`di.init` registers SharedPreferences, the `ApiClient` and the controllers.
+None touches a Firebase API in its constructor — `CrashContext.recordBuild()`
+is fire-and-forget. It had no reason to queue behind Firebase; it simply came
+second in the file.
+
+Firebase and deep links now start first and are awaited where they are
+genuinely needed, with `di.init`'s 503ms overlapping Firebase's 1500ms.
+Expected total ~1,550ms, a **~490ms saving** on every cold start.
+
+The notification read still blocks, and correctly: `body` decides the initial
+route, so the first frame cannot be chosen without it.
+
+### 15.3 The 1500ms itself is the real target
+
+`Firebase.initializeApp` taking 1.5s on a Snapdragon 730 is slow even for a
+mid-range device. Every trace carries the likely reason:
+
+```
+E/com.facebook.GraphResponse: {HttpStatus: 400, errorCode: 190,
+  errorMessage: Error validating application. Application has been deleted.}
+```
+
+**About a dozen of these per boot.** The Facebook SDK auto-initialises from
+`AndroidManifest.xml` with app id `380903914182154`, which **no longer exists**
+upstream, and retries. Those are failing network round trips during startup,
+competing for the main thread with Firebase.
+
+Three things follow, and none is a code change to make blind:
+
+1. **Meta ads attribution is currently dead.** Every `logAddToCart`,
+   `logInitiateCheckout` and `logPurchase` in `analytics_helper.dart` is going
+   to a deleted app. Campaigns cannot be optimising on events that never
+   arrive.
+2. **Every session pays for the retries** — network, battery, and startup time.
+3. **Fixing it is an account action, not a commit:** either restore/recreate
+   the Meta app and update `facebook_app_id`, or remove the SDK until there is
+   one. Both are decisions for whoever owns the ads work.
+
+Re-measure after that is resolved. If `firebase.init` stays at 1.5s with the FB
+SDK quiet, the next candidates are deferring Crashlytics collection and
+Analytics auto-init past the first frame — but that is a guess, and this
+section is the sixth reminder to measure instead.

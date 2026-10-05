@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'package:waddy_app/helper/crash_context_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:waddy_app/features/brands/controllers/brands_controller.dart';
 import 'package:waddy_app/features/brands/domain/repositories/brands_repository.dart';
@@ -123,6 +125,11 @@ import 'package:waddy_app/features/xp/domain/repositories/xp_repository_interfac
 import 'package:waddy_app/features/xp/domain/services/xp_service.dart';
 import 'package:waddy_app/features/xp/domain/services/xp_service_interface.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/pets/controllers/pet_controller.dart';
+import 'package:waddy_app/features/pets/domain/repositories/pet_repository.dart';
+import 'package:waddy_app/features/pets/domain/repositories/pet_repository_interface.dart';
+import 'package:waddy_app/features/pets/domain/services/pet_service.dart';
+import 'package:waddy_app/features/pets/domain/services/pet_service_interface.dart';
 import 'package:waddy_app/features/places/domain/repositories/places_repository.dart';
 import 'package:waddy_app/features/places/domain/repositories/places_repository_interface.dart';
 import 'package:waddy_app/features/places/domain/services/places_service.dart';
@@ -172,7 +179,7 @@ import 'package:waddy_app/features/splash/domain/repositories/splash_repository.
 import 'package:waddy_app/features/splash/domain/repositories/splash_repository_interface.dart';
 import 'package:waddy_app/features/splash/domain/services/splash_service.dart';
 import 'package:waddy_app/features/splash/domain/services/splash_service_interface.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/repositories/store_repository.dart';
 import 'package:waddy_app/features/store/domain/repositories/store_repository_interface.dart';
 import 'package:waddy_app/features/store/domain/services/store_service.dart';
@@ -227,6 +234,11 @@ Future<Map<String, Map<String, String>>> init() async {
   /// synchronous cache here, before anything can read it, and migrate any
   /// plaintext token left by a previous build. See [AuthTokenStore].
   await AuthTokenStore.hydrate(sharedPreferences);
+
+  /// Stamps the build onto every crash report. Without the flavor a staging
+  /// crash and a production crash are indistinguishable in the console, and
+  /// the crash-free-sessions figure covers both.
+  unawaited(CrashContext.recordBuild());
   _lazy(
     () => ApiClient(
       appBaseUrl: AppConstants.baseUrl,
@@ -336,6 +348,9 @@ Future<Map<String, Map<String, String>>> init() async {
   _lazy<XpRepositoryInterface>(() => XpRepository(apiClient: Get.find()));
   _lazy<PlacesRepositoryInterface>(
     () => PlacesRepository(apiClient: Get.find()),
+  );
+  _lazy<PetRepositoryInterface>(
+    () => PetRepository(apiClient: Get.find(), sharedPreferences: Get.find()),
   );
   _lazy<CartRepositoryInterface>(
     () => CartRepository(apiClient: Get.find(), sharedPreferences: Get.find()),
@@ -458,6 +473,9 @@ Future<Map<String, Map<String, String>>> init() async {
   _lazy<PlacesServiceInterface>(
     () => PlacesService(placesRepositoryInterface: Get.find()),
   );
+  _lazy<PetServiceInterface>(
+    () => PetService(petRepositoryInterface: Get.find()),
+  );
   _lazy<CartServiceInterface>(
     () => CartService(cartRepositoryInterface: Get.find()),
   );
@@ -502,7 +520,7 @@ Future<Map<String, Map<String, String>>> init() async {
   _lazy(() => CuisineController(cuisineServiceInterface: Get.find()));
   _lazy(() => ItemController(itemServiceInterface: Get.find()));
   _lazy(() => CartController(cartServiceInterface: Get.find()));
-  _lazy(() => StoreController(storeServiceInterface: Get.find()));
+  _lazy(() => StoreListController(storeServiceInterface: Get.find()));
   _lazy(() => FavouriteController(favouriteServiceInterface: Get.find()));
   _lazy(() => HomeController(homeServiceInterface: Get.find()));
   _lazy(() => SearchController(searchServiceInterface: Get.find()));
@@ -522,6 +540,7 @@ Future<Map<String, Map<String, String>>> init() async {
   _lazy(() => LoyaltyController(loyaltyServiceInterface: Get.find()));
   _lazy(() => XpController(xpServiceInterface: Get.find()));
   _lazy(() => PlacesController(placesServiceInterface: Get.find()));
+  _lazy(() => PetController(petServiceInterface: Get.find()));
   _lazy(() => VerificationController(verificationServiceInterface: Get.find()));
   _lazy(() => BrandsController(brandsServiceInterface: Get.find()));
   _lazy(() => BusinessController(businessServiceInterface: Get.find()));

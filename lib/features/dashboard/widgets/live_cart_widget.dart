@@ -9,6 +9,7 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/util/dimensions.dart';
+import 'package:waddy_app/features/xp/widgets/prize_visual.dart';
 
 /// Live cart widget - floating green pill with stacked item images,
 /// "View cart" text, item count, and chevron arrow.
@@ -74,17 +75,8 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
             cartItems.isNotEmpty ? cartItems.first.item?.moduleType : null;
         int estimatedXp = 0;
         if (Get.isRegistered<XpController>()) {
-          final lines =
-              cartItems
-                  .map(
-                    (item) => (
-                      price: item.discountedPrice ?? item.price ?? 0,
-                      quantity: item.quantity ?? 1,
-                    ),
-                  )
-                  .toList();
-          estimatedXp = Get.find<XpController>().calculateEstimatedXpForItems(
-            lines,
+          estimatedXp = Get.find<XpController>().estimateForCart(
+            cartItems,
             moduleType,
           );
         }
@@ -239,10 +231,12 @@ class _LiveCartWidgetState extends State<LiveCartWidget>
         final rewardTitle =
             nextReward.title.isNotEmpty
                 ? nextReward.title
-                : xpController.getRewardName(nextReward.type);
+                : nextReward.kind.label;
 
         rewardRow = Text(
-          '${'next'.tr} Prize: $rewardTitle',
+          // One parameterised string: the old concatenation read
+          // "التالي Prize: Free Delivery" in Arabic (X-08).
+          'xp_next_prize'.trParams({'reward': rewardTitle}),
           style: waddyMedium.copyWith(color: accentColor, fontSize: 11),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

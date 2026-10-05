@@ -80,6 +80,12 @@ class CustomImage extends StatelessWidget {
   /// keep their own shape, which is what they already did inside a clip.
   final BorderRadius? borderRadius;
 
+  /// How long the loaded image fades in over the placeholder. Null keeps the
+  /// package default (500ms). A surface whose image should simply BE there —
+  /// the home module tiles — passes [Duration.zero] so a cached image does not
+  /// re-fade in every time the screen is rebuilt.
+  final Duration? fadeInDuration;
+
   const CustomImage({
     super.key,
     required this.image,
@@ -93,6 +99,7 @@ class CustomImage extends StatelessWidget {
     this.decodeWidth,
     this.fallback,
     this.borderRadius,
+    this.fadeInDuration,
   });
 
   /// Hard ceiling on decode width in device pixels.
@@ -139,6 +146,11 @@ class CustomImage extends StatelessWidget {
 
     return CachedNetworkImage(
       color: color,
+      fadeInDuration: fadeInDuration ?? const Duration(milliseconds: 500),
+      fadeOutDuration:
+          fadeInDuration == Duration.zero
+              ? Duration.zero
+              : const Duration(milliseconds: 1000),
       imageUrl: url,
       height: height,
       width: width,

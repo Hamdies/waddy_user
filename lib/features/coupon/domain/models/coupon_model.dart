@@ -19,6 +19,9 @@ class CouponModel {
   Store? store;
   JustTheController? toolTip;
 
+  /// Minted from a printed scratch card (the apply response says so).
+  bool scratchCard = false;
+
   CouponModel({
     this.id,
     this.title,
@@ -58,6 +61,7 @@ class CouponModel {
     if (json['store'] != null) {
       store = Store.fromJson(json['store']);
     }
+    scratchCard = json['scratch_card'] == true;
   }
 
   Map<String, dynamic> toJson() {

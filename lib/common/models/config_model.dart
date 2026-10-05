@@ -85,6 +85,10 @@ class ConfigModel {
   double? vehicleHourlyMinPrice;
   double? vehicleDayWiseMinPrice;
   AdminFreeDelivery? adminFreeDelivery;
+
+  /// Printed scratch cards going into bags right now (SC-14). Null on a
+  /// server that predates them, which reads as "no cards".
+  ScratchCardsConfig? scratchCards;
   bool? isSmsActive;
   bool? isMailActive;
   bool? ramadanMode;
@@ -322,6 +326,10 @@ class ConfigModel {
     adminFreeDelivery =
         json['admin_free_delivery'] != null
             ? AdminFreeDelivery.fromJson(json['admin_free_delivery'])
+            : null;
+    scratchCards =
+        json['scratch_cards'] is Map
+            ? ScratchCardsConfig.fromJson(json['scratch_cards'])
             : null;
     isSmsActive = json['is_sms_active'];
     isMailActive = json['is_mail_active'];
@@ -896,6 +904,27 @@ class CentralizeLoginSetup {
     data['email_verification_status'] = emailVerificationStatus;
     data['phone_verification_status'] = phoneVerificationStatus;
     return data;
+  }
+}
+
+/// Whether printed scratch cards are going into bags, and where.
+class ScratchCardsConfig {
+  final bool active;
+
+  /// Zones with a live batch; null means every zone.
+  final List<int>? zoneIds;
+
+  const ScratchCardsConfig({required this.active, this.zoneIds});
+
+  factory ScratchCardsConfig.fromJson(Map json) {
+    final dynamic zones = json['zone_ids'];
+    return ScratchCardsConfig(
+      active: json['active'] == true,
+      zoneIds:
+          zones is List
+              ? zones.map((z) => int.tryParse('$z')).whereType<int>().toList()
+              : null,
+    );
   }
 }
 

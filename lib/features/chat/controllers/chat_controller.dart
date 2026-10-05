@@ -294,9 +294,7 @@ class ChatController extends GetxController implements GetxService {
                     ? User(
                       id: 0,
                       fName:
-                          Get.find<SplashController>()
-                              .configModel
-                              .businessName,
+                          Get.find<SplashController>().configModel.businessName,
                       lName: '',
                       imageFullUrl:
                           Get.find<SplashController>().configModel.logoFullUrl,

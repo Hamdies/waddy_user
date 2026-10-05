@@ -113,7 +113,9 @@ class OrderController extends GetxController implements GetxService {
 
   Future<void> getOrderCancelReasons() async {
     _orderCancelReasons = null;
-    _orderCancelReasons = await orderServiceInterface.getCancelReasons();
+    // A failed fetch lands as an empty list rather than null, so the cancel
+    // sheet falls back to a typed reason instead of spinning forever.
+    _orderCancelReasons = await orderServiceInterface.getCancelReasons() ?? [];
     update();
   }
 
@@ -203,6 +205,61 @@ class OrderController extends GetxController implements GetxService {
     }
   }
 
+  /// Re-reads the first page of running orders for a screen that is already
+  /// showing them, without the flash a normal reload causes.
+  ///
+  /// [getRunningOrders] sets the model to null before it fetches, which is right
+  /// for a screen that wants its spinner and wrong for the order-tracking bar:
+  /// any rebuild during that window reads "no orders" and the bar disappears,
+  /// then reappears. This keeps the current model until the answer is in, and
+  /// notifies only when something a user can see changed — the same economy
+  /// [timerTrackOrder] applies to a single order.
+  ///
+  /// Yields to any reload already running, and discards its own answer if one
+  /// started while it was in flight (that one is newer).
+  Future<void> refreshRunningOrdersQuietly() async {
+    if (_runningFirstPageInFlight != null) return;
+    final PaginatedOrderModel? fresh = await orderServiceInterface
+        .getRunningOrderList(1, false);
+    if (_runningFirstPageInFlight != null) return;
+    final List<OrderModel>? incoming = fresh?.orders;
+    if (fresh == null || incoming == null) return;
+
+    final List<OrderModel>? current = _runningOrderModel?.orders;
+    if (current == null) {
+      _runningOrderModel = fresh;
+      update();
+      return;
+    }
+
+    String sig(OrderModel o) =>
+        '${o.id}|${o.orderStatus}|${o.estimatedDeliveryAt}|'
+        '${o.deliveryMan?.id}|${o.deliveryMan?.phone}';
+
+    // One page is 10. Within it, the fresh page IS the list; past it the user
+    // has scrolled more in, and replacing would throw that away, so only the
+    // orders already on screen are updated in place.
+    if (current.length <= 10) {
+      final bool changed =
+          current.map(sig).join(',') != incoming.map(sig).join(',') ||
+          _runningOrderModel!.totalSize != fresh.totalSize;
+      if (!changed) return;
+      _runningOrderModel = fresh;
+      update();
+      return;
+    }
+
+    bool changed = false;
+    for (final OrderModel o in incoming) {
+      final int i = current.indexWhere((c) => c.id == o.id);
+      if (i >= 0 && sig(current[i]) != sig(o)) {
+        current[i] = o;
+        changed = true;
+      }
+    }
+    if (changed) update();
+  }
+
   Future<void> getHistoryOrders(int offset, {bool isUpdate = false}) async {
     if (offset == 1) {
       _historyOrderModel = null;
@@ -287,11 +344,63 @@ class OrderController extends GetxController implements GetxService {
     return _responseModel;
   }
 
+  /// The guest phone number the open order screen tracks with, so a push can
+  /// refresh it without the screen.
+  String? _trackContact;
+
+  /// An `order_status` push arrived while the app is open: refresh the order
+  /// on screen now instead of at its next 30 s poll.
+  Future<void> refreshTrackedOrder(String? orderID) async {
+    if (orderID == null || '${_trackModel?.id}' != orderID) return;
+    await timerTrackOrder(orderID, contactNumber: _trackContact);
+  }
+
+  /// The live map's 10 s poll (LT-05): moves the rider without reloading the
+  /// whole order. Returns false when the order's status has moved on, so the
+  /// caller reloads the full order.
+  ///
+  /// Falls back to the full reload when the light endpoint isn't there (a
+  /// backend that hasn't been deployed yet) so the map still moves.
+  Future<bool> pollRiderLocation(
+    String orderID, {
+    String? contactNumber,
+  }) async {
+    final Response response = await orderServiceInterface.getRiderLocation(
+      orderID,
+      contactNumber: contactNumber,
+    );
+    final OrderModel? order = _trackModel;
+    if (order == null || '${order.id}' != orderID) return true;
+    if (response.statusCode != 200 || response.body is! Map) {
+      if (response.statusCode == 404) {
+        await timerTrackOrder(orderID, contactNumber: contactNumber);
+      }
+      return true;
+    }
+    final Map body = response.body as Map;
+    if (body['order_status'] != order.orderStatus) return false;
+    final DeliveryMan? rider = order.deliveryMan;
+    if (rider == null) return false;
+
+    final bool wasStale = rider.locationStale;
+    rider.setLocationAge(body['location_age_seconds']);
+    final String? lat = body['lat']?.toString();
+    final String? lng = body['lng']?.toString();
+    if (lat == rider.lat && lng == rider.lng && wasStale == rider.locationStale) {
+      return true;
+    }
+    rider.lat = lat;
+    rider.lng = lng;
+    update();
+    return true;
+  }
+
   Future<ResponseModel?> timerTrackOrder(
     String orderID, {
     String? contactNumber,
   }) async {
     _showCancelled = false;
+    _trackContact = contactNumber;
 
     Response response = await orderServiceInterface.trackOrder(
       orderID,
@@ -299,12 +408,37 @@ class OrderController extends GetxController implements GetxService {
       contactNumber: contactNumber,
     );
     if (response.statusCode == 200) {
-      _trackModel = OrderModel.fromJson(response.body);
+      final OrderModel next = OrderModel.fromJson(response.body);
+
+      // Only rebuild when something a user can see has actually changed.
+      //
+      // This fires every 30 seconds while the order screen is open, and it
+      // used to call a bare `update()` each time — rebuilding all 15
+      // `GetBuilder<OrderController>` trees, including the map, on a tick
+      // where the rider had not moved and the status had not changed. On a
+      // mid-range device that is a visible stutter every ten seconds for the
+      // whole delivery.
+      //
+      // The rider's position is the field that legitimately changes most
+      // often; status and ETA change rarely. Comparing them is far cheaper
+      // than the rebuild it avoids.
+      final bool changed =
+          _trackModel == null ||
+          _trackModel!.orderStatus != next.orderStatus ||
+          _trackModel!.deliveryMan?.lat != next.deliveryMan?.lat ||
+          _trackModel!.deliveryMan?.lng != next.deliveryMan?.lng ||
+          _trackModel!.deliveryMan?.locationStale !=
+              next.deliveryMan?.locationStale ||
+          _trackModel!.deliveryMan?.id != next.deliveryMan?.id ||
+          _trackModel!.orderAmount != next.orderAmount;
+
+      _trackModel = next;
       _responseModel = ResponseModel(true, response.body.toString());
+      if (changed) update();
     } else {
       _responseModel = ResponseModel(false, response.statusText);
+      update();
     }
-    update();
 
     return _responseModel;
   }

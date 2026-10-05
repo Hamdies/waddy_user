@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:waddy_app/util/loud_speaker_audio_context.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -30,6 +31,7 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
   @override
   void initState() {
     super.initState();
+    useLoudSpeaker(_player);
 
     _player.onPositionChanged.listen((p) {
       if (mounted) setState(() => _position = p);
@@ -103,31 +105,41 @@ class _VoicePlayerWidgetState extends State<VoicePlayerWidget> {
       ),
       child: Row(
         children: [
-          InkWell(
+          InkResponse(
             onTap: _isLoading ? null : _togglePlayback,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
+            radius: 22,
+            // Drawn at 36, hit at 44.
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                      _isLoading
+                          ? const Padding(
+                            padding: EdgeInsets.all(
+                              Dimensions.paddingSizeSmall,
+                            ),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : Icon(
+                            _isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                ),
               ),
-              child:
-                  _isLoading
-                      ? const Padding(
-                        padding: EdgeInsets.all(Dimensions.paddingSizeSmall),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                      : Icon(
-                        _isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
             ),
           ),
           const SizedBox(width: Dimensions.paddingSizeSmall),

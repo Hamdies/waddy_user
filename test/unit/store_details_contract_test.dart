@@ -2,44 +2,37 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// What `StoreController.getStoreDetails` promises its six callers.
+/// What `StoreController.getStoreDetails` promises, and who may use it.
 ///
 /// ## Why this file is a source test
 ///
-/// The method fetches a store **and** initialises checkout time slots,
-/// computes a delivery distance, sets the order type, can reassign the user's
-/// saved address, and can trigger a full home reload. Five side effects behind
-/// a name that says "get".
-///
-/// Exercising it needs StoreController, CheckoutController, LocationController,
-/// SplashController, LocalizationController, a saved address and a network
-/// stub. That is a lot of scaffolding to assert something structural — so the
-/// side-effect *contract* is read off the source, the way
+/// The method used to fetch a store **and** initialise checkout time slots,
+/// compute a delivery distance, set the order type, reset checkout, reload
+/// home and (on a slug link) reassign the user's saved address — six effects
+/// behind a name that says "get", with `fromCart` / `fromModule` flags to
+/// suppress the ones a caller did not want. Exercising it needs half the app
+/// registered, so the contract is read off the source, the way
 /// `route_guard_test.dart` reads route middleware.
 ///
-/// This is a characterization test: it pins the behaviour **as it is**, so a
-/// decomposition can prove it changed nothing by accident. Where the current
-/// behaviour is wrong, the test says so and asserts the wrong thing anyway.
+/// ## What it is now (ST-02, ST-11)
 ///
-/// ## The six callers and what each actually wants
+/// A fetch for the store PAGE. Its only callers are the two store screens.
+/// The cart has its own store (`CartController.cartStore`, behaviour-tested in
+/// `cart_store_test.dart`) and checkout applies its own setup
+/// (`CheckoutController._applyStore`). What the page keeps is the one effect a
+/// shared link genuinely needs: moving the saved address to the store.
 ///
-/// | caller | wants |
-/// |---|---|
-/// | `food_store_screen` | the store, plus order type |
-/// | `store_screen` | the store, plus order type |
-/// | `checkout_controller` | the store, time slots, distance |
-/// | `cart_screen` (×2) | the store only (`fromCart: true`) |
-/// | `item_controller` | the store only |
-///
-/// Nobody wants all five effects. `fromCart` and `slug` exist to suppress the
-/// ones a given caller does not want, which is the shape of a method doing too
-/// much.
+/// The ST-02 guard at the bottom is the one that matters most: on device, the
+/// cart screen wrote the cart's store into `StoreController.store` and the
+/// store page under it showed the wrong store's header over its own menu.
 void main() {
   late String source;
 
   setUpAll(() {
-    source = File('lib/features/store/controllers/store_controller.dart')
-        .readAsStringSync();
+    source =
+        File(
+          'lib/features/store/controllers/store_page_controller.dart',
+        ).readAsStringSync();
   });
 
   /// The body of `getStoreDetails`, by brace matching from its signature.
@@ -75,57 +68,63 @@ void main() {
     fail('unbalanced braces in getStoreDetails');
   }
 
-  group('the short-circuit', () {
-    test('a caller that already has the store skips the fetch entirely', () {
-      // `if (store.name != null) { _store = store; }` — passing a populated
-      // Store means "use this one", and none of the side effects run. Two
-      // callers rely on it to avoid a redundant round trip.
-      final String body = methodBody(source);
-      expect(body, contains('if (store.name != null)'));
-    });
-  });
+  /// Lines of [code] with `//` comments removed — bodies explain removed
+  /// calls by name, and matching the explanation would fail on the prose.
+  String stripComments(String code) => code
+      .split('\n')
+      .where((String line) => !line.trimLeft().startsWith('//'))
+      .join('\n');
 
-  group('the five side effects, pinned', () {
-    test('time slots are initialised from inside the fetch', () {
-      // This is why calling it twice cost four schedule-loop runs: the
-      // side effect fires here, and initCheckoutData used to fire it again.
-      expect(methodBody(source), contains('initializeTimeSlot'));
+  group('a fetch for the store page, nothing else (ST-02)', () {
+    test('no checkout setup and no home reload inside the fetch', () {
+      final String body = stripComments(methodBody(source));
+      for (final String effect in <String>[
+        'CheckoutController',
+        'initializeTimeSlot',
+        'setOrderType',
+        'getDistanceInKM',
+        'clearPrevData',
+        'HomeScreen.loadData',
+      ]) {
+        expect(body.contains(effect), isFalse, reason: '$effect is back');
+      }
     });
 
-    test('distance is computed unless the caller came from the cart', () {
-      final String body = methodBody(source);
-      // The call now lives in _computeDeliveryDistance; the *decision* stays
-      // at the call site, which is the part that matters.
-      expect(source, contains('getDistanceInKM'));
-      expect(
-        body,
-        contains('!fromCart && slug.isEmpty'),
-        reason: 'the cart already knows its distance; a slug link has no '
-            'user address to measure from yet',
-      );
+    test('the suppressor flags are gone', () {
+      final int at = source.indexOf('Future<Store?> getStoreDetails(');
+      final String signature = source.substring(at, source.indexOf('{', at));
+      expect(signature.contains('fromCart'), isFalse);
+      expect(signature.contains('fromModule'), isFalse);
     });
 
     test('a slug link reassigns the user address to the store', () {
-      // The most surprising effect: opening a shared store link MOVES the
-      // user's saved location. Deliberate — a slug link can arrive before any
-      // address exists — but it is not something "get store details" implies.
+      // The one effect kept: a shared store URL can arrive before the user
+      // has any saved address, and nothing downstream can price delivery
+      // without one.
       expect(source, contains('setStoreAddressToUserAddress'));
-      // The guard stays visible in the fetch itself.
       expect(methodBody(source), contains('slug.isNotEmpty'));
     });
 
-    test('a module entry triggers a full home reload', () {
-      expect(methodBody(source), contains('HomeScreen.loadData'));
-    });
-
-    test('order type is always set, even when the fetch failed', () {
-      // Outside the `storeDetails != null` block on purpose: a failed fetch
-      // still leaves checkout with a defined order type rather than a stale
-      // one from the previous store.
-      // Called through _applyOrderType, and reached on BOTH the short-circuit
-      // path and the post-fetch path.
-      expect(source, contains('setOrderType'));
-      expect(methodBody(source), contains('_applyOrderType'));
+    test('only the two store screens call it', () {
+      final List<String> callers = <String>[];
+      for (final FileSystemEntity f in Directory(
+        'lib',
+      ).listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        if (f.path.contains('/domain/')) continue; // the service layer's own
+        final String code = stripComments(f.readAsStringSync());
+        // `storeServiceInterface.getStoreDetails` is the network call itself.
+        if (RegExp(
+          r'(?<!ServiceInterface)\.getStoreDetails\(',
+        ).hasMatch(code)) {
+          callers.add(f.path);
+        }
+      }
+      callers.sort();
+      expect(callers, <String>[
+        'lib/features/store/screens/food_store_screen.dart',
+        'lib/features/store/screens/store_screen.dart',
+      ]);
     });
   });
 
@@ -152,7 +151,8 @@ void main() {
       expect(
         source.contains('double.parse('),
         isFalse,
-        reason: 'use Parse.coordinate — a distance we cannot compute is a '
+        reason:
+            'use Parse.coordinate — a distance we cannot compute is a '
             'missing distance, not a crash',
       );
       expect(source, contains('Parse.coordinate'));
@@ -162,50 +162,89 @@ void main() {
       expect(
         source.contains('getUserAddressFromSharedPref()!'),
         isFalse,
-        reason: 'no saved address is the normal state until the location gate '
+        reason:
+            'no saved address is the normal state until the location gate '
             'resolves one',
       );
     });
   });
 
-  group('the callers', () {
-    test('every call site passes flags consistent with what it wants', () {
-      // cart_screen and item_controller want the store and nothing else.
-      final String cart =
-          File('lib/features/cart/screens/cart_screen.dart').readAsStringSync();
-      expect(
-        cart,
-        contains('fromCart: true'),
-        reason: 'the cart must not re-trigger distance or a home reload',
-      );
+  group('checkout owns its setup', () {
+    late String checkout;
+    setUpAll(() {
+      checkout =
+          File(
+            'lib/features/checkout/controllers/checkout_controller.dart',
+          ).readAsStringSync();
     });
 
-    test('checkout no longer re-initialises time slots itself', () {
-      // The duplicate that cost four schedule-loop runs. If this comes back,
-      // so does the cost.
-      final String checkout = File(
-        'lib/features/checkout/controllers/checkout_controller.dart',
-      ).readAsStringSync();
-      final int at = checkout.indexOf('Future<void> initCheckoutData(');
+    test('time slots, order type and distance are applied by checkout', () {
+      final int at = checkout.indexOf('void _applyStore(Store store)');
       expect(at, isNot(-1));
-      final int end = checkout.indexOf('\n  }', at);
+      final String body = checkout.substring(at, checkout.indexOf('\n  }', at));
+      expect(body, contains('initializeTimeSlot'));
+      expect(body, contains('setOrderType'));
+      expect(body, contains('_computeDistanceTo'));
+    });
 
-      // Comments stripped first. The body carries a comment explaining *why*
-      // the call was removed, and matching that would fail on the explanation
-      // rather than the code — the same trap that mangled a comment about
-      // empty catches in §17.4 of the hardening plan.
-      final String body = checkout
-          .substring(at, end)
-          .split('\n')
-          .where((String line) => !line.trimLeft().startsWith('//'))
-          .join('\n');
+    test('the schedule loop runs once per checkout, not twice', () {
+      // It ran as a side effect of the store fetch AND from initCheckoutData,
+      // which is what cost four schedule-loop runs. One call site now.
+      // Bare calls only: not the definition, not the service call inside it.
+      final int calls =
+          RegExp(
+            r'(?<!Future<void> )(?<![.\w])initializeTimeSlot\(',
+          ).allMatches(stripComments(checkout)).length;
+      expect(calls, 1);
+    });
 
-      expect(
-        body.contains('initializeTimeSlot'),
-        isFalse,
-        reason: 'getStoreDetails already fires it — calling it again ran the '
-            'whole schedule loop a second time',
+    test('checkout does not go through StoreListController for its store', () {
+      expect(stripComments(checkout).contains('StoreListController'), isFalse);
+    });
+  });
+
+  group('the page\'s store stays the page\'s (ST-02, Phase 4)', () {
+    test('the app-wide StoreListController holds no store page state', () {
+      // Phase 4 moved the page's store, menu, categories and filters onto a
+      // per-page StorePageController. If any of it comes back to the
+      // singleton, it outlives its page again — which is what ST-01 was.
+      final String app = stripComments(
+        File(
+          'lib/features/store/controllers/store_list_controller.dart',
+        ).readAsStringSync(),
       );
+      for (final String member in <String>[
+        'Store? get store',
+        'storeItemModel',
+        'categoryIndex',
+        'subCategoriesOf',
+        'storeRail(',
+        'getStoreDetails(',
+        'resetStoreBrowsing',
+      ]) {
+        expect(app.contains(member), isFalse, reason: '$member is back');
+      }
+    });
+
+    test('outside the store feature, only the no-delivery sheet asks which '
+        'store page is open', () {
+      // It names the store PAGE a blocked add-to-cart tap came from. Anything
+      // else wanting "the store" means the cart's (CartController.cartStore)
+      // or checkout's own.
+      final Map<String, int> readers = <String, int>{};
+      for (final FileSystemEntity f in Directory(
+        'lib',
+      ).listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        if (f.path.startsWith('lib/features/store/')) continue;
+        final int n = RegExp(r'StorePageController\b')
+            .allMatches(stripComments(f.readAsStringSync()))
+            .length;
+        if (n > 0) readers[f.path] = n;
+      }
+      expect(readers, <String, int>{
+        'lib/features/cart/controllers/cart_controller.dart': 1,
+      });
     });
   });
 }

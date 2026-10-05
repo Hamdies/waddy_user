@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:waddy_app/common/widgets/custom_tool_tip_widget.dart';
@@ -42,14 +43,14 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
                   '(${'max_size_2_mb'.tr})',
                   style: waddyRegular.copyWith(
                     fontSize: Dimensions.fontSizeExtraSmall,
-                    color: Theme.of(context).colorScheme.error,
+                    color: WaddyColors.error,
                   ),
                 ),
                 const SizedBox(width: Dimensions.paddingSizeExtraSmall),
 
                 CustomToolTip(
                   message: 'upload_jpg_png_jpeg_maximum_2_MB'.tr,
-                  iconColor: Theme.of(context).textTheme.bodyLarge!.color!,
+                  iconColor: WaddyColors.ink!,
                 ),
               ],
             ),
@@ -73,7 +74,7 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
                         Get.bottomSheet(const CameraButtonSheetWidget());
                       },
                       child: DottedBorder(
-                        color: Theme.of(context).primaryColor,
+                        color: WaddyColors.primary,
                         strokeWidth: 1,
                         strokeCap: StrokeCap.butt,
                         dashPattern: const [5, 5],
@@ -94,13 +95,13 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
                             children: [
                               Icon(
                                 Icons.cloud_upload,
-                                color: Theme.of(context).disabledColor,
+                                color: WaddyColors.inkMuted,
                                 size: 32,
                               ),
                               Text(
                                 'upload_your_prescription'.tr,
                                 style: waddyRegular.copyWith(
-                                  color: Theme.of(context).disabledColor,
+                                  color: WaddyColors.inkMuted,
                                   fontSize: Dimensions.fontSizeSmall,
                                 ),
                                 textAlign: TextAlign.center,
@@ -122,7 +123,7 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
                           ),
                         ),
                         child: DottedBorder(
-                          color: Theme.of(context).primaryColor,
+                          color: WaddyColors.primary,
                           strokeWidth: 1,
                           strokeCap: StrokeCap.butt,
                           dashPattern: const [5, 5],
@@ -164,25 +165,33 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                                // A 24pt badge in a 40pt target, pinned to
+                                // the same corner it was drawn in.
                                 Positioned(
-                                  right: 5,
-                                  top: 5,
-                                  child: InkWell(
+                                  right: 0,
+                                  top: 0,
+                                  child: InkResponse(
                                     onTap:
                                         () => checkoutController
                                             .removePrescriptionImage(index),
+                                    radius: 20,
                                     child: Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.blue,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      padding: const EdgeInsets.all(
-                                        Dimensions.paddingSizeExtraSmall,
-                                      ),
-                                      child: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.white,
-                                        size: 16,
+                                      width: 40,
+                                      height: 40,
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: WaddyColors.mintInk,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(
+                                          Dimensions.paddingSizeExtraSmall,
+                                        ),
+                                        child: const Icon(
+                                          Icons.delete_outline,
+                                          color: WaddyColors.surface,
+                                          size: 16,
+                                        ),
                                       ),
                                     ),
                                   ),

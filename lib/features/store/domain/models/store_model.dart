@@ -1,4 +1,5 @@
 import 'package:waddy_app/common/models/image_variants.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
 import 'package:waddy_app/util/parse.dart';
 
 class StoreModel {
@@ -53,6 +54,11 @@ class Store {
   double? minimumOrder;
   String? currency;
   bool? freeDelivery;
+
+  /// Deepest markdown, in whole percent, on any live item the store sells — 0
+  /// or null when nothing is on sale. Sent by the popular/latest store lists
+  /// only; drives the "Up to X% off" collar on the top-brands grid.
+  int? maxItemDiscount;
   String? coverPhotoFullUrl;
   bool? delivery;
   bool? takeAway;
@@ -84,6 +90,17 @@ class Store {
   bool? active;
   String? deliveryTime;
   List<int>? categoryIds;
+
+  /// The store's categories as full rows (store details only). For a
+  /// specialty grocery store these are its OWN categories, which are not in
+  /// the module-wide `/categories` list — so its tabs must come from here.
+  List<CategoryModel>? categoryDetails;
+
+  /// Grocery only: tagged with the "Supermarkets" store type. Supermarkets
+  /// browse the shared aisle tree ([StoreScreen]); every other grocery store
+  /// is a specialty shop shown menu-style ([FoodStoreScreen]). Null on
+  /// payloads from before the backend sent it.
+  bool? isSupermarket;
 
   /// Cuisine ids for food stores, and their names when the payload inlines
   /// them. Restaurants are described by cuisine, not category.
@@ -146,6 +163,8 @@ class Store {
     this.categoryIds,
     this.cuisineIds,
     this.cuisineNames,
+    this.categoryDetails,
+    this.isSupermarket,
     this.veg,
     this.nonVeg,
     this.moduleId,
@@ -185,6 +204,8 @@ class Store {
         json['minimum_order'] == null ? 0 : json['minimum_order']?.toDouble();
     currency = json['currency'];
     freeDelivery = json['free_delivery'];
+    maxItemDiscount =
+        num.tryParse('${json['max_item_discount'] ?? ''}')?.round();
     coverPhotoFullUrl = json['cover_photo_full_url'] ?? '';
     delivery = json['delivery'];
     takeAway = json['take_away'];
@@ -217,6 +238,17 @@ class Store {
     orderPlaceToScheduleInterval = json['order_place_to_schedule_interval'];
     categoryIds =
         json['category_ids'] != null ? json['category_ids'].cast<int>() : [];
+    categoryDetails =
+        json['category_details'] is List
+            ? (json['category_details'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map(CategoryModel.fromJson)
+                .toList()
+            : null;
+    isSupermarket =
+        json['is_supermarket'] == null
+            ? null
+            : (json['is_supermarket'] == true || json['is_supermarket'] == 1);
     // The backend has shipped this two ways: a bare id list, and a list of
     // {id, name} objects. Accept both so the card subtitle fills in either way.
     cuisineIds = [];
@@ -288,6 +320,7 @@ class Store {
     data['minimum_order'] = minimumOrder;
     data['currency'] = currency;
     data['free_delivery'] = freeDelivery;
+    data['max_item_discount'] = maxItemDiscount;
     data['cover_photo_full_url'] = coverPhotoFullUrl;
     data['delivery'] = delivery;
     data['take_away'] = takeAway;
@@ -312,6 +345,11 @@ class Store {
     data['order_place_to_schedule_interval'] = orderPlaceToScheduleInterval;
     data['delivery_time'] = deliveryTime;
     data['category_ids'] = categoryIds;
+    if (categoryDetails != null) {
+      data['category_details'] =
+          categoryDetails!.map((c) => c.toJson()).toList();
+    }
+    data['is_supermarket'] = isSupermarket;
     data['cuisine_ids'] = cuisineIds;
     if (discount != null) {
       data['discount'] = discount!.toJson();

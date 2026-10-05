@@ -12,7 +12,7 @@ import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/parcel/controllers/parcel_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/deep_link_helper.dart';
@@ -34,6 +34,14 @@ import 'package:waddy_app/features/places/screens/places_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/cart/widgets/pill_cart_bar.dart';
+import 'package:waddy_app/features/order/widgets/order_tracking_bar.dart';
+import 'package:waddy_app/common/widgets/overhang_badge.dart';
+
+/// Index of the home page in the dashboard's PageView.
+const int _kHomeTab = 0;
+
+/// Index of the Orders page in the dashboard's PageView.
+const int _kOrdersTab = 3;
 
 class DashboardScreen extends StatefulWidget {
   final int pageIndex;
@@ -173,7 +181,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               if (Get.find<SplashController>().module != null &&
                   Get.find<SplashController>().configModel.module == null) {
                 Get.find<SplashController>().leaveModule();
-                Get.find<StoreController>().resetStoreData();
+                Get.find<StoreListController>().resetStoreData();
               } else {
                 if (_canExit) {
                   if (GetPlatform.isAndroid) {
@@ -267,6 +275,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                                           .showLocationSuggestion,
                                   active: active,
                                   onPageChanged: _setPage,
+                                  onViewAllOrders: () => _setPage(_kOrdersTab),
                                   onCenterTap: () {
                                     if (isParcel) {
                                       showModalBottomSheet(
@@ -337,7 +346,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           Get.find<SplashController>().module != null &&
           Get.find<SplashController>().configModel.module == null) {
         Get.find<SplashController>().leaveModule();
-        Get.find<StoreController>().resetStoreData();
+        Get.find<StoreListController>().resetStoreData();
         HomeScreen.loadData(false);
       }
     });
@@ -767,6 +776,7 @@ class _BottomNavWithLiveCart extends StatefulWidget {
   final bool active;
   final Function(int) onPageChanged;
   final VoidCallback onCenterTap;
+  final VoidCallback onViewAllOrders;
 
   const _BottomNavWithLiveCart({
     required this.pageIndex,
@@ -779,6 +789,7 @@ class _BottomNavWithLiveCart extends StatefulWidget {
     required this.active,
     required this.onPageChanged,
     required this.onCenterTap,
+    required this.onViewAllOrders,
   });
 
   @override
@@ -803,6 +814,47 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
 
   /// True while another route sits on top of the dashboard.
   bool _isCovered = false;
+
+  /// Height `PillCartBar` last reported (0 while it renders nothing). It
+  /// decides whether the tracking bar above it must leave room for the cart
+  /// bar's overhanging badge, and whether the cart bar's bottom inset is
+  /// already covering the screen edge.
+  double _cartBarHeight = 0;
+
+  void _onCartBarHeight(double h) {
+    if (!mounted || (h - _cartBarHeight).abs() < 0.5) return;
+    setState(() => _cartBarHeight = h);
+  }
+
+  /// The tracking bar stacked above [below] (the nav or the cart bar).
+  ///
+  /// Home hub only: absent inside a module (food, grocery, pets, …) and on
+  /// every other tab. The Orders tab is already the full list of what the bar
+  /// summarises.
+  Widget _withTracking({required Widget below, required bool belowIsCartBar}) {
+    if (!widget.isLogin ||
+        widget.pageIndex != _kHomeTab ||
+        Get.find<SplashController>().module != null) {
+      return below;
+    }
+    final bool hasBelow = !belowIsCartBar || _cartBarHeight > 0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        OrderTrackingBar(
+          onViewAll: widget.onViewAllOrders,
+          hasBarBelow: hasBelow,
+          // The cart bar's badge rises OverhangBadge.overhang above its own
+          // top edge — onto this bar. Give it white to land on.
+          belowClearance:
+              belowIsCartBar && _cartBarHeight > 0
+                  ? OverhangBadge.overhang
+                  : 0,
+        ),
+        below,
+      ],
+    );
+  }
 
   ModalRoute<void>? _subscribedRoute;
 
@@ -871,7 +923,8 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
         final module = splashController.module;
         final isGroceryOrFood =
             module?.type == ModuleType.grocery ||
-            module?.type == ModuleType.food;
+            module?.type == ModuleType.food ||
+            module?.type == ModuleType.pets;
 
         // On food/grocery the cart bar REPLACES the bottom nav — it IS the
         // nav for those modules, not an extra bar stacked above one.
@@ -901,7 +954,13 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
                   // Store-agnostic: the cart may span a store whose minimum
                   // and free-delivery flags are not in memory here, so only
                   // the admin-wide rules are evaluated.
-                  child: const PillCartBar(globalOnly: true),
+                  child: _withTracking(
+                    belowIsCartBar: true,
+                    below: PillCartBar(
+                      globalOnly: true,
+                      onHeightChanged: _onCartBarHeight,
+                    ),
+                  ),
                 ),
               );
             },
@@ -921,17 +980,20 @@ class _BottomNavWithLiveCartState extends State<_BottomNavWithLiveCart>
               position: _slideAnimation,
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                child: _FlatBottomNav(
-                  pageIndex: widget.pageIndex,
-                  isParcel: widget.isParcel,
-                  isLogin: widget.isLogin,
-                  showBottomSheet: widget.showBottomSheet,
-                  hasRunningOrders: widget.hasRunningOrders,
-                  fromSplash: widget.fromSplash,
-                  showLocationSuggestion: widget.showLocationSuggestion,
-                  active: widget.active,
-                  onPageChanged: widget.onPageChanged,
-                  onCenterTap: widget.onCenterTap,
+                child: _withTracking(
+                  belowIsCartBar: false,
+                  below: _FlatBottomNav(
+                    pageIndex: widget.pageIndex,
+                    isParcel: widget.isParcel,
+                    isLogin: widget.isLogin,
+                    showBottomSheet: widget.showBottomSheet,
+                    hasRunningOrders: widget.hasRunningOrders,
+                    fromSplash: widget.fromSplash,
+                    showLocationSuggestion: widget.showLocationSuggestion,
+                    active: widget.active,
+                    onPageChanged: widget.onPageChanged,
+                    onCenterTap: widget.onCenterTap,
+                  ),
                 ),
               ),
             );

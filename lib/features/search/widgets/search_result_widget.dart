@@ -150,11 +150,11 @@ class SearchResultWidgetState extends State<SearchResultWidget>
                 Tab(
                   text:
                       Get.find<SplashController>()
-                              .configModel
-                              .moduleConfig!
-                              .module!
-                              .showRestaurantText ??
-                                  false
+                                  .configModel
+                                  .moduleConfig!
+                                  .module!
+                                  .showRestaurantText ??
+                              false
                           ? 'restaurants'.tr
                           : 'stores'.tr,
                 ),

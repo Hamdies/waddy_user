@@ -105,11 +105,11 @@ class FavouriteScreenState extends State<FavouriteScreen>
                                   const SizedBox(width: 8),
                                   Text(
                                     Get.find<SplashController>()
-                                            .configModel
-                                            .moduleConfig!
-                                            .module!
-                                            .showRestaurantText ??
-                                                false
+                                                .configModel
+                                                .moduleConfig!
+                                                .module!
+                                                .showRestaurantText ??
+                                            false
                                         ? 'restaurants'.tr
                                         : 'stores'.tr,
                                   ),

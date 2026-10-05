@@ -109,11 +109,11 @@ class _ItemsViewState extends State<ItemsView> {
                       widget.noDataText ??
                       (widget.isStore
                           ? Get.find<SplashController>()
-                                  .configModel
-                                  .moduleConfig!
-                                  .module!
-                                  .showRestaurantText ??
-                                      false
+                                      .configModel
+                                      .moduleConfig!
+                                      .module!
+                                      .showRestaurantText ??
+                                  false
                               ? 'no_restaurant_available'.tr
                               : 'no_store_available'.tr
                           : 'no_item_available'.tr),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:waddy_app/util/boot_stats.dart';
 import 'package:waddy_app/util/swallow.dart';
 import 'dart:io';
 import 'dart:ui';
@@ -28,6 +29,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
+  BootStats.begin();
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kDebugMode) {
@@ -45,47 +47,80 @@ Future<void> main() async {
     return true;
   };
 
-  if (GetPlatform.isAndroid) {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyCRcROEiqQ0P8X0kqlTO1RmINlK9derFpA",
-        appId: "1:345656646156:android:f17568099ff49a73b72c29",
-        messagingSenderId: "345656646156",
-        projectId: "waddi-51062",
-      ),
-    );
-  } else {
-    await Firebase.initializeApp();
-  }
+  // Firebase and the DI container start together.
+  //
+  // Measured on a Mi 9T: firebase.init 1500ms, di.init 503ms, and the other
+  // three stages 31ms between them. Run serially that was 2,039ms before the
+  // first frame — 79 skipped frames, which is the `Skipped 79 frames` line
+  // every trace opened with.
+  //
+  // `di.init` has no Firebase dependency: it registers SharedPreferences, the
+  // ApiClient and the controllers, none of which touch a Firebase API in their
+  // constructors. So the 503ms hides inside the 1500ms instead of following
+  // it.
+  final Future<void> firebaseReady = BootStats.stage('firebase.init', () async {
+    if (GetPlatform.isAndroid) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCRcROEiqQ0P8X0kqlTO1RmINlK9derFpA",
+          appId: "1:345656646156:android:f17568099ff49a73b72c29",
+          messagingSenderId: "345656646156",
+          projectId: "waddi-51062",
+        ),
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
+  });
 
-  Map<String, Map<String, String>> languages = await di.init();
+  // Deep links need neither Firebase nor DI — started here so its 13ms
+  // overlaps too.
+  final Future<void> deepLinksReady = BootStats.stage('deeplinks', () async {
+    if (GetPlatform.isMobile) {
+      await DeepLinkHelper.init();
+    }
+  });
+
+  final Map<String, Map<String, String>> languages = await BootStats.stage(
+    'di.init',
+    di.init,
+  );
+
+  // Everything below genuinely needs Firebase up.
+  await firebaseReady;
 
   NotificationBodyModel? body;
-  try {
-    if (GetPlatform.isMobile) {
-      final RemoteMessage? remoteMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
-      if (remoteMessage != null) {
-        body = NotificationHelper.convertNotification(remoteMessage.data);
+  await BootStats.stage('notifications', () async {
+    try {
+      if (GetPlatform.isMobile) {
+        // This one has to block: `body` decides the initial route, so the
+        // first frame cannot be chosen without it.
+        final RemoteMessage? remoteMessage =
+            await FirebaseMessaging.instance.getInitialMessage();
+        if (remoteMessage != null) {
+          body = NotificationHelper.convertNotification(remoteMessage.data);
+        }
+        await NotificationHelper.initialize(flutterLocalNotificationsPlugin);
+        FirebaseMessaging.onBackgroundMessage(myBackgroundMessageHandler);
       }
-      await NotificationHelper.initialize(flutterLocalNotificationsPlugin);
-      FirebaseMessaging.onBackgroundMessage(myBackgroundMessageHandler);
+    } catch (e, s) {
+      swallow('firebase messaging / notification init', e, s, true);
     }
-  } catch (e, s) {
-    swallow('firebase messaging / notification init', e, s, true);
-  }
+  });
 
-  if (GetPlatform.isMobile) {
-    await DeepLinkHelper.init();
-  }
+  await deepLinksReady;
 
   /// `intl` ships no locale data until it is explicitly loaded, so any
   /// locale-aware DateFormat/NumberFormat throws LocaleDataException on a
   /// cold start. Spots formats the round lock label and prize dates this way,
-  /// so load the data for every language the app offers before the first
+  /// and home uses `DateFormat` directly — so it is loaded before the first
   /// frame rather than lazily per screen.
-  await initializeDateFormatting();
+  ///
+  /// Measured at 0ms: the data is compiled in, not fetched. Deferring it would
+  /// have risked a LocaleDataException to save nothing.
+  await BootStats.stage('intl.localeData', () => initializeDateFormatting());
 
+  BootStats.endAndPrint();
   runApp(MyApp(languages: languages, body: body));
 }
 

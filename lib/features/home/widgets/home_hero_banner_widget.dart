@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -10,7 +11,14 @@ import 'package:waddy_app/features/location/controllers/location_controller.dart
 import 'package:waddy_app/features/location/widgets/coming_soon_delivery.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
+import 'package:waddy_app/features/store/helpers/store_delivery_fee.dart';
+import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/guest_gate_helper.dart';
@@ -62,6 +70,39 @@ class HomeHeroBannerWidget extends StatelessWidget {
   /// the screen, and the two would drift the first time either is retuned.
   static Color get statusBarTint =>
       Color.lerp(_mint, WaddyColors.heroMint, 0.35)!;
+
+  /// The block's fill. Shared with [StoreHeroBannerWidget] so a store page's
+  /// header is the same object as the module home's, not a lookalike.
+  //
+  // Route the fade through mintSurface (a pale minty-white) instead of lerping
+  // mint straight to white — a direct mint→white lerp desaturates through a
+  // muddy gray-green midpoint, which is what reads as a "dirty shadow" instead
+  // of a clean dissolve.
+  // Holds mint for most of the block, then resolves quickly at the very
+  // bottom. The long eight-stop dissolve this replaces spent the lower third
+  // of the banner on a fade, which is why the block read as mostly empty
+  // gradient — Talabat and Rabbit both keep the hero a solid colour and end
+  // it, and the block is legible as one object because of it.
+  static LinearGradient get heroGradient => LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      statusBarTint,
+      _mint,
+      _mint,
+      Color.lerp(_mint, WaddyColors.mintSurface, 0.55)!,
+      WaddyColors.surface,
+    ],
+    stops: const [0.0, 0.22, 0.74, 0.92, 1.0],
+  );
+
+  /// Mint is a light surface: force dark status-bar icons while the banner
+  /// extends behind the notch.
+  static const SystemUiOverlayStyle overlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+  );
 
   /// The greeting template, with `@name` still in it.
   ///
@@ -139,39 +180,10 @@ class HomeHeroBannerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Mint is a light surface: force dark status-bar icons while the
-      // banner extends behind the notch.
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-      ),
+      value: overlayStyle,
       child: Container(
         width: double.infinity,
-        decoration: BoxDecoration(
-          // Route the fade through mintSurface (a pale minty-white) instead
-          // of lerping mint straight to white — a direct mint→white lerp
-          // desaturates through a muddy gray-green midpoint, which is what
-          // reads as a "dirty shadow" instead of a clean dissolve.
-          // Holds mint for most of the block, then resolves quickly at the very
-          // bottom. The long eight-stop dissolve this replaces spent the lower
-          // third of the banner on a fade, which is why the block read as
-          // mostly empty gradient — Talabat and Rabbit both keep the hero a
-          // solid colour and end it, and the block is legible as one object
-          // because of it.
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              statusBarTint,
-              _mint,
-              _mint,
-              Color.lerp(_mint, WaddyColors.mintSurface, 0.55)!,
-              WaddyColors.surface,
-            ],
-            stops: const [0.0, 0.22, 0.74, 0.92, 1.0],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: heroGradient),
         child: _buildContent(context),
       ),
     );
@@ -212,7 +224,7 @@ class HomeHeroBannerWidget extends StatelessWidget {
                   _BackButton(
                     onTap: () {
                       Get.find<SplashController>().leaveModule();
-                      Get.find<StoreController>().resetStoreData();
+                      Get.find<StoreListController>().resetStoreData();
                     },
                   ),
                   const SizedBox(width: 6),
@@ -431,6 +443,11 @@ class HomeHeroBannerWidget extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
+                // TEMPORARY — remove before release. Opens the out-of-zone
+                // sheet on demand so the McCoin mood animation can be eyeballed
+                // without having to move the device outside a serving zone.
+                // kDebugMode-gated so it can never ship in a release build.
+                
                 const _CartButton(),
               ],
             ),
@@ -544,7 +561,21 @@ class HomeHeroSearchField extends StatelessWidget {
   /// Matches the banner's own compact mode — see [HomeHeroBannerWidget.compact].
   final bool compact;
 
-  const HomeHeroSearchField({super.key, this.compact = false});
+  /// Where a tap goes. Defaults to the global search; a store page points it
+  /// at that store's own item search.
+  final VoidCallback? onTap;
+
+  /// A fixed placeholder in place of the cycling suggestions. A store's
+  /// search covers only that store, so "Search for Koshary" would promise
+  /// results it cannot return.
+  final String? hint;
+
+  const HomeHeroSearchField({
+    super.key,
+    this.compact = false,
+    this.onTap,
+    this.hint,
+  });
 
   /// Compact height. Below [Dimensions.minTapTarget] as *painted* art, but the
   /// control keeps a full 48pt target: the shortfall is added back as
@@ -562,8 +593,8 @@ class HomeHeroSearchField extends StatelessWidget {
     final double slack = (Dimensions.minTapTarget - height) / 2;
 
     return Pressable(
-      onTap: () => Get.toNamed(RouteHelper.getSearchRoute()),
-      semanticLabel: 'search'.tr,
+      onTap: onTap ?? () => Get.toNamed(RouteHelper.getSearchRoute()),
+      semanticLabel: hint ?? 'search'.tr,
       child: Container(
         // 48, down from 52. This control does not accept text — it navigates
         // to the search screen — so its height is pure presence, and 48 is
@@ -613,9 +644,574 @@ class HomeHeroSearchField extends StatelessWidget {
               size: compact ? 19 : 22,
             ),
             SizedBox(width: compact ? 8 : 10),
-            Expanded(child: _CyclingSearchHint(compact: compact)),
+            Expanded(
+              child:
+                  hint != null
+                      ? Text(
+                        hint!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: waddyMedium.copyWith(
+                          fontSize: compact ? 13 : 14,
+                          color: HomeHeroBannerWidget._ink.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                      )
+                      : _CyclingSearchHint(compact: compact),
+            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The supermarket page's header (Mart Store Page v4, "B · Compact"): the
+/// module hero's mint block, holding the store — logo, name and whether it
+/// is open — then an in-store search bar with the filter inside it, then
+/// what the store promises (delivery time, free delivery, rating) as chips.
+///
+/// ```
+///   (←) [logo] Green Basket ⌄          (🛒)
+///              ● Open until 2 AM
+///   ┌ 🔍 Search Green Basket      │ ⚙ ┐
+///   (⏱ 10–30 min) (🚚 Free over EGP 199) (★ 4.7 rating)
+/// ```
+///
+/// Tapping the store opens its details (hours, fee, address), as the
+/// deliver-to line does on the module home. Every chip is drawn only when
+/// the store has that fact to state.
+class StoreHeroBannerWidget extends StatelessWidget {
+  final Store store;
+  final VoidCallback onStoreTap;
+
+  /// Shows a filter button inside the search bar when set.
+  final VoidCallback? onFilterTap;
+
+  /// An extra control before the cart button (the scratch-card sticker).
+  final Widget? trailing;
+
+  const StoreHeroBannerWidget({
+    super.key,
+    required this.store,
+    required this.onStoreTap,
+    this.onFilterTap,
+    this.trailing,
+  });
+
+  /// Mint holding behind the store row, easing to the page's canvas under
+  /// the chips. Starts on [HomeHeroBannerWidget.statusBarTint] so the
+  /// page's status-bar scrim meets it without a seam.
+  static LinearGradient get gradient => LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      HomeHeroBannerWidget.statusBarTint,
+      WaddyColors.mint,
+      Color.lerp(WaddyColors.mint, WaddyColors.surface, 0.49)!,
+      WaddyColors.canvas,
+    ],
+    stops: const [0.0, 0.18, 0.7, 1.0],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> chips = _StoreInfoChip.forStore(store);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: HomeHeroBannerWidget.overlayStyle,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(gradient: gradient),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Dimensions.paddingSizeDefault,
+              Dimensions.paddingSizeSmall,
+              Dimensions.paddingSizeDefault,
+              Dimensions.paddingSizeExtraLarge,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    _BackButton(onTap: () => Get.back()),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Pressable(
+                        onTap: onStoreTap,
+                        semanticLabel: store.name,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: _StoreIdentity(store: store),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    if (trailing != null) ...[
+                      trailing!,
+                      const SizedBox(width: 10),
+                    ],
+                    const _CartButton(),
+                  ],
+                ),
+                const SizedBox(height: Dimensions.paddingSizeSmall),
+                _StoreSearchBar(store: store, onFilterTap: onFilterTap),
+                if (chips.isNotEmpty) ...[
+                  const SizedBox(height: Dimensions.paddingSizeMedium),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    clipBehavior: Clip.none,
+                    child: Row(
+                      children: [
+                        for (int i = 0; i < chips.length; i++) ...[
+                          if (i > 0)
+                            const SizedBox(width: Dimensions.paddingSizeSmall),
+                          chips[i],
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The header that takes over once the store header has scrolled away: back,
+/// the search field, cart — on a mint bar that slides down from the top.
+///
+/// Always mounted, so the slide runs both ways; [visible] drives it, and it
+/// ignores touches while hidden.
+class StoreMiniHeader extends StatelessWidget {
+  final Store store;
+  final bool visible;
+
+  const StoreMiniHeader({
+    super.key,
+    required this.store,
+    required this.visible,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedSlide(
+        offset: visible ? Offset.zero : const Offset(0, -1.1),
+        duration: WaddyMotion.enter,
+        curve: WaddyMotion.easeOut,
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: WaddyMotion.fast,
+          child: Container(
+            decoration: BoxDecoration(
+              color: WaddyColors.mint,
+              boxShadow: [
+                BoxShadow(
+                  color: WaddyColors.primary.withValues(alpha: 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Dimensions.paddingSizeDefault,
+                  0,
+                  Dimensions.paddingSizeDefault,
+                  2,
+                ),
+                child: Row(
+                  children: [
+                    _BackButton(onTap: () => Get.back()),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Pressable(
+                        onTap: () => _openStoreSearch(store),
+                        semanticLabel: 'store_search_hint'.trParams({
+                          'store': store.name ?? '',
+                        }),
+                        scale: WaddyMotion.pressCard,
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.paddingSizeMedium,
+                          ),
+                          decoration: BoxDecoration(
+                            color: WaddyColors.surface,
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusDefault,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.search_rounded,
+                                size: 18,
+                                color: WaddyColors.inkMid,
+                              ),
+                              const SizedBox(
+                                width: Dimensions.paddingSizeSmall,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'store_search_hint'.trParams({
+                                    'store': store.name ?? '',
+                                  }),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: waddyRegular.copyWith(
+                                    fontSize: 13,
+                                    color: WaddyColors.inkLight,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const _CartButton(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _openStoreSearch(Store store) =>
+    Get.toNamed(RouteHelper.getSearchStoreItemRoute(store.id));
+
+/// Logo plate, name, and one status line: open until when, open, or closed.
+class _StoreIdentity extends StatelessWidget {
+  final Store store;
+
+  const _StoreIdentity({required this.store});
+
+  static const Color _ink = HomeHeroBannerWidget._ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isOpen = store.isOpenNow;
+    final String? closesAt = store.closesAt();
+    final String status =
+        !isOpen
+            ? 'closed'.tr
+            : closesAt != null
+            ? 'open_until_time'.trParams({
+              'time': DateConverter.convertTimeToTime(closesAt),
+            })
+            : 'open'.tr;
+
+    return Row(
+      children: [
+        // White-rimmed plate, logo contained: `cover` crops wordmark logos
+        // at this size.
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: WaddyColors.surface,
+            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+            border: Border.all(color: WaddyColors.surface, width: 2),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: CustomImage(
+            image: store.logoFullUrl ?? '',
+            variants: store.logoVariants,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Two lines, the chevron riding the last word: one line cut
+              // "Seoudi Market Maadi" to "Seoudi Market M…" beside the
+              // scratch-card sticker, and the branch is the part that matters.
+              Text.rich(
+                TextSpan(
+                  text: store.name ?? '',
+                  children: [
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.only(start: 2),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: _ink.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: AppConstants.fontFamily,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  height: 1.15,
+                  letterSpacing: displayTracking(-0.4),
+                  color: _ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isOpen ? _ink : WaddyColors.coralDark,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      status,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: AppConstants.fontFamily,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        color: isOpen ? _ink : WaddyColors.coralDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// In-store search: a 48 white bar naming the store, with the filter button
+/// behind a hairline at its end. The bar opens the store search; the filter
+/// opens the price sheet.
+class _StoreSearchBar extends StatelessWidget {
+  final Store store;
+  final VoidCallback? onFilterTap;
+
+  const _StoreSearchBar({required this.store, this.onFilterTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final String hint = 'store_search_hint'.trParams({
+      'store': store.name ?? '',
+    });
+    return Container(
+      height: Dimensions.minTapTarget,
+      decoration: BoxDecoration(
+        color: WaddyColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: WaddyColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: WaddyColors.primary.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Pressable(
+              onTap: () => _openStoreSearch(store),
+              semanticLabel: hint,
+              scale: WaddyMotion.pressCard,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(start: 14, end: 10),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.search_rounded,
+                      size: 20,
+                      color: WaddyColors.inkMid,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: waddyRegular.copyWith(
+                          fontSize: 14,
+                          color: WaddyColors.inkLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (onFilterTap != null) ...[
+            Container(width: 1, height: 22, color: WaddyColors.divider),
+            Pressable(
+              onTap: onFilterTap,
+              semanticLabel: 'filter'.tr,
+              scale: WaddyMotion.pressControl,
+              child: const SizedBox(
+                width: Dimensions.minTapTarget,
+                height: Dimensions.minTapTarget,
+                child: Icon(
+                  Icons.tune_rounded,
+                  size: 19,
+                  color: WaddyColors.inkMid,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One fact the store promises, as a translucent chip on the mint.
+class _StoreInfoChip extends StatelessWidget {
+  final Widget icon;
+  final String label;
+
+  const _StoreInfoChip({required this.icon, required this.label});
+
+  /// Delivery time, the fee (or free delivery), the minimum order and the
+  /// rating — each only when the store has it to say. Free delivery follows
+  /// the cart bar's rules: the store's own flag, else the admin's "over an
+  /// amount" threshold; a takeaway-only store promises none. The fee is
+  /// [StoreDeliveryFee]'s, which returns null rather than guess, and then
+  /// the chip is simply not drawn.
+  ///
+  /// The minimum is here because it is the one rule that blocks an order,
+  /// and before it was first met in the cart bar — after the first add.
+  static List<Widget> forStore(Store store) {
+    final String? time = store.deliveryTime?.trim();
+    final double rating = store.avgRating ?? 0;
+    final double minimum = store.minimumOrder ?? 0;
+
+    String? freeDelivery;
+    if (store.delivery != false) {
+      final admin =
+          Get.find<SplashController>().configModelOrNull?.adminFreeDelivery;
+      final bool adminOn = admin?.status == true;
+      if (store.freeDelivery == true ||
+          (adminOn && admin?.type == 'free_delivery_to_all_store')) {
+        freeDelivery = 'free_delivery'.tr;
+      } else if (adminOn &&
+          admin?.type == 'free_delivery_by_order_amount' &&
+          (admin?.freeDeliveryOver ?? 0) > 0) {
+        freeDelivery = 'free_over_amount'.trParams({
+          'amount': PriceConverter.convertPrice(admin!.freeDeliveryOver),
+        });
+      }
+    }
+
+    final double? fee =
+        freeDelivery == null && store.delivery != false
+            ? StoreDeliveryFee.estimate(
+              store: store,
+              address: AddressHelper.getUserAddressFromSharedPref(),
+            )
+            : null;
+
+    return [
+      if (time != null && time.isNotEmpty)
+        _StoreInfoChip(
+          icon: const Icon(
+            Icons.schedule_rounded,
+            size: 13,
+            color: WaddyColors.primaryLight,
+          ),
+          label: time,
+        ),
+      if (freeDelivery != null)
+        _StoreInfoChip(
+          icon: const Icon(
+            Icons.local_shipping_outlined,
+            size: 14,
+            color: WaddyColors.primaryLight,
+          ),
+          label: freeDelivery,
+        )
+      else if (fee != null)
+        _StoreInfoChip(
+          icon: const Icon(
+            Icons.local_shipping_outlined,
+            size: 14,
+            color: WaddyColors.primaryLight,
+          ),
+          label: '${'delivery_fee'.tr} ${PriceConverter.convertPrice(fee)}',
+        ),
+      if (minimum > 0)
+        _StoreInfoChip(
+          icon: const Icon(
+            Icons.shopping_basket_outlined,
+            size: 14,
+            color: WaddyColors.primaryLight,
+          ),
+          label: '${'min_order'.tr} ${PriceConverter.convertPrice(minimum)}',
+        ),
+      if (rating > 0)
+        _StoreInfoChip(
+          icon: const Icon(
+            Icons.star_rounded,
+            size: 14,
+            color: WaddyColors.amber,
+          ),
+          label: 'n_rating'.trParams({'n': rating.toStringAsFixed(1)}),
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: WaddyColors.surface.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(width: 5),
+          Text(
+            label,
+            maxLines: 1,
+            style: waddyMedium.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: WaddyColors.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -640,7 +1236,7 @@ class _CyclingSearchHint extends StatefulWidget {
 
 class _CyclingSearchHintState extends State<_CyclingSearchHint>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  static const List<String> _hintKeys = [
+  static const List<String> _foodHintKeys = [
     'hero_search_hint_1',
     'hero_search_hint_2',
     'hero_search_hint_3',
@@ -648,6 +1244,25 @@ class _CyclingSearchHintState extends State<_CyclingSearchHint>
     'hero_search_hint_5',
     'hero_search_hint_6',
   ];
+
+  /// Inside the grocery module the field searches supermarkets and grocers,
+  /// so "Search for Koshary" was a promise the results could not keep.
+  static const List<String> _groceryHintKeys = [
+    'grocery_search_hint_1',
+    'grocery_search_hint_2',
+    'grocery_search_hint_3',
+    'grocery_search_hint_4',
+    'grocery_search_hint_5',
+    'grocery_search_hint_6',
+  ];
+
+  /// Resolved once at mount: the hero is rebuilt per module home, so a module
+  /// change arrives as a fresh State rather than mid-animation.
+  late final bool _isGrocery =
+      Get.find<SplashController>().module?.moduleType?.toLowerCase() ==
+      AppConstants.grocery;
+
+  List<String> get _hintKeys => _isGrocery ? _groceryHintKeys : _foodHintKeys;
 
   static const Duration _typeSpeed = Duration(milliseconds: 72);
   static const Duration _deleteSpeed = Duration(milliseconds: 38);
@@ -770,7 +1385,9 @@ class _CyclingSearchHintState extends State<_CyclingSearchHint>
 
     if (MediaQuery.of(context).disableAnimations) {
       return Text(
-        'hero_search_placeholder'.tr,
+        _isGrocery
+            ? 'grocery_search_placeholder'.tr
+            : 'hero_search_placeholder'.tr,
         style: style,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -1015,5 +1632,50 @@ class _CartBadgeState extends State<_CartBadge>
     // so reduced motion drops it entirely rather than softening it.
     if (MediaQuery.of(context).disableAnimations) return badge;
     return ScaleTransition(scale: _scale, child: badge);
+  }
+}
+
+/// TEMPORARY debug affordance — delete along with its call site in the header.
+///
+/// Fires [GuestGate.showNoDeliverySheet] directly, bypassing the zone check,
+/// so the sad-McCoin sheet can be reviewed from anywhere.
+class _McCoinTestButton extends StatelessWidget {
+  const _McCoinTestButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: () => GuestGate.showNoDeliverySheet(source: 'debug_button'),
+      semanticLabel: 'Preview no-delivery sheet',
+      scale: WaddyMotion.pressControl,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Center(
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: WaddyColors.surface,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: WaddyColors.primary.withValues(alpha: 0.15),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.bug_report_rounded,
+                size: 18,
+                color: WaddyColors.primary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

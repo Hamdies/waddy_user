@@ -1,0 +1,146 @@
+{
+  // Run configurations for the Run and Debug panel.
+  //
+  // Without this file the panel's default launch passes neither `--flavor` nor
+  // `--dart-define-from-file`, which fails the Android build outright (the
+  // google-services plugin has no client for an unsuffixed id) and, on iOS,
+  // silently runs against whatever AppEnvironment falls back to.
+  //
+  // Two things every entry has to carry:
+  //   * `--flavor`, which selects the Gradle variant (Android) / Xcode scheme (iOS)
+  //   * `--dart-define-from-file`, which selects the BACKEND
+  // They are independent. Setting only the flavor builds the right APK
+  // pointing at the wrong server. See docs/build_flavors.md.
+  //
+  // iOS has NO flavor-configured Xcode schemes today (see
+  // docs/build_flavors.md §4 — the dev/staging/prod schemes are deliberately
+  // unscripted manual Xcode-UI work, not yet done; only the plain "Runner"
+  // scheme exists). So on iOS, passing a real flavor NAME — dev, prod,
+  // anything but "Runner" — fails: there is no matching scheme.
+  //
+  // But `--flavor` can no longer be OMITTED either. The project now has two
+  // schemes, Runner and WaddiLiveActivityExtension (Xcode autocreates one per
+  // target, and the Live Activity extension is a target). Flutter treats a
+  // multi-scheme project as flavored and refuses to pick, failing with
+  // "You must specify a --flavor option to select one of the available
+  // schemes." The extension is not a flavor — it is an app extension that
+  // ships inside Runner — so the correct answer is to name the app scheme
+  // explicitly: `--flavor Runner`.
+  //
+  // The backend switch still comes entirely from `--dart-define-from-file`,
+  // which is flavor-independent. Hence the separate "(iOS)" configs below.
+  // Once real iOS flavor schemes exist, `Runner` here becomes `dev`/`prod`
+  // and these can be merged back into the Android configs.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Day-to-day. Hot reload, assertions on, full error messages.
+      "name": "Waddy (dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=env/dev.json"
+      ]
+    },
+    {
+      // The one to use for any performance question.
+      //
+      // Debug builds run 3-10x slower than release, so their frame and boot
+      // numbers mean nothing. `BootStats`, `FrameStats` and `ApiStats` all
+      // print in profile (they are gated on `!kReleaseMode`), and profile is
+      // the only mode whose numbers are worth reading.
+      "name": "Waddy (profile — use this for perf)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "prod",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    },
+    {
+      // Production backend, debuggable. For reproducing a bug that only
+      // appears against live data — not for measuring anything.
+      "name": "Waddy (prod backend, debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "prod",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    },
+    {
+      // Closest to what ships. No debugger, no instrumentation output —
+      // the stats helpers go silent in release by design.
+      "name": "Waddy (release)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "prod",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    },
+    {
+      // iOS variant of "Waddy (dev)". `--flavor Runner` names the app scheme,
+      // not a flavor: see the note at the top of this file. Use this when the
+      // selected device is an iPhone/simulator.
+      "name": "Waddy (dev, iOS)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "Runner",
+        "--dart-define-from-file=env/dev.json"
+      ]
+    },
+    {
+      // iOS variant of "Waddy (profile — use this for perf)".
+      "name": "Waddy (profile, iOS — use this for perf)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "Runner",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    },
+    {
+      // iOS variant of "Waddy (prod backend, debug)".
+      "name": "Waddy (prod backend, debug, iOS)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "Runner",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    },
+    {
+      // iOS variant of "Waddy (release)".
+      "name": "Waddy (release, iOS)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release",
+      "program": "lib/main.dart",
+      "args": [
+        "--flavor",
+        "Runner",
+        "--dart-define-from-file=env/prod.json"
+      ]
+    }
+  ]
+}

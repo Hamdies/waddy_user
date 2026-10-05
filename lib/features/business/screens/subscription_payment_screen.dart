@@ -192,7 +192,7 @@ class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
                                                       .configModel
                                                       .activePaymentMethodList
                                                       ?.length ??
-                                                          0,
+                                                  0,
                                               itemBuilder: (context, index) {
                                                 bool isSelected =
                                                     businessController

@@ -2,13 +2,25 @@ import 'package:get/get.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/cuisine/domain/models/cuisine_model.dart';
 import 'package:waddy_app/features/cuisine/domain/services/cuisine_service_interface.dart';
+import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/helper/cache_ttl_helper.dart';
 
+/// Store-level classifications, scoped to the active module: cuisines on the
+/// food home (Pizza, Burgers), main categories on the grocery home
+/// (Supermarkets, Roasteries). Not to be confused with item categories, which
+/// are the aisles *inside* a store.
 class CuisineController extends GetxController implements GetxService {
   final CuisineServiceInterface cuisineServiceInterface;
   CuisineController({required this.cuisineServiceInterface});
 
-  static const String _ttlKey = 'cuisine_list';
+  /// Per module: one module's freshness says nothing about the other's.
+  String get _ttlKey => 'cuisine_list_${_currentModuleId ?? 'none'}';
+
+  int? get _currentModuleId => Get.find<SplashController>().module?.id;
+
+  /// Module the held list was fetched for. Food's list is the wrong answer on
+  /// the grocery home, however fresh it is.
+  int? _listModuleId;
 
   List<CuisineModel>? _cuisineList;
   List<CuisineModel>? get cuisineList => _cuisineList;
@@ -26,6 +38,13 @@ class CuisineController extends GetxController implements GetxService {
     bool reload, {
     DataSourceEnum dataSource = DataSourceEnum.local,
   }) {
+    if (_cuisineList != null && _listModuleId != _currentModuleId) {
+      // Drop the other module's list before anything renders it, so the strip
+      // shimmers rather than flashing "Pizza" on the grocery home.
+      _cuisineList = null;
+      _loaded = false;
+      reload = true;
+    }
     if (!reload && _fetchInFlight != null) return _fetchInFlight!;
     late final Future<void> fetch;
     fetch = _fetch(reload, dataSource).whenComplete(() {
@@ -37,6 +56,7 @@ class CuisineController extends GetxController implements GetxService {
 
   Future<void> _fetch(bool reload, DataSourceEnum dataSource) async {
     if (_cuisineList != null && !reload) return;
+    final int? moduleId = _currentModuleId;
 
     if (dataSource == DataSourceEnum.local && CacheTtlHelper.isStale(_ttlKey)) {
       dataSource = DataSourceEnum.client;
@@ -64,6 +84,7 @@ class CuisineController extends GetxController implements GetxService {
 
     if (cuisineList != null) {
       _cuisineList = cuisineList;
+      _listModuleId = moduleId;
     }
     _loaded = true;
     update();

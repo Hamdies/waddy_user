@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:waddy_app/features/dashboard/screens/dashboard_screen.dart';
 import 'package:waddy_app/util/frame_stats.dart';
 
 import 'package:waddy_app/api/api_stats.dart';
@@ -11,7 +12,7 @@ import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/home/widgets/all_store_filter_widget.dart';
 import 'package:waddy_app/features/home/widgets/cashback_logo_widget.dart';
 import 'package:waddy_app/features/home/widgets/cashback_dialog_widget.dart';
-import 'package:waddy_app/features/home/widgets/current_order_widget.dart';
+import 'package:waddy_app/features/order/widgets/order_tracking_bar.dart';
 import 'package:waddy_app/features/home/widgets/home_hero_banner_widget.dart';
 import 'package:waddy_app/features/home/widgets/home_search_widget.dart';
 import 'package:waddy_app/features/home/widgets/views/grocery_shelf_view.dart';
@@ -24,11 +25,12 @@ import 'package:waddy_app/features/location/controllers/location_controller.dart
 import 'package:waddy_app/features/notification/controllers/notification_controller.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
 import 'package:waddy_app/features/home/screens/modules/food_home_screen.dart';
+import 'package:waddy_app/features/pets/screens/pet_hub_screen.dart';
 import 'package:waddy_app/features/home/screens/modules/grocery_home_screen.dart';
 import 'package:waddy_app/features/home/screens/modules/pharmacy_home_screen.dart';
 import 'package:waddy_app/features/home/screens/modules/shop_home_screen.dart';
@@ -61,6 +63,23 @@ class HomeScreen extends StatefulWidget {
   // user had to discover pull-to-refresh while staring at an empty screen.
   static DateTime? _lastLoadStartedAt;
 
+  /// The module id the last clean load ran under, and whether one was set.
+  ///
+  /// The quiet window below is purely about time, but a load is only
+  /// *relevant* while the app is still in the module it loaded for.
+  /// `_loadDataInner` reads `splashController.module` once and branches on
+  /// that snapshot: the module-scoped fetches (banners, categories, the
+  /// module store list) sit behind `module != null`, the dashboard ones
+  /// behind `module == null`. On a cold start `initSharedData` sets the
+  /// module to null by design, so home's `initState` load takes the
+  /// no-module branch — and if the app then lands in a module, that branch's
+  /// work was never done for it. The time-based window could not tell the
+  /// difference, so the module-scoped calls were skipped for two minutes
+  /// while their widgets sat on `null`, which `BannerView` and friends render
+  /// as a shimmer that never resolves.
+  static int? _lastLoadModuleId;
+  static bool _lastLoadHadModule = false;
+
   /// Forces the next `loadData(false)` to actually load.
   ///
   /// The module-change path clears every module-scoped cache, and those two
@@ -71,6 +90,8 @@ class HomeScreen extends StatefulWidget {
   /// race a whole home load the user did not ask for.
   static void invalidateLoadThrottle() {
     _lastLoadStartedAt = null;
+    _lastLoadModuleId = null;
+    _lastLoadHadModule = false;
   }
 
   // Dedupe and throttle are two different jobs, and _lastLoadStartedAt was
@@ -119,6 +140,15 @@ class HomeScreen extends StatefulWidget {
     // last load ran, only whether one is happening now.
     if (_loadInFlight) return;
 
+    // Which module this load would run for, read now rather than trusted from
+    // the last one. A load that ran under a different module — or under no
+    // module at all, which is every cold start — did not perform this
+    // module's fetches, so the quiet window must not cover it.
+    final ModuleModel? currentModule = Get.find<SplashController>().module;
+    final bool moduleChangedSinceLastLoad =
+        _lastLoadHadModule != (currentModule != null) ||
+        _lastLoadModuleId != currentModule?.id;
+
     // Home's initState fires this on every remount (tab switches, PageView
     // rebuilds), so the quiet-path window has to outlive navigation hops —
     // pull-to-refresh (reload: true) and module switches still bypass it.
@@ -126,6 +156,7 @@ class HomeScreen extends StatefulWidget {
     // retryable on the next remount.
     if (!reload &&
         !fromModule &&
+        !moduleChangedSinceLastLoad &&
         _lastLoadStartedAt != null &&
         DateTime.now().difference(_lastLoadStartedAt!) <
             const Duration(minutes: 2)) {
@@ -165,6 +196,12 @@ class HomeScreen extends StatefulWidget {
     // needed most.
     if (!Get.find<HomeController>().hasAnyError) {
       _lastLoadStartedAt = DateTime.now();
+      // Stamped from the module as it is NOW, not as it was when the load
+      // started: _loadDataInner may have awaited the zone sync, and what
+      // matters is which module the completed work actually covers.
+      final ModuleModel? loadedModule = Get.find<SplashController>().module;
+      _lastLoadModuleId = loadedModule?.id;
+      _lastLoadHadModule = loadedModule != null;
     }
   }
 
@@ -179,7 +216,8 @@ class HomeScreen extends StatefulWidget {
     // unequal to every branch below by luck rather than by design.
     final ModuleType moduleType =
         splashController.module?.type ?? ModuleType.unknown;
-    final configModule = splashController.configModelOrNull?.moduleConfig!.module;
+    final configModule =
+        splashController.configModelOrNull?.moduleConfig!.module;
     final bool isParcel = configModule?.isParcel ?? false;
 
     Get.find<FlashSaleController>().setEmptyFlashSale(fromModule: fromModule);
@@ -243,7 +281,7 @@ class HomeScreen extends StatefulWidget {
       futures.addAll([
         _safe(
           HomeSection.orderAgain,
-          () => Get.find<StoreController>().getVisitAgainStoreList(
+          () => Get.find<StoreListController>().getVisitAgainStoreList(
             fromModule: fromModule,
           ),
         ),
@@ -280,7 +318,9 @@ class HomeScreen extends StatefulWidget {
       // exist on other module types' home bodies, and every "see all" screen
       // refetches on open — so skip those here.
       final bool isCustomModuleHome =
-          moduleType == ModuleType.food || moduleType == ModuleType.grocery;
+          moduleType == ModuleType.food ||
+          moduleType == ModuleType.grocery ||
+          moduleType == ModuleType.pets;
       futures.addAll([
         _safe(
           HomeSection.modules,
@@ -291,7 +331,7 @@ class HomeScreen extends StatefulWidget {
         // and Food Offers all read these lists.
         _safe(
           HomeSection.recommended,
-          () => Get.find<StoreController>().getRecommendedStoreList(),
+          () => Get.find<StoreListController>().getRecommendedStoreList(),
         ),
         _safe(
           HomeSection.offers,
@@ -312,7 +352,7 @@ class HomeScreen extends StatefulWidget {
           () => Get.find<CategoryController>().getCategoryList(reload),
         ),
         // Popular and latest stores, for the modules that actually render
-        // them: grocery (ModuleBestNearbySection, and the "all" tile inside
+        // them: grocery (ModuleTopBrandsGrid, and the "all" tile inside
         // ModuleCategoryCircles), shop (PopularStoreView / NewOnMartView) and
         // pharmacy (NewOnMartView, BestStoreNearbyView).
         //
@@ -324,9 +364,15 @@ class HomeScreen extends StatefulWidget {
         // fetch for themselves in their own initState, so nothing downstream
         // depends on the prefetch either.
         if (moduleType != ModuleType.food) ...[
+          // Grocery's top-brands grid shows the admin's featured stores.
+          if (moduleType == ModuleType.grocery)
+            _safe(
+              HomeSection.fastest,
+              () => Get.find<StoreListController>().getFeaturedStoreList(),
+            ),
           _safe(
             HomeSection.fastest,
-            () => Get.find<StoreController>().getPopularStoreList(
+            () => Get.find<StoreListController>().getPopularStoreList(
               reload,
               'all',
               false,
@@ -334,7 +380,7 @@ class HomeScreen extends StatefulWidget {
           ),
           _safe(
             HomeSection.fastest,
-            () => Get.find<StoreController>().getLatestStoreList(
+            () => Get.find<StoreListController>().getLatestStoreList(
               reload,
               'all',
               false,
@@ -352,7 +398,7 @@ class HomeScreen extends StatefulWidget {
         ),
         _safe(
           HomeSection.fastest,
-          () => Get.find<StoreController>().getStoreList(1, reload),
+          () => Get.find<StoreListController>().getStoreList(1, reload),
         ),
       ]);
       if (!isCustomModuleHome) {
@@ -374,8 +420,10 @@ class HomeScreen extends StatefulWidget {
           ),
           _safe(
             HomeSection.offers,
-            () =>
-                Get.find<StoreController>().getTopOfferStoreList(reload, false),
+            () => Get.find<StoreListController>().getTopOfferStoreList(
+              reload,
+              false,
+            ),
           ),
           _safe(
             HomeSection.modules,
@@ -434,12 +482,12 @@ class HomeScreen extends StatefulWidget {
           () => Get.find<BannerController>().getFeaturedBanner(),
         ),
         _safe(HomeSection.fastest, () async {
-          await Get.find<StoreController>().getFeaturedStoreList();
+          await Get.find<StoreListController>().getFeaturedStoreList();
           _fetchFeaturedStoresRecommendedItems();
         }),
         _safe(
           HomeSection.recommended,
-          () => Get.find<StoreController>().getRecommendedStoreList(),
+          () => Get.find<StoreListController>().getRecommendedStoreList(),
         ),
         // The grocery shelf's aisles, and only when the shelf is actually
         // rendering them — home is the most-loaded screen in the app and a
@@ -462,7 +510,7 @@ class HomeScreen extends StatefulWidget {
           if (splashController.moduleList == null) {
             await splashController.getModules();
           }
-          final storeController = Get.find<StoreController>();
+          final storeController = Get.find<StoreListController>();
           try {
             await storeController.getDashboardQuickStoreLists(reload: reload);
             Get.find<HomeController>().clearError(HomeSection.grocery);
@@ -499,7 +547,7 @@ class HomeScreen extends StatefulWidget {
         ),
         _safe(
           HomeSection.fastest,
-          () => Get.find<StoreController>().getFeaturedStoreList(),
+          () => Get.find<StoreListController>().getFeaturedStoreList(),
         ),
         _safe(HomeSection.modules, () async {
           final itemController = Get.find<ItemController>();
@@ -525,7 +573,8 @@ class HomeScreen extends StatefulWidget {
         moduleType == ModuleType.food ||
         moduleType == ModuleType.grocery ||
         moduleType == ModuleType.pharmacy ||
-        moduleType == ModuleType.ecommerce;
+        moduleType == ModuleType.ecommerce ||
+        moduleType == ModuleType.pets;
     if (splashController.module != null && isShoppingModule) {
       await GuestGate.maybeAutoShowNoDelivery();
       // In-zone counterpart of the same question: the user's real position is
@@ -549,7 +598,7 @@ class HomeScreen extends StatefulWidget {
   static const int _kRecommendedPrefetchLimit = 4;
 
   static void _fetchFeaturedStoresRecommendedItems() {
-    final storeController = Get.find<StoreController>();
+    final storeController = Get.find<StoreListController>();
     final featuredStores = storeController.featuredStoreList;
     if (featuredStores == null || featuredStores.isEmpty) return;
 
@@ -572,7 +621,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, RouteAware {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _headerKey = GlobalKey();
   ScrollDirection _lastDirection = ScrollDirection.idle;
@@ -670,8 +720,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  ModalRoute<void>? _subscribedRoute;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Same guard as the dashboard's cart bar: this fires on locale, theme and
+    // media-query changes too, and subscribing each time stacks registrations.
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void> && route != _subscribedRoute) {
+      if (_subscribedRoute != null) dashboardRouteObserver.unsubscribe(this);
+      _subscribedRoute = route;
+      dashboardRouteObserver.subscribe(this, route);
+    }
+  }
+
+  /// A route above home closed — the user is back.
+  ///
+  /// Home stays mounted under a pushed store, so initState does not run on
+  /// the way back. A store opened from the dashboard switches the module
+  /// under it (`activateModuleFor` clears that module's caches and opens the
+  /// quiet window), and this is where the module home now gets its data —
+  /// on arrival, instead of racing the store page as it used to (ST-11).
+  /// Every other pop (sheets, dialogs, same-module stores) lands inside the
+  /// quiet window and returns without a request.
+  @override
+  void didPopNext() {
+    HomeScreen.loadData(false);
+  }
+
   @override
   void dispose() {
+    dashboardRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     _scrollOffset.dispose();
@@ -876,10 +956,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
 
-        // Current Order Status (show at top when there's an active order)
-        if (moduleState.usesGenericBody)
-          const SliverToBoxAdapter(child: CurrentOrderWidget()),
-
         // Search Bar (hide for grocery, food, and places modules)
         if (moduleState.usesGenericBody)
           const SliverToBoxAdapter(child: HomeSearchWidget()),
@@ -910,7 +986,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         else if (moduleState.isDashboard)
           // The dashboard landing feed, also a sliver now.
           ModuleView(splashController: splashController)
-        else if (moduleState.isFood || moduleState.isGrocery)
+        else if (moduleState.isFood ||
+            moduleState.isGrocery ||
+            moduleState.isPets)
           _buildModuleContent(moduleState)
         else
           // Pharmacy and shop still render as boxes.
@@ -962,17 +1040,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return FoodHomeScreen(scrollController: _scrollController);
     if (state.isShop) return const ShopHomeScreen();
     if (state.isPlaces) return const PlacesHomeScreen();
+    if (state.isPets) {
+      return PetHubScreen(scrollController: _scrollController);
+    }
     return const SizedBox();
   }
 
   Widget _buildStoreList(BuildContext context, _ModuleState state) {
     return Center(
-      child: GetBuilder<StoreController>(
+      child: GetBuilder<StoreListController>(
+        id: StoreListController.storeListId,
         builder: (storeController) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: Dimensions.bottomNavReserve(context),
-            ),
+          return ValueListenableBuilder<double>(
+            valueListenable: OrderTrackingBar.reserve,
+            builder:
+                (context, trackingReserve, child) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom:
+                        Dimensions.bottomNavReserve(context) + trackingReserve,
+                  ),
+                  child: child,
+                ),
             child: PaginatedListView(
               scrollController: _scrollController,
               itemsPerPage: 12,
@@ -1065,6 +1153,7 @@ class _ModuleState {
   bool get isShop => type == ModuleType.ecommerce;
   bool get isGrocery => type == ModuleType.grocery;
   bool get isPlaces => type == ModuleType.places;
+  bool get isPets => type == ModuleType.pets;
 
   /// Modules that render their own complete screen — hero, search, catalogue
   /// and all — so home must not stack its generic furniture on top of them.
@@ -1072,7 +1161,7 @@ class _ModuleState {
   /// This is the four-part condition that was spelled out at four call sites.
   /// Naming it is the difference between "why is this rail missing on
   /// grocery?" and reading the name.
-  bool get hasOwnScaffold => isGrocery || isFood || isPlaces;
+  bool get hasOwnScaffold => isGrocery || isFood || isPlaces || isPets;
 
   /// The generic home body: hero, search bar, filter header and the flat store
   /// list. Pharmacy and shop still use it; nothing else does.

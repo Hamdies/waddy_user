@@ -1,3 +1,7 @@
+import 'package:waddy_app/features/xp/domain/models/reward_state.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_kind.dart';
+
 class XpLevelModel {
   final int currentLevel;
   final String levelName;
@@ -39,38 +43,29 @@ class XpLevelModel {
   });
 
   factory XpLevelModel.fromJson(Map<String, dynamic> json) {
-    final recent = json['recent_earned'];
+    final recent = xpMap(json['recent_earned']);
+    final next = xpMap(json['next_level']);
     return XpLevelModel(
-      currentLevel: json['current_level'] ?? 1,
-      levelName: json['level_name'] ?? 'Newbie',
-      levelBadge: json['level_badge'],
-      currentXp: json['current_xp'] ?? json['total_xp'] ?? 0,
-      xpForNextLevel:
-          json['xp_for_next_level'] ?? json['xp_to_next_level'] ?? 100,
-      xpToNextLevel: json['xp_to_next_level'] ?? 100,
-      progressPercentage: (json['progress_percentage'] ?? 0.0).toDouble(),
-      isMaxLevel: json['is_max_level'] ?? false,
-      nextLevel:
-          json['next_level'] != null
-              ? NextLevel.fromJson(json['next_level'])
-              : null,
-      allLevels:
-          json['all_levels'] != null
-              ? (json['all_levels'] as List)
-                  .map((level) => Level.fromJson(level))
-                  .toList()
-              : [],
-      rank:
-          json['rank'] is int
-              ? json['rank']
-              : int.tryParse('${json['rank'] ?? ''}'),
-      zoneName:
-          (json['zone_name'] == null || '${json['zone_name']}'.isEmpty)
-              ? null
-              : '${json['zone_name']}',
-      recentEarnedXp: recent is Map ? recent['xp'] as int? : null,
-      recentEarnedSecondsAgo:
-          recent is Map ? recent['seconds_ago'] as int? : null,
+      currentLevel: xpInt(json['current_level'], 1),
+      levelName: xpStr(json['level_name']) ?? 'Newbie',
+      levelBadge: xpStr(json['level_badge']),
+      currentXp: xpInt(json['current_xp'] ?? json['total_xp']),
+      xpForNextLevel: xpInt(
+        json['xp_for_next_level'] ?? json['xp_to_next_level'],
+        100,
+      ),
+      xpToNextLevel: xpInt(json['xp_to_next_level'], 100),
+      progressPercentage:
+          (xpDoubleOrNull(json['progress_percentage']) ?? 0)
+              .clamp(0, 100)
+              .toDouble(),
+      isMaxLevel: xpBool(json['is_max_level']),
+      nextLevel: next != null ? NextLevel.fromJson(next) : null,
+      allLevels: xpMapList(json['all_levels']).map(Level.fromJson).toList(),
+      rank: xpIntOrNull(json['rank']),
+      zoneName: xpStr(json['zone_name']),
+      recentEarnedXp: xpIntOrNull(recent?['xp']),
+      recentEarnedSecondsAgo: xpIntOrNull(recent?['seconds_ago']),
     );
   }
 
@@ -106,9 +101,9 @@ class NextLevel {
 
   factory NextLevel.fromJson(Map<String, dynamic> json) {
     return NextLevel(
-      levelNumber: json['level_number'] ?? 0,
-      name: json['name'] ?? '',
-      xpRequired: json['xp_required'] ?? 0,
+      levelNumber: xpInt(json['level_number']),
+      name: xpStr(json['name']) ?? '',
+      xpRequired: xpInt(json['xp_required']),
     );
   }
 
@@ -147,14 +142,12 @@ class Level {
     int? currentLevel,
     int? currentXp,
   }) {
-    final levelNumber = json['level_number'] ?? json['level'] ?? 1;
-    final xpRequired = json['xp_required'] ?? 0;
+    final levelNumber = xpInt(json['level_number'] ?? json['level'], 1);
+    final xpRequired = xpInt(json['xp_required']);
 
-    // Determine unlock status:
-    // 1. First check backend's is_unlocked
-    // 2. If not provided, check if user has enough XP
-    // 3. Fallback to currentLevel comparison
-    bool isUnlocked = json['is_unlocked'] ?? false;
+    // Unlock status: the backend's is_unlocked, else enough XP, else the
+    // current-level comparison.
+    bool isUnlocked = xpBool(json['is_unlocked']);
     if (!isUnlocked && currentXp != null && currentXp >= xpRequired) {
       isUnlocked = true;
     }
@@ -162,26 +155,20 @@ class Level {
       isUnlocked = true;
     }
 
-    // Determine if this is the current active level
-    bool isCurrent = json['is_current'] ?? false;
+    bool isCurrent = xpBool(json['is_current']);
     if (!isCurrent && currentLevel != null) {
       isCurrent = levelNumber == currentLevel;
     }
 
     return Level(
       level: levelNumber,
-      name: json['name'] ?? '',
+      name: xpStr(json['name']) ?? '',
       xpRequired: xpRequired,
-      description: json['description'],
-      badgeImage: json['badge_image'],
+      description: xpStr(json['description']),
+      badgeImage: xpStr(json['badge_image']),
       isUnlocked: isUnlocked,
       isCurrent: isCurrent,
-      prizes:
-          json['prizes'] != null
-              ? (json['prizes'] as List)
-                  .map((prize) => LevelPrize.fromJson(prize))
-                  .toList()
-              : [],
+      prizes: xpMapList(json['prizes']).map(LevelPrize.fromJson).toList(),
     );
   }
 
@@ -227,18 +214,35 @@ class LevelPrize {
   /// Get the ID to use for claiming (instanceId if available, otherwise id)
   int get claimId => instanceId ?? id;
 
+  PrizeKind get kind => PrizeKind.parse(type);
+
+  /// The user-prize status, or one rebuilt from the flags for a payload that
+  /// predates `status`. Null means not unlocked yet.
+  String? get effectiveStatus =>
+      status ??
+      (isClaimed ? 'claimed' : (isUnlocked ? 'unlocked' : null));
+
+  /// See [RewardState.of]. The level payload carries no expiry, so an expired
+  /// prize is known only once the server flips its status.
+  RewardState get rewardState =>
+      RewardState.of(type: type, status: effectiveStatus);
+
   factory LevelPrize.fromJson(Map<String, dynamic> json) {
     return LevelPrize(
-      id: json['id'] ?? 0,
-      instanceId: json['instance_id'], // UserLevelPrize ID for claiming!
-      type: json['type'] ?? 'badge',
-      title: json['title'] ?? '',
-      description: json['description'],
-      value: json['value']?.toDouble(),
-      icon: json['icon'],
-      isClaimed: json['is_claimed'] ?? false,
-      isUnlocked: json['is_unlocked'] ?? false,
-      status: json['status'],
+      id: xpInt(json['id']),
+      instanceId: xpIntOrNull(
+        json['instance_id'],
+      ), // UserLevelPrize ID for claiming!
+      // `xp/level-details` sends `prize_type`. Reading only `type` made every
+      // level prize a badge (X-14).
+      type: xpStr(json['type']) ?? xpStr(json['prize_type']) ?? 'badge',
+      title: xpStr(json['title']) ?? '',
+      description: xpStr(json['description']),
+      value: xpDoubleOrNull(json['value']),
+      icon: xpStr(json['icon']),
+      isClaimed: xpBool(json['is_claimed']),
+      isUnlocked: xpBool(json['is_unlocked']),
+      status: xpStr(json['status']),
     );
   }
 
@@ -276,49 +280,34 @@ class LevelsListModel {
   });
 
   factory LevelsListModel.fromJson(Map<String, dynamic> json) {
-    final backendCurrentLevel = json['current_level'] ?? 1;
-    final currentXp = json['current_xp'] ?? 0;
+    final backendCurrentLevel = xpInt(json['current_level'], 1);
+    final currentXp = xpInt(json['current_xp']);
+    final levelsList = xpMapList(json['levels']);
 
-    // Parse levels first to calculate the actual current level based on XP
-    final levelsList =
-        json['levels'] != null
-            ? (json['levels'] as List)
-                .map((l) => l as Map<String, dynamic>)
-                .toList()
-            : <Map<String, dynamic>>[];
-
-    // Calculate actual current level based on XP (highest level user qualifies for)
-    int calculatedCurrentLevel = backendCurrentLevel;
-    for (var levelJson in levelsList) {
-      final levelNum = levelJson['level_number'] ?? levelJson['level'] ?? 1;
-      final xpRequired = levelJson['xp_required'] ?? 0;
-      if (currentXp >= xpRequired && levelNum > calculatedCurrentLevel) {
-        calculatedCurrentLevel = levelNum;
-      }
-    }
-
-    // Use the higher of backend's current_level or calculated level
-    final effectiveCurrentLevel =
-        calculatedCurrentLevel > backendCurrentLevel
-            ? calculatedCurrentLevel
-            : backendCurrentLevel;
+    // The server's level is the truth (X-37). This used to re-derive one from
+    // the `xp_required` thresholds and keep the higher, so whenever the server
+    // lagged (a pending level-up, a refund, an admin threshold edit) the same
+    // payload held two different current levels.
+    final effectiveCurrentLevel = backendCurrentLevel;
 
     return LevelsListModel(
       levels:
           levelsList
               .map(
-                (level) => Level.fromJson(
-                  level,
-                  currentLevel: effectiveCurrentLevel,
-                  currentXp: currentXp,
-                ),
+                // No `currentXp`: unlocking by threshold was the same
+                // second guess.
+                (level) =>
+                    Level.fromJson(level, currentLevel: effectiveCurrentLevel),
               )
               .toList(),
       currentLevel: effectiveCurrentLevel,
       currentXp: currentXp,
-      xpForNextLevel: json['xp_for_next_level'],
-      xpToNextLevel: json['xp_to_next_level'] ?? 0,
-      progressPercentage: (json['progress_percentage'] ?? 0.0).toDouble(),
+      xpForNextLevel: xpIntOrNull(json['xp_for_next_level']),
+      xpToNextLevel: xpInt(json['xp_to_next_level']),
+      progressPercentage:
+          (xpDoubleOrNull(json['progress_percentage']) ?? 0)
+              .clamp(0, 100)
+              .toDouble(),
     );
   }
 }

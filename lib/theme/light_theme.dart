@@ -22,11 +22,19 @@ class WaddyColors {
   ); // muted teal for text on primary bg
 
   // ── Accent mint — reserved for CONTROLS ───────────────────────────────────
-  // Mint means "press this". Nothing else. It used to be the brand wash, the
-  // success colour, the progress fill, the vote tally and the CTA all at once,
-  // which is why the eye could not use colour to triage this screen and fell
-  // back to "whichever rectangle is biggest".
-  static const Color mint = Color(0xFF1EF2A0); // electric mint — CTA only
+  // Mint is the brand's dominant surface AND its press-this signal, which is
+  // a real tension: when mint was the wash, the success colour, the progress
+  // fill, the vote tally and the CTA all at once, the eye could not use colour
+  // to triage a screen and fell back to "whichever rectangle is biggest".
+  //
+  // The resolution is saturation, not rationing (decision 2026-09-22, Ahmed):
+  // full-saturation [mint] stays reserved for pressable surfaces, so it keeps
+  // its "press this" meaning. Brand dominance is carried by [mintSurface] /
+  // [mintSurfaceDeep] tints and [mintInk] glyphs, which read unmistakably as
+  // Waddy without competing with the CTA. A screen that has shrunk mint to a
+  // few accent dots has drifted and is a defect — see PRODUCT.md — but the fix
+  // is more mint TINT and structure, never a second full-saturation rectangle.
+  static const Color mint = Color(0xFF1EF2A0); // electric mint — pressable only
   static const Color mintDark = Color(0xFF0DC97D); // mint pressed
   static const Color mintSurface = Color(
     0xFFE6FCF3,
@@ -75,6 +83,13 @@ class WaddyColors {
   /// ~5:1 the other two inks hold). Do not set label text in [amber] — at
   /// 1.6:1 on its own tint it is unreadable.
   static const Color amberInk = Color(0xFF8A5A00);
+
+  // Full-bleed status bands (order details header once an order has ended).
+  // Each pairs with the ink set on it: white on [statusRed], [statusAmberInk]
+  // on [statusAmber].
+  static const Color statusRed = Color(0xFFD93036);
+  static const Color statusAmber = Color(0xFFFFC94D);
+  static const Color statusAmberInk = Color(0xFF4A3500);
 
   // Neutrals — warm-tinted, not cold gray
   static const Color ink = Color(0xFF1A1F1E); // near-black w/ teal tint

@@ -5,7 +5,6 @@ import 'package:waddy_app/features/order/domain/models/order_details_model.dart'
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/features/order/widgets/order_shimmer_widget.dart';
 import 'package:waddy_app/features/review/screens/rate_review_screen.dart';
-import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -18,6 +17,8 @@ import 'package:waddy_app/common/widgets/paginated_list_view.dart';
 import 'package:waddy_app/features/order/screens/order_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OrderViewWidget extends StatefulWidget {
@@ -612,16 +613,15 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       }
     }
 
-    // Calculate XP earned for this order
-    int xpEarned = 0;
-    final xpController = Get.find<XpController>();
-    final xpConfig = xpController.xpConfig;
-    if (xpConfig != null && xpConfig.levelingEnabled && isDelivered) {
-      xpEarned = xpConfig.calculateEstimatedXp(
-        order.orderAmount ?? 0,
-        order.moduleType,
-      );
-    }
+    // What this order actually earned, from the server's XP ledger. This was
+    // a client estimate labelled as earned, worked out on an amount that
+    // includes delivery and tax (X-23).
+    final int xpEarned = isDelivered ? order.xpEarned : 0;
+    final XpConfigModel? xpConfig = Get.find<XpController>().xpConfig;
+    final int reviewXp =
+        (xpConfig?.levelingEnabled ?? false)
+            ? (xpConfig!.xpSources['review'] ?? xpConfig.xpPerReview)
+            : 0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeMedium),
@@ -822,8 +822,10 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              xpEarned > 0
-                                  ? '${'rate_to_earn'.tr} +$xpEarned'
+                              // A review earns the review award, not the
+                              // order's XP, which this used to show.
+                              reviewXp > 0
+                                  ? '${'rate_to_earn'.tr} +$reviewXp'
                                   : 'rate_to_earn'.tr,
                               style: waddyRegular.copyWith(
                                 fontSize: 12,
@@ -1361,10 +1363,8 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
       // Success state with longer display
       setState(() => _state = _ButtonState.success);
 
-      // Show XP toast if applicable
-      if (widget.xpEarned > 0) {
-        _showXpToast();
-      }
+      // Reordering refills the cart; it earns nothing yet. This used to toast
+      // "+N coins earned!" with the *previous* order's XP (X-23).
 
       // Let success state show longer for satisfaction
       await Future.delayed(const Duration(milliseconds: 1200));
@@ -1373,45 +1373,6 @@ class _OrderAgainButtonState extends State<_OrderAgainButton>
       // Reset on failure
       setState(() => _state = _ButtonState.idle);
     }
-  }
-
-  void _showXpToast() {
-    Get.showSnackbar(
-      GetSnackBar(
-        messageText: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-            vertical: 11,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFF134E4A),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF134E4A).withOpacity(0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/image/waddy_coin.png', width: 18, height: 18),
-              const SizedBox(width: 6),
-              Text(
-                '+${widget.xpEarned} coins earned!',
-                style: waddyBold.copyWith(color: Colors.white, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        duration: const Duration(seconds: 2),
-        snackPosition: SnackPosition.BOTTOM,
-        margin: const EdgeInsets.only(bottom: 80),
-      ),
-    );
   }
 
   @override

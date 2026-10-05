@@ -1,6 +1,6 @@
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/foundation.dart';
-import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/category/controllers/category_page_controller.dart';
 import 'package:waddy_app/features/category/widgets/category_filter_widget.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
@@ -30,6 +30,8 @@ class CategoryItemScreen extends StatefulWidget {
 
 class CategoryItemScreenState extends State<CategoryItemScreen>
     with TickerProviderStateMixin {
+  late final CategoryPageController _page;
+
   final ScrollController scrollController = ScrollController();
   final ScrollController storeScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
@@ -39,6 +41,9 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   @override
   void initState() {
     super.initState();
+    // This page's own state (ST-16): a new category page starts on item type
+    // "all", out of search, on its own tab — never on the last page's.
+    _page = CategoryPageController.open();
 
     final bool isGrocery =
         Get.find<SplashController>().module?.type == ModuleType.grocery;
@@ -47,42 +52,33 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       initialIndex: isGrocery ? 1 : 0,
       vsync: this,
     );
-    Get.find<CategoryController>().getSubCategoryList(widget.categoryID);
+    _page.getSubCategoryList(widget.categoryID);
 
-    Get.find<CategoryController>().getCategoryStoreList(
-      widget.categoryID,
-      1,
-      Get.find<CategoryController>().type,
-      false,
-    );
+    _page.getCategoryStoreList(widget.categoryID, 1, _page.type, false);
 
     if (isGrocery) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.find<CategoryController>().setRestaurant(true);
+        _page.setRestaurant(true);
       });
     }
 
     scrollController.addListener(() {
       if (scrollController.position.pixels ==
               scrollController.position.maxScrollExtent &&
-          Get.find<CategoryController>().categoryItemList != null &&
-          !Get.find<CategoryController>().isLoading) {
-        int pageSize = (Get.find<CategoryController>().pageSize! / 10).ceil();
-        if (Get.find<CategoryController>().offset < pageSize) {
+          _page.categoryItemList != null &&
+          !_page.isLoading) {
+        int pageSize = (_page.pageSize! / 10).ceil();
+        if (_page.offset < pageSize) {
           if (kDebugMode) {
             print('end of the page');
           }
-          Get.find<CategoryController>().showBottomLoader();
-          Get.find<CategoryController>().getCategoryItemList(
-            Get.find<CategoryController>().subCategoryIndex == 0
+          _page.showBottomLoader();
+          _page.getCategoryItemList(
+            _page.subCategoryIndex == 0
                 ? widget.categoryID
-                : Get.find<CategoryController>()
-                    .subCategoryList![Get.find<CategoryController>()
-                        .subCategoryIndex]
-                    .id
-                    .toString(),
-            Get.find<CategoryController>().offset + 1,
-            Get.find<CategoryController>().type,
+                : _page.subCategoryList![_page.subCategoryIndex].id.toString(),
+            _page.offset + 1,
+            _page.type,
             false,
           );
         }
@@ -91,25 +87,20 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
     storeScrollController.addListener(() {
       if (storeScrollController.position.pixels ==
               storeScrollController.position.maxScrollExtent &&
-          Get.find<CategoryController>().categoryStoreList != null &&
-          !Get.find<CategoryController>().isLoading) {
-        int pageSize =
-            (Get.find<CategoryController>().restPageSize! / 10).ceil();
-        if (Get.find<CategoryController>().offset < pageSize) {
+          _page.categoryStoreList != null &&
+          !_page.isLoading) {
+        int pageSize = (_page.restPageSize! / 10).ceil();
+        if (_page.offset < pageSize) {
           if (kDebugMode) {
             print('end of the page');
           }
-          Get.find<CategoryController>().showBottomLoader();
-          Get.find<CategoryController>().getCategoryStoreList(
-            Get.find<CategoryController>().subCategoryIndex == 0
+          _page.showBottomLoader();
+          _page.getCategoryStoreList(
+            _page.subCategoryIndex == 0
                 ? widget.categoryID
-                : Get.find<CategoryController>()
-                    .subCategoryList![Get.find<CategoryController>()
-                        .subCategoryIndex]
-                    .id
-                    .toString(),
-            Get.find<CategoryController>().offset + 1,
-            Get.find<CategoryController>().type,
+                : _page.subCategoryList![_page.subCategoryIndex].id.toString(),
+            _page.offset + 1,
+            _page.type,
             false,
           );
         }
@@ -119,11 +110,12 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
 
   @override
   void dispose() {
+    _page.close();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _openFilter(CategoryController catController) {
+  void _openFilter(CategoryPageController catController) {
     double maxPrice = 1000;
     if (catController.categoryItemList != null &&
         catController.categoryItemList!.isNotEmpty) {
@@ -138,6 +130,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
       isScrollControlled: true,
       builder:
           (_) => CategoryFilterWidget(
+            page: _page,
             maxValue: maxPrice > 0 ? maxPrice : 1000,
             categoryID: widget.categoryID,
           ),
@@ -148,7 +141,8 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   Widget build(BuildContext context) {
     final Color primaryColor = Theme.of(context).primaryColor;
 
-    return GetBuilder<CategoryController>(
+    return GetBuilder<CategoryPageController>(
+      tag: _page.tag,
       builder: (catController) {
         List<Item>? item;
         List<Store>? stores;
@@ -194,7 +188,7 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
   }
 
   Widget _buildMobileBody(
-    CategoryController catController,
+    CategoryPageController catController,
     List<Item>? item,
     List<Store>? stores,
     Color primaryColor,
@@ -372,11 +366,11 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                 Tab(
                   text:
                       Get.find<SplashController>()
-                              .configModel
-                              .moduleConfig!
-                              .module!
-                              .showRestaurantText ??
-                                  false
+                                  .configModel
+                                  .moduleConfig!
+                                  .module!
+                                  .showRestaurantText ??
+                              false
                           ? 'restaurants'.tr
                           : 'stores'.tr,
                 ),
@@ -457,11 +451,11 @@ class CategoryItemScreenState extends State<CategoryItemScreen>
                       stores: stores,
                       noDataText:
                           Get.find<SplashController>()
-                                  .configModel
-                                  .moduleConfig!
-                                  .module!
-                                  .showRestaurantText ??
-                                      false
+                                      .configModel
+                                      .moduleConfig!
+                                      .module!
+                                      .showRestaurantText ??
+                                  false
                               ? 'no_category_restaurant_found'.tr
                               : 'no_category_store_found'.tr,
                     ),

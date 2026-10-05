@@ -9,11 +9,13 @@ import 'package:waddy_app/features/notification/controllers/notification_control
 import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
+import 'package:waddy_app/features/pets/pets_navigator.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:waddy_app/util/app_constants.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:waddy_app/helper/live_activity_helper.dart';
@@ -93,6 +95,11 @@ class NotificationHelper {
                         ? RouteHelper.getSpotsPrizeDetailsRoute(payload.index!)
                         : RouteHelper.getSpotsPrizesRoute(),
                   ),
+              NotificationType.level_up:
+                  () => RouteHelper.goToTab(RouteHelper.tabRewards),
+              NotificationType.challenge_complete:
+                  () => Get.toNamed(RouteHelper.xpChallenges),
+              NotificationType.pets: () => PetsNavigator.openHub(),
               NotificationType.general:
                   () => Get.toNamed(
                     RouteHelper.getNotificationRoute(fromNotification: true),
@@ -169,12 +176,27 @@ class NotificationHelper {
         if (message.data['type'] == 'order_status' &&
             message.data['order_id'] != null) {
           _updateLiveActivityFromFCM(message.data);
+          // The order screen polls every 30 s; a status push shouldn't wait.
+          Get.find<OrderController>().refreshTrackedOrder(
+            '${message.data['order_id']}',
+          );
         }
 
         if (AuthHelper.isLoggedIn()) {
           Get.find<OrderController>().getRunningOrders(1);
           Get.find<OrderController>().getHistoryOrders(1);
           Get.find<NotificationController>().getNotificationList(true);
+
+          // A delivered order earns XP, moves challenges and may level the
+          // user up; the XP pushes mean the same. Refresh rather than wait for
+          // the next tab visit (X-20).
+          final type = message.data['type'];
+          if (type == 'level_up' ||
+              type == 'challenge_complete' ||
+              (type == 'order_status' &&
+                  message.data['status'] == 'delivered')) {
+            Get.find<XpController>().refreshAfter(XpEvent.orderDelivered);
+          }
         }
       }
 
@@ -248,6 +270,11 @@ class NotificationHelper {
                       )
                       : RouteHelper.getSpotsPrizesRoute(),
                 ),
+            NotificationType.level_up:
+                () => RouteHelper.goToTab(RouteHelper.tabRewards),
+            NotificationType.challenge_complete:
+                () => Get.toNamed(RouteHelper.xpChallenges),
+            NotificationType.pets: () => PetsNavigator.openHub(),
             NotificationType.general:
                 () => Get.toNamed(
                   RouteHelper.getNotificationRoute(fromNotification: true),
@@ -292,13 +319,17 @@ class NotificationHelper {
     if (status == null) return;
 
     if (LiveActivityHelper.isTerminalStatus(status)) {
-      LiveActivityService.endActivity(orderId);
+      LiveActivityService.endActivity(orderId, status: status);
     } else {
       LiveActivityService.updateActivity(
         orderId: orderId,
         status: status,
         subStatus: subStatus,
         eta: etaText,
+        arrivalAt:
+            etaMinutes != null
+                ? DateTime.now().add(Duration(minutes: etaMinutes))
+                : null,
         storeName: storeName,
         deliveryManName: deliveryManName,
       );
@@ -518,6 +549,16 @@ class NotificationHelper {
           // forwards a fixed key list — a prize_id key would be dropped).
           index: int.tryParse('${data['data_id']}'),
         );
+      case 'level_up':
+        return NotificationBodyModel(
+          notificationType: NotificationType.level_up,
+        );
+      case 'challenge_complete':
+        return NotificationBodyModel(
+          notificationType: NotificationType.challenge_complete,
+        );
+      case 'pets':
+        return NotificationBodyModel(notificationType: NotificationType.pets);
       case 'otp':
         return NotificationBodyModel(notificationType: NotificationType.otp);
       case 'add_fund':

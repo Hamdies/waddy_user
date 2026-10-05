@@ -5,8 +5,8 @@ import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_level_model.dart';
 import 'package:waddy_app/features/xp/domain/services/xp_service_interface.dart';
 
 /// Phase 0 of `docs/xp_module_plan.md` — the safety net, written before the
@@ -57,9 +57,6 @@ class _FakeXpService implements XpServiceInterface {
   @override
   Future<PrizeModel?> getPrizes() async => prizes;
 
-  @override
-  Future<XpHistoryModel?> getHistory({int limit = 20, int offset = 0}) async =>
-      null;
 
   @override
   Future<XpLeaderboardModel?> getLeaderboard({
@@ -387,9 +384,28 @@ void main() {
 
     test('true on a claimable prize even with no challenges', () async {
       final controller = await loaded(
-        prizes: PrizeModel(usablePrizes: [_prize(id: 1, status: 'unlocked')]),
+        prizes: PrizeModel(
+          usablePrizes: [
+            Prize(
+              id: 1,
+              level: 3,
+              type: 'wallet_credit',
+              title: 'EGP 50 credit',
+              status: 'unlocked',
+            ),
+          ],
+        ),
       );
       expect(controller.hasUnclaimedRewards, isTrue);
+    });
+
+    // X-26: a free delivery is spent at checkout as it is — it has no claim
+    // step, so it must not light a badge that says "something to claim".
+    test('false on an unlocked free delivery', () async {
+      final controller = await loaded(
+        prizes: PrizeModel(usablePrizes: [_prize(id: 1, status: 'unlocked')]),
+      );
+      expect(controller.hasUnclaimedRewards, isFalse);
     });
 
     test('false when every prize is already used', () async {
@@ -455,11 +471,6 @@ void main() {
     test('a challenge tab tap does not touch checkout', () {
       final fired = idsFiredBy((c) => c.changeChallengeTab(1));
       expect(fired, [XpController.idChallenges]);
-    });
-
-    test('a prize filter change does not touch checkout', () {
-      final fired = idsFiredBy((c) => c.changePrizeFilter(2));
-      expect(fired, [XpController.idPrizes]);
     });
 
     test('selecting a checkout prize wakes only checkout', () {
@@ -597,6 +608,30 @@ void main() {
         controller.syncCheckoutPrizes(180),
       ]);
       expect(service.checkoutPrizeRequests, [180]);
+    });
+  });
+
+  group('X-14 / X-25 · prize payloads', () {
+    test('a level prize takes its type from `prize_type`', () {
+      final prize = LevelPrize.fromJson({
+        'id': 1,
+        'title': '50 EGP off',
+        'prize_type': 'discount',
+      });
+      expect(prize.type, 'discount');
+    });
+
+    test('a claimed discount prize carries its coupon code', () {
+      final prize = Prize.fromJson({
+        'id': 7,
+        'prize_type': 'discount',
+        'title': '50 EGP off',
+        'value': 50,
+        'status': 'claimed',
+        'coupon_code': 'WADDY-ABC123',
+      });
+      expect(prize.couponCode, 'WADDY-ABC123');
+      expect(prize.isUsed, isFalse);
     });
   });
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/common/widgets/custom_snackbar.dart';
+import 'package:waddy_app/features/item/domain/produce_preference.dart';
+import 'package:waddy_app/features/item/widgets/produce_preference_picker.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -9,12 +12,10 @@ import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
+import 'package:waddy_app/common/widgets/quantity_stepper.dart';
 import 'package:waddy_app/features/checkout/screens/checkout_screen.dart';
 import 'package:waddy_app/features/item/widgets/details_app_bar_widget.dart';
 import 'package:waddy_app/features/item/widgets/item_image_view_widget.dart';
@@ -229,6 +230,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
                 stock,
                 item,
                 item.quantityLimit,
+                preference: itemController.preference,
               );
 
               List<int?> listOfAddOnId = _getSelectedAddonIds(
@@ -255,6 +257,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
                 addOnsList,
                 listOfAddOnQty,
                 'Item',
+                preference: itemController.preference,
               );
               priceWithAddons =
                   priceWithQuantity +
@@ -646,6 +649,24 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
                                             );
                                           }),
 
+                                        // Produce question (ripeness / use)
+                                        if (ProducePreference.asks(
+                                          item.prepOption,
+                                        ))
+                                          ProducePreferencePicker(
+                                            option: item.prepOption!,
+                                            selected: itemController.preference,
+                                            onSelect:
+                                                (code) => itemController
+                                                    .setPreference(code, item),
+                                            margin: const EdgeInsets.fromLTRB(
+                                              16,
+                                              4,
+                                              16,
+                                              8,
+                                            ),
+                                          ),
+
                                         // Prescription required
                                         if (item.isPrescriptionRequired!)
                                           Padding(
@@ -1021,8 +1042,12 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
               final item = suggestions[index];
               final double? discount = item.discount;
               final String? discountType = item.discountType;
+              // Produce that asks a question opens its page like any item
+              // with options — the "+" can't answer for the shopper.
               final bool hasVariations =
-                  item.choiceOptions != null && item.choiceOptions!.isNotEmpty;
+                  (item.choiceOptions != null &&
+                      item.choiceOptions!.isNotEmpty) ||
+                  ProducePreference.asks(item.prepOption);
 
               return GestureDetector(
                 onTap:
@@ -1277,8 +1302,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
               int addableCount = 0;
               for (final item in suggestions) {
                 final hasVars =
-                    item.choiceOptions != null &&
-                    item.choiceOptions!.isNotEmpty;
+                    (item.choiceOptions != null &&
+                        item.choiceOptions!.isNotEmpty) ||
+                    ProducePreference.asks(item.prepOption);
                 if (!hasVars && !cartItemIds.contains(item.id)) {
                   final price =
                       PriceConverter.convertWithDiscount(
@@ -1296,8 +1322,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
                 onTap: () {
                   for (final item in suggestions) {
                     final hasVars =
-                        item.choiceOptions != null &&
-                        item.choiceOptions!.isNotEmpty;
+                        (item.choiceOptions != null &&
+                            item.choiceOptions!.isNotEmpty) ||
+                        ProducePreference.asks(item.prepOption);
                     if (!hasVars && !cartItemIds.contains(item.id)) {
                       final discountedPrice =
                           PriceConverter.convertWithDiscount(
@@ -1406,11 +1433,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
     required double priceWithAddons,
   }) {
     final bool isOutOfStock =
-        Get.find<SplashController>()
-            .configModel
-            .moduleConfig!
-            .module!
-            .stock! &&
+        Get.find<SplashController>().configModel.moduleConfig!.module!.stock! &&
         stock! <= 0;
     final bool isInCart = itemController.cartIndex != -1;
 
@@ -1588,183 +1611,29 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
                                   // Counter + Checkout row
                                   Row(
                                     children: [
-                                      // Quantity selector - pill style
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF5F5F7),
-                                          borderRadius: BorderRadius.circular(
-                                            Dimensions.radiusLarge,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            // Delete (qty=1) or Minus (qty>1)
-                                            GestureDetector(
-                                              onTap:
-                                                  cartController.isLoading
-                                                      ? null
-                                                      : () {
-                                                        if (currentQty <= 1) {
-                                                          cartController
-                                                              .removeFromCart(
-                                                                itemController
-                                                                    .cartIndex,
-                                                                item: item,
-                                                              );
-                                                        } else {
-                                                          cartController.setQuantity(
-                                                            false,
-                                                            itemController
-                                                                .cartIndex,
-                                                            stock,
-                                                            cartController
-                                                                .cartList[itemController
-                                                                    .cartIndex]
-                                                                .quantity,
-                                                          );
-                                                        }
-                                                      },
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  Dimensions.paddingSizeSmall,
-                                                ),
-                                                margin: const EdgeInsets.all(
-                                                  Dimensions
-                                                      .paddingSizeExtraSmall,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        Dimensions
-                                                            .radiusDefault,
-                                                      ),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(
-                                                            alpha: 0.06,
-                                                          ),
-                                                      blurRadius: 4,
-                                                      offset: const Offset(
-                                                        0,
-                                                        1,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Icon(
-                                                  currentQty <= 1
-                                                      ? Icons
-                                                          .delete_outline_rounded
-                                                      : Icons.remove_rounded,
-                                                  size: 20,
-                                                  color:
-                                                      currentQty <= 1
-                                                          ? Theme.of(
-                                                            context,
-                                                          ).colorScheme.error
-                                                          : Theme.of(
-                                                            context,
-                                                          ).primaryColor,
-                                                ),
-                                              ),
+                                      QuantityStepper(
+                                        quantity: currentQty,
+                                        itemName: item.name,
+                                        size: QuantityStepperSize.large,
+                                        onDecrement:
+                                            () => cartController.setQuantity(
+                                              false,
+                                              itemController.cartIndex,
+                                              stock,
+                                              item.quantityLimit,
                                             ),
-                                            // Quantity number
-                                            AnimatedSwitcher(
-                                              duration: const Duration(
-                                                milliseconds: 200,
-                                              ),
-                                              transitionBuilder: (
-                                                child,
-                                                animation,
-                                              ) {
-                                                return ScaleTransition(
-                                                  scale: animation,
-                                                  child: child,
-                                                );
-                                              },
-                                              child: Container(
-                                                key: ValueKey<int>(currentQty),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                    ),
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      minWidth: 32,
-                                                    ),
-                                                alignment: Alignment.center,
-                                                child: Text(
-                                                  '$currentQty',
-                                                  style: waddyBlack.copyWith(
-                                                    fontSize: 18,
-                                                    color: const Color(
-                                                      0xFF1A1A2E,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
+                                        onRemove:
+                                            () => cartController.removeFromCart(
+                                              itemController.cartIndex,
+                                              item: item,
                                             ),
-                                            // Plus button
-                                            GestureDetector(
-                                              onTap:
-                                                  cartController.isLoading
-                                                      ? null
-                                                      : () {
-                                                        cartController.setQuantity(
-                                                          true,
-                                                          itemController
-                                                              .cartIndex,
-                                                          stock,
-                                                          cartController
-                                                              .cartList[itemController
-                                                                  .cartIndex]
-                                                              .quantityLimit,
-                                                        );
-                                                      },
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  Dimensions.paddingSizeSmall,
-                                                ),
-                                                margin: const EdgeInsets.all(
-                                                  Dimensions
-                                                      .paddingSizeExtraSmall,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        Dimensions
-                                                            .radiusDefault,
-                                                      ),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(
-                                                            alpha: 0.06,
-                                                          ),
-                                                      blurRadius: 4,
-                                                      offset: const Offset(
-                                                        0,
-                                                        1,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Icon(
-                                                  Icons.add_rounded,
-                                                  size: 20,
-                                                  color:
-                                                      Theme.of(
-                                                        context,
-                                                      ).secondaryHeaderColor,
-                                                ),
-                                              ),
+                                        onIncrement:
+                                            () => cartController.setQuantity(
+                                              true,
+                                              itemController.cartIndex,
+                                              stock,
+                                              item.quantityLimit,
                                             ),
-                                          ],
-                                        ),
                                       ),
                                       const SizedBox(width: 12),
                                       // View Cart button with price
@@ -2000,6 +1869,13 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
 
     if (!canAdd || cartController.isLoading) return;
 
+    // Produce asks first: ripeness for fruit, salad-or-cooking for veg.
+    if (ProducePreference.asks(item.prepOption) &&
+        itemController.preference == null) {
+      showCustomSnackBar('choose_prep_${item.prepOption}'.tr);
+      return;
+    }
+
     if (item.availableDateStarts != null) {
       Get.toNamed(
         RouteHelper.getCheckoutRoute('campaign'),
@@ -2056,19 +1932,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
             : Get.find<SplashController>().module!.id,
       )) {
         Get.dialog(
-          ConfirmationDialog(
-            icon: Images.warning,
-            title: 'are_you_sure_to_reset'.tr,
-            description:
-                Get.find<SplashController>()
-                        .configModel
-                        .moduleConfig!
-                        .module!
-                        .showRestaurantText ??
-                            false
-                    ? 'if_you_continue'.tr
-                    : 'if_you_continue_without_another_store'.tr,
-            onYesPressed: () {
+          CartModuleConflictDialog.forStore(
+            newStoreName: cartModel.item!.storeName,
+            onClearCart: () {
               Get.back();
               cartController.clearCartOnline().then((success) async {
                 if (success) {
@@ -2124,110 +1990,5 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen>
       listOfAddOnQty.add(addOn.quantity);
     }
     return listOfAddOnQty;
-  }
-}
-
-class QuantityButton extends StatelessWidget {
-  final bool isIncrement;
-  final int? quantity;
-  final bool isCartWidget;
-  final int? stock;
-  final bool isExistInCart;
-  final int cartIndex;
-  final int? quantityLimit;
-  final CartController cartController;
-  const QuantityButton({
-    super.key,
-    required this.isIncrement,
-    required this.quantity,
-    required this.stock,
-    required this.isExistInCart,
-    required this.cartIndex,
-    this.isCartWidget = false,
-    this.quantityLimit,
-    required this.cartController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap:
-          cartController.isLoading
-              ? null
-              : () {
-                if (isExistInCart) {
-                  if (!isIncrement && quantity! > 1) {
-                    Get.find<CartController>().setQuantity(
-                      false,
-                      cartIndex,
-                      stock,
-                      quantityLimit,
-                    );
-                  } else if (isIncrement && quantity! > 0) {
-                    if (quantity! < stock! ||
-                        !Get.find<SplashController>()
-                            .configModel
-                            .moduleConfig!
-                            .module!
-                            .stock!) {
-                      Get.find<CartController>().setQuantity(
-                        true,
-                        cartIndex,
-                        stock,
-                        quantityLimit,
-                      );
-                    } else {
-                      showCustomSnackBar('out_of_stock'.tr);
-                    }
-                  }
-                } else {
-                  if (!isIncrement && quantity! > 1) {
-                    Get.find<ItemController>().setQuantity(
-                      false,
-                      stock,
-                      quantityLimit,
-                    );
-                  } else if (isIncrement && quantity! > 0) {
-                    if (quantity! < stock! ||
-                        !Get.find<SplashController>()
-                            .configModel
-                            .moduleConfig!
-                            .module!
-                            .stock!) {
-                      Get.find<ItemController>().setQuantity(
-                        true,
-                        stock,
-                        quantityLimit,
-                      );
-                    } else {
-                      showCustomSnackBar('out_of_stock'.tr);
-                    }
-                  }
-                }
-              },
-      child: Container(
-        height: 30,
-        width: 30,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color:
-              (quantity! == 1 && !isIncrement) || cartController.isLoading
-                  ? Theme.of(context).disabledColor.withValues(alpha: 0.1)
-                  : Theme.of(context).primaryColor,
-        ),
-        child: Center(
-          child: Icon(
-            isIncrement ? Icons.add : Icons.remove,
-            color:
-                isIncrement
-                    ? Colors.white
-                    : quantity! == 1
-                    ? Theme.of(context).disabledColor
-                    : Colors.white,
-            size: isCartWidget ? 26 : 20,
-          ),
-        ),
-      ),
-    );
   }
 }

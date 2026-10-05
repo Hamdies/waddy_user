@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:animated_flip_counter/animated_flip_counter.dart';
 import 'package:flutter/material.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -31,7 +32,9 @@ class PriceConverter {
       }
     }
     bool isRightSide =
-        Get.find<SplashController>().configModelOrNull?.currencySymbolDirection ==
+        Get.find<SplashController>()
+            .configModelOrNull
+            ?.currencySymbolDirection ==
         'right';
     String currencySymbol = _getCurrencySymbol();
 
@@ -55,7 +58,9 @@ class PriceConverter {
       }
     }
     bool isRightSide =
-        Get.find<SplashController>().configModelOrNull?.currencySymbolDirection ==
+        Get.find<SplashController>()
+            .configModelOrNull
+            ?.currencySymbolDirection ==
         'right';
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -119,6 +124,38 @@ class PriceConverter {
     return roundLikeServer(val, _digitsAfterDecimal);
   }
 
+  /// Rounds a list of amounts for DISPLAY so the rounded parts add up to the
+  /// rounded whole (largest-remainder rounding).
+  ///
+  /// Rounding each line on its own does not: 33.75 + 82.5 shows as 34 + 83 =
+  /// 117 next to a total of 116.25 → 116, and a customer adding up the cart
+  /// finds it 1 LE off. The server charges the rounded whole (it sums the
+  /// unrounded lines, `PlaceNewOrder.php`), so the whole is the fixed point
+  /// and the lines give way: the line with the largest rounding remainder
+  /// takes the extra unit. Display only — never feed these back into pricing.
+  static List<double> allocateRounded(List<double> values, {int? digits}) {
+    if (values.isEmpty) return const [];
+    digits ??= _digitsAfterDecimal;
+    final double scale = math.pow(10, digits).toDouble();
+    final List<double> scaled = [for (final v in values) v * scale];
+    final List<int> floors = [for (final v in scaled) v.floor()];
+    final int target =
+        (roundLikeServer(values.fold(0.0, (a, b) => a + b), digits) * scale)
+            .round();
+    int diff = target - floors.fold(0, (a, b) => a + b);
+    final List<int> order = List<int>.generate(
+      values.length,
+      (i) => i,
+    )..sort((a, b) => (scaled[b] - floors[b]).compareTo(scaled[a] - floors[a]));
+    for (int k = 0; diff > 0 && k < order.length; k++, diff--) {
+      floors[order[k]] += 1;
+    }
+    for (int k = order.length - 1; diff < 0 && k >= 0; k--, diff++) {
+      floors[order[k]] -= 1;
+    }
+    return [for (final f in floors) f / scale];
+  }
+
   /// Digits the server is configured to round to.
   ///
   /// Both sides read the same business setting: the backend's
@@ -127,5 +164,6 @@ class PriceConverter {
   /// has not loaded should not crash price formatting, which runs on nearly
   /// every screen.
   static int get _digitsAfterDecimal =>
-      Get.find<SplashController>().configModelOrNull?.digitAfterDecimalPoint ?? 2;
+      Get.find<SplashController>().configModelOrNull?.digitAfterDecimalPoint ??
+      2;
 }

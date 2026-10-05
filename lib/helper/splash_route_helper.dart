@@ -11,6 +11,7 @@ import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/deep_link_helper.dart';
 import 'package:waddy_app/helper/guest_bootstrap_helper.dart';
 import 'package:waddy_app/helper/location_gate_helper.dart';
+import 'package:waddy_app/features/pets/pets_navigator.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
 
@@ -99,6 +100,20 @@ void _forNotificationRouteProcess(NotificationBodyModel? notificationBody) {
               ? RouteHelper.getSpotsPrizeDetailsRoute(notificationBody!.index!)
               : RouteHelper.getSpotsPrizesRoute(),
         ),
+    NotificationType.level_up:
+        () => _exitSplashThen(
+          () => Get.offAllNamed(RouteHelper.getMainRoute('levels')),
+        ),
+    NotificationType.challenge_complete:
+        () => _exitSplashThen(() {
+          Get.offAllNamed(RouteHelper.getMainRoute('levels'));
+          Get.toNamed(RouteHelper.xpChallenges);
+        }),
+    NotificationType.pets:
+        () => _exitSplashThen(() {
+          Get.offAllNamed(RouteHelper.getMainRoute('home'));
+          PetsNavigator.openHub(switchTab: false);
+        }),
     NotificationType.general:
         () => Get.toNamed(
           RouteHelper.getNotificationRoute(fromNotification: true),

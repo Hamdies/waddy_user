@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class PopularStoreCard extends StatefulWidget {
   final Store store;
@@ -86,10 +85,7 @@ class _PopularStoreCardState extends State<PopularStoreCard>
           ),
           child: CustomInkWell(
             onTap: () {
-              Get.toNamed(
-                RouteHelper.getStoreRoute(id: widget.store.id, page: 'store'),
-                arguments: StoreScreen(store: widget.store, fromModule: false),
-              );
+              StoreNavigator.open(widget.store);
             },
             radius: Dimensions.radiusDefault,
             child: ClipRRect(

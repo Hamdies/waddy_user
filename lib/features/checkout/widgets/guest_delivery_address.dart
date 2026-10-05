@@ -97,11 +97,18 @@ class GuestDeliveryAddress extends StatelessWidget {
                         }
                       }
                     },
-                    child: Image.asset(
-                      Images.editDelivery,
-                      height: 20,
-                      width: 20,
-                      color: Theme.of(context).primaryColor,
+                    customBorder: const CircleBorder(),
+                    // A 20pt glyph, a 44pt target.
+                    child: Padding(
+                      padding: const EdgeInsets.all(
+                        Dimensions.paddingSizeMedium,
+                      ),
+                      child: Image.asset(
+                        Images.editDelivery,
+                        height: 20,
+                        width: 20,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                   ),
             ],
@@ -158,31 +165,30 @@ class GuestDeliveryAddress extends StatelessWidget {
                 ],
               )
               : checkoutController.guestAddress == null
-              ? InkWell(
-                onTap: () {},
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: Dimensions.paddingSizeLarge,
-                  ),
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        Images.truck,
-                        height: 20,
-                        width: 20,
+              // Not tappable: it is a prompt for the edit button above, and
+              // an empty onTap gave it a ripple that did nothing.
+              ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: Dimensions.paddingSizeLarge,
+                ),
+                child: Column(
+                  children: [
+                    Image.asset(
+                      Images.truck,
+                      height: 20,
+                      width: 20,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                    const SizedBox(height: Dimensions.paddingSizeSmall),
+
+                    Text(
+                      'please_update_your_delivery_info'.tr,
+                      style: waddyRegular.copyWith(
+                        fontSize: Dimensions.fontSizeDefault,
                         color: Theme.of(context).disabledColor,
                       ),
-                      const SizedBox(height: Dimensions.paddingSizeSmall),
-
-                      Text(
-                        'please_update_your_delivery_info'.tr,
-                        style: waddyRegular.copyWith(
-                          fontSize: Dimensions.fontSizeDefault,
-                          color: Theme.of(context).disabledColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               )
               : Column(

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'package:waddy_app/helper/crash_context_helper.dart';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -328,6 +330,9 @@ class AuthRepository implements AuthRepositoryInterface {
       }, handleError: false);
     }
     await AuthTokenStore.clear(sharedPreferences);
+    // Cleared with the token: a later crash on a shared device must not be
+    // attributed to the account that just signed out.
+    unawaited(CrashContext.clearUser());
     sharedPreferences.remove(AppConstants.guestId);
     sharedPreferences.remove(AppConstants.profileIncomplete);
     sharedPreferences.remove(AppConstants.pendingProfilePhone);

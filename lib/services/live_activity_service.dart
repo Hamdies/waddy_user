@@ -26,10 +26,12 @@ class LiveActivityService {
     required String status,
     String? subStatus,
     String? eta,
+    DateTime? arrivalAt,
     String? storeName,
     String? storeLogoUrl,
     String? deliveryManName,
     String orderType = 'delivery',
+    String? moduleType,
   }) async {
     try {
       final activityData = LiveActivityHelper.getActivityData(
@@ -42,6 +44,9 @@ class LiveActivityService {
       final result = await _channel.invokeMethod<String>('startLiveActivity', {
         'orderId': orderId,
         'orderType': orderType,
+        'moduleType': moduleType,
+        // The widget can't read the in-app language choice on its own.
+        'language': Get.locale?.languageCode,
         'storeName': storeName,
         'storeLogoUrl': storeLogoUrl,
         'status': status,
@@ -50,6 +55,7 @@ class LiveActivityService {
         'subtitle': activityData.subtitle,
         'progress': activityData.progress,
         'etaText': activityData.etaText,
+        ..._arrival(arrivalAt),
         'step': activityData.step,
         'deliveryManName': deliveryManName,
       });
@@ -75,6 +81,7 @@ class LiveActivityService {
     required String status,
     String? subStatus,
     String? eta,
+    DateTime? arrivalAt,
     String? deliveryManName,
     String? storeName,
     String orderType = 'delivery',
@@ -95,6 +102,7 @@ class LiveActivityService {
         'subtitle': activityData.subtitle,
         'progress': activityData.progress,
         'etaText': activityData.etaText,
+        ..._arrival(arrivalAt),
         'step': activityData.step,
         'deliveryManName': deliveryManName,
         'storeName': storeName,
@@ -118,9 +126,24 @@ class LiveActivityService {
     }
   }
 
-  static Future<void> endActivity(int orderId) async {
+  /// The widget builds its copy from the status and the arrival time, so it
+  /// gets both as numbers rather than as a formatted string.
+  static Map<String, dynamic> _arrival(DateTime? at) {
+    if (at == null) return const {};
+    return {
+      'arrivalAt': at.millisecondsSinceEpoch / 1000.0,
+      'etaMinutes': at.difference(DateTime.now()).inMinutes.clamp(0, 999),
+    };
+  }
+
+  /// [status] is the terminal status (`delivered`, `canceled`, …) so a
+  /// canceled order doesn't end on a "Delivered" card.
+  static Future<void> endActivity(int orderId, {String? status}) async {
     try {
-      await _channel.invokeMethod('endLiveActivity', {'orderId': orderId});
+      await _channel.invokeMethod('endLiveActivity', {
+        'orderId': orderId,
+        'status': status,
+      });
     } on PlatformException catch (e) {
       debugPrint('LiveActivityService.endActivity error: $e');
     }

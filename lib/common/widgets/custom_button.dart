@@ -91,19 +91,31 @@ class _CustomButtonState extends State<CustomButton>
     // Default look: mint fill with an ink (dark teal) border and ink text —
     // the two-tone brand treatment. `color`/`textColor`/`transparent` still
     // override per call site for the few buttons that need something else.
+    // Disabled fills from [divider], not [disabledColor]. `disabledColor` is
+    // inkMuted (#9EAAA8), and the ink label on it measures 3.96:1 — under the
+    // 4.5:1 floor for the label text. Since a disabled primary CTA is the
+    // FIRST thing a user sees on screens that gate their button on input (the
+    // map picker sits disabled until a pin resolves), that failure is on
+    // screen more often than the enabled state. divider (#E4ECEA) reads as
+    // the same "inert" step and carries the ink label at 7.89:1.
     final Color buttonColor =
         isDisabled
-            ? Theme.of(context).disabledColor
+            ? WaddyColors.divider
             : widget.transparent
             ? Colors.transparent
             : widget.color ?? WaddyColors.mint;
     final Color inkColor = widget.textColor ?? WaddyColors.primary;
     // The teal border is part of the default two-tone look, so a call site
-    // that already supplies its own fill (a disabled/grey state, a brand
-    // color of its own) draws no border rather than a teal ring that clashes
-    // with a fill the border was never designed to sit on.
+    // that already supplies its own fill (a brand color of its own) draws no
+    // border rather than a teal ring that clashes with a fill the border was
+    // never designed to sit on. A disabled button likewise draws no live ring:
+    // at full strength the border is the loudest "pressable" cue on the
+    // control, and ringing an inert fill with it makes a dead button look
+    // armed.
     final Color borderColor =
-        widget.transparent
+        isDisabled
+            ? WaddyColors.divider
+            : widget.transparent
             ? WaddyColors.primary.withValues(alpha: 0.4)
             : widget.color ?? WaddyColors.primary;
 
@@ -121,7 +133,17 @@ class _CustomButtonState extends State<CustomButton>
               button: true,
               label: widget.buttonText,
               child: Container(
-                height: widget.height ?? 50,
+                // A FLOOR, not a fixed height. With the global textScaler pin
+                // removed, a hard `height` clipped its own label once the OS
+                // font size went up — the button kept its box and the text
+                // lost. Existing call sites are unaffected: their value is
+                // still the height at default scale, it can now only grow.
+                constraints: BoxConstraints(minHeight: widget.height ?? 50),
+                // Only bites once the label outgrows the min height; at
+                // default scale the Center still does the work.
+                padding: const EdgeInsets.symmetric(
+                  vertical: Dimensions.paddingSizeExtraSmall,
+                ),
                 decoration: BoxDecoration(
                   color: buttonColor,
                   borderRadius: BorderRadius.circular(widget.radius),

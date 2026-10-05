@@ -1,8 +1,9 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
 import 'package:waddy_app/common/models/module_model.dart';
-import 'package:waddy_app/util/parse.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/card_design/store_card.dart';
@@ -10,7 +11,7 @@ import 'package:waddy_app/common/widgets/card_design/store_card_with_distance.da
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -18,10 +19,8 @@ import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/rating_bar.dart';
 import 'package:waddy_app/common/widgets/title_widget.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class BestStoreNearbyView extends StatelessWidget {
   const BestStoreNearbyView({super.key});
@@ -33,7 +32,8 @@ class BestStoreNearbyView extends StatelessWidget {
     bool isFood = Get.find<SplashController>().module?.type == ModuleType.food;
     final bool ltr = Get.find<LocalizationController>().isLtr;
 
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.popularFeaturedId,
       builder: (storeController) {
         List<Store>? storeList =
             isPharmacy
@@ -186,20 +186,7 @@ class BestStoreNearbyView extends StatelessWidget {
                                     ),
                                     child: InkWell(
                                       onTap: () {
-                                        Get.find<SplashController>()
-                                            .activateModuleFor(
-                                              storeList[index].moduleId,
-                                            );
-                                        Get.toNamed(
-                                          RouteHelper.getStoreRoute(
-                                            id: storeList[index].id,
-                                            page: 'store',
-                                          ),
-                                          arguments: StoreScreen(
-                                            store: storeList[index],
-                                            fromModule: true,
-                                          ),
-                                        );
+                                        StoreNavigator.open(storeList[index]);
                                       },
                                       child: StoreCardWithDistance(
                                         store: storeList[index],
@@ -239,25 +226,9 @@ class BestStoreNearbyView extends StatelessWidget {
                                         // Store coordinates are server
                                         // strings and can be absent; an
                                         // unknown distance is null, not -1.
-                                        final double? storeLat =
-                                            Parse.coordinate(
-                                              storeList[index].latitude,
-                                            );
-                                        final double? storeLng =
-                                            Parse.coordinate(
-                                              storeList[index].longitude,
-                                            );
                                         final double? distance =
-                                            (storeLat == null ||
-                                                    storeLng == null)
-                                                ? null
-                                                : Get.find<StoreController>()
-                                                    .getRestaurantDistance(
-                                                      LatLng(
-                                                        storeLat,
-                                                        storeLng,
-                                                      ),
-                                                    );
+                                            storeList[index]
+                                                .distanceFromUserKm();
 
                                         return Padding(
                                           padding: const EdgeInsets.only(
@@ -289,20 +260,8 @@ class BestStoreNearbyView extends StatelessWidget {
                                                 ),
                                                 child: CustomInkWell(
                                                   onTap: () {
-                                                    Get.find<SplashController>()
-                                                        .activateModuleFor(
-                                                          storeList[index]
-                                                              .moduleId,
-                                                        );
-                                                    Get.toNamed(
-                                                      RouteHelper.getStoreRoute(
-                                                        id: storeList[index].id,
-                                                        page: 'store',
-                                                      ),
-                                                      arguments: StoreScreen(
-                                                        store: storeList[index],
-                                                        fromModule: true,
-                                                      ),
+                                                    StoreNavigator.open(
+                                                      storeList[index],
                                                     );
                                                   },
                                                   radius:
@@ -513,16 +472,8 @@ class BestStoreNearbyView extends StatelessWidget {
                                                                 double.infinity,
                                                           ),
 
-                                                          DiscountTag(
-                                                            discount: storeController
-                                                                .getDiscount(
-                                                                  storeList[index],
-                                                                ),
-                                                            discountType:
-                                                                storeController
-                                                                    .getDiscountType(
-                                                                      storeList[index],
-                                                                    ),
+                                                          OfferCollarBadge.storeCorner(
+                                                            storeList[index],
                                                           ),
 
                                                           Positioned(
@@ -551,7 +502,8 @@ class BestStoreNearbyView extends StatelessWidget {
                                                                         .center,
                                                                 children: [
                                                                   Text(
-                                                                    distance == null
+                                                                    distance ==
+                                                                            null
                                                                         ? '--'
                                                                         : '${distance > 10 ? '10+' : distance.toStringAsFixed(1)} ${'km'.tr}',
                                                                     style: waddyBold.copyWith(

@@ -1,4 +1,8 @@
-import 'package:waddy_app/common/widgets/animated_quantity_text.dart';
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
+import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/weight_picker_widget.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
 import 'package:waddy_app/common/widgets/custom_tool_tip_widget.dart';
@@ -17,18 +21,18 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
-import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
 import 'package:waddy_app/common/widgets/custom_button.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
-import 'package:waddy_app/common/widgets/quantity_button.dart';
+import 'package:waddy_app/common/widgets/quantity_stepper.dart';
 import 'package:waddy_app/common/widgets/rating_bar.dart';
 import 'package:waddy_app/features/checkout/screens/checkout_screen.dart';
 import 'package:waddy_app/features/xp/widgets/xp_item_indicator_widget.dart';
 import 'package:waddy_app/features/cart/widgets/cart_module_conflict_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/item/domain/produce_preference.dart';
+import 'package:waddy_app/features/item/widgets/produce_preference_picker.dart';
 
 class ItemBottomSheet extends StatefulWidget {
   final int itemId;
@@ -66,7 +70,13 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
     }
 
     itemController
-        .getItemDetails(itemId: widget.itemId, cart: widget.cart)
+        .getItemDetails(
+          itemId: widget.itemId,
+          cart: widget.cart,
+          // Opened from a "+": "Add" grows a matching line instead of
+          // overwriting it. Editing a cart line keeps replace semantics.
+          accumulate: !widget.isCampaign,
+        )
         .then((_) {
           _newVariation =
               splashController
@@ -265,11 +275,21 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                 fit: BoxFit.cover,
                                               ),
                                             ),
-                                            DiscountTag(
-                                              discount: initialDiscount,
-                                              discountType: discountType,
-                                              fromTop: 20,
-                                            ),
+                                            if (ItemPrice.of(
+                                              item,
+                                              base: startingPrice,
+                                            ).onSale)
+                                              PositionedDirectional(
+                                                top: 6,
+                                                start: 6,
+                                                child:
+                                                    OfferCollarBadge.forItem(
+                                                      item,
+                                                      base: startingPrice,
+                                                      compact: true,
+                                                      onPhoto: true,
+                                                    )!,
+                                              ),
                                           ],
                                         ),
                                       ),
@@ -299,17 +319,12 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                       .forcefullySetModule(
                                                         item.moduleId!,
                                                       );
-                                                  Get.toNamed(
-                                                    RouteHelper.getStoreRoute(
+                                                  StoreNavigator.open(
+                                                    Store(
                                                       id: item.storeId,
-                                                      page: 'item',
+                                                      moduleId: item.moduleId,
                                                     ),
-                                                  );
-                                                  Get.offNamed(
-                                                    RouteHelper.getStoreRoute(
-                                                      id: item.storeId,
-                                                      page: 'item',
-                                                    ),
+                                                    page: 'item',
                                                   );
                                                 }
                                               },
@@ -342,32 +357,43 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                   ratingCount: item.ratingCount,
                                                 )
                                                 : const SizedBox(),
-                                            Text(
-                                              '${PriceConverter.convertPrice(startingPrice, discount: initialDiscount, discountType: discountType)}'
-                                              '${endingPrice != null ? ' - ${PriceConverter.convertPrice(endingPrice, discount: initialDiscount, discountType: discountType)}' : ''}',
-                                              style: waddyMedium.copyWith(
-                                                fontSize:
-                                                    Dimensions.fontSizeLarge,
+                                            // One price: the app's price
+                                            // line. A range keeps the text.
+                                            if (endingPrice == null)
+                                              PriceTag.forItem(
+                                                item,
+                                                base: startingPrice,
+                                                size: PriceTagSize.large,
+                                              )
+                                            else ...[
+                                              Text(
+                                                '${PriceConverter.convertPrice(startingPrice, discount: initialDiscount, discountType: discountType)}'
+                                                ' - ${PriceConverter.convertPrice(endingPrice, discount: initialDiscount, discountType: discountType)}',
+                                                style: waddyMedium.copyWith(
+                                                  fontSize:
+                                                      Dimensions.fontSizeLarge,
+                                                ),
+                                                textDirection:
+                                                    TextDirection.ltr,
                                               ),
-                                              textDirection: TextDirection.ltr,
-                                            ),
-                                            price > priceWithDiscount
-                                                ? Text(
-                                                  '${PriceConverter.convertPrice(startingPrice)}'
-                                                  '${endingPrice != null ? ' - ${PriceConverter.convertPrice(endingPrice)}' : ''}',
-                                                  textDirection:
-                                                      TextDirection.ltr,
-                                                  style: waddyMedium.copyWith(
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).disabledColor,
-                                                    decoration:
-                                                        TextDecoration
-                                                            .lineThrough,
-                                                  ),
-                                                )
-                                                : const SizedBox(),
+                                              price > priceWithDiscount
+                                                  ? Text(
+                                                    '${PriceConverter.convertPrice(startingPrice)}'
+                                                    ' - ${PriceConverter.convertPrice(endingPrice)}',
+                                                    textDirection:
+                                                        TextDirection.ltr,
+                                                    style: waddyMedium.copyWith(
+                                                      color:
+                                                          Theme.of(
+                                                            context,
+                                                          ).disabledColor,
+                                                      decoration:
+                                                          TextDecoration
+                                                              .lineThrough,
+                                                    ),
+                                                  )
+                                                  : const SizedBox(),
+                                            ],
                                           ],
                                         ),
                                       ),
@@ -779,6 +805,19 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                       )
                                       : const SizedBox(),
 
+                                  // Produce question (ripeness / use), required
+                                  if (ProducePreference.asks(item.prepOption))
+                                    ProducePreferencePicker(
+                                      option: item.prepOption!,
+                                      selected: itemController.preference,
+                                      onSelect:
+                                          (code) => itemController
+                                              .setPreference(code, item),
+                                      margin: const EdgeInsets.only(
+                                        bottom: Dimensions.paddingSizeLarge,
+                                      ),
+                                    ),
+
                                   // Variation
                                   _newVariation
                                       ? NewVariationView(
@@ -940,6 +979,9 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                   decoration:
                                                       TextDecoration
                                                           .lineThrough,
+                                                  decorationColor:
+                                                      WaddyColors.error,
+                                                  decorationThickness: 2,
                                                 ),
                                               )
                                               : const SizedBox(),
@@ -971,42 +1013,27 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                               SafeArea(
                                 child: Row(
                                   children: [
-                                    // Quantity
-                                    Row(
-                                      children: [
-                                        QuantityButton(
-                                          onTap: () {
-                                            if (itemController.quantity! > 1) {
-                                              itemController.setQuantity(
-                                                false,
-                                                stock,
-                                                item.quantityLimit,
-                                                getxSnackBar: true,
-                                              );
-                                            }
-                                          },
-                                          isIncrement: false,
-                                          fromSheet: true,
-                                        ),
-                                        AnimatedQuantityText(
-                                          quantity:
-                                              itemController.quantity ?? 0,
-                                          style: waddyMedium.copyWith(
-                                            fontSize: Dimensions.fontSizeLarge,
+                                    // Quantity before adding: 1 is the
+                                    // floor, so no trash — the minus
+                                    // disables there instead.
+                                    QuantityStepper(
+                                      quantity: itemController.quantity ?? 1,
+                                      itemName: item.name,
+                                      size: QuantityStepperSize.large,
+                                      onDecrement:
+                                          () => itemController.setQuantity(
+                                            false,
+                                            stock,
+                                            item.quantityLimit,
+                                            getxSnackBar: true,
                                           ),
-                                        ),
-                                        QuantityButton(
-                                          onTap:
-                                              () => itemController.setQuantity(
-                                                true,
-                                                stock,
-                                                item.quantityLimit,
-                                                getxSnackBar: true,
-                                              ),
-                                          isIncrement: true,
-                                          fromSheet: true,
-                                        ),
-                                      ],
+                                      onIncrement:
+                                          () => itemController.setQuantity(
+                                            true,
+                                            stock,
+                                            item.quantityLimit,
+                                            getxSnackBar: true,
+                                          ),
                                     ),
                                     const SizedBox(
                                       width: Dimensions.paddingSizeSmall,
@@ -1028,10 +1055,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                     ? 'out_of_stock'.tr
                                                     : widget.isCampaign
                                                     ? 'order_now'.tr
-                                                    : (widget.cart != null ||
-                                                        itemController
-                                                                .cartIndex !=
-                                                            -1)
+                                                    : widget.cart != null
                                                     ? 'update_in_cart'.tr
                                                     : 'add_to_cart'.tr,
                                             onPressed:
@@ -1096,6 +1120,18 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                         }
                                                       }
 
+                                                      if (invalid == null &&
+                                                          ProducePreference.asks(
+                                                            item.prepOption,
+                                                          ) &&
+                                                          itemController
+                                                                  .preference ==
+                                                              null) {
+                                                        invalid =
+                                                            'choose_prep_${item.prepOption}'
+                                                                .tr;
+                                                      }
+
                                                       Get.find<
                                                             SplashController
                                                           >()
@@ -1133,6 +1169,9 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                           stock,
                                                           item,
                                                           item.quantityLimit,
+                                                          preference:
+                                                              itemController
+                                                                  .preference,
                                                         );
 
                                                         List<OrderVariation>
@@ -1166,19 +1205,7 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
 
                                                         OnlineCart
                                                         onlineCart = OnlineCart(
-                                                          (widget.cart !=
-                                                                      null ||
-                                                                  itemController
-                                                                          .cartIndex !=
-                                                                      -1)
-                                                              ? widget
-                                                                      .cart
-                                                                      ?.id ??
-                                                                  cartController
-                                                                      .cartList[itemController
-                                                                          .cartIndex]
-                                                                      .id
-                                                              : null,
+                                                          widget.cart?.id,
                                                           widget.isCampaign
                                                               ? null
                                                               : item.id,
@@ -1206,6 +1233,9 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                           addOnsList,
                                                           listOfAddOnQty,
                                                           'Item',
+                                                          preference:
+                                                              itemController
+                                                                  .preference,
                                                         );
 
                                                         if (widget.isCampaign) {
@@ -1354,27 +1384,12 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                         .id,
                                                               )) {
                                                             Get.dialog(
-                                                              ConfirmationDialog(
-                                                                icon:
-                                                                    Images
-                                                                        .warning,
-                                                                title:
-                                                                    'are_you_sure_to_reset'
-                                                                        .tr,
-                                                                description:
-                                                                    Get.find<
-                                                                              SplashController
-                                                                            >()
-                                                                            .configModel
-                                                                            .moduleConfig!
-                                                                            .module!
-                                                                            .showRestaurantText ??
-                                                                                false
-                                                                        ? 'if_you_continue'
-                                                                            .tr
-                                                                        : 'if_you_continue_without_another_store'
-                                                                            .tr,
-                                                                onYesPressed: () {
+                                                              CartModuleConflictDialog.forStore(
+                                                                newStoreName:
+                                                                    cartModel
+                                                                        .item!
+                                                                        .storeName,
+                                                                onClearCart: () {
                                                                   Get.back();
                                                                   Get.find<
                                                                         CartController
@@ -1402,14 +1417,16 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                   false,
                                                             );
                                                           } else {
+                                                            final CartController
+                                                            cart =
+                                                                Get.find<
+                                                                  CartController
+                                                                >();
                                                             if (widget.cart !=
-                                                                    null ||
-                                                                itemController
-                                                                        .cartIndex !=
-                                                                    -1) {
-                                                              await Get.find<
-                                                                    CartController
-                                                                  >()
+                                                                null) {
+                                                              // Editing a line from the cart: the
+                                                              // sheet's quantity replaces it.
+                                                              await cart
                                                                   .updateCartOnline(
                                                                     onlineCart,
                                                                     localFallback:
@@ -1426,21 +1443,46 @@ class _ItemBottomSheetState extends State<ItemBottomSheet> {
                                                                     }
                                                                   });
                                                             } else {
-                                                              await Get.find<
-                                                                    CartController
-                                                                  >()
-                                                                  .addToCartOnline(
-                                                                    onlineCart,
-                                                                    localFallback:
-                                                                        cartModel,
-                                                                  )
-                                                                  .then((
-                                                                    success,
-                                                                  ) {
-                                                                    if (success) {
-                                                                      Get.back();
-                                                                    }
-                                                                  });
+                                                              // Opened from a "+": the same options
+                                                              // and add-ons already in the cart grow
+                                                              // that line by the sheet's quantity.
+                                                              final int
+                                                              line = itemController
+                                                                  .identicalLineIndex(
+                                                                    item,
+                                                                    addOnIds:
+                                                                        listOfAddOnId,
+                                                                    addOnQtys:
+                                                                        listOfAddOnQty,
+                                                                  );
+                                                              final Future<bool>
+                                                              write =
+                                                                  line == -1
+                                                                      ? cart.addToCartOnline(
+                                                                        onlineCart,
+                                                                        localFallback:
+                                                                            cartModel,
+                                                                      )
+                                                                      : cart.updateCartOnline(
+                                                                        onlineCart.copyWith(
+                                                                          cartId:
+                                                                              cart.cartList[line].id,
+                                                                          quantity:
+                                                                              (cart.cartList[line].quantity ??
+                                                                                  0) +
+                                                                              (itemController.quantity ??
+                                                                                  1),
+                                                                        ),
+                                                                        localIndex:
+                                                                            line,
+                                                                      );
+                                                              await write.then((
+                                                                success,
+                                                              ) {
+                                                                if (success) {
+                                                                  Get.back();
+                                                                }
+                                                              });
                                                             }
 
                                                             //showCartSnackBar();
@@ -1662,72 +1704,17 @@ class AddonView extends StatelessWidget {
                     ),
 
                     itemController.addOnActiveList[index]
-                        ? Container(
-                          height: 25,
-                          width: 90,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              Dimensions.radiusSmall,
-                            ),
-                            color: Theme.of(context).cardColor,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    if (itemController.addOnQtyList[index]! >
-                                        1) {
-                                      itemController.setAddOnQuantity(
-                                        false,
-                                        index,
-                                      );
-                                    } else {
-                                      itemController.addAddOn(false, index);
-                                    }
-                                  },
-                                  child: Center(
-                                    child: Icon(
-                                      (itemController.addOnQtyList[index]! > 1)
-                                          ? Icons.remove
-                                          : Icons.delete_outline_outlined,
-                                      size: 18,
-                                      color:
-                                          (itemController.addOnQtyList[index]! >
-                                                  1)
-                                              ? Theme.of(context).primaryColor
-                                              : Theme.of(
-                                                context,
-                                              ).colorScheme.error,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                itemController.addOnQtyList[index].toString(),
-                                style: waddyMedium.copyWith(
-                                  fontSize: Dimensions.fontSizeDefault,
-                                ),
-                              ),
-                              Expanded(
-                                child: InkWell(
-                                  onTap:
-                                      () => itemController.setAddOnQuantity(
-                                        true,
-                                        index,
-                                      ),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.add,
-                                      size: 18,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        ? QuantityStepper(
+                          quantity: itemController.addOnQtyList[index] ?? 1,
+                          itemName: item.addOns![index].name,
+                          onDecrement:
+                              () =>
+                                  itemController.setAddOnQuantity(false, index),
+                          // Trash at 1 deselects the add-on.
+                          onRemove: () => itemController.addAddOn(false, index),
+                          onIncrement:
+                              () =>
+                                  itemController.setAddOnQuantity(true, index),
                         )
                         : const SizedBox(),
                   ],

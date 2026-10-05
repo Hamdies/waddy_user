@@ -1,15 +1,15 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/flash_sale/domain/models/product_flash_sale.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 
 class FlashProductCardWidget extends StatelessWidget {
@@ -19,8 +19,10 @@ class FlashProductCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    double? discount = product.item!.discount;
-    String? discountType = product.item!.discountType;
+    final ItemPrice price = ItemPrice.of(
+      product.item!,
+      base: Get.find<ItemController>().getStartingPrice(product.item!),
+    );
 
     int stock = product.stock!;
     int sold = product.sold!;
@@ -68,12 +70,17 @@ class FlashProductCardWidget extends StatelessWidget {
                     ),
                   ),
 
-                  DiscountTag(
-                    discount: discount,
-                    discountType: discountType,
-                    freeDelivery: false,
-                    isFloating: true,
-                  ),
+                  if (price.onSale)
+                    PositionedDirectional(
+                      top: 6,
+                      start: 6,
+                      child:
+                          OfferCollarBadge.forPrice(
+                            price,
+                            compact: true,
+                            onPhoto: true,
+                          )!,
+                    ),
 
                   OrganicTag(item: product.item!, placeInImage: false),
 
@@ -116,45 +123,7 @@ class FlashProductCardWidget extends StatelessWidget {
                         )
                         : const SizedBox(),
 
-                    Wrap(
-                      children: [
-                        product.item!.discount != null &&
-                                product.item!.discount! > 0
-                            ? Text(
-                              PriceConverter.convertPrice(
-                                Get.find<ItemController>().getStartingPrice(
-                                  product.item!,
-                                ),
-                              ),
-                              style: waddyMedium.copyWith(
-                                fontSize: Dimensions.fontSizeExtraSmall,
-                                color: Theme.of(context).disabledColor,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                              textDirection: TextDirection.ltr,
-                            )
-                            : const SizedBox(),
-                        SizedBox(
-                          width:
-                              product.item!.discount != null &&
-                                      product.item!.discount! > 0
-                                  ? Dimensions.paddingSizeExtraSmall
-                                  : 0,
-                        ),
-
-                        Text(
-                          PriceConverter.convertPrice(
-                            Get.find<ItemController>().getStartingPrice(
-                              product.item!,
-                            ),
-                            discount: product.item!.discount,
-                            discountType: product.item!.discountType,
-                          ),
-                          textDirection: TextDirection.ltr,
-                          style: waddyMedium,
-                        ),
-                      ],
-                    ),
+                    PriceTag(price: price, oneLine: true),
 
                     const SizedBox(),
 

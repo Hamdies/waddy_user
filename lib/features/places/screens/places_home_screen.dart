@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:waddy_app/util/swallow.dart';
 import 'package:flutter/rendering.dart';
@@ -34,7 +35,9 @@ class PlacesHomeScreen extends StatefulWidget {
 /// Only the error/content swap needs the controller here; each section
 /// subscribes for itself and renders its own loading and empty states.
 class _RaceSections extends StatelessWidget {
-  const _RaceSections();
+  const _RaceSections({required this.onBrowseSpots});
+
+  final VoidCallback onBrowseSpots;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +53,7 @@ class _RaceSections extends StatelessWidget {
           );
         }
 
-        return const Column(
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Each section owns its own empty state, so none of them is gated
@@ -65,15 +68,15 @@ class _RaceSections extends StatelessWidget {
             // and `_VotersEmpty` has its own, which is the honest way to handle
             // a quiet round: say so in place, rather than remove the section
             // and leave the screen looking like the feature is missing.
-            WeeklyTop3Section(),
-            SizedBox(height: Spots.sectionGap),
-            TopVotersPodiumSection(),
-            SizedBox(height: Spots.sectionGap),
+            WeeklyTop3Section(onBrowseSpots: onBrowseSpots),
+            const SizedBox(height: Spots.sectionGap),
+            const TopVotersPodiumSection(),
+            const SizedBox(height: Spots.sectionGap),
             // People who won the prize draw — sits below the podium but
             // styled apart from it, so a ranking and a random draw never
             // read as the same list.
-            RecentWinnersStrip(),
-            SizedBox(height: Spots.sectionGap),
+            const RecentWinnersStrip(),
+            const SizedBox(height: Spots.sectionGap),
           ],
         );
       },
@@ -84,6 +87,31 @@ class _RaceSections extends StatelessWidget {
 class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   final ScrollController _scrollController = ScrollController();
   ScrollDirection _lastDirection = ScrollDirection.idle;
+
+  /// Brings the spots list into view. The list is a lazy sliver item, so on a
+  /// tall podium it has no element yet and its key has no context: page down
+  /// until it is built, then let [Scrollable.ensureVisible] do the exact stop.
+  Future<void> _scrollToSpots() async {
+    for (var i = 0; i < 8; i++) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final ctx = PlacesToVisitSection.anchorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+      final pos = _scrollController.position;
+      if (pos.pixels >= pos.maxScrollExtent) return;
+      await _scrollController.animateTo(
+        math.min(pos.pixels + pos.viewportDimension, pos.maxScrollExtent),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -216,17 +244,17 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
                       MediaQuery.of(context).padding.bottom + Spots.s24,
                     ),
                     sliver: SliverList.list(
-                      children: const [
+                      children: [
                         // The countdown is client-side — it survives outages.
-                        RoundCountdownBar(),
-                        SizedBox(height: Spots.sectionGap),
+                        const RoundCountdownBar(),
+                        const SizedBox(height: Spots.sectionGap),
                         // Everything between the countdown and the venue list
                         // is earned, not fixed. See [_RaceSections].
-                        _RaceSections(),
-                        PlacesToVisitSection(),
+                        _RaceSections(onBrowseSpots: _scrollToSpots),
+                        const PlacesToVisitSection(),
                         // Extra room so the last card clears the floating
                         // bottom nav bar once it slides back in at rest.
-                        SizedBox(height: 90),
+                        const SizedBox(height: 90),
                       ],
                     ),
                   ),

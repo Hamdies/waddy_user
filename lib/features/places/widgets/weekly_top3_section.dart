@@ -22,7 +22,12 @@ import 'package:waddy_app/util/styles.dart';
 /// below it can't reach opposite conclusions about the same board.
 
 class WeeklyTop3Section extends StatelessWidget {
-  const WeeklyTop3Section({super.key});
+  const WeeklyTop3Section({super.key, this.onBrowseSpots});
+
+  /// Where the empty state sends the user: down to the spots list, which is
+  /// the thing that fills this board. Owned by the screen because it owns the
+  /// scroll position.
+  final VoidCallback? onBrowseSpots;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +39,7 @@ class WeeklyTop3Section extends StatelessWidget {
         }
 
         final standings = controller.liveStandings;
-        if (standings.isEmpty) return const _Top3Empty();
+        if (standings.isEmpty) return _Top3Empty(onTap: onBrowseSpots);
 
         final zone = controller.selectedZoneName;
         final leader = standings.first;
@@ -621,10 +626,12 @@ class _Top3Skeleton extends StatelessWidget {
 }
 
 class _Top3Empty extends StatelessWidget {
-  const _Top3Empty();
+  const _Top3Empty({this.onTap});
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       width: double.infinity,
       decoration: Spots.card(fill: Spots.paper),
       padding: const EdgeInsets.symmetric(
@@ -649,8 +656,30 @@ class _Top3Empty extends StatelessWidget {
               height: 1.4,
             ),
           ),
+          if (onTap != null) ...[
+            const SizedBox(height: Spots.s12),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayCaps('spots_crown_open_cta'.tr),
+                  style: Spots.kicker(12, color: Spots.teal, tracking: 0.06),
+                ),
+                const SizedBox(width: Spots.s4),
+                Icon(
+                  Get.locale?.languageCode == 'ar'
+                      ? Icons.arrow_back_rounded
+                      : Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: Spots.teal,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
+    if (onTap == null) return card;
+    return SpotsPressable(onTap: onTap, child: card);
   }
 }

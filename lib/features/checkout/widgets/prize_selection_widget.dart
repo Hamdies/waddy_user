@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_kind.dart';
+import 'package:waddy_app/features/xp/widgets/prize_visual.dart';
 
 class PrizeSelectionWidget extends StatelessWidget {
   final double orderAmount;
@@ -22,16 +25,16 @@ class PrizeSelectionWidget extends StatelessWidget {
         }
 
         return Container(
+          // Vertical only: the checkout page already pads its content.
           margin: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
             vertical: Dimensions.paddingSizeSmall,
           ),
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
+            color: WaddyColors.surface,
             borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: WaddyColors.inkLight.withOpacity(0.1),
                 spreadRadius: 1,
                 blurRadius: 5,
               ),
@@ -47,7 +50,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.card_giftcard,
-                      color: Theme.of(context).primaryColor,
+                      color: WaddyColors.primary,
                       size: 24,
                     ),
                     const SizedBox(width: Dimensions.paddingSizeSmall),
@@ -104,8 +107,8 @@ class PrizeSelectionWidget extends StatelessWidget {
                                 border: Border.all(
                                   color:
                                       isSelected
-                                          ? Theme.of(context).primaryColor
-                                          : Colors.grey,
+                                          ? WaddyColors.primary
+                                          : WaddyColors.inkLight,
                                   width: 2,
                                 ),
                               ),
@@ -117,8 +120,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                                           height: 12,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color:
-                                                Theme.of(context).primaryColor,
+                                            color: WaddyColors.primary,
                                           ),
                                         ),
                                       )
@@ -171,7 +173,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                                   vertical: Dimensions.paddingSizeExtraSmall,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.1),
+                                  color: WaddyColors.success.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(
                                     Dimensions.radiusDefault,
                                   ),
@@ -180,7 +182,7 @@ class PrizeSelectionWidget extends StatelessWidget {
                                   'free_delivery'.tr,
                                   style: waddyMedium.copyWith(
                                     fontSize: Dimensions.fontSizeExtraSmall,
-                                    color: Colors.green,
+                                    color: WaddyColors.success,
                                   ),
                                 ),
                               ),
@@ -198,26 +200,15 @@ class PrizeSelectionWidget extends StatelessWidget {
   }
 
   Widget _buildPrizeIcon(BuildContext context, CheckoutPrize prize) {
-    IconData iconData;
-    Color iconColor;
-
-    switch (prize.type) {
-      case 'free_delivery':
-        iconData = Icons.local_shipping_outlined;
-        iconColor = Colors.green;
-        break;
-      case 'discount':
-        iconData = Icons.discount_outlined;
-        iconColor = Colors.orange;
-        break;
-      case 'wallet_credit':
-        iconData = Icons.wallet_outlined;
-        iconColor = Colors.blue;
-        break;
-      default:
-        iconData = Icons.card_giftcard;
-        iconColor = Theme.of(context).primaryColor;
-    }
+    // The glyph is the XP surfaces' (X-38); the colour stays checkout's.
+    final kind = prize.kind;
+    final IconData iconData = kind.icon;
+    final Color iconColor = switch (kind) {
+      PrizeKind.freeDelivery => WaddyColors.success,
+      PrizeKind.discount => WaddyColors.amberInk,
+      PrizeKind.walletCredit => WaddyColors.mintInk,
+      PrizeKind.badge || PrizeKind.other => WaddyColors.primary,
+    };
 
     return Container(
       padding: const EdgeInsets.all(6),
@@ -243,14 +234,14 @@ class PrizeSelectionWidget extends StatelessWidget {
   }
 
   Color _getExpiryColor(CheckoutPrize prize) {
-    if (prize.timeUntilExpiry == null) return Colors.grey;
+    if (prize.timeUntilExpiry == null) return WaddyColors.inkLight;
 
     final duration = prize.timeUntilExpiry!;
     if (duration.inDays < 1) {
-      return Colors.red;
+      return WaddyColors.error;
     } else if (duration.inDays < 3) {
-      return Colors.orange;
+      return WaddyColors.amberInk;
     }
-    return Colors.grey;
+    return WaddyColors.inkLight;
   }
 }

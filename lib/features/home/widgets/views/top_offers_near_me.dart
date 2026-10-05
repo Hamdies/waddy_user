@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/card_design/store_card.dart';
 import 'package:waddy_app/common/widgets/title_widget.dart';
 import 'package:waddy_app/features/home/widgets/components/home_rail_shimmers.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -14,7 +14,8 @@ class TopOffersNearMe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.topOfferId,
       builder: (storeController) {
         List<Store>? storeList = storeController.topOfferStoreList;
 

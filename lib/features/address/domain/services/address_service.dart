@@ -1,3 +1,4 @@
+import 'package:waddy_app/features/address/domain/repositories/address_repository.dart';
 import 'package:waddy_app/common/models/response_model.dart';
 import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/address/domain/repositories/address_repository_interface.dart';
@@ -27,6 +28,10 @@ class AddressService implements AddressServiceInterface {
     AddressModel addressModel,
     int? addressId,
   ) async {
-    return await addressRepoInterface.update(addressModel.toJson(), addressId);
+    return await addressRepoInterface.update({
+      ...addressModel.toJson(),
+      if (addressModel.voiceInstructionPath != null)
+        AddressRepository.voicePathKey: addressModel.voiceInstructionPath,
+    }, addressId);
   }
 }

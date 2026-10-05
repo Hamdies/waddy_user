@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/sliver_paginated_list.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/order/widgets/order_tracking_bar.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -66,23 +67,32 @@ class ModuleStoreListSliver extends StatelessWidget {
       );
     }
 
-    return SliverPaginatedList(
-      scrollController: scrollController,
-      itemsPerPage: 12,
-      totalSize: storeModel!.totalSize,
-      offset: storeModel!.offset,
-      onPaginate:
-          (int? offset) async =>
-              await Get.find<StoreController>().getStoreList(offset!, false),
-      itemCount: stores.length,
-      itemBuilder: (context, index) => cardBuilder(stores[index]),
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeDefault,
-      ),
-      // The cart bar, not the nav, is the bottom overlay on food/grocery —
-      // and it is taller than the nav whenever its reward strip shows.
-      bottomReserve:
-          isLastInScrollView ? Dimensions.cartBarReserve(context) : 0,
+    // The order-tracking bar stacks above the cart bar while an order runs, so
+    // its measured height joins the reserve; the notifier only matters to the
+    // list that is last in the scroll view.
+    return ValueListenableBuilder<double>(
+      valueListenable: OrderTrackingBar.reserve,
+      builder:
+          (context, trackingReserve, _) => SliverPaginatedList(
+            scrollController: scrollController,
+            itemsPerPage: 12,
+            totalSize: storeModel!.totalSize,
+            offset: storeModel!.offset,
+            onPaginate:
+                (int? offset) async => await Get.find<StoreListController>()
+                    .getStoreList(offset!, false),
+            itemCount: stores.length,
+            itemBuilder: (context, index) => cardBuilder(stores[index]),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+            ),
+            // The cart bar, not the nav, is the bottom overlay on food/grocery
+            // — and it is taller than the nav whenever its reward strip shows.
+            bottomReserve:
+                isLastInScrollView
+                    ? Dimensions.cartBarReserve(context) + trackingReserve
+                    : 0,
+          ),
     );
   }
 }
@@ -114,7 +124,10 @@ class ModuleStoreListEmpty extends StatelessWidget {
         top: Dimensions.paddingSizeExtraLarge,
         bottom:
             Dimensions.paddingSizeExtraLarge +
-            (isLastInScrollView ? Dimensions.cartBarReserve(context) : 0),
+            (isLastInScrollView
+                ? Dimensions.cartBarReserve(context) +
+                    OrderTrackingBar.reserve.value
+                : 0),
       ),
       child: Center(
         child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:waddy_app/theme/light_theme.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
@@ -73,7 +74,7 @@ class PartialPayDialogWidget extends StatelessWidget {
                   : 'want_to_pay_via_wallet'.tr,
               style: waddyMedium.copyWith(
                 fontSize: Dimensions.fontSizeLarge,
-                color: Theme.of(context).primaryColor,
+                color: WaddyColors.primary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -88,7 +89,7 @@ class PartialPayDialogWidget extends StatelessWidget {
               ),
               style: waddyBold.copyWith(
                 fontSize: Dimensions.fontSizeOverLarge,
-                color: Theme.of(context).primaryColor,
+                color: WaddyColors.primary,
               ),
             ),
 
@@ -100,7 +101,7 @@ class PartialPayDialogWidget extends StatelessWidget {
                     : '${'remaining_wallet_balance'.tr}: ${PriceConverter.convertPrice(Get.find<ProfileController>().userInfoModel!.walletBalance! - totalPrice)}',
                 style: waddyMedium.copyWith(
                   fontSize: Dimensions.fontSizeLarge,
-                  color: Theme.of(context).hintColor,
+                  color: WaddyColors.inkMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -113,7 +114,7 @@ class PartialPayDialogWidget extends StatelessWidget {
                   Expanded(
                     child: CustomButton(
                       buttonText: 'no'.tr,
-                      color: Theme.of(context).disabledColor,
+                      color: WaddyColors.inkMuted,
                       onPressed: () {
                         Get.find<CheckoutController>().setPaymentMethod(-1);
                         if (Get.find<CheckoutController>().isPartialPay) {

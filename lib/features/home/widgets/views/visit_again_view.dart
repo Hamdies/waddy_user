@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
 import 'package:waddy_app/common/widgets/card_design/visit_again_card.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/home/widgets/components/custom_triangle_shape.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -20,7 +20,8 @@ class VisitAgainView extends StatefulWidget {
 class _VisitAgainViewState extends State<VisitAgainView> {
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.visitAgainId,
       builder: (storeController) {
         List<Store>? stores = storeController.visitAgainStoreList;
 

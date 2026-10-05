@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/section_error_view.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
@@ -9,7 +10,7 @@ import 'package:waddy_app/features/home/screens/modules/widgets/module_ribbon_st
 import 'package:waddy_app/features/home/screens/modules/widgets/module_section_header.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/module_store_semantics.dart';
 import 'package:waddy_app/features/home/screens/modules/widgets/pressable_scale.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -25,14 +26,12 @@ class ModuleBestNearbySection extends StatelessWidget {
   final double shimmerBottomPadding;
 
   /// Builds the screen argument for the store route (module-specific).
-  final Object Function(Store store) storeScreenBuilder;
 
   const ModuleBestNearbySection({
     super.key,
     required this.title,
     required this.stickerStyle,
     required this.closedLabel,
-    required this.storeScreenBuilder,
     this.bottomPadding = 24,
     this.shimmerBottomPadding = 24,
   });
@@ -42,7 +41,8 @@ class ModuleBestNearbySection extends StatelessWidget {
     final Color primaryColor = Theme.of(context).primaryColor;
     final Color accentColor = Theme.of(context).secondaryHeaderColor;
 
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.popularLatestId,
       builder: (storeController) {
         final stores =
             storeController.popularStoreList ?? storeController.latestStoreList;
@@ -107,7 +107,6 @@ class ModuleBestNearbySection extends StatelessWidget {
                       accentColor: accentColor,
                       stickerStyle: stickerStyle,
                       closedLabel: closedLabel,
-                      storeScreenBuilder: storeScreenBuilder,
                     );
                   },
                 ),
@@ -126,7 +125,6 @@ class _BestNearbyCard extends StatelessWidget {
   final Color accentColor;
   final ModuleStickerStyle stickerStyle;
   final String closedLabel;
-  final Object Function(Store store) storeScreenBuilder;
 
   const _BestNearbyCard({
     required this.store,
@@ -134,7 +132,6 @@ class _BestNearbyCard extends StatelessWidget {
     required this.accentColor,
     required this.stickerStyle,
     required this.closedLabel,
-    required this.storeScreenBuilder,
   });
 
   @override
@@ -144,11 +141,7 @@ class _BestNearbyCard extends StatelessWidget {
 
     return PressableScale(
       semanticLabel: moduleStoreSemanticLabel(store),
-      onTap:
-          () => Get.toNamed(
-            RouteHelper.getStoreRoute(id: store.id, page: 'store'),
-            arguments: storeScreenBuilder(store),
-          ),
+      onTap: () => StoreNavigator.open(store),
       child: Container(
         width: 210,
         margin: const EdgeInsetsDirectional.only(

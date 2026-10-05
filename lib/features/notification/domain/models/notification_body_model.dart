@@ -20,6 +20,18 @@ enum NotificationType {
   /// Won (or about to lose) a WADDI Spots voter prize — deep-links to My Prizes
   //ignore: constant_identifier_names
   spots_prize,
+
+  /// Reached a new XP level — opens the XP tab, which plays the celebration.
+  //ignore: constant_identifier_names
+  level_up,
+
+  /// An XP challenge is complete and claimable — opens the challenges screen.
+  //ignore: constant_identifier_names
+  challenge_complete,
+
+  /// A pet lifecycle push (food running low, birthday, life stage, a
+  /// reminder) — opens the Pets hub.
+  pets,
 }
 
 class NotificationBodyModel {
@@ -93,6 +105,11 @@ class NotificationBodyModel {
       NotificationType.cashback.toString(): NotificationType.cashback,
       NotificationType.loyalty_point.toString(): NotificationType.loyalty_point,
       NotificationType.trip.toString(): NotificationType.trip,
+      NotificationType.spots_prize.toString(): NotificationType.spots_prize,
+      NotificationType.level_up.toString(): NotificationType.level_up,
+      NotificationType.challenge_complete.toString():
+          NotificationType.challenge_complete,
+      NotificationType.pets.toString(): NotificationType.pets,
     };
 
     return enumMap[enumString] ?? NotificationType.general;

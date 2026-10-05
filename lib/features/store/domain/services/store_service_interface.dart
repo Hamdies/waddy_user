@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/store/domain/models/buy_again_line.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/store/domain/models/cart_suggested_item_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
@@ -37,6 +39,22 @@ abstract class StoreServiceInterface {
     String languageCode,
     int? moduleId,
   );
+
+  /// Store details through the shared [StoreDetailsCache]: served from memory
+  /// when an entry is younger than [maxAge] (default: the cache's TTL), else
+  /// fetched — joining a fetch already in flight for the same store.
+  Future<Store?> getCachedStoreDetails(
+    int storeId, {
+    required String languageCode,
+    int? moduleId,
+    bool fromCart = false,
+    Duration? maxAge,
+  });
+
+  /// The cached store when fresh; never fetches.
+  Store? peekStoreDetails(int storeId, {required String languageCode});
+
+  void clearStoreDetailsCache();
   Future<ItemModel?> getStoreItemList({
     int? storeID,
     required int offset,
@@ -75,11 +93,22 @@ abstract class StoreServiceInterface {
     int limit = 6,
     DataSourceEnum source,
   });
+  Future<List<CategoryModel>?> getStoreSubCategories(
+    int? storeId,
+    int? categoryId,
+  );
   Future<List<StoreBundleModel>?> getStoreBundleList(
     int? storeId, {
     int offset = 1,
     int limit = 10,
   });
+  Future<({int orderCount, List<BuyAgainLine> lines})?> getBuyAgainItems(
+    int storeId,
+  );
+
+  /// Items other customers bought in the same orders as [itemId]; empty when
+  /// there is no repeated pairing. Null on any failure.
+  Future<List<Item>?> getPairedItems(int itemId);
   List<Modules> moduleList();
   String filterRestaurantLinkUrl(String slug, Store store);
 }

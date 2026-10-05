@@ -60,11 +60,7 @@ class _HomeSearchWidgetState extends State<HomeSearchWidget>
   String _getSearchHint() {
     final splashController = Get.find<SplashController>();
     final showRestaurantText =
-        splashController
-            .configModel
-            .moduleConfig!
-            .module!
-            .showRestaurantText ??
+        splashController.configModel.moduleConfig!.module!.showRestaurantText ??
         false;
 
     if (showRestaurantText) {
@@ -203,11 +199,7 @@ class HomeSearchWidgetSimple extends StatelessWidget {
   Widget build(BuildContext context) {
     final splashController = Get.find<SplashController>();
     final showRestaurantText =
-        splashController
-            .configModel
-            .moduleConfig!
-            .module!
-            .showRestaurantText ??
+        splashController.configModel.moduleConfig!.module!.showRestaurantText ??
         false;
 
     return Padding(

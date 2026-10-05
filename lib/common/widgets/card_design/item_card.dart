@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_asset_image_widget.dart';
@@ -12,7 +13,6 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/cart_count_view.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/not_available_widget.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
@@ -114,11 +114,7 @@ class ItemCard extends StatelessWidget {
                           )
                           : const SizedBox(),
 
-                      DiscountTag(
-                        discount: discount,
-                        discountType: discountType,
-                        freeDelivery: false,
-                      ),
+                      OfferCollarBadge.itemCorner(item),
 
                       OrganicTag(item: item, placeInImage: false),
 

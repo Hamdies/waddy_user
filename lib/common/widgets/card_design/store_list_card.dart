@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -65,11 +64,7 @@ class _StoreListCardState extends State<StoreListCard>
   }
 
   void _openStore() {
-    Get.find<SplashController>().activateModuleFor(widget.store.moduleId);
-    Get.toNamed(
-      RouteHelper.getStoreRoute(id: widget.store.id, page: 'store'),
-      arguments: StoreScreen(store: widget.store, fromModule: false),
-    );
+    StoreNavigator.open(widget.store);
   }
 
   @override

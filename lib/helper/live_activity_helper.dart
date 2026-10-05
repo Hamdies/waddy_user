@@ -101,6 +101,11 @@ class LiveActivityHelper {
     }
   }
 
+  /// The order's `estimated_delivery_at`, read the same way the order
+  /// details screen reads it.
+  static DateTime? parseArrival(String? raw) =>
+      DateTime.tryParse(raw ?? '')?.toLocal();
+
   static bool isTerminalStatus(String status) {
     return [
       'delivered',

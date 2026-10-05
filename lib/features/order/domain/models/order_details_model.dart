@@ -22,6 +22,11 @@ class OrderDetailsModel {
   String? imageFullUrl;
   int? isGuest;
 
+  /// The shopper's produce answer as a code (`ready_to_eat`…), and the
+  /// server's words for it in the request language.
+  String? preference;
+  String? preferenceLabel;
+
   OrderDetailsModel({
     this.id,
     this.itemId,
@@ -83,6 +88,9 @@ class OrderDetailsModel {
     totalAddOnPrice = json['total_add_on_price']?.toDouble();
     imageFullUrl = json['image_full_url'];
     isGuest = json['is_guest'];
+    preference = json['preference'] is String ? json['preference'] : null;
+    preferenceLabel =
+        json['preference_label'] is String ? json['preference_label'] : null;
   }
 
   Map<String, dynamic> toJson() {

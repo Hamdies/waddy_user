@@ -398,8 +398,10 @@ class ParcelController extends GetxController implements GetxService {
   }
 
   void updateTips(int index, {bool notify = true}) {
+    // A saved index can outlive a shorter tips list; fall back to "no tip".
+    if (index < 0 || index >= AppConstants.tips.length) index = 0;
     _selectedTips = index;
-    if (_selectedTips == 0 || _selectedTips == 5) {
+    if (_selectedTips == 0 || _selectedTips == AppConstants.tips.length - 1) {
       _tips = 0;
     } else {
       _tips = double.parse(AppConstants.tips[index]);

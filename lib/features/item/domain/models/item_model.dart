@@ -81,6 +81,10 @@ class Item {
   List<String>? imagesFullUrl;
   int? categoryId;
   List<CategoryIds>? categoryIds;
+
+  /// Lifetime orders, as the backend counts them. Lets a "best sellers" rail
+  /// tell real sales from a sort over all-zero counts.
+  int? orderCount;
   List<Variation>? variations;
   List<FoodVariation>? foodVariations;
   List<AddOns>? addOns;
@@ -93,6 +97,17 @@ class Item {
   String? availableTimeEnds;
   int? storeId;
   String? storeName;
+
+  /// The selling store's logo and whether it is taking orders now — set on
+  /// item search results, which group by store. Null where the endpoint does
+  /// not say.
+  String? storeLogoFullUrl;
+  bool? storeOpen;
+
+  /// The store's delivery window in minutes, as the item payload carries it;
+  /// zero or null when the store states none.
+  int? minDeliveryTime;
+  int? maxDeliveryTime;
   int? zoneId;
   bool? scheduleOrder;
   double? avgRating;
@@ -101,6 +116,11 @@ class Item {
   int? moduleId;
   String? moduleType;
   String? unitType;
+
+  /// The master catalogue product this listing takes its content from; null
+  /// for an unlinked listing. Two listings in one rail with the same id are
+  /// one product sold twice — see `ShelfListings.dedupe`.
+  int? catalogProductId;
   int? stock;
   String? availableDateStarts;
   int? organic;
@@ -113,6 +133,11 @@ class Item {
   List<String>? allergiesName;
   List<String>? genericName;
   int? potentialXp;
+
+  /// The produce question this item asks before adding — `ripeness` or
+  /// `use` — from its category; null for everything else. See
+  /// `ProducePreference`.
+  String? prepOption;
 
   Item({
     this.id,
@@ -142,6 +167,7 @@ class Item {
     this.moduleId,
     this.moduleType,
     this.unitType,
+    this.catalogProductId,
     this.stock,
     this.organic,
     this.quantityLimit,
@@ -153,6 +179,7 @@ class Item {
     this.allergiesName,
     this.genericName,
     this.potentialXp,
+    this.prepOption,
   });
 
   Item.fromJson(Map<String, dynamic> json) {
@@ -170,6 +197,7 @@ class Item {
       });
     }
     categoryId = json['category_id'];
+    orderCount = int.tryParse('${json['order_count'] ?? ''}');
     if (json['category_ids'] != null) {
       categoryIds = [];
       json['category_ids'].forEach((v) {
@@ -214,6 +242,23 @@ class Item {
     availableTimeEnds = json['available_time_ends'];
     storeId = json['store_id'];
     storeName = json['store_name'];
+    // Flat keys first (item search adds them); the nested store object is what
+    // every item payload that loads the relation carries.
+    final dynamic nestedStore = json['store'];
+    storeLogoFullUrl =
+        json['store_logo_full_url'] ??
+        (nestedStore is Map ? nestedStore['logo_full_url'] : null);
+    storeOpen =
+        json['store_open'] != null
+            ? (json['store_open'] == true || json['store_open'] == 1)
+            : (nestedStore is Map && nestedStore['open'] != null
+                ? (nestedStore['open'] == 1 || nestedStore['open'] == true) &&
+                    (nestedStore['active'] == null ||
+                        nestedStore['active'] == 1 ||
+                        nestedStore['active'] == true)
+                : null);
+    minDeliveryTime = Parse.lenientInt(json['min_delivery_time']);
+    maxDeliveryTime = Parse.lenientInt(json['max_delivery_time']);
     zoneId = json['zone_id'];
     scheduleOrder = json['schedule_order'];
     avgRating = json['avg_rating']?.toDouble();
@@ -223,6 +268,13 @@ class Item {
     veg = Parse.lenientInt(json['veg']);
     stock = json['stock'];
     unitType = json['unit_type'];
+    // Null is normal (an unlinked listing), so not `Parse.strictInt`, which
+    // reports a null as unreadable.
+    final Object? catalogProduct = json['catalog_product_id'];
+    catalogProductId =
+        catalogProduct is num
+            ? catalogProduct.toInt()
+            : int.tryParse('${catalogProduct ?? ''}');
     availableDateStarts = json['available_date_starts'];
     organic = json['organic'];
     quantityLimit = json['maximum_cart_quantity'];
@@ -237,6 +289,7 @@ class Item {
         json['potential_xp'] != null
             ? int.tryParse(json['potential_xp'].toString())
             : null;
+    prepOption = json['prep_option'] is String ? json['prep_option'] : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -271,6 +324,10 @@ class Item {
     data['available_time_ends'] = availableTimeEnds;
     data['store_id'] = storeId;
     data['store_name'] = storeName;
+    data['store_logo_full_url'] = storeLogoFullUrl;
+    data['store_open'] = storeOpen;
+    data['min_delivery_time'] = minDeliveryTime;
+    data['max_delivery_time'] = maxDeliveryTime;
     data['zone_id'] = zoneId;
     data['schedule_order'] = scheduleOrder;
     data['avg_rating'] = avgRating;
@@ -280,6 +337,7 @@ class Item {
     data['module_type'] = moduleType;
     data['stock'] = stock;
     data['unit_type'] = unitType;
+    data['catalog_product_id'] = catalogProductId;
     data['available_date_starts'] = availableDateStarts;
     data['organic'] = organic;
     data['maximum_cart_quantity'] = quantityLimit;
@@ -291,6 +349,7 @@ class Item {
     data['allergies_name'] = allergiesName;
     data['generic_name'] = genericName;
     data['potential_xp'] = potentialXp;
+    data['prep_option'] = prepOption;
     return data;
   }
 

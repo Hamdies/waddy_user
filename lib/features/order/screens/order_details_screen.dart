@@ -1,32 +1,31 @@
 import 'dart:async';
-import 'package:waddy_app/util/swallow.dart';
-import 'dart:collection';
+import 'dart:math' as math;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:photo_view/photo_view.dart';
-import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:waddy_app/features/scratch_card/widgets/scratch_card_badge.dart';
+import 'package:waddy_app/features/chat/domain/models/conversation_model.dart';
+import 'package:waddy_app/features/notification/domain/models/notification_body_model.dart';
 import 'package:waddy_app/features/order/controllers/order_controller.dart';
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
+import 'package:waddy_app/features/order/domain/models/order_stamp.dart';
 import 'package:waddy_app/features/order/domain/models/order_status.dart';
-import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
-import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/features/order/widgets/order_details/order_details_sections.dart';
+import 'package:waddy_app/features/order/widgets/order_details/order_live_map.dart';
+import 'package:waddy_app/features/review/screens/rate_review_screen.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/eta_calculator.dart';
-import 'package:waddy_app/helper/marker_animator.dart';
-import 'package:waddy_app/helper/marker_helper.dart';
+import 'package:waddy_app/helper/price_converter.dart';
+import 'package:waddy_app/helper/rider_camera.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
-import 'package:waddy_app/util/images.dart';
-import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_dialog.dart';
 import 'package:waddy_app/common/widgets/menu_drawer.dart';
 import 'package:waddy_app/features/checkout/widgets/offline_success_dialog.dart';
-// order_steps_card, order_map_section, delivery_man_card removed from mobile layout
-import 'package:waddy_app/features/order/widgets/zomato/zomato_order_info_card.dart';
-import 'package:waddy_app/features/order/widgets/zomato/zomato_delivery_partner_card.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -50,20 +49,33 @@ class OrderDetailsScreen extends StatefulWidget {
 
 class OrderDetailsScreenState extends State<OrderDetailsScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  /// Reloads the whole order every 30 s while it is live (LT-06).
   Timer? _timer;
-  double? _maxCodOrderAmount;
-  bool? _isCashOnDeliveryActive = false;
+
+  /// Moves the rider every 10 s, only while the near-state map is showing.
+  Timer? _locationTimer;
+  bool _locationInFlight = false;
+
+  /// The rider is close enough for the map (LT-01). Has hysteresis: on below
+  /// [_nearOnMeters], off again only above [_nearOffMeters].
+  bool _near = false;
+  double? _riderMeters;
+  bool _foreground = true;
+
+  static const double _nearOnMeters = 1500;
+  static const double _nearOffMeters = 2000;
+
+  /// Under this the title says the rider is arriving.
+  static const double _arrivingMeters = 150;
+
   final ScrollController scrollController = ScrollController();
-  GoogleMapController? _mapController;
-  Set<Marker> _markers = HashSet<Marker>();
-  Set<Polyline> _polylines = HashSet<Polyline>();
 
-  final MarkerAnimator _markerAnimator = MarkerAnimator();
-  ETAResult? _currentETA;
+  /// The arrival time the header has committed to — see [_committedArrival].
+  DateTime? _etaAnchor;
+  bool _etaSlipped = false;
 
-  // Tracking freshness
-  DateTime? _lastUpdateTime;
-  bool _isLive = false;
+  bool _refreshing = false;
+  bool _reordering = false;
 
   // ── Entrance animation ──────────────────────────────────────────────────
   late final AnimationController _entranceController;
@@ -89,10 +101,6 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
             );
           }
         });
-    final trackedOrder = Get.find<OrderController>().trackModel;
-    if (trackedOrder != null) {
-      await _setMapMarkers(trackedOrder);
-    }
     Get.find<OrderController>().timerTrackOrder(
       widget.orderId.toString(),
       contactNumber: widget.contactNumber,
@@ -102,103 +110,18 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     _startPolling();
   }
 
-  void _updateETA(double driverLat, double driverLng) {
-    final destination = Get.find<OrderController>().trackModel?.deliveryAddress;
-    if (destination?.latitude == null || destination?.longitude == null) return;
-
-    final distance = ETACalculator.calculateDistanceKm(
-      driverLat,
-      driverLng,
-      double.parse(destination!.latitude!),
-      double.parse(destination.longitude!),
+  /// The header's refresh button: one immediate poll instead of waiting for
+  /// the next 30-second tick.
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    setState(() => _refreshing = true);
+    final orderController = Get.find<OrderController>();
+    await orderController.timerTrackOrder(
+      widget.orderId.toString(),
+      contactNumber: widget.contactNumber,
     );
-
-    if (mounted) {
-      setState(() {
-        _currentETA = ETACalculator.calculate(distance);
-      });
-    }
-  }
-
-  void _updateDeliveryManMarkerAnimated(
-    LatLng position,
-    double rotation,
-  ) async {
-    final order = Get.find<OrderController>().trackModel;
-    final String dmImageUrl = order?.deliveryMan?.imageFullUrl ?? '';
-    BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
-      imageUrl: dmImageUrl,
-      logicalSize: 24,
-      borderColor: WaddyColors.amber,
-      borderWidth: 2,
-      fallbackAsset: Images.deliveryManMarker,
-      fallbackIcon: Icons.delivery_dining,
-      fallbackIconColor: WaddyColors.amber,
-    );
-
-    if (mounted) {
-      setState(() {
-        _markers.removeWhere((m) => m.markerId.value == 'delivery_man');
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('delivery_man'),
-            position: position,
-            infoWindow: InfoWindow(
-              title: 'delivery_man'.tr,
-              snippet: _currentETA?.displayText ?? '',
-            ),
-            rotation: rotation,
-            icon: dmIcon,
-            anchor: const Offset(0.5, 1.0),
-          ),
-        );
-      });
-    }
-
-    _updateRoutePolyline(position);
-  }
-
-  void _updateRoutePolyline(LatLng driverPosition) {
-    final track = Get.find<OrderController>().trackModel;
-    if (track == null) return;
-
-    final List<LatLng> routePoints = [];
-
-    if (track.store?.latitude != null && track.store?.longitude != null) {
-      routePoints.add(
-        LatLng(
-          double.parse(track.store!.latitude!),
-          double.parse(track.store!.longitude!),
-        ),
-      );
-    }
-    routePoints.add(driverPosition);
-    if (track.deliveryAddress?.latitude != null &&
-        track.deliveryAddress?.longitude != null) {
-      routePoints.add(
-        LatLng(
-          double.parse(track.deliveryAddress!.latitude!),
-          double.parse(track.deliveryAddress!.longitude!),
-        ),
-      );
-    }
-
-    if (routePoints.length < 2) return;
-
-    if (mounted) {
-      setState(() {
-        _polylines.clear();
-        _polylines.add(
-          Polyline(
-            polylineId: const PolylineId('route'),
-            points: routePoints,
-            color: Theme.of(context).primaryColor,
-            width: 3,
-            patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-          ),
-        );
-      });
-    }
+    if (mounted) setState(() => _refreshing = false);
+    _startPolling();
   }
 
   void _startPolling() {
@@ -208,7 +131,7 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     );
     if (status != null && status.isTerminal) return;
 
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _timer = Timer.periodic(const Duration(seconds: 30), (timer) async {
       final orderController = Get.find<OrderController>();
       await orderController.timerTrackOrder(
         widget.orderId.toString(),
@@ -217,56 +140,67 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
 
       final order = orderController.trackModel;
       if (order != null && mounted) {
-        _refreshMapMarkers(order);
-
-        if (order.deliveryMan?.lat != null && order.deliveryMan?.lng != null) {
-          final dmLat = double.tryParse(order.deliveryMan!.lat!);
-          final dmLng = double.tryParse(order.deliveryMan!.lng!);
-          if (dmLat != null && dmLng != null) {
-            _updateETA(dmLat, dmLng);
-          }
-        }
-
-        setState(() => _lastUpdateTime = DateTime.now());
-
         final orderStatus = OrderStatus.fromString(order.orderStatus);
         if (orderStatus != null && orderStatus.isTerminal) {
           _timer?.cancel();
         }
+        // A rider whose fix went stale without moving changes nothing the
+        // controller compares; re-run the distance gate anyway.
+        setState(() {});
       }
     });
   }
 
-  void _refreshMapMarkers(OrderModel order) async {
-    if (order.deliveryMan?.lat != null && order.deliveryMan?.lng != null) {
-      final dmLat = double.tryParse(order.deliveryMan!.lat!);
-      final dmLng = double.tryParse(order.deliveryMan!.lng!);
-      if (dmLat != null && dmLng != null) {
-        final String dmImageUrl = order.deliveryMan?.imageFullUrl ?? '';
-        BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
-          imageUrl: dmImageUrl,
-          logicalSize: 32,
-          borderColor: WaddyColors.amber,
-          borderWidth: 2.5,
-          fallbackAsset: Images.deliveryManMarker,
-          fallbackIcon: Icons.delivery_dining,
-          fallbackIconColor: WaddyColors.amber,
+  /// Starts or stops the 10 s rider poll to match [_near]. The rider app
+  /// reports every 10 s, so polling faster would read the same fix twice.
+  void _syncLocationPolling() {
+    final bool want = _near && _foreground;
+    if (want == (_locationTimer != null)) return;
+    _locationTimer?.cancel();
+    _locationTimer = null;
+    if (!want) return;
+    _locationTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (_locationInFlight) return;
+      _locationInFlight = true;
+      final orderController = Get.find<OrderController>();
+      final bool sameStatus = await orderController.pollRiderLocation(
+        widget.orderId.toString(),
+        contactNumber: widget.contactNumber,
+      );
+      if (!sameStatus) {
+        await orderController.timerTrackOrder(
+          widget.orderId.toString(),
+          contactNumber: widget.contactNumber,
         );
-        if (mounted) {
-          setState(() {
-            _markers.removeWhere((m) => m.markerId.value == 'delivery_man');
-            _markers.add(
-              Marker(
-                markerId: const MarkerId('delivery_man'),
-                position: LatLng(dmLat, dmLng),
-                infoWindow: InfoWindow(title: 'delivery_man'.tr),
-                icon: dmIcon,
-                anchor: const Offset(0.5, 1.0),
-              ),
-            );
-          });
-        }
       }
+      _locationInFlight = false;
+    });
+  }
+
+  /// The rider's position, if it is worth drawing.
+  LatLng? _liveRider(OrderModel order) {
+    final DeliveryMan? rider = order.deliveryMan;
+    if (rider == null || rider.locationStale) return null;
+    return _point(rider.lat, rider.lng);
+  }
+
+  /// The distance gate (LT-01). Runs on every build, like the ETA anchor.
+  void _updateGate(OrderModel order, OrderStage stage) {
+    final LatLng? rider = _liveRider(order);
+    final LatLng? home = _homePoint(order);
+    final bool wasNear = _near;
+    if (stage != OrderStage.onWay || rider == null || home == null) {
+      _near = false;
+      _riderMeters = null;
+    } else {
+      final double d = RiderCamera.meters(rider, home);
+      _riderMeters = d;
+      _near = _near ? d <= _nearOffMeters : d < _nearOnMeters;
+    }
+    if (wasNear != _near) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncLocationPolling();
+      });
     }
   }
 
@@ -299,220 +233,172 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _foreground = true;
       _startPolling();
+      _syncLocationPolling();
     } else if (state == AppLifecycleState.paused) {
+      _foreground = false;
       _timer?.cancel();
+      _syncLocationPolling();
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _mapController?.dispose();
-    _markerAnimator.cancel();
+    _locationTimer?.cancel();
     _entranceController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  int? _getLiveEtaMinutes(OrderModel order) {
-    if (_currentETA != null && _currentETA!.minMinutes > 0) {
-      return _currentETA!.minMinutes;
-    }
+  // ─── Arrival estimate ────────────────────────────────────────────────────
+  // One committed arrival time instead of a different source per stage. It
+  // may move earlier freely; it moves later only on a real slip, and the chip
+  // then says so rather than silently growing.
 
-    if (order.deliveryMan?.lat != null &&
-        order.deliveryMan?.lng != null &&
-        order.deliveryAddress?.latitude != null &&
-        order.deliveryAddress?.longitude != null) {
-      final dmLat = double.tryParse(order.deliveryMan!.lat!);
-      final dmLng = double.tryParse(order.deliveryMan!.lng!);
-      final destLat = double.tryParse(order.deliveryAddress!.latitude!);
-      final destLng = double.tryParse(order.deliveryAddress!.longitude!);
-      if (dmLat != null &&
-          dmLng != null &&
-          destLat != null &&
-          destLng != null) {
-        final distance = ETACalculator.calculateDistanceKm(
-          dmLat,
-          dmLng,
-          destLat,
-          destLng,
-        );
-        final eta = ETACalculator.calculate(distance);
-        if (eta.minMinutes > 0) return eta.minMinutes;
-      }
-    }
+  static const Duration _slipThreshold = Duration(minutes: 5);
 
-    if (order.estimatedDeliveryAt != null &&
-        order.estimatedDeliveryAt!.isNotEmpty) {
-      final mins = DateConverter.estimatedDeliveryMinutes(
-        estimatedDeliveryAt: order.estimatedDeliveryAt,
-      );
-      if (mins > 0) return mins;
-    }
+  /// Straight-line legs beyond this are bad coordinates, not a trip — the
+  /// same gate `StoreDeliveryFee` applies before quoting a fee.
+  static const double _maxPlausibleKm = 60;
 
-    return null;
+  /// A rider further than this from home with the food on board is a bad fix
+  /// (or a test rider), not a ride: quote the promised time instead of
+  /// flagging the order late (LT-08).
+  static const double _maxRideKm = 15;
+
+  LatLng? _point(String? lat, String? lng) {
+    final double? la = double.tryParse(lat ?? '');
+    final double? ln = double.tryParse(lng ?? '');
+    if (la == null || ln == null || la == 0 || ln == 0) return null;
+    return LatLng(la, ln);
   }
 
-  int? _getPrepMinutes(OrderModel order) {
-    if (order.processingTime != null && order.processingTime! > 0) {
-      return order.processingTime;
-    }
-    if (order.store?.deliveryTime != null) {
-      try {
-        String dt = order.store!.deliveryTime!;
-        if (dt.contains('-')) {
-          return int.tryParse(dt.split('-')[0].trim());
-        }
-        return int.tryParse(dt.trim());
-      } catch (e, s) {
-        swallow('parse store delivery time', e, s);
-      }
-    }
-    return null;
-  }
-
-  Future<void> _setMapMarkers(OrderModel order) async {
-    _markers = HashSet<Marker>();
-    _polylines = HashSet<Polyline>();
-    final List<LatLng> allPoints = [];
-    final Color primaryColor = Theme.of(context).primaryColor;
-
-    if (order.store?.latitude != null && order.store?.longitude != null) {
-      final storeLat = double.tryParse(order.store!.latitude!);
-      final storeLng = double.tryParse(order.store!.longitude!);
-      if (storeLat != null &&
-          storeLng != null &&
-          storeLat != 0 &&
-          storeLng != 0) {
-        final String logoUrl = order.store?.logoFullUrl ?? '';
-        BitmapDescriptor storeIcon = await MarkerHelper.createPinMarker(
-          imageUrl: logoUrl,
-          logicalSize: 28,
-          borderColor: Theme.of(context).primaryColor,
-          borderWidth: 2,
-          fallbackAsset: Images.restaurantMarker,
-          fallbackIcon: Icons.store,
-          fallbackIconColor: Theme.of(context).primaryColor,
-        );
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('store'),
-            position: LatLng(storeLat, storeLng),
-            infoWindow: InfoWindow(title: order.store?.name ?? 'store'.tr),
-            icon: storeIcon,
-            anchor: const Offset(0.5, 1.0),
-          ),
-        );
-        allPoints.add(LatLng(storeLat, storeLng));
-      }
-    }
-
-    if (order.deliveryAddress?.latitude != null &&
-        order.deliveryAddress?.longitude != null) {
-      final destLat = double.tryParse(order.deliveryAddress!.latitude!);
-      final destLng = double.tryParse(order.deliveryAddress!.longitude!);
-      if (destLat != null && destLng != null && destLat != 0 && destLng != 0) {
-        final String userImageUrl =
-            Get.find<ProfileController>().userInfoModel?.imageFullUrl ?? '';
-        BitmapDescriptor destIcon = await MarkerHelper.createPinMarker(
-          imageUrl: userImageUrl,
-          logicalSize: 28,
-          borderColor: WaddyColors.mintDark,
-          borderWidth: 2,
-          fallbackAsset: Images.userMarker,
-          fallbackIcon: Icons.home,
-          fallbackIconColor: WaddyColors.mintDark,
-        );
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('destination'),
-            position: LatLng(destLat, destLng),
-            infoWindow: InfoWindow(
-              title: (order.deliveryAddress?.addressType ?? 'home').tr,
-            ),
-            icon: destIcon,
-            anchor: const Offset(0.5, 1.0),
-          ),
-        );
-        allPoints.add(LatLng(destLat, destLng));
-      }
-    }
-
-    if (order.deliveryMan?.lat != null && order.deliveryMan?.lng != null) {
-      final dmLat = double.tryParse(order.deliveryMan!.lat!);
-      final dmLng = double.tryParse(order.deliveryMan!.lng!);
-      if (dmLat != null && dmLng != null && dmLat != 0 && dmLng != 0) {
-        final String dmImageUrl = order.deliveryMan?.imageFullUrl ?? '';
-        BitmapDescriptor dmIcon = await MarkerHelper.createPinMarker(
-          imageUrl: dmImageUrl,
-          logicalSize: 32,
-          borderColor: WaddyColors.amber,
-          borderWidth: 2.5,
-          fallbackAsset: Images.deliveryManMarker,
-          fallbackIcon: Icons.delivery_dining,
-          fallbackIconColor: WaddyColors.amber,
-        );
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('delivery_man'),
-            position: LatLng(dmLat, dmLng),
-            infoWindow: InfoWindow(title: 'delivery_man'.tr),
-            icon: dmIcon,
-            anchor: const Offset(0.5, 1.0),
-          ),
-        );
-        allPoints.add(LatLng(dmLat, dmLng));
-        _updateETA(dmLat, dmLng);
-      }
-    }
-
-    final List<LatLng> routePoints =
-        allPoints.where((p) => p.latitude != 0 && p.longitude != 0).toList();
-    if (routePoints.length >= 2) {
-      _polylines.add(
-        Polyline(
-          polylineId: const PolylineId('route'),
-          points: routePoints,
-          color: primaryColor,
-          width: 3,
-          patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-        ),
-      );
-    }
-
-    if (mounted) setState(() {});
-
-    if (_mapController != null && allPoints.length >= 2) {
-      _fitMapBounds(allPoints);
-    }
-  }
-
-  void _fitMapBounds(List<LatLng> points) {
-    if (points.isEmpty || _mapController == null) return;
-
-    double minLat = points[0].latitude;
-    double maxLat = points[0].latitude;
-    double minLng = points[0].longitude;
-    double maxLng = points[0].longitude;
-
-    for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-
-    final bounds = LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
+  Duration? _leg(LatLng from, LatLng to, {double maxKm = _maxPlausibleKm}) {
+    final double km = ETACalculator.calculateDistanceKm(
+      from.latitude,
+      from.longitude,
+      to.latitude,
+      to.longitude,
     );
+    if (km > maxKm) return null;
+    return Duration(minutes: ETACalculator.calculate(km).maxMinutes);
+  }
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (_mapController != null && mounted) {
-        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 60));
+  /// What the order promised: the server's estimate, else the store's quoted
+  /// window counted from when the order was placed.
+  DateTime? _promisedArrival(OrderModel order) {
+    final DateTime? server = DateTime.tryParse(order.estimatedDeliveryAt ?? '');
+    if (server != null) return server.toLocal();
+    final DateTime? placed = DateTime.tryParse(order.createdAt ?? '');
+    final int? window = _storeWindowMax(order);
+    if (placed == null || window == null) return null;
+    return placed.toLocal().add(Duration(minutes: window));
+  }
+
+  /// Upper bound of the store's "25-35 min" style delivery time.
+  int? _storeWindowMax(OrderModel order) {
+    final String raw = (order.store?.deliveryTime ?? '').trim();
+    if (raw.isEmpty) return null;
+    final String upper = raw.contains('-') ? raw.split('-').last : raw;
+    return int.tryParse(upper.replaceAll(RegExp(r'[^0-9]'), ''));
+  }
+
+  DateTime? _estimateArrival(OrderModel order, OrderStage stage) {
+    final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
+    // Nothing is promised until the store accepts.
+    if (status == OrderStatus.pending) return null;
+    final DateTime now = DateTime.now();
+    final LatLng? rider = _liveRider(order);
+    final LatLng? store = _point(order.store?.latitude, order.store?.longitude);
+    final LatLng? home = _point(
+      order.deliveryAddress?.latitude,
+      order.deliveryAddress?.longitude,
+    );
+    if (stage == OrderStage.onWay && rider != null && home != null) {
+      final Duration? toYou = _leg(rider, home, maxKm: _maxRideKm);
+      if (toYou != null) return now.add(toYou);
+    }
+    // Food is ready and a rider is heading for it: count both legs.
+    if (status == OrderStatus.handover &&
+        rider != null &&
+        store != null &&
+        home != null) {
+      final Duration? toStore = _leg(rider, store);
+      final Duration? toYou = _leg(store, home);
+      if (toStore != null && toYou != null) return now.add(toStore + toYou);
+    }
+    return _promisedArrival(order);
+  }
+
+  DateTime? _committedArrival(OrderModel order, OrderStage stage) {
+    final DateTime? estimate =
+        stage.isLive ? _estimateArrival(order, stage) : null;
+    if (estimate == null) {
+      _etaAnchor = null;
+      _etaSlipped = false;
+      return null;
+    }
+    final DateTime? anchor = _etaAnchor;
+    if (anchor == null || estimate.isBefore(anchor)) {
+      _etaAnchor = estimate;
+    } else if (estimate.difference(anchor) > _slipThreshold) {
+      _etaAnchor = estimate;
+      _etaSlipped = true;
+    }
+    return _etaAnchor;
+  }
+
+  OrderEta _eta(OrderModel order, OrderStage stage) {
+    final DateTime? arrival = _committedArrival(order, stage);
+    // Close in, the map is the truth: minutes straight from the distance, no
+    // anchor and no "running late" (LT-08).
+    final double? meters = _riderMeters;
+    if (_near && meters != null) {
+      if (meters < _arrivingMeters) {
+        return OrderEta(label: 'od_arriving_soon'.tr);
       }
-    });
+      final int minutes = math.max(
+        1,
+        ETACalculator.calculate(meters / 1000).maxMinutes,
+      );
+      return OrderEta(
+        label: 'od_arriving_in'.trParams({'min': '$minutes'}),
+        minutes: minutes,
+      );
+    }
+    if (arrival == null) {
+      return OrderEta(
+        label:
+            OrderStatus.fromString(order.orderStatus) == OrderStatus.pending
+                ? 'od_eta_after_confirm'.tr
+                : 'od_estimating_arrival'.tr,
+      );
+    }
+    final int minutes =
+        (arrival.difference(DateTime.now()).inSeconds / 60).ceil();
+    if (minutes <= 0) {
+      return OrderEta(
+        label:
+            stage == OrderStage.onWay
+                ? 'od_arriving_soon'.tr
+                : 'od_eta_late'.tr,
+      );
+    }
+    final DateTime? promised = _promisedArrival(order);
+    final String? note =
+        _etaSlipped
+            ? 'od_eta_delayed'.tr
+            : promised != null && !arrival.isAfter(promised.add(_slipThreshold))
+            ? 'od_on_time'.tr
+            : null;
+    return OrderEta(
+      label: 'od_arriving_in'.trParams({'min': '$minutes'}),
+      note: note,
+      minutes: minutes,
+      delayed: _etaSlipped,
+    );
   }
 
   void _handleBack() {
@@ -537,95 +423,60 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
       child: Scaffold(
         endDrawer: const MenuDrawer(),
         endDrawerEnableOpenDragGesture: false,
-        backgroundColor: const Color(0xFFF2F4F3),
-        body: SafeArea(
-          child: GetBuilder<OrderController>(
-            builder: (orderController) {
-              double deliveryCharge = 0;
-              double itemsPrice = 0;
-              double discount = 0;
-              double couponDiscount = 0;
-              double tax = 0;
-              double addOns = 0;
-              double dmTips = 0;
-              double additionalCharge = 0;
-              double extraPackagingCharge = 0;
-              double referrerBonusAmount = 0;
-              OrderModel? order = orderController.trackModel;
-              bool parcel = false;
-              bool prescriptionOrder = false;
-              bool taxIncluded = false;
-              bool ongoing = false;
-              bool showChatPermission = true;
-              if (orderController.orderDetails != null && order != null) {
-                parcel = order.orderType == 'parcel';
-                prescriptionOrder = order.prescriptionOrder!;
-                deliveryCharge = order.deliveryCharge!;
-                couponDiscount = order.couponDiscountAmount!;
-                discount =
-                    order.storeDiscountAmount! +
-                    order.flashAdminDiscountAmount! +
-                    order.flashStoreDiscountAmount!;
-                tax = order.totalTaxAmount!;
-                dmTips = order.dmTips!;
-                taxIncluded = order.taxStatus!;
-                additionalCharge = order.additionalCharge!;
-                extraPackagingCharge = order.extraPackagingAmount!;
-                referrerBonusAmount = order.referrerBonusAmount!;
-                if (prescriptionOrder) {
-                  double orderAmount = order.orderAmount ?? 0;
-                  itemsPrice =
-                      (orderAmount + discount) -
-                      ((taxIncluded ? 0 : tax) + deliveryCharge) -
-                      dmTips -
-                      additionalCharge;
-                } else {
-                  for (OrderDetailsModel orderDetails
-                      in orderController.orderDetails!) {
-                    for (AddOn addOn in orderDetails.addOns!) {
-                      addOns = addOns + (addOn.price! * addOn.quantity!);
-                    }
-                    itemsPrice =
-                        itemsPrice +
-                        (orderDetails.price! * orderDetails.quantity!);
-                  }
-                }
+        backgroundColor: WaddyColors.surfaceRaised,
+        body: GetBuilder<OrderController>(
+          builder: (orderController) {
+            final OrderModel? order = orderController.trackModel;
+            if (orderController.orderDetails == null || order == null) {
+              return const _OrderDetailsSkeleton();
+            }
 
-                if (!parcel && order.store != null) {
-                  for (ZoneData zData
-                      in AddressHelper.getUserAddressFromSharedPref()!
-                          .zoneData!) {
-                    if (zData.id == order.store!.zoneId) {
-                      _isCashOnDeliveryActive = zData.cashOnDelivery;
-                    }
-                    for (Modules m in zData.modules!) {
-                      if (m.id == order.store!.moduleId) {
-                        _maxCodOrderAmount = m.pivot!.maximumCodOrderAmount;
-                        break;
-                      }
-                    }
-                  }
+            final bool parcel = order.orderType == 'parcel';
+            final bool prescriptionOrder = order.prescriptionOrder ?? false;
+            final double deliveryCharge = order.deliveryCharge ?? 0;
+            final double couponDiscount = order.couponDiscountAmount ?? 0;
+            final double discount =
+                (order.storeDiscountAmount ?? 0) +
+                (order.flashAdminDiscountAmount ?? 0) +
+                (order.flashStoreDiscountAmount ?? 0);
+            final double tax = order.totalTaxAmount ?? 0;
+            final double dmTips = order.dmTips ?? 0;
+            final bool taxIncluded = order.taxStatus ?? false;
+            final double additionalCharge = order.additionalCharge ?? 0;
+            final double extraPackagingCharge = order.extraPackagingAmount ?? 0;
+            final double referrerBonusAmount = order.referrerBonusAmount ?? 0;
+            double itemsPrice = 0;
+            double addOns = 0;
+            if (prescriptionOrder) {
+              final double orderAmount = order.orderAmount ?? 0;
+              itemsPrice =
+                  (orderAmount + discount) -
+                  ((taxIncluded ? 0 : tax) + deliveryCharge) -
+                  dmTips -
+                  additionalCharge;
+            } else {
+              for (OrderDetailsModel orderDetails
+                  in orderController.orderDetails!) {
+                for (AddOn addOn in orderDetails.addOns ?? []) {
+                  addOns += (addOn.price ?? 0) * (addOn.quantity ?? 0);
                 }
-
-                if (order.store != null) {
-                  if (order.store!.storeBusinessModel == 'commission') {
-                    showChatPermission = true;
-                  } else if (order.store!.storeSubscription != null &&
-                      order.store!.storeBusinessModel == 'subscription') {
-                    showChatPermission =
-                        order.store!.storeSubscription!.chat == 1;
-                  } else {
-                    showChatPermission = false;
-                  }
-                } else {
-                  showChatPermission = AuthHelper.isLoggedIn();
-                }
-
-                final status = OrderStatus.fromString(order.orderStatus);
-                ongoing = status != null && status.isOngoing;
+                itemsPrice +=
+                    (orderDetails.price ?? 0) * (orderDetails.quantity ?? 0);
               }
-              double subTotal = itemsPrice + addOns;
-              double total =
+            }
+            final bill = OrderBill(
+              itemsPrice: itemsPrice,
+              addOns: addOns,
+              discount: discount,
+              couponDiscount: couponDiscount,
+              referrerBonus: referrerBonusAmount,
+              tax: tax,
+              taxIncluded: taxIncluded,
+              deliveryCharge: deliveryCharge,
+              dmTips: dmTips,
+              additionalCharge: additionalCharge,
+              extraPackaging: extraPackagingCharge,
+              total:
                   itemsPrice +
                   addOns -
                   discount +
@@ -635,990 +486,701 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
                   dmTips +
                   additionalCharge +
                   extraPackagingCharge -
-                  referrerBonusAmount;
+                  referrerBonusAmount,
+            );
 
-              if (orderController.orderDetails == null ||
-                  order == null ||
-                  orderController.trackModel == null) {
-                return const _OrderDetailsSkeleton();
+            bool showChatPermission;
+            if (order.store != null) {
+              if (order.store!.storeBusinessModel == 'commission') {
+                showChatPermission = true;
+              } else if (order.store!.storeSubscription != null &&
+                  order.store!.storeBusinessModel == 'subscription') {
+                showChatPermission = order.store!.storeSubscription!.chat == 1;
+              } else {
+                showChatPermission = false;
               }
+            } else {
+              showChatPermission = AuthHelper.isLoggedIn() && !parcel;
+            }
 
-              final int? liveEtaMinutes = _getLiveEtaMinutes(order);
-              final int? prepMinutes = _getPrepMinutes(order);
+            final OrderStage stage = orderStageOf(order);
+            _updateGate(order, stage);
+            final List<Widget> cards = _cards(
+              context,
+              order,
+              orderController,
+              stage,
+              bill,
+              showChatPermission,
+            );
 
-              return Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      child: _buildMobileLayout(
-                        context,
-                        order,
-                        orderController,
-                        ongoing,
-                        showChatPermission,
-                        liveEtaMinutes,
-                        prepMinutes,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+            return FadeTransition(
+              opacity: _screenFade,
+              child: SlideTransition(
+                position: _screenSlide,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  child:
+                      _near
+                          ? KeyedSubtree(
+                            key: const ValueKey('near'),
+                            child: _buildNear(context, order, stage, cards),
+                          )
+                          : Column(
+                            key: const ValueKey('far'),
+                            children: [
+                              OrderDetailsHeader(
+                                storeName:
+                                    order.store?.name ?? 'order_details'.tr,
+                                stage: stage,
+                                tone: _headerTone(order, stage),
+                                statusTitle: _statusTitle(order, stage),
+                                endedSubtitle: _endedSubtitle(order, stage),
+                                eta: _eta(order, stage),
+                                refreshing: _refreshing,
+                                onBack: _handleBack,
+                                onRefresh: _refresh,
+                              ),
+                              Expanded(
+                                child: Stack(
+                                  children: [
+                                    // Pulling past the top would otherwise open a grey
+                                    // gap between the pinned header and the band.
+                                    if (_stageAnimation(order) != null)
+                                      _OverscrollFill(
+                                        controller: scrollController,
+                                        color:
+                                            _headerTone(order, stage).colors.$1,
+                                      ),
+                                    SingleChildScrollView(
+                                      controller: scrollController,
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: EdgeInsets.only(
+                                        bottom:
+                                            MediaQuery.paddingOf(
+                                              context,
+                                            ).bottom,
+                                      ),
+                                      child: _buildBody(order, stage, cards),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // ─── Mobile Layout (two-mode) ──────────────────────────────────────────
-  //
-  // Mode 1  pending → processing  : teal hero band + clock-time window
-  // Mode 2  handover / pickedUp   : full-height map replaces the hero
-  // Mode 3  delivered / terminal  : celebration / cancelled state
-  // ──────────────────────────────────────────────────────────────────────
-  Widget _buildMobileLayout(
+  /// Follows the order status itself — the same thing the stage animation
+  /// follows — so title and animation always move together. Stage alone
+  /// can't: it waits for a rider, and a store can hand over before one exists.
+  String _statusTitle(OrderModel order, OrderStage stage) {
+    switch (stage) {
+      case OrderStage.preparing:
+      case OrderStage.collecting:
+      case OrderStage.onWay:
+        switch (OrderStatus.fromString(order.orderStatus)) {
+          case OrderStatus.pending:
+            return 'od_title_waiting'.tr;
+          case OrderStatus.accepted:
+          case OrderStatus.confirmed:
+            return 'od_title_confirmed'.tr;
+          case OrderStatus.handover:
+            return order.deliveryMan != null
+                ? 'od_title_collecting'.tr
+                : 'od_title_ready'.tr;
+          case OrderStatus.pickedUp:
+            return 'od_title_on_the_way'.tr;
+          default:
+            return 'od_title_preparing'.tr;
+        }
+      case OrderStage.delivered:
+        return 'od_head_delivered'.tr;
+      case OrderStage.closed:
+        switch (OrderStatus.fromString(order.orderStatus)) {
+          case OrderStatus.failed:
+            return 'od_head_failed'.tr;
+          case OrderStatus.refundRequested:
+            return 'od_head_refund_requested'.tr;
+          case OrderStatus.refunded:
+            return 'od_head_refunded'.tr;
+          default:
+            return 'od_head_cancelled'.tr;
+        }
+    }
+  }
+
+  LatLng? _homePoint(OrderModel order) =>
+      _point(order.deliveryAddress?.latitude, order.deliveryAddress?.longitude);
+
+  /// Same status → Lottie mapping as the home screen's current-order card.
+  String? _stageAnimation(OrderModel order) {
+    switch (OrderStatus.fromString(order.orderStatus)) {
+      case OrderStatus.pending:
+        return 'assets/animation/order_placed.json';
+      case OrderStatus.accepted:
+      case OrderStatus.confirmed:
+        return 'assets/animation/order_confirmed.json';
+      case OrderStatus.processing:
+        return 'assets/animation/preparing_order.json';
+      case OrderStatus.handover:
+      case OrderStatus.pickedUp:
+        return 'assets/animation/delivery_order.json';
+      case OrderStatus.delivered:
+      case OrderStatus.refundRequestCanceled:
+        return 'assets/animation/completed_order.json';
+      default:
+        return null;
+    }
+  }
+
+  OrderHeaderTone _headerTone(OrderModel order, OrderStage stage) {
+    if (stage != OrderStage.closed) return OrderHeaderTone.mint;
+    final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
+    return status == OrderStatus.refundRequested ||
+            status == OrderStatus.refunded
+        ? OrderHeaderTone.amber
+        : OrderHeaderTone.red;
+  }
+
+  /// "Cancelled at 9:58 PM" and friends, from the status's own timestamp.
+  /// Null (no pill) when the backend never stamped it.
+  String? _endedSubtitle(OrderModel order, OrderStage stage) {
+    if (stage.isLive) return null;
+    final (String key, String? raw) = switch (stage) {
+      OrderStage.delivered => ('od_head_delivered_at', order.delivered),
+      _ => switch (OrderStatus.fromString(order.orderStatus)) {
+        OrderStatus.failed => ('od_head_failed_at', order.failed),
+        OrderStatus.refundRequested => (
+          'od_head_refund_requested_at',
+          order.refundRequested,
+        ),
+        OrderStatus.refunded => ('od_head_refunded_at', order.refunded),
+        _ => ('od_head_cancelled_at', order.canceled),
+      },
+    };
+    final String? time = _formatTime(order, raw);
+    return time == null ? null : key.trParams({'time': time});
+  }
+
+  // ─── Body ──────────────────────────────────────────────────────────────
+  /// The card stack, the same in the scrolling page and in the near-state
+  /// sheet.
+  List<Widget> _cards(
     BuildContext context,
     OrderModel order,
     OrderController orderController,
-    bool ongoing,
+    OrderStage stage,
+    OrderBill bill,
     bool showChatPermission,
-    int? liveEtaMinutes,
-    int? prepMinutes,
   ) {
     final OrderStatus? status = OrderStatus.fromString(order.orderStatus);
-    final bool enRoute =
-        status == OrderStatus.handover || status == OrderStatus.pickedUp;
+    final List<OrderDetailsModel> items = orderController.orderDetails ?? [];
+    final DeliveryMan? rider = order.deliveryMan;
+    final bool live = stage.isLive;
 
-    // OTP: only show when rider is assigned and en-route (not during pending/processing)
     final bool showOtp =
-        enRoute && ongoing && order.otp != null && order.otp!.isNotEmpty;
+        (status == OrderStatus.handover || status == OrderStatus.pickedUp) &&
+        (order.otp ?? '').isNotEmpty;
 
-    return FadeTransition(
-      opacity: _screenFade,
-      child: SlideTransition(
-        position: _screenSlide,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── App bar ─────────────────────────────────────────────────
-            _AppBar(
-              title: order.store?.name ?? 'order_details'.tr,
-              onBack: _handleBack,
-              orderId: widget.orderId,
-            ),
-
-            // ── Hero: map (en-route) OR gradient band (pre-pickup) ─────
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder:
-                  (child, anim) => FadeTransition(opacity: anim, child: child),
-              child:
-                  enRoute
-                      ? _MapHero(
-                        key: const ValueKey('map_hero'),
-                        markers: _markers,
-                        polylines: _polylines,
-                        eta: _currentETA,
-                        onMapCreated: (ctrl) {
-                          _mapController = ctrl;
-                          final t = Get.find<OrderController>().trackModel;
-                          if (t != null) _setMapMarkers(t);
-                        },
-                        initialFocus: _getMapFocus(order),
-                      )
-                      : _PrePickupHero(
-                        key: const ValueKey('pre_hero'),
-                        status: status,
-                        liveEtaMinutes: liveEtaMinutes,
-                        prepMinutes: prepMinutes,
-                        estimatedDeliveryAt: order.estimatedDeliveryAt,
-                        storeName: order.store?.name,
-                        lastUpdateTime: _lastUpdateTime,
-                        isLive: _isLive,
-                      ),
-            ),
-
-            // ── Card sheet — warm gray surface rolls over the dark hero ──
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF2F4F3),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(0, 24, 0, 48),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (enRoute) ...[
-                    ZomatoDeliveryPartnerCard(
-                      order: order,
-                      showChatPermission: showChatPermission,
-                      onTimerCancel: () => _timer?.cancel(),
-                      onStartTracking: _startPolling,
-                    ),
-                    const SizedBox(height: 12),
-                    ZomatoOrderInfoCard(
-                      order: order,
-                      orderController: orderController,
-                      ongoing: ongoing,
-                      showOtpOverride: showOtp,
-                    ),
-                  ] else ...[
-                    ZomatoOrderInfoCard(
-                      order: order,
-                      orderController: orderController,
-                      ongoing: ongoing,
-                      showOtpOverride: false,
-                    ),
-                    const SizedBox(height: 12),
-                    ZomatoDeliveryPartnerCard(
-                      order: order,
-                      showChatPermission: showChatPermission,
-                      onTimerCancel: () => _timer?.cancel(),
-                      onStartTracking: _startPolling,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  LatLng? _getMapFocus(OrderModel order) {
-    if (order.deliveryMan?.lat != null && order.deliveryMan?.lng != null) {
-      final lat = double.tryParse(order.deliveryMan!.lat!);
-      final lng = double.tryParse(order.deliveryMan!.lng!);
-      if (lat != null && lng != null && lat != 0 && lng != 0) {
-        return LatLng(lat, lng);
-      }
-    }
-    if (order.store?.latitude != null && order.store?.longitude != null) {
-      final lat = double.tryParse(order.store!.latitude!);
-      final lng = double.tryParse(order.store!.longitude!);
-      if (lat != null && lng != null && lat != 0 && lng != 0) {
-        return LatLng(lat, lng);
-      }
-    }
-    return null;
-  }
-
-  // ─── Desktop Layout ───────────────────────────────────────────────────
-
-  void openDialog(BuildContext context, String imageUrl) => showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-        ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-              child: PhotoView(
-                tightMode: true,
-                imageProvider: NetworkImage(imageUrl),
-                heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: IconButton(
-                splashRadius: 5,
-                onPressed: () => Get.back(),
-                icon: const Icon(Icons.cancel, color: Colors.red),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-// ─── App Bar ──────────────────────────────────────────────────────────────────
-// Teal background flows seamlessly into the pre-pickup hero below.
-// Back button: white icon in a translucent rounded container.
-// Two-line title: store name + "Order #XXXX" for context.
-class _AppBar extends StatelessWidget {
-  final String title;
-  final VoidCallback onBack;
-  final int? orderId;
-
-  const _AppBar({required this.title, required this.onBack, this.orderId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: WaddyColors.primary,
-      padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
-      child: Row(
-        children: [
-          // ── Back button ─────────────────────────────────────────────
-          Material(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              splashColor: Colors.white.withValues(alpha: 0.14),
-              highlightColor: Colors.white.withValues(alpha: 0.08),
-              onTap: onBack,
-              child: const SizedBox(
-                width: 38,
-                height: 38,
-                child: Icon(
-                  Icons.arrow_back_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // ── Title group ──────────────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15.5,
-                    color: Colors.white,
-                    letterSpacing: -0.2,
-                    height: 1.2,
-                  ),
-                ),
-                if (orderId != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'Order #$orderId',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.65),
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Pre-Pickup Hero ──────────────────────────────────────────────────────────
-// Deep teal command slab. Status is communicated ONCE here — not repeated in
-// the order card below. ETA is the lead element. Liveness badge confirms the
-// data is live or shows when it was last refreshed.
-class _PrePickupHero extends StatelessWidget {
-  final OrderStatus? status;
-  final int? liveEtaMinutes;
-  final int? prepMinutes;
-  final String? estimatedDeliveryAt;
-  final String? storeName;
-  final DateTime? lastUpdateTime;
-  final bool isLive;
-
-  const _PrePickupHero({
-    super.key,
-    required this.status,
-    required this.liveEtaMinutes,
-    required this.prepMinutes,
-    required this.estimatedDeliveryAt,
-    this.storeName,
-    this.lastUpdateTime,
-    this.isLive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isTerminal = status?.isTerminal ?? false;
-    final bool isCancelled =
-        status == OrderStatus.canceled || status == OrderStatus.failed;
-    final bool isDelivered = status == OrderStatus.delivered;
-    final String? clockWindow = _clockWindow();
-    final bool reduceMotion = MediaQuery.of(context).disableAnimations;
-
-    // Hero background: teal for active, deep green for delivered, charcoal for cancelled
-    final Color heroBg =
-        isCancelled
-            ? const Color(0xFF2A1C1C)
-            : isDelivered
-            ? const Color(0xFF0A4A30)
-            : WaddyColors.primary;
-
-    return Container(
-      width: double.infinity,
-      color: heroBg,
-      child: Stack(
-        children: [
-          // ── Decorative ring — clips to hero bounds, top-right corner
-          Positioned(
-            right: -44,
-            top: -44,
-            child: Container(
-              width: 190,
-              height: 190,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  width: 32,
-                ),
-              ),
-            ),
-          ),
-          // ── Content ───────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Top row: context label + liveness ─────────────
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(_statusIcon(), size: 13, color: _statusIconColor()),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        _contextLabel(),
-                        maxLines: 2,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
-                        ),
-                      ),
-                    ),
-                    if (!isTerminal) ...[
-                      const SizedBox(width: 12),
-                      _LivenessBadge(
-                        lastUpdateTime: lastUpdateTime,
-                        isLive: isLive,
-                      ),
-                    ],
-                  ],
-                ),
-                // ── ETA / clock window ─────────────────────────────
-                if (!isTerminal) ...[
-                  const SizedBox(height: 14),
-                  AnimatedSwitcher(
-                    duration: Duration(milliseconds: reduceMotion ? 0 : 400),
-                    transitionBuilder: (child, anim) {
-                      if (reduceMotion) return child;
-                      return FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.06),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: anim,
-                              curve: Curves.easeOutQuart,
-                            ),
-                          ),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child:
-                        clockWindow != null
-                            ? _ClockWindowDisplay(
-                              key: ValueKey(clockWindow),
-                              window: clockWindow,
-                              color: Colors.white,
-                            )
-                            : _EtaShimmerDark(key: const ValueKey('shimmer')),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Estimated arrival window',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Colors.white.withValues(alpha: 0.48),
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                ] else
-                  const SizedBox(height: 18),
-                // ── Status pill ────────────────────────────────────
-                _StatusPill(status: status),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _statusIcon() {
-    switch (status) {
-      case OrderStatus.pending:
-        return Icons.hourglass_top_rounded;
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return Icons.check_circle_rounded;
-      case OrderStatus.processing:
-        return Icons.restaurant_rounded;
-      case OrderStatus.delivered:
-        return Icons.celebration_rounded;
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return Icons.cancel_rounded;
-      default:
-        return Icons.schedule_rounded;
-    }
-  }
-
-  Color _statusIconColor() {
-    switch (status) {
-      case OrderStatus.pending:
-        return WaddyColors.amber;
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return WaddyColors.mint;
-      case OrderStatus.processing:
-        return WaddyColors.coral;
-      case OrderStatus.delivered:
-        return WaddyColors.mint;
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return const Color(0xFFFF8A8A);
-      default:
-        return Colors.white70;
-    }
-  }
-
-  String? _clockWindow() {
-    if (estimatedDeliveryAt != null && estimatedDeliveryAt!.isNotEmpty) {
-      try {
-        DateTime? eta = DateTime.tryParse(estimatedDeliveryAt!);
-        if (eta == null) {
-          final parts = estimatedDeliveryAt!.split(' ');
-          if (parts.length >= 2) {
-            eta = DateTime.tryParse('${parts[0]}T${parts[1]}');
-          }
-        }
-        if (eta != null) {
-          final lo = eta.subtract(const Duration(minutes: 5));
-          final hi = eta.add(const Duration(minutes: 5));
-          return '${ETAResult.fmtTime(lo)} \u2013 ${ETAResult.fmtTime(hi)}';
-        }
-      } catch (e, s) {
-        swallow('format ETA window', e, s);
-      }
-    }
-
-    final minutes = liveEtaMinutes ?? prepMinutes;
-    if (minutes == null || minutes <= 0) return null;
-
-    final result = ETAResult(
-      minMinutes: minutes,
-      maxMinutes: minutes + (minutes * 0.2).round().clamp(2, 10),
-      speedUsed: 0,
-    );
-    return result.clockWindow;
-  }
-
-  String _contextLabel() {
-    final name = storeName ?? 'the restaurant';
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Sent to $name \u2014 waiting for confirmation';
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return '$name confirmed your order!';
-      case OrderStatus.processing:
-        return '$name is preparing your meal';
-      case OrderStatus.delivered:
-        return 'Delivered \u2014 enjoy every bite!';
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return 'Order cancelled';
-      default:
-        return 'Estimated arrival';
-    }
-  }
-}
-
-// ─── Clock Window Display ──────────────────────────────────────────────────────
-class _ClockWindowDisplay extends StatelessWidget {
-  final String window;
-  final Color? color;
-  const _ClockWindowDisplay({super.key, required this.window, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Text(
-        window,
-        maxLines: 1,
-        softWrap: false,
-        style: TextStyle(
-          fontSize: 44,
-          color: color ?? WaddyColors.primary,
-          fontWeight: FontWeight.w900,
-          letterSpacing: -1.5,
-          height: 1.0,
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Status Pill ──────────────────────────────────────────────────────────────
-// Minimal translucent badge on the dark hero. No shadow, no fill — keeps the
-// hero clean and lets the ETA be the dominant element.
-class _StatusPill extends StatelessWidget {
-  final OrderStatus? status;
-  const _StatusPill({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isError =
-        status == OrderStatus.canceled || status == OrderStatus.failed;
-    final bool isSuccess = status == OrderStatus.delivered;
-    final bool isActive = !isError && !isSuccess;
-
-    final Color borderColor =
-        isError
-            ? const Color(0xFFFF8A8A).withValues(alpha: 0.5)
-            : isSuccess
-            ? WaddyColors.mint.withValues(alpha: 0.5)
-            : Colors.white.withValues(alpha: 0.22);
-
-    final Color textColor =
-        isError
-            ? const Color(0xFFFF8A8A)
-            : isSuccess
-            ? WaddyColors.mint
-            : Colors.white.withValues(alpha: 0.9);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.paddingSizeMedium,
-        vertical: 7,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Dimensions.radiusExtraLarge),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isActive)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: SizedBox(
-                width: 10,
-                height: 10,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  valueColor: AlwaysStoppedAnimation(
-                    Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-            ),
-          Text(
-            _caption(),
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 12.5,
-              letterSpacing: 0.1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _caption() {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Waiting for restaurant';
-      case OrderStatus.accepted:
-      case OrderStatus.confirmed:
-        return 'Confirmed';
-      case OrderStatus.processing:
-        return 'Being prepared';
-      case OrderStatus.handover:
-      case OrderStatus.pickedUp:
-        return 'Out for delivery';
-      case OrderStatus.delivered:
-        return 'Delivered!';
-      case OrderStatus.canceled:
-      case OrderStatus.failed:
-        return 'Cancelled';
-      default:
-        return 'Processing';
-    }
-  }
-}
-
-// ─── Map Hero ─────────────────────────────────────────────────────────────────
-// Full-height embedded map shown when rider is en-route (handover / pickedUp).
-// Floats the estimated arrival time as a chip over the map.
-class _MapHero extends StatelessWidget {
-  final Set<Marker> markers;
-  final Set<Polyline> polylines;
-  final ETAResult? eta;
-  final void Function(GoogleMapController) onMapCreated;
-  final LatLng? initialFocus;
-
-  const _MapHero({
-    super.key,
-    required this.markers,
-    required this.polylines,
-    required this.eta,
-    required this.onMapCreated,
-    required this.initialFocus,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final LatLng focus = initialFocus ?? const LatLng(0, 0);
-    final String? arrivalText =
-        eta != null && !eta!.isArriving
-            ? 'Arrives ~${ETAResult.fmtTime(DateTime.now().add(Duration(minutes: eta!.minMinutes)))}'
-            : eta?.isArriving == true
-            ? 'Arriving now!'
+    final String? tipLine =
+        bill.dmTips > 0
+            ? (stage == OrderStage.delivered ? 'od_tipped' : 'od_tip_thanks')
+                .trParams({'amount': PriceConverter.convertPrice(bill.dmTips)})
             : null;
 
-    // Responsive map height: taller on tall devices
-    final screenH = MediaQuery.of(context).size.height;
-    final mapHeight = (screenH * 0.32).clamp(220.0, 340.0);
-
-    return Stack(
-      children: [
-        // Map
-        SizedBox(
-          height: mapHeight,
-          child: GoogleMap(
-            initialCameraPosition: CameraPosition(target: focus, zoom: 15.0),
-            markers: markers,
-            polylines: polylines,
-            zoomControlsEnabled: false,
-            myLocationButtonEnabled: false,
-            mapToolbarEnabled: false,
-            onMapCreated: onMapCreated,
-          ),
-        ),
-
-        // Arrival time badge — energetic coral gradient
-        if (arrivalText != null)
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeMedium,
-                vertical: 9,
+    final List<OrderDetailsModel> reviewable = _reviewableItems(items);
+    final void Function(int stars)? onRate =
+        stage == OrderStage.delivered &&
+                AuthHelper.isLoggedIn() &&
+                (reviewable.isNotEmpty || rider != null)
+            ? (stars) => Get.toNamed(
+              RouteHelper.getReviewRoute(),
+              arguments: RateReviewScreen(
+                orderDetailsList: reviewable,
+                deliveryMan: rider,
+                orderID: order.id,
+                initialRating: stars,
               ),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [WaddyColors.primary, Color(0xFF1D706A)],
-                ),
-                borderRadius: BorderRadius.circular(
-                  Dimensions.radiusExtraLarge,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: WaddyColors.primary.withValues(alpha: 0.40),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.two_wheeler_rounded,
-                    color: WaddyColors.mint,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    arrivalText,
-                    style: waddyLabel.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+            )
+            : null;
 
-        // Clock-window badge — floated bottom-right
-        if (eta != null && !eta!.isArriving)
-          Positioned(
-            bottom: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Dimensions.paddingSizeMedium,
-                vertical: Dimensions.paddingSizeSmall,
-              ),
-              decoration: BoxDecoration(
-                color: WaddyColors.surface,
-                borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-                border: Border.all(color: WaddyColors.divider),
-                boxShadow: [
-                  BoxShadow(
-                    color: WaddyColors.shadowTeal.withValues(alpha: 0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Text(
-                eta!.clockWindow,
-                style: waddyLabel.copyWith(
-                  color: WaddyColors.ink,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
+    final bool canReorder =
+        AuthHelper.isLoggedIn() &&
+        order.id != null &&
+        order.orderType != 'parcel' &&
+        !(order.prescriptionOrder ?? false) &&
+        items.isNotEmpty;
+    final VoidCallback? onReorder = canReorder ? () => _reorder(order) : null;
 
-// ─── Liveness Badge ───────────────────────────────────────────────────────────
-// Shows "● Live" when SSE is active, "Updated X ago" when on polling fallback.
-// Displayed in the hero footer so the user always knows data freshness.
-class _LivenessBadge extends StatefulWidget {
-  final DateTime? lastUpdateTime;
-  final bool isLive;
+    // The printed scratch card, in its own slot in the card list: "coming with
+    // this order" while live, "won? use your code" for a week after delivery.
+    // Parcels carry no bag.
+    final bool cardInBag =
+        order.orderType != 'parcel' && ScratchCardBadge.inBags;
 
-  const _LivenessBadge({this.lastUpdateTime, this.isLive = false});
-
-  @override
-  State<_LivenessBadge> createState() => _LivenessBadgeState();
-}
-
-class _LivenessBadgeState extends State<_LivenessBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _dotCtrl;
-  late final Animation<double> _dotScale;
-  Timer? _refreshTimer;
-  String _label = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _dotCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _dotScale = Tween<double>(
-      begin: 0.5,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _dotCtrl, curve: Curves.easeInOut));
-    _updateLabel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) setState(() => _updateLabel());
+    final String orderLabel = 'od_order_number'.trParams({
+      'id': '${order.id ?? ''}',
     });
-  }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (!reduceMotion && widget.isLive && !_dotCtrl.isAnimating) {
-      _dotCtrl.repeat(reverse: true);
-    } else if (reduceMotion || !widget.isLive) {
-      _dotCtrl.stop();
-      _dotCtrl.value = 1.0;
-    }
-  }
-
-  @override
-  void didUpdateWidget(_LivenessBadge old) {
-    super.didUpdateWidget(old);
-    _updateLabel();
-    if (widget.isLive && !_dotCtrl.isAnimating) {
-      _dotCtrl.repeat(reverse: true);
-    } else if (!widget.isLive) {
-      _dotCtrl.stop();
-      _dotCtrl.value = 1.0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _dotCtrl.dispose();
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  void _updateLabel() {
-    if (widget.isLive) {
-      _label = 'Live';
-      return;
-    }
-    final t = widget.lastUpdateTime;
-    if (t == null) {
-      _label = 'Updating…';
-      return;
-    }
-    final diff = DateTime.now().difference(t);
-    if (diff.inMinutes < 1) {
-      _label = 'Just updated';
-    } else if (diff.inMinutes < 60) {
-      _label = 'Updated ${diff.inMinutes}m ago';
-    } else {
-      _label = 'Updated ${diff.inHours}h ago';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Color dotColor = widget.isLive ? WaddyColors.mint : WaddyColors.amber;
-    final Color textColor =
-        widget.isLive
-            ? WaddyColors.mint.withValues(alpha: 0.9)
-            : Colors.white.withValues(alpha: 0.55);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ScaleTransition(
-          scale: _dotScale,
-          child: Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-          ),
+    // Fixed slot order across every stage, so a glance lands in the same
+    // place: what needs doing now → who is bringing it → where → what → help.
+    final cards = <Widget>[
+      if (showOtp) OrderPinCard(otp: order.otp!),
+      if (stage == OrderStage.delivered)
+        OrderEndingCard(
+          headline: 'od_ending_title'.tr,
+          subtitle: _deliveredBy(rider),
+          tipLine: tipLine,
+          onRate: onRate,
+          onReorder: onReorder,
+          reordering: _reordering,
         ),
-        const SizedBox(width: 5),
-        Text(
-          _label,
-          style: TextStyle(
-            fontSize: 11.5,
-            color: textColor,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.1,
+      if (stage == OrderStage.delivered &&
+          cardInBag &&
+          _deliveredWithinDays(order, 7))
+        const ScratchCardBar(moment: ScratchTeaserMoment.delivered),
+      if (stage == OrderStage.closed) _outcomeCard(order, status, onReorder),
+      if (stage == OrderStage.preparing)
+        OrderAssigningCard(
+          text:
+              status == OrderStatus.pending
+                  ? 'od_assigning_after_confirm'.tr
+                  : 'od_assigning_partner'.tr,
+          tipLine: tipLine,
+        ),
+      if (rider != null && live && stage != OrderStage.preparing)
+        OrderRiderCard(
+          rider: rider,
+          onChat:
+              showChatPermission ? () => _openRiderChat(order, rider) : null,
+          onCall:
+              (rider.phone ?? '').isNotEmpty ? () => _dial(rider.phone!) : null,
+          tipLine: tipLine,
+        ),
+      if (live && cardInBag)
+        const ScratchCardBar(moment: ScratchTeaserMoment.onTheWay),
+      OrderDeliveryDetailsCard(
+        contactLine: _contactLine(order),
+        addressTitle: _addressTitle(order, stage),
+        addressLine: _addressLine(order),
+        instructions: _instructions(order),
+      ),
+      OrderStoreCard(
+        store: order.store,
+        onCallStore:
+            live && (order.store?.phone ?? '').isNotEmpty
+                ? () => _dial(order.store!.phone!)
+                : null,
+        orderLabel: orderLabel,
+        itemsSummary: _itemsSummary(items),
+        paymentIcon:
+            _isCash(order)
+                ? Icons.payments_outlined
+                : Icons.credit_card_outlined,
+        paymentLabel: _paymentLabel(order, stage),
+        amount: PriceConverter.convertPrice(order.orderAmount ?? bill.total),
+        cashNote:
+            live && order.paymentMethod == 'cash_on_delivery'
+                ? 'od_cash_ready'.trParams({
+                  'amount': PriceConverter.convertPrice(
+                    order.orderAmount ?? bill.total,
+                  ),
+                })
+                : null,
+        onOpenBill:
+            () => OrderBillSheet.show(
+              context,
+              orderLabel: orderLabel,
+              items: items,
+              bill: bill,
+              paymentMethod: order.paymentMethod,
+            ),
+      ),
+      OrderHelpCard(
+        onHelp: () => Get.toNamed(RouteHelper.getSupportRoute()),
+        onCancel:
+            status == OrderStatus.pending
+                ? () => OrderCancelSheet.show(
+                  context,
+                  onConfirm: (reason) => _cancelOrder(order, reason),
+                )
+                : null,
+      ),
+    ];
+
+    return cards;
+  }
+
+  /// Far from home (or no live fix): the scrolling page, with the stage
+  /// animation on the band's continuation scrolling away with the body.
+  Widget _buildBody(OrderModel order, OrderStage stage, List<Widget> cards) {
+    final String? animation = _stageAnimation(order);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (animation != null)
+          OrderStageBand(
+            asset: animation,
+            tone: _headerTone(order, stage),
+            loop: stage.isLive,
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeMedium,
+            Dimensions.paddingSizeDefault,
+            Dimensions.paddingSizeExtraOverLarge,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: _spaced(cards),
           ),
         ),
       ],
     );
   }
-}
 
-// ─── ETA Shimmer (dark variant) ───────────────────────────────────────────────
-// Light shimmer bars on the dark teal hero while ETA resolves.
-class _EtaShimmerDark extends StatefulWidget {
-  const _EtaShimmerDark({super.key});
+  List<Widget> _spaced(List<Widget> cards) => [
+    for (int i = 0; i < cards.length; i++) ...[
+      if (i > 0) const SizedBox(height: Dimensions.paddingSizeMedium),
+      cards[i],
+    ],
+  ];
 
-  @override
-  State<_EtaShimmerDark> createState() => _EtaShimmerDarkState();
-}
+  /// The rider is close (LT-02): the map fills the screen behind the status
+  /// bar and the cards ride on a sheet over it.
+  Widget _buildNear(
+    BuildContext context,
+    OrderModel order,
+    OrderStage stage,
+    List<Widget> cards,
+  ) {
+    const double sheet = 0.42;
+    final double screen = MediaQuery.sizeOf(context).height;
+    final EdgeInsets safe = MediaQuery.paddingOf(context);
+    final double meters = _riderMeters ?? _nearOnMeters;
+    final bool arriving = meters < _arrivingMeters;
 
-class _EtaShimmerDarkState extends State<_EtaShimmerDark>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _opacity = Tween<double>(
-      begin: 0.15,
-      end: 0.35,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (reduceMotion) {
-      _ctrl.stop();
-      _ctrl.value = 0.5;
-    } else if (!_ctrl.isAnimating) {
-      _ctrl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Stack(
         children: [
-          Container(
-            height: 36,
-            width: 220,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+          Positioned.fill(
+            child: OrderLiveMap(
+              rider: _liveRider(order)!,
+              home: _homePoint(order)!,
+              insets: EdgeInsets.only(
+                top: safe.top + Dimensions.minTapTarget,
+                bottom: screen * sheet - Dimensions.radiusExtraLarge,
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          Container(
-            height: 36,
-            width: 140,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
+          PositionedDirectional(
+            top: safe.top + Dimensions.paddingSizeSmall,
+            start: Dimensions.paddingSizeDefault,
+            child: OrderMapButton(
+              icon: Icons.arrow_back_rounded,
+              semanticLabel:
+                  MaterialLocalizations.of(context).backButtonTooltip,
+              onTap: _handleBack,
             ),
+          ),
+          PositionedDirectional(
+            top: safe.top + Dimensions.paddingSizeSmall,
+            end: Dimensions.paddingSizeDefault,
+            child: OrderMapButton(
+              label: 'help'.tr,
+              onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
+            ),
+          ),
+          DraggableScrollableSheet(
+            initialChildSize: sheet,
+            minChildSize: sheet,
+            maxChildSize: 0.92,
+            snap: true,
+            builder:
+                (context, controller) => OrderNearSheet(
+                  controller: controller,
+                  bottomInset: safe.bottom,
+                  summary: OrderNearSummary(
+                    eta: _eta(order, stage),
+                    title:
+                        arriving
+                            ? 'od_rider_arriving'.tr
+                            : _statusTitle(order, stage),
+                    // Placed and prepared are done; the last leg fills as
+                    // the rider closes in from the edge of the map's range.
+                    rideProgress: (1 - meters / _nearOnMeters).clamp(0.08, 1),
+                  ),
+                  children: _spaced(cards),
+                ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Delivered no more than [days] ago. The stamp is a naive server-time
+  /// string; day precision is all this needs, so it is read as-is.
+  bool _deliveredWithinDays(OrderModel order, int days) {
+    final DateTime? at = DateTime.tryParse(order.delivered ?? '');
+    return at != null && DateTime.now().difference(at).inDays < days;
+  }
+
+  /// Cancelled, failed and refund states. The header already says what
+  /// happened and when; this card says why (when someone wrote a reason) and
+  /// what the customer can do next.
+  Widget _outcomeCard(
+    OrderModel order,
+    OrderStatus? status,
+    VoidCallback? onReorder,
+  ) {
+    final String? refundReason = _nonEmpty(order.refund?.customerReason);
+    switch (status) {
+      case OrderStatus.refundRequested:
+        return OrderOutcomeCard(
+          positive: true,
+          icon: Icons.schedule_rounded,
+          title: 'od_title_refund_requested'.tr,
+          subtitle: 'od_refund_requested_subtitle'.tr,
+          reason: refundReason,
+        );
+      case OrderStatus.refunded:
+        return OrderOutcomeCard(
+          positive: true,
+          icon: Icons.replay_rounded,
+          title: 'od_title_refunded'.tr,
+          subtitle: 'od_refunded_subtitle'.tr,
+          reason: refundReason,
+        );
+      case OrderStatus.failed:
+        return OrderOutcomeCard(
+          positive: false,
+          icon: Icons.warning_amber_rounded,
+          title: 'od_title_failed'.tr,
+          subtitle: 'od_failed_subtitle'.tr,
+          reason: _nonEmpty(order.cancellationReason),
+          onReorder: onReorder,
+          reordering: _reordering,
+        );
+      default:
+        return OrderOutcomeCard(
+          positive: false,
+          icon: Icons.close_rounded,
+          title: 'od_title_cancelled'.tr,
+          subtitle:
+              onReorder != null
+                  ? 'od_cancelled_reorder_hint'.tr
+                  : 'od_cancelled_subtitle'.tr,
+          reason: _nonEmpty(order.cancellationReason),
+          onReorder: onReorder,
+          reordering: _reordering,
+        );
+    }
+  }
+
+  String _deliveredBy(DeliveryMan? rider) {
+    final String name = '${rider?.fName ?? ''} ${rider?.lName ?? ''}'.trim();
+    return name.isNotEmpty
+        ? 'od_delivered_by'.trParams({'name': name})
+        : 'od_delivered_enjoy'.tr;
+  }
+
+  /// "Delivering to Home" only for the two types that are real places to a
+  /// person; anything else ("others", custom labels) is just the address.
+  String _addressTitle(OrderModel order, OrderStage stage) {
+    final String type =
+        (order.deliveryAddress?.addressType ?? '').trim().toLowerCase();
+    if (type == 'home' || type == 'office') {
+      return (stage == OrderStage.delivered
+              ? 'od_delivered_to_place'
+              : 'od_delivering_to_place')
+          .trParams({'place': type.tr});
+    }
+    return 'od_delivery_address'.tr;
+  }
+
+  Future<void> _reorder(OrderModel order) async {
+    if (_reordering || order.id == null) return;
+    setState(() => _reordering = true);
+    final result = await Get.find<OrderController>().reorder(order.id!);
+    if (!mounted) return;
+    setState(() => _reordering = false);
+    if (result != null) Get.toNamed(RouteHelper.getCartRoute());
+  }
+
+  /// Free text from the backend, or null when there is nothing a person
+  /// wrote — some clients store the literal string "null".
+  String? _nonEmpty(String? value) {
+    final String trimmed = (value ?? '').trim();
+    const Set<String> blanks = {'', 'null', 'undefined', 'none', 'n/a'};
+    return blanks.contains(trimmed.toLowerCase()) ? null : trimmed;
+  }
+
+  bool _isCash(OrderModel order) =>
+      order.paymentMethod == 'cash_on_delivery' ||
+      order.paymentMethod == 'partial_payment';
+
+  String _paymentLabel(OrderModel order, OrderStage stage) {
+    switch (order.paymentMethod) {
+      case 'cash_on_delivery':
+        return stage == OrderStage.delivered
+            ? 'od_pay_cash_paid'.tr
+            : 'od_pay_cash'.tr;
+      case 'wallet':
+        return 'od_pay_wallet'.tr;
+      case 'partial_payment':
+        return 'od_pay_partial'.tr;
+      case 'offline_payment':
+        return 'od_pay_offline'.tr;
+      default:
+        return 'od_pay_online'.tr;
+    }
+  }
+
+  String? _formatTime(OrderModel order, String? raw) {
+    final DateTime? local = order.stampToLocal(raw);
+    return local == null ? null : DateConverter.dateToTimeOnly(local);
+  }
+
+  String? _contactLine(OrderModel order) {
+    final String name = (order.deliveryAddress?.contactPersonName ?? '').trim();
+    final String phone =
+        (order.deliveryAddress?.contactPersonNumber ?? '').trim();
+    if (name.isEmpty && phone.isEmpty) return null;
+    if (name.isEmpty) return phone;
+    if (phone.isEmpty) return name;
+    return '$name${listSeparator()}$phone';
+  }
+
+  /// Street details, floor and apartment first — they are what the rider
+  /// needs at the door — then the geocoded area line.
+  String? _addressLine(OrderModel order) {
+    final a = order.deliveryAddress;
+    if (a == null) return null;
+    final parts = <String>[
+      if ((a.streetNumber ?? '').trim().isNotEmpty) a.streetNumber!.trim(),
+      if ((a.floor ?? '').trim().isNotEmpty)
+        'od_floor'.trParams({'value': a.floor!.trim()}),
+      if ((a.house ?? '').trim().isNotEmpty)
+        'od_apartment'.trParams({'value': a.house!.trim()}),
+      if ((a.address ?? '').trim().isNotEmpty) a.address!.trim(),
+    ];
+    return parts.isEmpty ? null : parts.join(listSeparator());
+  }
+
+  String? _instructions(OrderModel order) {
+    // Checkout stores the picked chips as a comma-joined list of keys
+    // ("avoid_calling,leave_at_the_door"); translate each one.
+    final String fromOrder = (order.deliveryInstruction ?? '').trim();
+    if (fromOrder.isNotEmpty) {
+      return fromOrder
+          .split(',')
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty)
+          .map((part) => part.tr)
+          .join(listSeparator());
+    }
+    final String fromAddress =
+        (order.deliveryAddress?.deliveryInstructions ?? '').trim();
+    return fromAddress.isNotEmpty ? fromAddress : null;
+  }
+
+  String _itemsSummary(List<OrderDetailsModel> items) {
+    final named =
+        items.where((i) => (i.itemDetails?.name ?? '').isNotEmpty).toList();
+    if (named.isEmpty) return 'od_view_order_summary'.tr;
+    final shown = named
+        .take(2)
+        .map((i) => '${i.quantity ?? 1} × ${i.itemDetails!.name}')
+        .join(listSeparator());
+    final int more = named.length - 2;
+    return more > 0
+        ? '$shown ${'od_more_items'.trParams({'count': '$more'})}'
+        : shown;
+  }
+
+  /// One entry per distinct item — the review screen rates items, not lines.
+  List<OrderDetailsModel> _reviewableItems(List<OrderDetailsModel> items) {
+    final List<OrderDetailsModel> out = [];
+    final Set<int> seen = {};
+    for (final detail in items) {
+      final int? id = detail.itemDetails?.id;
+      if (id != null && seen.add(id)) out.add(detail);
+    }
+    return out;
+  }
+
+  void _dial(String phone) {
+    launchUrlString('tel:$phone', mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openRiderChat(OrderModel order, DeliveryMan rider) async {
+    _timer?.cancel();
+    await Get.toNamed(
+      RouteHelper.getChatRoute(
+        notificationBody: NotificationBodyModel(
+          deliverymanId: rider.id,
+          orderId: order.id,
+        ),
+        user: User(
+          id: rider.id,
+          fName: rider.fName,
+          lName: rider.lName,
+          imageFullUrl: rider.imageFullUrl,
+        ),
+      ),
+    );
+    _startPolling();
+  }
+
+  Future<void> _cancelOrder(OrderModel order, String reason) async {
+    final bool success = await Get.find<OrderController>().cancelOrder(
+      order.id,
+      reason,
+      guestId: AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+    );
+    if (success && mounted) await _refresh();
+  }
+}
+
+/// Paints the band colour into the space a top overscroll opens up.
+class _OverscrollFill extends StatelessWidget {
+  final ScrollController controller;
+  final Color color;
+  const _OverscrollFill({required this.controller, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final double pull =
+            controller.hasClients && controller.offset < 0
+                ? -controller.offset
+                : 0;
+        return Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: pull + 1,
+          child: ColoredBox(color: color),
+        );
+      },
     );
   }
 }
 
 // ─── Order Details Skeleton ───────────────────────────────────────────────────
-// Shown instead of CircularProgressIndicator while data loads.
-// Mirrors the real screen structure (hero + two cards) for a stable layout.
+// Mirrors the live layout — mint header, then stacked cards — so nothing jumps
+// when data lands.
 class _OrderDetailsSkeleton extends StatefulWidget {
   const _OrderDetailsSkeleton();
 
@@ -1662,211 +1224,43 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
     super.dispose();
   }
 
-  Widget _block({double height = 16, double? width, double radius = 8}) {
+  Widget _block({
+    double height = 16,
+    double? width,
+    double radius = Dimensions.radiusSmall,
+    Color color = WaddyColors.divider,
+  }) {
     return Container(
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: WaddyColors.divider,
+        color: color,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: Column(
+  Widget _card({required double height}) {
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+      decoration: BoxDecoration(
+        color: WaddyColors.surface,
+        borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+        border: Border.all(color: WaddyColors.divider),
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // App bar skeleton — matches the redesigned teal header
-          Container(
-            color: WaddyColors.primary,
-            padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(
-                      Dimensions.radiusDefault,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      height: 15,
-                      width: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusSmall,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: 11,
-                      width: 78,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusExtraSmall,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Hero skeleton — full teal to match real hero
-          Container(
-            height: 140,
-            color: WaddyColors.primary,
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+          _block(height: 48, width: 48, radius: 24),
+          const SizedBox(width: Dimensions.paddingSizeMedium),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 13,
-                  width: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  height: 44,
-                  width: 232,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  height: 28,
-                  width: 130,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Card sheet skeleton — gray container with top rounding
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF2F4F3),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(28),
-                topRight: Radius.circular(28),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
-            child: Column(
-              children: [
-                // Order card skeleton
-                Container(
-                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                  decoration: BoxDecoration(
-                    color: WaddyColors.surface,
-                    borderRadius: BorderRadius.circular(
-                      Dimensions.radiusExtraLarge,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: WaddyColors.divider,
-                              borderRadius: BorderRadius.circular(
-                                Dimensions.radiusLarge,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _block(height: 15, width: 100),
-                              const SizedBox(height: 6),
-                              _block(height: 12, width: 160),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _block(height: 8, width: double.infinity),
-                      const SizedBox(height: 10),
-                      _block(height: 8, width: 200),
-                      const SizedBox(height: 10),
-                      _block(height: 8, width: 240),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Rider card skeleton
-                Container(
-                  padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
-                  decoration: BoxDecoration(
-                    color: WaddyColors.surface,
-                    borderRadius: BorderRadius.circular(
-                      Dimensions.radiusExtraLarge,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: const BoxDecoration(
-                          color: WaddyColors.divider,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _block(height: 15, width: 120),
-                          const SizedBox(height: 6),
-                          _block(height: 12, width: 180),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                _block(height: 15, width: 140),
+                const SizedBox(height: Dimensions.paddingSizeSmall),
+                _block(height: 12, width: 200),
               ],
             ),
           ),
@@ -1874,201 +1268,48 @@ class _OrderDetailsSkeletonState extends State<_OrderDetailsSkeleton>
       ),
     );
   }
-}
-
-// ─── Tap scale feedback widget ─────────────────────────────────────────────
-// Applies a quick 0.92 scale-down on press, restores on release.
-// GPU-only (transform + opacity) — 60fps on low-end devices.
-class _TapScaleButton extends StatefulWidget {
-  final Widget child;
-  final VoidCallback onTap;
-
-  const _TapScaleButton({required this.child, required this.onTap});
-
-  @override
-  State<_TapScaleButton> createState() => _TapScaleButtonState();
-}
-
-class _TapScaleButtonState extends State<_TapScaleButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-      reverseDuration: const Duration(milliseconds: 150),
-    );
-    _scale = Tween<double>(
-      begin: 1.0,
-      end: 0.88,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  void _onTapDown(TapDownDetails _) => _ctrl.forward();
-  void _onTapUp(TapUpDetails _) {
-    _ctrl.reverse();
-    widget.onTap();
-  }
-
-  void _onTapCancel() => _ctrl.reverse();
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder:
-            (_, child) => Transform.scale(scale: _scale.value, child: child),
-        child: widget.child,
-      ),
-    );
-  }
-}
-
-// ─── ETA Shimmer placeholder ───────────────────────────────────────────────
-// Shows animated loading bars while ETA resolves instead of bare "--"
-// Respects reduced-motion accessibility preference.
-class _EtaShimmer extends StatefulWidget {
-  const _EtaShimmer({super.key});
-
-  @override
-  State<_EtaShimmer> createState() => _EtaShimmerState();
-}
-
-class _EtaShimmerState extends State<_EtaShimmer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _opacity = Tween<double>(
-      begin: 0.3,
-      end: 0.7,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (reduceMotion) {
-      _ctrl.stop();
-      _ctrl.value = 0.5;
-    } else if (!_ctrl.isAnimating) {
-      _ctrl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+    final Color onMint = WaddyColors.primary.withValues(alpha: 0.12);
     return FadeTransition(
       opacity: _opacity,
-      child: Container(
-        width: 80,
-        height: 68,
-        alignment: Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 72,
-              height: 16,
-              decoration: BoxDecoration(
-                color: WaddyColors.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: WaddyColors.mint,
+            padding: EdgeInsets.only(
+              top: MediaQuery.paddingOf(context).top + 64,
+              bottom: Dimensions.paddingSizeLarge,
             ),
-            const SizedBox(height: 8),
-            Container(
-              width: 48,
-              height: 12,
-              decoration: BoxDecoration(
-                color: WaddyColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(Dimensions.radiusSmall),
-              ),
+            child: Column(
+              children: [
+                _block(height: 26, width: 220, color: onMint),
+                const SizedBox(height: Dimensions.paddingSizeMedium),
+                _block(
+                  height: 36,
+                  width: 200,
+                  radius: Dimensions.radiusDefault,
+                  color: onMint,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(Dimensions.paddingSizeDefault),
+            child: Column(
+              children: [
+                _card(height: 88),
+                const SizedBox(height: Dimensions.paddingSizeMedium),
+                _card(height: 150),
+                const SizedBox(height: Dimensions.paddingSizeMedium),
+                _card(height: 120),
+              ],
+            ),
+          ),
+        ],
       ),
     );
-  }
-}
-
-// ─── Pulsing opacity badge ─────────────────────────────────────────────────
-// Loops between 60%→100% opacity — communicates "waiting" without distraction.
-class _PulsingBadge extends StatefulWidget {
-  final Widget child;
-  const _PulsingBadge({required this.child});
-
-  @override
-  State<_PulsingBadge> createState() => _PulsingBadgeState();
-}
-
-class _PulsingBadgeState extends State<_PulsingBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _opacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-
-    _opacity = Tween<double>(
-      begin: 0.55,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
-    if (reduceMotion) {
-      _ctrl.stop();
-      _ctrl.value = 1.0;
-    } else if (!_ctrl.isAnimating) {
-      _ctrl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(opacity: _opacity, child: widget.child);
   }
 }

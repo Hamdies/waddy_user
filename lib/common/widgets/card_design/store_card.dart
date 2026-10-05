@@ -1,23 +1,20 @@
+import 'package:waddy_app/features/store/store_navigator.dart';
+import 'package:waddy_app/features/store/domain/store_rules.dart';
 import 'package:waddy_app/common/models/module_model.dart';
-import 'package:waddy_app/util/parse.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
 import 'package:waddy_app/common/widgets/not_available_widget.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/new_tag.dart';
 import 'package:waddy_app/common/widgets/rating_bar.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 
 class StoreCard extends StatefulWidget {
   final Store store;
@@ -69,14 +66,7 @@ class _StoreCardState extends State<StoreCard>
         Get.find<SplashController>().module?.type == ModuleType.pharmacy;
     // The store's own coordinates are server strings and can be absent, so
     // they are read before they are used rather than banged through.
-    final double? storeLat = Parse.coordinate(widget.store.latitude);
-    final double? storeLng = Parse.coordinate(widget.store.longitude);
-    final double? distance =
-        (storeLat == null || storeLng == null)
-            ? null
-            : Get.find<StoreController>().getRestaurantDistance(
-              LatLng(storeLat, storeLng),
-            );
+    final double? distance = widget.store.distanceFromUserKm();
     double discount = widget.store.discount?.discount ?? 0;
     String discountType = widget.store.discount?.discountType ?? '';
     bool isRightSide =
@@ -117,19 +107,7 @@ class _StoreCardState extends State<StoreCard>
               ),
               child: CustomInkWell(
                 onTap: () {
-                  Get.find<SplashController>().activateModuleFor(
-                    widget.store.moduleId,
-                  );
-                  Get.toNamed(
-                    RouteHelper.getStoreRoute(
-                      id: widget.store.id,
-                      page: 'store',
-                    ),
-                    arguments: StoreScreen(
-                      store: widget.store,
-                      fromModule: false,
-                    ),
-                  );
+                  StoreNavigator.open(widget.store);
                 },
                 padding: const EdgeInsets.all(Dimensions.paddingSizeSmall),
                 radius: Dimensions.radiusDefault,
@@ -483,8 +461,7 @@ class _StoreCardState extends State<StoreCard>
                                         ),
                                         decoration: BoxDecoration(
                                           color:
-                                              Get.find<StoreController>()
-                                                      .isOpenNow(widget.store)
+                                              widget.store.isOpenNow
                                                   ? const Color(
                                                     0xffECA507,
                                                   ).withOpacity(0.1)
@@ -497,8 +474,7 @@ class _StoreCardState extends State<StoreCard>
                                           ),
                                           border: Border.all(
                                             color:
-                                                Get.find<StoreController>()
-                                                        .isOpenNow(widget.store)
+                                                widget.store.isOpenNow
                                                     ? const Color(
                                                       0xffECA507,
                                                     ).withOpacity(0.3)
@@ -516,10 +492,7 @@ class _StoreCardState extends State<StoreCard>
                                               height: 15,
                                               width: 15,
                                               color:
-                                                  Get.find<StoreController>()
-                                                          .isOpenNow(
-                                                            widget.store,
-                                                          )
+                                                  widget.store.isOpenNow
                                                       ? const Color(0xffECA507)
                                                       : Theme.of(
                                                         context,
@@ -532,16 +505,12 @@ class _StoreCardState extends State<StoreCard>
                                             ),
 
                                             Text(
-                                              Get.find<StoreController>()
-                                                      .isOpenNow(widget.store)
+                                              widget.store.isOpenNow
                                                   ? 'open_now'.tr
                                                   : 'closed_now'.tr,
                                               style: waddyBold.copyWith(
                                                 color:
-                                                    Get.find<StoreController>()
-                                                            .isOpenNow(
-                                                              widget.store,
-                                                            )
+                                                    widget.store.isOpenNow
                                                         ? const Color(
                                                           0xffECA507,
                                                         )

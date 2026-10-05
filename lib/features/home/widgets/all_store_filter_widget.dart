@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
@@ -12,7 +12,8 @@ class AllStoreFilterWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeListId,
       builder: (storeController) {
         return Center(
           child: Container(
@@ -73,7 +74,7 @@ class AllStoreFilterWidget extends StatelessWidget {
 
   Widget _buildFilterRow(
     BuildContext context,
-    StoreController storeController,
+    StoreListController storeController,
   ) {
     final bool filterActive = storeController.storeType != 'all';
 
@@ -337,7 +338,7 @@ class _SheetScaffold extends StatelessWidget {
 }
 
 class _SortSheetContent extends StatelessWidget {
-  final StoreController storeController;
+  final StoreListController storeController;
   const _SortSheetContent({required this.storeController});
 
   @override
@@ -348,7 +349,8 @@ class _SortSheetContent extends StatelessWidget {
       ('take_away', 'take_away'.tr),
     ];
 
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeListId,
       builder: (storeController) {
         return _SheetScaffold(
           title: 'sort_by'.tr,
@@ -411,12 +413,13 @@ class _SortSheetContent extends StatelessWidget {
 }
 
 class _FilterSheetContent extends StatelessWidget {
-  final StoreController storeController;
+  final StoreListController storeController;
   const _FilterSheetContent({required this.storeController});
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.storeListId,
       builder: (storeController) {
         final storeTypeChips = <(String, String)>[
           ('popular', 'popular'.tr),

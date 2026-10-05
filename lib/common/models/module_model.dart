@@ -20,6 +20,12 @@ enum ModuleType {
   parcel(AppConstants.parcel),
   places(AppConstants.places),
 
+  /// Pets. Not a backend type of its own: the backend runs it as a grocery
+  /// module (orders, admin, store app all unchanged) and marks it with
+  /// `variant: pets`. Only this app tells the two apart, here (PET-01,
+  /// docs/pets_module_plan.md). [wire] is never sent anywhere.
+  pets(AppConstants.pets),
+
   /// A module type this build does not know — a new one the backend has
   /// started serving, or a missing field. Never matches a real branch, so the
   /// app falls through to its generic handling rather than guessing.
@@ -32,7 +38,13 @@ enum ModuleType {
   /// The type for a raw `module_type` string. Case-insensitive: the payload
   /// has been seen with both casings, which is what the scattered
   /// `?.toLowerCase()` calls were patching over one site at a time.
-  static ModuleType of(String? value) {
+  ///
+  /// [variant] wins over [value]: a `grocery` module with `variant: pets` is
+  /// [ModuleType.pets], so no `== ModuleType.grocery` check matches it.
+  static ModuleType of(String? value, {String? variant}) {
+    if (variant?.toLowerCase().trim() == AppConstants.pets) {
+      return ModuleType.pets;
+    }
     if (value == null) return ModuleType.unknown;
     final String normalised = value.toLowerCase().trim();
     for (final ModuleType type in ModuleType.values) {
@@ -46,6 +58,10 @@ class ModuleModel {
   int? id;
   String? moduleName;
   String? moduleType;
+
+  /// Set when a module runs as [moduleType] on the backend but is its own
+  /// product in the app (`pets`). Null for every other module.
+  String? variant;
   String? thumbnailFullUrl;
   String? iconFullUrl;
   int? themeId;
@@ -56,12 +72,13 @@ class ModuleModel {
   List<ModuleZoneData>? zones;
 
   /// This module's kind, parsed once. Prefer this to comparing [moduleType].
-  ModuleType get type => ModuleType.of(moduleType);
+  ModuleType get type => ModuleType.of(moduleType, variant: variant);
 
   ModuleModel({
     this.id,
     this.moduleName,
     this.moduleType,
+    this.variant,
     this.thumbnailFullUrl,
     this.storesCount,
     this.iconFullUrl,
@@ -76,6 +93,7 @@ class ModuleModel {
     id = json['id'];
     moduleName = json['module_name'];
     moduleType = json['module_type'];
+    variant = json['variant'];
     thumbnailFullUrl = json['thumbnail_full_url'];
     iconFullUrl = json['icon_full_url'];
     themeId = json['theme_id'];
@@ -94,6 +112,9 @@ class ModuleModel {
     data['id'] = id;
     data['module_name'] = moduleName;
     data['module_type'] = moduleType;
+    // The selected module is cached through toJson; without this a cached
+    // Pets module comes back as grocery on the next cold start.
+    data['variant'] = variant;
     data['thumbnail_full_url'] = thumbnailFullUrl;
     data['icon_full_url'] = iconFullUrl;
     data['theme_id'] = themeId;

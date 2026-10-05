@@ -3,7 +3,6 @@ import 'package:waddy_app/features/xp/domain/models/challenge_model.dart';
 import 'package:waddy_app/features/xp/domain/models/prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/checkout_prize_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_config_model.dart';
-import 'package:waddy_app/features/xp/domain/models/xp_history_model.dart';
 import 'package:waddy_app/features/xp/domain/models/xp_leaderboard_model.dart';
 
 abstract class XpServiceInterface {
@@ -15,7 +14,6 @@ abstract class XpServiceInterface {
   Future<Response> claimPrize(int prizeId);
   Future<List<CheckoutPrize>> getCheckoutPrizes(double orderAmount);
   Future<XpConfigModel?> getXpConfig();
-  Future<XpHistoryModel?> getHistory({int limit = 20, int offset = 0});
   Future<XpLeaderboardModel?> getLeaderboard({
     String type = 'global',
     String period = 'alltime',

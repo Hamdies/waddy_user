@@ -66,8 +66,10 @@ class AppEnvironment {
   /// Defaults to `prod` while [defaultIsProduction] holds: a build with no
   /// flags talks to the production backend, so it must not claim to be `dev`.
   /// Once staging exists this goes back to `dev`.
-  static const String _rawFlavor =
-      String.fromEnvironment('WADDI_FLAVOR', defaultValue: 'prod');
+  static const String _rawFlavor = String.fromEnvironment(
+    'WADDI_FLAVOR',
+    defaultValue: 'prod',
+  );
 
   static final AppFlavor flavor = AppFlavor.fromName(_rawFlavor);
 

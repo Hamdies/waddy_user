@@ -130,10 +130,7 @@ class _ConfettiBurstState extends State<_ConfettiBurst>
                 painter: _ConfettiPainter(
                   pieces: _pieces,
                   progress: _controller.value,
-                  origin: Offset(
-                    size.width / 2,
-                    size.height * widget.originY,
-                  ),
+                  origin: Offset(size.width / 2, size.height * widget.originY),
                 ),
               ),
         ),

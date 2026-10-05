@@ -29,6 +29,7 @@ abstract class OrderServiceInterface {
     String? guestId, {
     String? contactNumber,
   });
+  Future<Response> getRiderLocation(String orderID, {String? contactNumber});
   Future<bool> cancelOrder(String orderID, String? reason, {String? guestId});
   OrderModel? prepareOrderModel(
     PaginatedOrderModel? runningOrderModel,

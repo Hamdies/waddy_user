@@ -1,3 +1,4 @@
+import 'package:waddy_app/features/store/domain/services/store_service_interface.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
@@ -9,19 +10,18 @@ import 'package:waddy_app/features/item/domain/models/common_condition_model.dar
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/item/domain/produce_preference.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/module_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
-import 'package:waddy_app/util/images.dart';
 import 'package:waddy_app/common/widgets/cart_snackbar.dart';
-import 'package:waddy_app/common/widgets/confirmation_dialog.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
+import 'package:waddy_app/features/item/screens/mart_product_screen.dart';
 import 'package:waddy_app/features/item/screens/item_details_screen.dart';
 import 'package:waddy_app/features/item/domain/services/item_service_interface.dart';
 import 'package:waddy_app/features/language/controllers/language_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/cart/widgets/cart_module_conflict_dialog.dart';
 
 class ItemController extends GetxController implements GetxService {
@@ -89,6 +89,30 @@ class ItemController extends GetxController implements GetxService {
 
   int _cartIndex = -1;
   int get cartIndex => _cartIndex;
+
+  /// True while the item sheet is open from a "+" (not editing a cart line).
+  ///
+  /// The sheet then starts fresh — quantity 1, no add-ons — even when the
+  /// chosen options match a line already in the cart, and its "Add" grows that
+  /// line by the sheet's quantity ([identicalLineIndex]). Without it, picking
+  /// "Large" pulled in the existing Large line's quantity and add-ons, and
+  /// "Add" overwrote that line: "2 in cart, add 2 more" ended at 2, and other
+  /// add-ons replaced the line's instead of becoming a line of their own.
+  bool _accumulate = false;
+
+  /// The produce answer picked on the open item (`ready_to_eat`, `salad`…).
+  /// Null until the shopper picks — an item that asks can't be added
+  /// without it. See `ProducePreference`.
+  String? _preference;
+  String? get preference => _preference;
+
+  /// Picks [code] for [item], then finds the cart line already holding that
+  /// answer, if any, so the page shows its quantity.
+  void setPreference(String code, Item item) {
+    _preference = code;
+    setExistInCart(item, _selectedVariations);
+    update();
+  }
 
   Item? _item;
   Item? get item => _item;
@@ -803,7 +827,12 @@ class ItemController extends GetxController implements GetxService {
     update();
   }
 
-  Future<void> getItemDetails({required int itemId, CartModel? cart}) async {
+  Future<void> getItemDetails({
+    required int itemId,
+    CartModel? cart,
+    bool accumulate = false,
+  }) async {
+    _accumulate = accumulate && cart == null;
     _item = null;
     _storeLogoUrl = null;
     _item = await itemServiceInterface.getItemDetails(itemId);
@@ -818,24 +847,16 @@ class ItemController extends GetxController implements GetxService {
   Future<void> _fetchStoreLogo(int? storeId) async {
     if (storeId == null) return;
     try {
-      if (Get.isRegistered<StoreController>()) {
-        final storeController = Get.find<StoreController>();
-        // If store is already loaded with matching ID, use its logo
-        if (storeController.store != null &&
-            storeController.store!.id == storeId) {
-          _storeLogoUrl = storeController.store!.logoFullUrl;
-          update();
-          return;
-        }
-      }
-      // Lightweight fetch: use store service directly
-      final store = await Get.find<StoreController>().storeServiceInterface
-          .getStoreDetails(
-            storeId.toString(),
-            false,
-            '',
-            Get.find<LocalizationController>().locale.languageCode,
-            ModuleHelper.currentModuleId(),
+      // The shared store cache (ST-10): a store the page, cart or checkout
+      // already fetched costs nothing here, and a logo tolerates the cache's
+      // full TTL. It used to borrow `StoreController.store` when the ids
+      // matched and otherwise fetch the whole store again.
+      final store = await Get.find<StoreServiceInterface>()
+          .getCachedStoreDetails(
+            storeId,
+            languageCode:
+                Get.find<LocalizationController>().locale.languageCode,
+            moduleId: ModuleHelper.currentModuleId(),
           );
       if (store != null) {
         _storeLogoUrl = store.logoFullUrl;
@@ -847,6 +868,8 @@ class ItemController extends GetxController implements GetxService {
   }
 
   void initData(Item? item, CartModel? cart) {
+    // Editing a cart line keeps its answer; a fresh open asks again.
+    _preference = cart?.preference;
     _variationIndex = [];
     _addOnQtyList = [];
     _addOnActiveList = [];
@@ -928,16 +951,23 @@ class ItemController extends GetxController implements GetxService {
         null,
         selectedVariations,
       );
+    } else if (ProducePreference.asks(item.prepOption) && _preference == null) {
+      // Nothing picked yet, so no line can be "this one".
+      _cartIndex = -1;
     } else {
       _cartIndex = Get.find<CartController>().isExistInCart(
         item.id,
         variationType,
         false,
         null,
+        preference:
+            ProducePreference.asks(item.prepOption) ? _preference : null,
       );
     }
 
-    if (_cartIndex != -1) {
+    if (_accumulate) {
+      // The sheet's own quantity and add-ons stand; see [_accumulate].
+    } else if (_cartIndex != -1) {
       _quantity = Get.find<CartController>().cartList[_cartIndex].quantity;
       _addOnActiveList = itemServiceInterface.initializeCartAddonActiveList(
         Get.find<CartController>().cartList[_cartIndex].addOnIds,
@@ -1093,6 +1123,8 @@ class ItemController extends GetxController implements GetxService {
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
       );
+    } else if (!isCampaign && MartProductScreen.handles(item)) {
+      MartProductScreen.open(item);
     } else {
       Get.toNamed(
         RouteHelper.getItemDetailsRoute(item.id, inStore),
@@ -1164,14 +1196,173 @@ class ItemController extends GetxController implements GetxService {
       'Item',
     );
 
+    _commitAdd(
+      item,
+      cartModel,
+      onlineCart,
+      stock: item.stock,
+      showToast: showToast,
+    );
+  }
+
+  /// The "+" on a card, for a grocery item that only asks a question —
+  /// which size, salad or cooking: adds it at once instead of opening its
+  /// page, on the first size in stock and the question's first answer. The
+  /// shopper changes either on the product page, which the card still opens.
+  Future<void> quickAddToCart(Item item) async {
+    if (await Get.find<CartController>().blockedOutOfZone()) return;
+    final bool tracksStock =
+        Get.find<SplashController>().configModel.moduleConfig?.module?.stock ??
+        false;
+    final List<Variation> sizes = item.variations ?? const <Variation>[];
+    Variation? variation;
+    if (sizes.isNotEmpty) {
+      variation = sizes.firstWhereOrNull(
+        (v) => !tracksStock || (v.stock ?? 0) > 0,
+      );
+      if (variation == null) {
+        showCustomSnackBar('out_of_stock'.tr, getXSnackBar: true);
+        return;
+      }
+    }
+    final List<String> answers = ProducePreference.answersFor(item.prepOption);
+    addLineToCart(
+      item,
+      variation: variation,
+      preference: answers.isEmpty ? null : answers.first,
+    );
+  }
+
+  /// Adds [quantity] of [item] to the cart, in [variation] and with the
+  /// produce [preference] when it has them — the product sheet's "Add to
+  /// cart". The line that already holds exactly that variation and answer
+  /// grows by [quantity] instead of a duplicate being refused.
+  void addLineToCart(
+    Item item, {
+    Variation? variation,
+    String? preference,
+    int quantity = 1,
+    bool showToast = false,
+  }) {
+    final double price = variation?.price ?? item.price ?? 0;
+    final int? stock = variation != null ? variation.stock : item.stock;
+    final double discountPrice =
+        PriceConverter.convertWithDiscount(
+          price,
+          item.discount ?? 0,
+          item.discountType,
+        ) ??
+        price;
+    final List<Variation> variations = variation != null ? [variation] : [];
+    final bool newVariation =
+        ModuleHelper.getModuleConfig(item.moduleType).newVariation!;
+    final CartController cartController = Get.find<CartController>();
+
+    final int existing = cartController.isExistInCart(
+      item.id,
+      variation?.type ?? '',
+      false,
+      null,
+      preference: preference,
+    );
+    if (existing != -1) {
+      final CartModel line = cartController.cartList[existing];
+      final int newQuantity = (line.quantity ?? 0) + quantity;
+      cartController.updateCartOnline(
+        OnlineCart(
+          line.id,
+          item.id,
+          null,
+          price.toString(),
+          '',
+          variation != null ? variations : null,
+          newVariation ? [] : null,
+          newQuantity,
+          [],
+          [],
+          [],
+          'Item',
+          preference: preference,
+        ),
+        localFallback: CartModel(
+          line.id,
+          price,
+          discountPrice,
+          variations,
+          [],
+          (price - discountPrice),
+          newQuantity,
+          [],
+          [],
+          false,
+          stock,
+          item,
+          item.quantityLimit,
+          preference: preference,
+        ),
+        localIndex: existing,
+      );
+      _maybeCartToast(showToast);
+      return;
+    }
+
+    _commitAdd(
+      item,
+      CartModel(
+        null,
+        price,
+        discountPrice,
+        variations,
+        [],
+        (price - discountPrice),
+        quantity,
+        [],
+        [],
+        item.availableDateStarts != null,
+        stock,
+        item,
+        item.quantityLimit,
+        preference: preference,
+      ),
+      OnlineCart(
+        null,
+        item.id,
+        null,
+        price.toString(),
+        '',
+        variation != null ? variations : null,
+        newVariation ? [] : null,
+        quantity,
+        [],
+        [],
+        [],
+        'Item',
+        preference: preference,
+      ),
+      stock: stock,
+      showToast: showToast,
+    );
+  }
+
+  /// The guarded tail of every direct add: out of stock refuses; another
+  /// module's or store's basket asks before it is cleared; then the add.
+  void _commitAdd(
+    Item item,
+    CartModel cartModel,
+    OnlineCart onlineCart, {
+    required int? stock,
+    required bool showToast,
+  }) {
     final cartController = Get.find<CartController>();
     final splashController = Get.find<SplashController>();
 
     if (splashController.configModel.moduleConfig!.module!.stock! &&
-        (item.stock ?? 0) <= 0) {
+        (stock ?? 0) <= 0) {
       showCustomSnackBar('out_of_stock'.tr);
       return;
     }
+
+    if (_bumpExistingLine(item)) return;
 
     final int? moduleId =
         ModuleHelper.getModule()?.id ?? ModuleHelper.getCacheModule()?.id;
@@ -1200,7 +1391,7 @@ class ItemController extends GetxController implements GetxService {
           currentModuleName: currentModuleName,
           newModuleName: newModuleName,
           onClearCart: () {
-            cartController.clearCartOnline().then((success) async {
+            return cartController.clearCartOnline().then((success) async {
               if (success) {
                 await cartController.addToCartOnline(
                   onlineCart,
@@ -1220,19 +1411,10 @@ class ItemController extends GetxController implements GetxService {
 
     if (cartController.existAnotherStoreItem(item.storeId, moduleId)) {
       Get.dialog(
-        ConfirmationDialog(
-          icon: Images.warning,
-          title: 'are_you_sure_to_reset'.tr,
-          description:
-              splashController
-                      .configModel
-                      .moduleConfig!
-                      .module!
-                      .showRestaurantText!
-                  ? 'if_you_continue'.tr
-                  : 'if_you_continue_without_another_store'.tr,
-          onYesPressed: () {
-            cartController.clearCartOnline().then((success) async {
+        CartModuleConflictDialog.forStore(
+          newStoreName: item.storeName,
+          onClearCart: () {
+            return cartController.clearCartOnline().then((success) async {
               if (success) {
                 await cartController.addToCartOnline(
                   onlineCart,
@@ -1253,6 +1435,91 @@ class ItemController extends GetxController implements GetxService {
     _maybeCartToast(showToast);
   }
 
+  /// A simple item already in the cart grows its line by one instead of being
+  /// added again — the "+" that stays a "+" (search, favourites, Order Again)
+  /// used to send a second add and get "Item already exists" back. Goes
+  /// through the stepper's own optimistic path, so the stock / limit ceilings
+  /// and the rollback on a refused write are the same ones.
+  ///
+  /// A line that exists is by definition the same store and module, so the
+  /// cross-store / cross-module dialogs have nothing to guard here.
+  ///
+  /// Only a PLAIN line counts — no variation, no add-ons, no produce answer.
+  /// `isExistInCart` ignores add-ons and food options, so it would happily
+  /// grow a "with extra cheese" line from a bare "+".
+  bool _bumpExistingLine(Item item) {
+    final CartController cart = Get.find<CartController>();
+    final int index = cart.cartList.indexWhere(
+      (line) =>
+          line.item?.id == item.id &&
+          (line.variation?.isEmpty ?? true) &&
+          (line.addOnIds?.isEmpty ?? true) &&
+          (line.preference?.isEmpty ?? true) &&
+          !(line.foodVariations?.any((g) => g.contains(true)) ?? false),
+    );
+    if (index == -1) return false;
+    final CartModel line = cart.cartList[index];
+    cart.setQuantity(true, index, line.stock, line.quantityLimit);
+    return true;
+  }
+
+  /// The cart line that holds exactly what the sheet has selected — same
+  /// options, same add-ons at the same quantities, same produce answer — or
+  /// -1. Add-ons compare as sorted id:qty pairs, matching the backend's key.
+  int identicalLineIndex(
+    Item item, {
+    required List<int?> addOnIds,
+    required List<int?> addOnQtys,
+  }) {
+    final List<CartModel> lines = Get.find<CartController>().cartList;
+    final bool newVariation =
+        ModuleHelper.getModuleConfig(item.moduleType).newVariation!;
+    final String? preference =
+        ProducePreference.asks(item.prepOption) ? _preference : null;
+    final String key = _addOnKey(addOnIds, addOnQtys);
+
+    for (int i = 0; i < lines.length; i++) {
+      final CartModel line = lines[i];
+      if (line.item?.id != item.id) continue;
+      if (newVariation) {
+        if (!_sameSelections(line.foodVariations, _selectedVariations)) {
+          continue;
+        }
+      } else if (i != _cartIndex) {
+        // Old-style variations: [setExistInCart] already matched the variant.
+        continue;
+      }
+      final String? linePreference =
+          (line.preference?.isEmpty ?? true) ? null : line.preference;
+      if (linePreference != preference) continue;
+      final String lineKey = _addOnKey(
+        line.addOnIds?.map((a) => a.id).toList() ?? const [],
+        line.addOnIds?.map((a) => a.quantity).toList() ?? const [],
+      );
+      if (lineKey == key) return i;
+    }
+    return -1;
+  }
+
+  static String _addOnKey(List<int?> ids, List<int?> qtys) {
+    final List<String> pairs = [
+      for (int i = 0; i < ids.length; i++)
+        '${ids[i]}:${i < qtys.length ? (qtys[i] ?? 1) : 1}',
+    ]..sort();
+    return pairs.join(',');
+  }
+
+  static bool _sameSelections(List<List<bool?>>? a, List<List<bool?>> b) {
+    if (a == null || a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].length != b[i].length) return false;
+      for (int j = 0; j < a[i].length; j++) {
+        if ((a[i][j] ?? false) != (b[i][j] ?? false)) return false;
+      }
+    }
+    return true;
+  }
+
   /// [showToast] gates the "item added to cart" bar. Off by default.
   ///
   /// Adding is self-evident — every surface that adds an item also shows a cart
@@ -1265,7 +1532,16 @@ class ItemController extends GetxController implements GetxService {
     bool inStore = false,
     bool isCampaign = false,
     bool showToast = false,
-  }) {
+  }) async {
+    // ZONE GATE, FIRST.
+    //
+    // `addToCartOnline` gates out-of-zone adds too, but both branches below can
+    // reach a clear-your-cart confirmation before they ever get there. Letting
+    // that run first means an out-of-zone tap destroys a real cart and only
+    // then admits the add was impossible. Asking here costs nothing — it is a
+    // local check — and keeps the refusal ahead of anything irreversible.
+    if (await Get.find<CartController>().blockedOutOfZone()) return;
+
     // FAST PATH — skip the getItemDetails round-trip.
     //
     // A tap on "+" used to fire THREE sequential network calls before the cart
@@ -1281,10 +1557,13 @@ class ItemController extends GetxController implements GetxService {
     //
     // Anything customizable still takes the slow path: those need the full
     // record to build the options sheet.
+    // Produce that asks a question (ripeness, salad-or-cooking) is never
+    // simple: the shopper has to answer before it goes in the cart.
     final bool simpleItem =
         (item?.variations?.isEmpty ?? false) &&
         (item?.foodVariations?.isEmpty ?? false) &&
-        item?.price != null;
+        item?.price != null &&
+        !ProducePreference.asks(item?.prepOption);
 
     if (simpleItem && !isCampaign) {
       _addSimpleItemToCart(item!, showToast: showToast);
@@ -1294,11 +1573,13 @@ class ItemController extends GetxController implements GetxService {
     getItemDetails(itemId: item!.id!).then((value) {
       final bool isFoodItem =
           ModuleType.of(_item?.moduleType) == ModuleType.food;
-      if (((_item!.foodVariations != null && _item!.foodVariations!.isEmpty) &&
-              isFoodItem) ||
-          (_item?.variations != null &&
-              _item!.variations!.isEmpty &&
-              !isFoodItem)) {
+      final bool asks = ProducePreference.asks(_item?.prepOption);
+      if (!asks &&
+          (((_item!.foodVariations != null && _item!.foodVariations!.isEmpty) &&
+                  isFoodItem) ||
+              (_item?.variations != null &&
+                  _item!.variations!.isEmpty &&
+                  !isFoodItem))) {
         double price = _item!.price!;
         double discount = _item!.discount!;
         double discountPrice =
@@ -1380,7 +1661,7 @@ class ItemController extends GetxController implements GetxService {
               currentModuleName: currentModuleName,
               newModuleName: newModuleName,
               onClearCart: () {
-                Get.find<CartController>().clearCartOnline().then((
+                return Get.find<CartController>().clearCartOnline().then((
                   success,
                 ) async {
                   if (success) {
@@ -1404,19 +1685,10 @@ class ItemController extends GetxController implements GetxService {
               : ModuleHelper.getCacheModule()?.id,
         )) {
           Get.dialog(
-            ConfirmationDialog(
-              icon: Images.warning,
-              title: 'are_you_sure_to_reset'.tr,
-              description:
-                  Get.find<SplashController>()
-                          .configModel
-                          .moduleConfig!
-                          .module!
-                          .showRestaurantText!
-                      ? 'if_you_continue'.tr
-                      : 'if_you_continue_without_another_store'.tr,
-              onYesPressed: () {
-                Get.find<CartController>().clearCartOnline().then((
+            CartModuleConflictDialog.forStore(
+              newStoreName: cartModel.item!.storeName,
+              onClearCart: () {
+                return Get.find<CartController>().clearCartOnline().then((
                   success,
                 ) async {
                   if (success) {
@@ -1432,7 +1704,7 @@ class ItemController extends GetxController implements GetxService {
             ),
             barrierDismissible: false,
           );
-        } else {
+        } else if (isCampaign || !_bumpExistingLine(_item!)) {
           Get.find<CartController>().addToCartOnline(
             onlineCart,
             localFallback: cartModel,
@@ -1454,6 +1726,8 @@ class ItemController extends GetxController implements GetxService {
           backgroundColor: Colors.transparent,
           isScrollControlled: true,
         );
+      } else if (!isCampaign && MartProductScreen.handles(_item!)) {
+        MartProductScreen.open(_item!);
       } else {
         Get.toNamed(
           RouteHelper.getItemDetailsRoute(_item!.id, inStore),

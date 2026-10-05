@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/widgets/pressable.dart';
 import 'package:waddy_app/common/widgets/trailing_fade.dart';
 import 'package:waddy_app/features/category/domain/models/category_model.dart';
@@ -10,7 +12,6 @@ import 'package:waddy_app/common/widgets/staggered_entrance.dart';
 import 'package:waddy_app/features/category/controllers/category_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -242,6 +243,7 @@ class GroceryShelfView extends StatelessWidget {
                             source == null
                                 ? const _ShelfUnitShimmer()
                                 : StaggeredEntrance(
+                                  group: 'home-shelf',
                                   index: index,
                                   child: _ShelfUnit(store: shown[index]),
                                 ),
@@ -304,7 +306,9 @@ const double _kTextTop = 9; // tile to the card's text block
 const double _kNameBlock = 22;
 const double _kRowGap = 5;
 const double _kMetaBlock = 18;
-const double _kPerkBlock = 17;
+// Fits the compact [OfferCollarBadge], whose 23pt icon disc overhangs the
+// pill and sets the row height; the old 17pt box was sized for a flat pill.
+const double _kPerkBlock = 24;
 // Card base to board face. Zero on purpose: the plank is what the card stands
 // *on*, and any gap here reads as the board floating below the stock rather
 // than carrying it. The visual separation comes from the board's own colour
@@ -529,6 +533,7 @@ class _AisleGrid extends StatelessWidget {
             children: [
               for (int i = 0; i < shown; i++)
                 StaggeredEntrance(
+                  group: 'home-aisles',
                   index: i,
                   child: _AisleTile(
                     category: categories[i],
@@ -538,6 +543,7 @@ class _AisleGrid extends StatelessWidget {
                 ),
               if (onSeeAll != null)
                 StaggeredEntrance(
+                  group: 'home-aisles',
                   index: shown,
                   child: _AisleAllTile(width: tile, onTap: onSeeAll!),
                 ),
@@ -799,7 +805,7 @@ class _ShelfUnit extends StatelessWidget {
             const SizedBox(height: _kRowGap),
 
             // Perk line: the reason to pick this store over the next one.
-            // Money-off perks wear a tinted pill; plain facts stay quiet.
+            // Offers wear the collar; plain facts stay quiet.
             SizedBox(
               height: _kPerkBlock * _shelfTextScale(context),
               child:
@@ -807,43 +813,38 @@ class _ShelfUnit extends StatelessWidget {
                       ? null
                       : Align(
                         alignment: AlignmentDirectional.centerStart,
-                        child: Container(
-                          padding:
-                              perk.bg == null
-                                  ? EdgeInsets.zero
-                                  : const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 1,
-                                  ),
-                          decoration:
-                              perk.bg == null
-                                  ? null
-                                  : BoxDecoration(
-                                    color: perk.bg,
-                                    borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusSmall,
+                        // Money-off perks wear the collar; plain facts
+                        // (distance) stay quiet icon+text.
+                        child:
+                            perk.collarTone != null
+                                ? OfferCollarBadge(
+                                  label: perk.label,
+                                  tone: perk.collarTone!,
+                                  compact: true,
+                                )
+                                : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      perk.icon,
+                                      size: 12,
+                                      color: perk.color,
                                     ),
-                                  ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(perk.icon, size: 12, color: perk.color),
-                              const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                  perk.label,
-                                  style: waddyBold.copyWith(
-                                    fontSize: 11,
-                                    height: 1.3,
-                                    color: perk.color,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: Text(
+                                        perk.label,
+                                        style: waddyBold.copyWith(
+                                          fontSize: 11,
+                                          height: 1.3,
+                                          color: perk.color,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ),
             ),
           ],
@@ -1008,19 +1009,20 @@ class _RatingBadge extends StatelessWidget {
   }
 }
 
-/// One perk line: icon + label in the colour that says what kind of perk it is.
-/// [bg] turns it into a tinted pill — offers get one, plain facts don't.
+/// One perk line. Offers set [collarTone] and render as an
+/// [OfferCollarBadge] (which brings its own icon and colours); plain facts
+/// leave it null and draw [icon] + label in [color].
 class _Perk {
   final IconData icon;
   final String label;
   final Color color;
-  final Color? bg;
+  final OfferCollarTone? collarTone;
 
   const _Perk({
     required this.icon,
     required this.label,
     required this.color,
-    this.bg,
+    this.collarTone,
   });
 }
 
@@ -1049,25 +1051,15 @@ _Perk? _perkFor(Store store) {
       icon: Icons.local_offer_rounded,
       label: '${discount.toInt()}% ${'off'.tr}',
       color: _kSale,
-      bg: WaddyColors.coralSurface,
+      collarTone: OfferCollarTone.sale,
     );
   }
   if (store.freeDelivery == true) {
-    // No `bg` here, unlike the discount above. This section's whole band is
-    // painted mintSurface (see _GrocerySection in module_view.dart), so a
-    // mintSurface pill is the band's own colour on the band — a 1.0:1 pill
-    // that renders and cannot be seen. The perk read as bare text next to an
-    // identical-class coral pill on the neighbouring card, which teaches the
-    // eye that the pill styling means nothing.
-    //
-    // mintInk on the band is 5.37:1 and is the token's documented job
-    // (light_theme.dart) — mint as a glyph on paper rather than mint as a
-    // surface. A white plate would also clear the band, but on a mint wash a
-    // pill that has to be white to exist is fighting the surface it sits on.
     return _Perk(
       icon: Icons.delivery_dining_rounded,
       label: 'free_delivery'.tr,
       color: WaddyColors.mintInk,
+      collarTone: OfferCollarTone.delivery,
     );
   }
   final double km = (store.distance ?? 0) / 1000;
@@ -1165,9 +1157,5 @@ void _openAisle(CategoryModel category, String name, int? moduleId) {
 /// Same module-activation dance the rails do: the dashboard has no module
 /// selected, so one has to be set before the store route will resolve.
 void _openStore(Store store) {
-  Get.find<SplashController>().activateModuleFor(store.moduleId);
-  Get.toNamed(
-    RouteHelper.getStoreRoute(id: store.id, page: 'module'),
-    arguments: StoreScreen(store: store, fromModule: true),
-  );
+  StoreNavigator.open(store, page: 'module');
 }

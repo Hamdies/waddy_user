@@ -1,12 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
+import 'package:waddy_app/features/scratch_card/widgets/scratch_card_badge.dart';
+import 'package:waddy_app/features/address/controllers/address_controller.dart';
+import 'package:waddy_app/features/address/domain/models/address_model.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/cart/widgets/extra_packaging_widget.dart';
+import 'package:waddy_app/features/category/controllers/category_controller.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
+import 'package:waddy_app/features/checkout/widgets/coupon_section.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/cart/domain/models/cart_model.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -24,8 +32,10 @@ import 'package:waddy_app/common/widgets/item_bottom_sheet.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/no_data_screen.dart';
 import 'package:waddy_app/features/cart/widgets/cart_item_widget.dart';
+import 'package:waddy_app/features/cart/widgets/basket_top_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/item/domain/produce_preference.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/checkout/domain/models/place_order_body_model.dart';
@@ -39,7 +49,48 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  bool _resolvingAddress = false;
+
+  /// A signed-in user with no saved address fills in the address details
+  /// screen before checkout, so the rider gets building/floor/apartment
+  /// instead of a bare map pin. Returns false when they back out of it — the
+  /// cart stays put. Guests are left to checkout's own guest-address flow.
+  Future<bool> _ensureSavedAddress(CartController cartController) async {
+    if (!AuthHelper.isLoggedIn()) return true;
+    if (_resolvingAddress) return false;
+    _resolvingAddress = true;
+    try {
+      final AddressController addressController = Get.find<AddressController>();
+      if (addressController.addressList == null) {
+        await addressController.getAddressList();
+      }
+      // Still null means the fetch failed — don't hold checkout hostage to it.
+      final List<AddressModel>? saved = addressController.addressList;
+      if (saved == null || saved.isNotEmpty) return true;
+
+      final dynamic result = await Get.toNamed(
+        RouteHelper.getAddAddressRoute(
+          true,
+          false,
+          cartController.cartList.first.item?.zoneId,
+        ),
+      );
+      if (result is! AddressModel) return false;
+      // Checkout resets its selection on open; have it land on the new
+      // address (index 0 is the current location, 1 the newest saved). If the
+      // new address sits on the current pin, checkout merges the two and
+      // clamps this back to 0 — which is the same new address.
+      Get.find<CheckoutController>().preselectAddressIndex(1);
+      return true;
+    } finally {
+      _resolvingAddress = false;
+    }
+  }
+
   final ScrollController scrollController = ScrollController();
+
+  /// Selected "Complete your meal" tab; null is "All".
+  int? _mealCategoryId;
 
   /// The note for the restaurant, read straight off the checkout controller so
   /// the cart and the checkout screen edit one string, not two copies of it.
@@ -47,6 +98,19 @@ class _CartScreenState extends State<CartScreen> {
   /// place-order time, so anything typed here does ship with the order.
   String get _restaurantNote =>
       Get.find<CheckoutController>().noteController.text;
+
+  /// True until the first cart fetch settles on a cold open. An empty list
+  /// before then means "not loaded yet", not "empty" — showing the empty-cart
+  /// screen in that gap told a user with a full basket it was gone.
+  late bool _fetching = Get.find<CartController>().cartList.isEmpty;
+
+  /// Items already in the basket when the screen opened. The rail leaves
+  /// them out — it should suggest what is missing, not what the basket above
+  /// already shows. Items added FROM the rail during this visit are not in
+  /// here, so tapping "+" never makes a card vanish from under the thumb.
+  /// An item that leaves the basket drops out of this set, so it can come
+  /// back as a suggestion.
+  final Set<int> _inCartAtOpen = {};
 
   @override
   void initState() {
@@ -57,7 +121,11 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> initCall() async {
     if (Get.find<CartController>().cartList.isEmpty) {
-      await Get.find<CartController>().getCartDataOnline();
+      try {
+        await Get.find<CartController>().getCartDataOnline();
+      } finally {
+        if (mounted) setState(() => _fetching = false);
+      }
     }
     if (Get.find<CartController>().cartList.isNotEmpty) {
       if (kDebugMode) {
@@ -73,17 +141,23 @@ class _CartScreenState extends State<CartScreen> {
         Get.find<CartController>().toggleExtraPackage(willUpdate: false);
       }
       Get.find<CartController>().setAvailableIndex(-1, willUpdate: false);
-      Get.find<StoreController>().getCartStoreSuggestedItemList(
-        Get.find<CartController>().cartList[0].item!.storeId,
-      );
-      Get.find<StoreController>().getStoreDetails(
-        Store(
-          id: Get.find<CartController>().cartList[0].item!.storeId,
-          name: null,
-        ),
-        false,
-        fromCart: true,
-      );
+      _inCartAtOpen.addAll(_itemIdsIn(Get.find<CartController>()));
+      final int? storeId = Get.find<CartController>().cartList[0].item!.storeId;
+      // A coupon applied to another store's basket (or another checkout) has
+      // no business showing as applied here.
+      Get.find<CouponController>().keepOnlyFor(storeId);
+      Get.find<StoreListController>().getCartStoreSuggestedItemList(storeId);
+      // The meal tabs name their categories from this list. It is per module,
+      // so only fetch when a module is active — from the dashboard there is
+      // none, and the tabs simply stay hidden.
+      if (Get.find<SplashController>().module != null &&
+          Get.find<CategoryController>().categoryList == null) {
+        Get.find<CategoryController>().getCategoryList(false);
+      }
+      // The cart's own store (ST-02). This was `StoreController
+      // .getStoreDetails(fromCart: true)`, which wrote the cart's store into
+      // the field a store page under the cart renders its header from.
+      Get.find<CartController>().loadCartStore();
       Get.find<CartController>().calculationCart();
       showReferAndEarnSnackBar();
     }
@@ -92,67 +166,119 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Warm, not white: the basket's white sections then read as a card that
-      // ends, rather than dissolving into a same-coloured empty page below it.
-      backgroundColor: WaddyColors.surfaceWarm,
+      backgroundColor: WaddyColors.surface,
       appBar: AppBar(
         backgroundColor: WaddyColors.surface,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-            size: 22,
-            color: WaddyColors.ink,
-          ),
-          onPressed: () {
-            if (widget.fromNav) {
-              Get.offAllNamed(RouteHelper.getInitialRoute());
-            } else {
-              Get.back();
-            }
-          },
+        scrolledUnderElevation: 0,
+        automaticallyImplyLeading: false,
+        toolbarHeight: kBasketHeaderHeight,
+        titleSpacing: kBasketHeaderStartInset,
+        title: GetBuilder<CartController>(
+          builder: (cartController) => _buildHeader(cartController),
         ),
-        // No title: the body's "Your basket" header is the screen's one
-        // heading. Both together read as the same word twice.
-        centerTitle: false,
-        toolbarHeight: 48,
+        // The printed card this order brings, as a sticker at the header's
+        // end: pinned, and over nothing (docs/scratch_card_plan.md §3a).
+        actions: [
+          if (ScratchCardBadge.inBags)
+            const Padding(
+              padding: EdgeInsetsDirectional.only(
+                end: Dimensions.paddingSizeDefault,
+              ),
+              child: ScratchCardSticker(width: 46, height: 52, flips: true),
+            ),
+        ],
       ),
-      body: GetBuilder<StoreController>(
-        builder: (storeController) {
-          return GetBuilder<CartController>(
-            builder: (cartController) {
-              return cartController.cartList.isNotEmpty
-                  ? Column(
-                    children: [
-                      // XP earn banner — pinned above the scroll area, as in
-                      // the design, so the reward stays visible while scrolling.
-                      _buildXpEarnBanner(cartController),
+      body: GetBuilder<CartController>(
+        builder: (cartController) {
+          _syncCouponToBasket(cartController);
+          if (cartController.cartList.isEmpty && _fetching) {
+            return const Center(
+              child: CircularProgressIndicator(color: WaddyColors.mintInk),
+            );
+          }
+          return cartController.cartList.isNotEmpty
+              ? Column(
+                children: [
+                  // Pinned above the scroll area so it stays in view.
+                  _buildSavingsBanner(cartController),
 
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          child: _buildMobileLayout(
-                            cartController,
-                            storeController,
-                          ),
-                        ),
+                  Expanded(
+                    child: BasketScrollFade(
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        child: _buildMobileLayout(cartController),
                       ),
+                    ),
+                  ),
 
-                      // Bottom checkout button
-                      _buildBottomCheckoutButton(cartController),
-                    ],
-                  )
-                  : const NoDataScreen(
-                    isCart: true,
-                    text: '',
-                    showFooter: true,
-                  );
-            },
-          );
+                  _buildBottomCheckoutButton(cartController),
+                ],
+              )
+              : const NoDataScreen(isCart: true, text: '', showFooter: true);
         },
       ),
     );
+  }
+
+  void _goBack() {
+    if (widget.fromNav) {
+      Get.offAllNamed(RouteHelper.getInitialRoute());
+    } else {
+      Get.back();
+    }
+  }
+
+  /// The cart's store name — the fetched store when it is this basket's,
+  /// otherwise the name the cart line carries.
+  String? _storeName(CartController cart) {
+    if (cart.cartList.isEmpty) return null;
+    final Item? item = cart.cartList.first.item;
+    final Store? store = cart.cartStore;
+    if (store != null && store.id == item?.storeId && store.name != null) {
+      return store.name;
+    }
+    return item?.storeName;
+  }
+
+  /// The shared basket header — identical on checkout.
+  Widget _buildHeader(CartController cartController) {
+    return BasketHeader(
+      title: 'cart'.tr,
+      storeName: _storeName(cartController),
+      itemCount: cartController.cartList.fold<int>(
+        0,
+        (sum, cart) => sum + (cart.quantity ?? 0),
+      ),
+      onBack: _goBack,
+    );
+  }
+
+  /// "EGP 15.00 saved! With B.Laban offers" — the store's item discounts on
+  /// this basket, pinned under the header.
+  ///
+  /// The design gives this slot to savings. A basket with no discounted items
+  /// falls back to the XP earn band, so the slot is never an empty promise.
+  Widget _buildSavingsBanner(CartController cartController) {
+    final double saved = cartController.itemDiscountPrice;
+    if (saved <= 0) return _buildXpEarnBanner(cartController);
+    return BasketSavingsBanner(amount: saved);
+  }
+
+  /// Keeps an applied coupon's discount in step with the basket.
+  ///
+  /// The coupon can be applied here and carried into checkout, so a quantity
+  /// change after applying it has to re-work the discount — or drop the
+  /// coupon if the basket fell under its minimum. Deferred past the frame
+  /// because it may notify the CouponController mid-build. A no-op when the
+  /// total has not moved.
+  void _syncCouponToBasket(CartController cartController) {
+    final CouponController coupons = Get.find<CouponController>();
+    if (coupons.coupon == null || cartController.cartList.isEmpty) return;
+    final double order = cartController.subTotal;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) coupons.refreshForOrder(order);
+    });
   }
 
   /// "You'll earn N XP on this order" — the mint band under the app bar.
@@ -173,8 +299,10 @@ class _CartScreenState extends State<CartScreen> {
           !xpController.xpConfig!.levelingEnabled) {
         return const SizedBox.shrink();
       }
-      xp = xpController.calculateEstimatedXp(
-        cartController.subTotal,
+      // Per line, as the server awards it; the whole-subtotal estimate read
+      // a few XP high (X-23).
+      xp = xpController.estimateForCart(
+        cartController.cartList,
         Get.find<SplashController>().module?.moduleType,
       );
       // The payoff line — the next unclaimed prize BY NAME ("Free delivery"),
@@ -209,8 +337,8 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               Lottie.asset(
                 'assets/animation/waddi_coins.json',
-                width: 24,
-                height: 24,
+                width: Dimensions.paddingSizeExtraLarge,
+                height: Dimensions.paddingSizeExtraLarge,
               ),
               const SizedBox(width: Dimensions.paddingSizeSmall),
               // Two stacked lines, left-aligned: the earn on top, the named
@@ -227,7 +355,7 @@ class _CartScreenState extends State<CartScreen> {
                           TextSpan(
                             text: 'youll_earn_xp'.tr.replaceAll('@xp', '$xp'),
                             style: waddyBold.copyWith(
-                              fontSize: 15,
+                              fontSize: Dimensions.fontSizeSmall,
                               color: WaddyColors.mintInk,
                             ),
                           ),
@@ -235,7 +363,7 @@ class _CartScreenState extends State<CartScreen> {
                           TextSpan(
                             text: 'on_this_order'.tr,
                             style: waddyRegular.copyWith(
-                              fontSize: 15,
+                              fontSize: Dimensions.fontSizeSmall,
                               color: WaddyColors.inkLightOnMint,
                             ),
                           ),
@@ -245,14 +373,16 @@ class _CartScreenState extends State<CartScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (rewardTitle != null) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(
+                        height: Dimensions.paddingSizeExtraSmall / 2,
+                      ),
                       Text.rich(
                         TextSpan(
                           children: [
                             TextSpan(
                               text: rewardTitle,
                               style: waddyBold.copyWith(
-                                fontSize: 13,
+                                fontSize: Dimensions.fontSizeExtraSmall,
                                 color: WaddyColors.mintInk,
                               ),
                             ),
@@ -260,7 +390,7 @@ class _CartScreenState extends State<CartScreen> {
                               text:
                                   ' ${'xp_left'.tr.replaceAll('@xp', '$rewardXpLeft')}',
                               style: waddyRegular.copyWith(
-                                fontSize: 13,
+                                fontSize: Dimensions.fontSizeExtraSmall,
                                 color: WaddyColors.inkLightOnMint,
                               ),
                             ),
@@ -276,7 +406,7 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(width: Dimensions.paddingSizeExtraSmall),
               const Icon(
                 Icons.chevron_right_rounded,
-                size: 18,
+                size: Dimensions.paddingSizeLarge,
                 color: WaddyColors.mintInk,
               ),
             ],
@@ -286,147 +416,146 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildMobileLayout(
-    CartController cartController,
-    StoreController storeController,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // "Your basket" header — title + item count on the left, a mint
-        // "+ Add more items" action on the right, then a hairline rule.
-        Container(
-          color: WaddyColors.surface,
-          padding: const EdgeInsets.fromLTRB(
-            Dimensions.paddingSizeDefault,
-            Dimensions.paddingSizeSmall,
-            Dimensions.paddingSizeDefault,
-            Dimensions.paddingSizeMedium,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'your_basket'.tr,
-                      style: waddyBold.copyWith(
-                        fontSize: 22,
-                        letterSpacing: -0.4,
-                        color: WaddyColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${cartController.cartList.length} ${'items'.tr}',
-                      style: waddyRegular.copyWith(
-                        fontSize: 14,
-                        color: WaddyColors.inkLight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: Dimensions.paddingSizeMedium),
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: Dimensions.paddingSizeExtraSmall,
-                ),
-                child: GestureDetector(
-                  onTap: () {
-                    if (widget.fromNav) {
-                      Get.offAllNamed(RouteHelper.getInitialRoute());
-                    } else {
-                      Get.back();
-                    }
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.add_rounded,
-                        size: 15,
-                        color: WaddyColors.mintInk,
-                      ),
-                      const SizedBox(width: Dimensions.paddingSizeSmall),
-                      Text(
-                        'add_more_items'.tr,
-                        style: waddyBold.copyWith(
-                          fontSize: 16,
-                          color: WaddyColors.mintInk,
-                        ),
-                      ),
-                    ],
+  Widget _buildMobileLayout(CartController cartController) {
+    final CheckoutController checkoutController =
+        Get.find<CheckoutController>();
+    final int? cartStoreId = cartController.cartList.first.item?.storeId;
+    // Rounded together, so the printed lines add up to the Checkout button.
+    final List<double> linePrices = PriceConverter.allocateRounded([
+      for (final CartModel line in cartController.cartList)
+        CartItemWidget.lineTotal(line),
+    ]);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.paddingSizeDefault,
+        Dimensions.paddingSizeMedium,
+        Dimensions.paddingSizeDefault,
+        Dimensions.paddingSizeExtraLarge,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // The basket — one bordered card: the lines, then "Add more items"
+          // and the note for the restaurant under a rule each.
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.paddingSizeDefault,
+              vertical: Dimensions.paddingSizeExtraSmall,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(color: WaddyColors.divider),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+            ),
+            child: Column(
+              children: [
+                for (
+                  int index = 0;
+                  index < cartController.cartList.length;
+                  index++
+                )
+                  CartItemWidget(
+                    displayPrice: linePrices[index],
+                    cart: cartController.cartList[index],
+                    cartIndex: index,
+                    addOns: cartController.addOnsList[index],
+                    isAvailable: cartController.availableList[index],
+                    showDivider: index != cartController.cartList.length - 1,
                   ),
+                _buildCardAction(
+                  icon: Icons.add_rounded,
+                  label: 'add_more_items'.tr,
+                  onTap: _goBack,
                 ),
-              ),
-            ],
+                _buildRestaurantNoteRow(),
+              ],
+            ),
           ),
-        ),
-        const Divider(height: 1, thickness: 1, color: WaddyColors.divider),
+          const SizedBox(height: Dimensions.paddingSizeDefault),
 
-        // No minimum-order / reward strip here: the design gives this slot to
-        // the XP band alone. The strip still runs on the store and home cart
-        // bars, which is where the free-delivery progress is now surfaced.
+          _buildCompleteYourMeal(cartController),
 
-        // Cart items — full-bleed white with hairline rules between lines,
-        // per the design (no inset rounded card).
-        Container(
-          color: WaddyColors.surface,
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-          ),
-          child: ListView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: cartController.cartList.length,
-            padding: EdgeInsets.zero,
-            itemBuilder: (context, index) {
-              return CartItemWidget(
-                cart: cartController.cartList[index],
-                cartIndex: index,
-                addOns: cartController.addOnsList[index],
-                isAvailable: cartController.availableList[index],
-                showDivider: index != cartController.cartList.length - 1,
-              );
-            },
-          ),
-        ),
-        // Rule below the last item is inset 16px, matching the design.
-        Container(
-          color: WaddyColors.surface,
-          padding: const EdgeInsets.only(left: Dimensions.paddingSizeDefault),
-          child: const Divider(
-            height: 1,
-            thickness: 1,
-            color: WaddyColors.divider,
-          ),
-        ),
+          ExtraPackagingWidget(cartController: cartController),
 
-        // "Add a note for the restaurant"
-        _buildRestaurantNoteRow(),
-
-        // 8px band separating the basket from what follows. The scaffold below
-        // is warm too, so when the sections that follow render nothing the
-        // basket simply ends on the warm ground instead of bleeding into an
-        // indistinguishable white void.
-        Container(height: 8, color: WaddyColors.surfaceWarm),
-
-        // "Did you forget?" suggested items
-        _buildDidYouForgetSection(cartController.cartList),
-
-        // Extra packaging
-        ExtraPackagingWidget(cartController: cartController),
-
-        const SizedBox(height: Dimensions.paddingSizeLarge),
-      ],
+          // The same promo card checkout shows. A code applied here stays
+          // applied on checkout (CouponController.keepOnlyFor), and its
+          // discount follows the basket (_syncCouponToBasket).
+          // No gap of its own: the section above already ends in the 16 that
+          // separates every card on this screen. Stacking another 24 here left
+          // a 40 hole whenever the rail was empty.
+          if (AuthHelper.isLoggedIn() && cartStoreId != null) ...[
+            CouponSection(
+              checkoutController: checkoutController,
+              cartStoreId: cartStoreId,
+              itemSavings: cartController.itemDiscountPrice,
+              total: cartController.subTotal,
+              price: cartController.subTotal,
+              discount: 0,
+              addOns: 0,
+              variationPrice: 0,
+              deliveryCharge: _deliveryChargeGate(cartController, cartStoreId),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
-  /// "Add a note for the restaurant" row.
+  /// What the cart hands the coupon check as the delivery charge.
+  ///
+  /// The real fee needs an address and a distance, which only checkout has.
+  /// The coupon check only uses it as a gate — a free-delivery code is refused
+  /// when there is no fee to waive — so the cart answers that question: zero
+  /// for a free-delivery store, a positive stand-in otherwise. The discount
+  /// itself is never computed from this number.
+  double _deliveryChargeGate(CartController cart, int storeId) {
+    final Store? store = cart.cartStore;
+    if (store != null && store.id == storeId && store.freeDelivery == true) {
+      return 0;
+    }
+    return 1;
+  }
+
+  /// A full-width mint action row inside the basket card, under a rule.
+  Widget _buildCardAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: Dimensions.minTapTarget),
+        padding: const EdgeInsets.symmetric(
+          vertical: Dimensions.paddingSizeMedium,
+        ),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: WaddyColors.divider)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: Dimensions.paddingSizeDefault,
+              color: WaddyColors.mintInk,
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Expanded(
+              child: Text(
+                label,
+                style: waddyBold.copyWith(
+                  fontSize: Dimensions.fontSizeSmall,
+                  color: WaddyColors.mintInk,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// "Add a note for the restaurant" row, the last row of the basket card.
   ///
   /// The sheet writes to [CheckoutController.noteController], which is the same
   /// controller the checkout screen's note field binds to and the source of
@@ -435,44 +564,43 @@ class _CartScreenState extends State<CartScreen> {
   Widget _buildRestaurantNoteRow() {
     final bool hasNote = _restaurantNote.trim().isNotEmpty;
 
-    return Container(
-      color: WaddyColors.surface,
-      child: InkWell(
-        onTap: _openRestaurantNoteSheet,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Dimensions.paddingSizeDefault,
-            vertical: Dimensions.paddingSizeDefault,
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.sticky_note_2_outlined,
-                size: 22,
-                color: WaddyColors.ink,
-              ),
-              const SizedBox(width: Dimensions.paddingSizeMedium),
-              Expanded(
-                child: Text(
-                  hasNote
-                      ? _restaurantNote
-                      : 'add_a_note_for_the_restaurant'.tr,
-                  style: waddyRegular.copyWith(
-                    fontSize: 16,
-                    color: hasNote ? WaddyColors.ink : WaddyColors.inkMid,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+    return InkWell(
+      onTap: _openRestaurantNoteSheet,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: Dimensions.minTapTarget),
+        padding: const EdgeInsets.symmetric(
+          vertical: Dimensions.paddingSizeMedium,
+        ),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: WaddyColors.divider)),
+        ),
+        child: Row(
+          children: [
+            // Mint-ink like "Add more items" above it: both rows are actions.
+            const Icon(
+              Icons.sticky_note_2_outlined,
+              size: Dimensions.paddingSizeDefault,
+              color: WaddyColors.mintInk,
+            ),
+            const SizedBox(width: Dimensions.paddingSizeSmall),
+            Expanded(
+              child: Text(
+                hasNote ? _restaurantNote : 'add_a_note_for_the_restaurant'.tr,
+                style: waddyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: Dimensions.fontSizeSmall,
+                  color: hasNote ? WaddyColors.ink : WaddyColors.inkLight,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: Dimensions.paddingSizeSmall),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: WaddyColors.inkMuted,
-              ),
-            ],
-          ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: Dimensions.paddingSizeLarge,
+              color: WaddyColors.inkLight,
+            ),
+          ],
         ),
       ),
     );
@@ -506,7 +634,7 @@ class _CartScreenState extends State<CartScreen> {
                   Text(
                     'add_a_note_for_the_restaurant'.tr,
                     style: waddyBold.copyWith(
-                      fontSize: 18,
+                      fontSize: Dimensions.fontSizeLarge,
                       color: WaddyColors.ink,
                     ),
                   ),
@@ -517,7 +645,7 @@ class _CartScreenState extends State<CartScreen> {
                     maxLines: 3,
                     maxLength: 200,
                     style: waddyRegular.copyWith(
-                      fontSize: 15,
+                      fontSize: Dimensions.fontSizeDefault,
                       color: WaddyColors.ink,
                     ),
                     decoration: InputDecoration(
@@ -553,502 +681,559 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildBottomCheckoutButton(CartController cartController) {
-    double subTotal = cartController.subTotal;
-
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         Dimensions.paddingSizeDefault,
         Dimensions.paddingSizeMedium,
         Dimensions.paddingSizeDefault,
-        0,
+        math.max(
+          Dimensions.paddingSizeMedium,
+          MediaQuery.paddingOf(context).bottom,
+        ),
       ),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: WaddyColors.surface,
+        border: Border(top: BorderSide(color: WaddyColors.divider)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.07),
-            blurRadius: 18,
-            offset: const Offset(0, -6),
+            color: WaddyColors.shadowTeal,
+            blurRadius: Dimensions.paddingSizeMedium,
+            offset: Offset(0, -Dimensions.paddingSizeExtraSmall),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // No delivery-address row: the design goes straight from the
-            // basket to the CTA. Address and ETA are confirmed on the
-            // checkout screen this button opens.
+        bottom: false,
+        // Rebuilds on the coupon too: the figure on the button is the basket
+        // net of any code applied above it.
+        child: GetBuilder<CouponController>(
+          builder: (coupons) {
+            final double couponOff =
+                coupons.hasAppliedCoupon ? (coupons.discount ?? 0) : 0;
+            final double total = (cartController.subTotal - couponOff).clamp(
+              0,
+              double.infinity,
+            );
 
-            // Primary CTA — the app's shared CustomButton, so the cart gets the
-            // same fill, press animation and disabled/loading behaviour as
-            // every other primary action. `child` supplies the split
-            // label/total layout the design calls for.
-            // "Checkout · <subtotal>", NOT "Place delivery order". This button
-            // does not place anything — it opens checkout, where the delivery
-            // fee is added and the order is actually confirmed. The number
-            // beside it is the subtotal, so it is labelled as one: promising a
-            // placed order at a pre-fee price is the version users read as a
-            // bait-and-switch when the total jumps on the next screen.
-            CustomButton(
-              buttonText:
-                  '${'go_to_checkout'.tr} — ${'subtotal'.tr} ${PriceConverter.convertPrice(subTotal)}',
-              height: 52,
-              onPressed: () async {
-                // Zone gate before the user is sent any deeper, matching the
-                // guard on the other checkout entry point.
-                if (Get.find<LocationController>().outOfServingZone) {
-                  AnalyticsHelper.log('cart_proceed_blocked_out_of_zone', {
-                    'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
-                  });
-                  GuestGate.showNoDeliverySheet(source: 'cart_proceed');
-                  return;
-                }
-                Get.find<CheckoutController>().updateFirstTime();
-                if (!cartController.cartList.first.item!.scheduleOrder! &&
-                    cartController.availableList.contains(false)) {
-                  showCustomSnackBar('one_or_more_product_unavailable'.tr);
-                } else {
-                  if (Get.find<SplashController>().module == null) {
-                    // Checking out from the dashboard: adopt the cart's own
-                    // module. The hand-rolled scan this replaces ran off the
-                    // end of the list when the cart's module was not in it and
-                    // then activated `moduleList[length]` — a range error on
-                    // the checkout button.
-                    await Get.find<SplashController>().activateModuleFor(
-                      cartController.cartList[0].item!.moduleId,
-                    );
-                  }
-                  Get.find<CouponController>().removeCouponData(false);
-                  Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
-                }
-              },
-              // Mint fill with teal ink — CustomButton's default two-tone
-              // look, so the cart CTA matches every other primary action.
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'go_to_checkout'.tr,
-                      style: waddyBold.copyWith(
-                        color: WaddyColors.primary,
-                        fontSize: 17,
-                        letterSpacing: -0.2,
+            // "Checkout ▸ … EGP x + delivery & service fees". The button opens
+            // checkout, it does not place anything, and the fees line under
+            // the figure says it is not the final charge — the total jumping
+            // on the next screen reads as bait-and-switch otherwise.
+            return Semantics(
+              button: true,
+              label: '${'checkout'.tr} — ${PriceConverter.convertPrice(total)}',
+              child: Material(
+                color: WaddyColors.mint,
+                shape: const StadiumBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _proceedToCheckout(cartController),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 56),
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                        Dimensions.paddingSizeLarge,
+                        Dimensions.paddingSizeSmall,
+                        Dimensions.paddingSizeLarge,
+                        Dimensions.paddingSizeSmall,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'checkout'.tr,
+                                    style: waddyBold.copyWith(
+                                      fontSize: Dimensions.fontSizeLarge,
+                                      color: WaddyColors.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(
+                                  width: Dimensions.paddingSizeSmall,
+                                ),
+                                const _PlayArrow(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: Dimensions.paddingSizeMedium),
+                          Flexible(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  PriceConverter.convertPrice(total),
+                                  style: waddyBlack.copyWith(
+                                    fontSize: Dimensions.fontSizeLarge,
+                                    color: WaddyColors.primary,
+                                  ),
+                                  textDirection: TextDirection.ltr,
+                                ),
+                                Text(
+                                  'plus_delivery_and_service_fees'.tr,
+                                  style: waddyMedium.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: Dimensions.fontSizeExtraSmall,
+                                    color: WaddyColors.primary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: Dimensions.paddingSizeMedium),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Dimensions.paddingSizeMedium,
-                      vertical: Dimensions.paddingSizeExtraSmall,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _proceedToCheckout(CartController cartController) async {
+    // Zone gate before the user is sent any deeper, matching the guard on
+    // the other checkout entry point.
+    if (Get.find<LocationController>().outOfServingZone) {
+      AnalyticsHelper.log('cart_proceed_blocked_out_of_zone', {
+        'auth_state': AuthHelper.isLoggedIn() ? 'user' : 'guest',
+      });
+      GuestGate.showNoDeliverySheet(source: 'cart_proceed');
+      return;
+    }
+    Get.find<CheckoutController>().updateFirstTime();
+    if (!cartController.cartList.first.item!.scheduleOrder! &&
+        cartController.availableList.contains(false)) {
+      showCustomSnackBar('one_or_more_product_unavailable'.tr);
+      return;
+    }
+    if (Get.find<SplashController>().module == null) {
+      // Checking out from the dashboard: adopt the cart's own module. The
+      // hand-rolled scan this replaces ran off the end of the list when the
+      // cart's module was not in it and then activated `moduleList[length]`
+      // — a range error on the checkout button.
+      await Get.find<SplashController>().activateModuleFor(
+        cartController.cartList[0].item!.moduleId,
+      );
+    }
+    if (!await _ensureSavedAddress(cartController)) return;
+    // The coupon is NOT cleared here any more: one applied on this cart
+    // carries into checkout. Settle its discount on the final basket first,
+    // in case the last quantity change has not been synced yet.
+    Get.find<CouponController>().refreshForOrder(cartController.subTotal);
+    Get.toNamed(RouteHelper.getCheckoutRoute('cart'));
+  }
+
+  /// Categories for the "Complete your meal" tabs: the module's categories
+  /// that at least one suggestion belongs to, in the module's own order.
+  ///
+  /// The suggest endpoint returns only category ids, so the names come from
+  /// [CategoryController]. Fewer than two means there is nothing to switch
+  /// between, and the tabs are hidden.
+  List<CategoryModel> _mealCategories(List<Item> items) {
+    final List<CategoryModel>? all =
+        Get.isRegistered<CategoryController>()
+            ? Get.find<CategoryController>().categoryList
+            : null;
+    if (all == null) return const [];
+    final Set<int> used = {
+      for (final Item item in items) ..._categoryIdsOf(item),
+    };
+    final List<CategoryModel> tabs =
+        all.where((c) => c.id != null && used.contains(c.id)).toList();
+    return tabs.length < 2 ? const [] : tabs;
+  }
+
+  Iterable<int> _categoryIdsOf(Item item) sync* {
+    if (item.categoryId != null) yield item.categoryId!;
+    for (final CategoryIds c in item.categoryIds ?? const []) {
+      if (c.id != null) yield c.id!;
+    }
+  }
+
+  /// "Complete your meal" — the store's suggestions, tabbed by category.
+  ///
+  /// Leaves out what the basket held on arrival ([_inCartAtOpen]). Every card
+  /// carries a "+" at the bottom of its image; on an item added from here it
+  /// bumps that line, whose quantity is otherwise edited on the basket line
+  /// above.
+  Widget _buildCompleteYourMeal(CartController cartController) {
+    return GetBuilder<StoreListController>(
+      id: StoreListController.cartSuggestId,
+      builder: (storeController) {
+        final Set<int> inCart = _itemIdsIn(cartController);
+        _inCartAtOpen.retainWhere(inCart.contains);
+        final List<Item> items = [
+          for (final Item item
+              in storeController.cartSuggestItemModel?.items ?? const <Item>[])
+            if (!_inCartAtOpen.contains(item.id)) item,
+        ];
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        final List<CategoryModel> categories = _mealCategories(items);
+        final int? selected =
+            categories.any((c) => c.id == _mealCategoryId)
+                ? _mealCategoryId
+                : null;
+        final List<Item> shown =
+            selected == null
+                ? items
+                : items
+                    .where((i) => _categoryIdsOf(i).contains(selected))
+                    .toList();
+        final bool isFood =
+            cartController.cartList.firstOrNull?.item?.moduleType == 'food';
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeDefault),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            padding: const EdgeInsetsDirectional.only(
+              start: Dimensions.paddingSizeDefault,
+              top: Dimensions.paddingSizeLarge,
+              bottom: Dimensions.paddingSizeLarge,
+            ),
+            decoration: BoxDecoration(
+              border: Border.all(color: WaddyColors.divider),
+              borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  (isFood ? 'complete_your_meal' : 'did_you_forget').tr
+                      .toUpperCase(),
+                  style: waddyBold.copyWith(
+                    fontSize: Dimensions.fontSizeExtraSmall,
+                    letterSpacing: 1.2,
+                    color: WaddyColors.inkLight,
+                  ),
+                ),
+                if (categories.isNotEmpty) ...[
+                  const SizedBox(height: Dimensions.paddingSizeMedium),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      end: Dimensions.paddingSizeDefault,
                     ),
+                    child: _buildMealTabs(categories, selected),
+                  ),
+                ],
+                const SizedBox(height: Dimensions.paddingSizeSmall),
+                // Sized by its tallest card, not a fixed 168: a fixed height
+                // clipped the names as soon as text got larger. The rail is a
+                // handful of suggestions, so building them eagerly is fine.
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsetsDirectional.only(
+                    top: Dimensions.paddingSizeSmall,
+                    end: Dimensions.paddingSizeDefault,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int i = 0; i < shown.length; i++) ...[
+                        if (i > 0)
+                          const SizedBox(width: Dimensions.paddingSizeMedium),
+                        _buildSuggestionCard(shown[i], cartController),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Segmented pill: "All" plus one tab per category. Equal widths when they
+  /// fit four across, as drawn; a scrolling row when there are more.
+  Widget _buildMealTabs(List<CategoryModel> categories, int? selected) {
+    final List<(int?, String)> tabs = [
+      (null, 'all'.tr),
+      for (final CategoryModel c in categories) (c.id, c.name ?? ''),
+    ];
+    Widget tab((int?, String) t, {required bool expand}) {
+      final bool on = t.$1 == selected;
+      final Widget pill = GestureDetector(
+        onTap: () => setState(() => _mealCategoryId = t.$1),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          constraints: const BoxConstraints(minHeight: 40),
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(
+            horizontal:
+                expand
+                    ? Dimensions.paddingSizeExtraSmall
+                    : Dimensions.paddingSizeDefault,
+          ),
+          decoration: BoxDecoration(
+            color: on ? WaddyColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(_pill),
+          ),
+          child: Text(
+            t.$2,
+            style: waddyBold.copyWith(
+              fontSize: Dimensions.fontSizeExtraSmall,
+              color: on ? WaddyColors.surface : WaddyColors.ink,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
+      return expand ? Expanded(child: pill) : pill;
+    }
+
+    final bool fits = tabs.length <= 4;
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.paddingSizeExtraSmall),
+      decoration: BoxDecoration(
+        color: WaddyColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(_pill),
+      ),
+      child:
+          fits
+              ? Row(children: [for (final t in tabs) tab(t, expand: true)])
+              : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [for (final t in tabs) tab(t, expand: false)],
+                ),
+              ),
+    );
+  }
+
+  Set<int> _itemIdsIn(CartController cartController) => {
+    for (final CartModel line in cartController.cartList)
+      if (line.item?.id != null) line.item!.id!,
+  };
+
+  /// Radius that turns any box into a pill.
+  static const double _pill = 100;
+
+  /// The suggestion card's image square and the chip overlapping its corner.
+  static const double _railImage = 92;
+  static const double _railChip = 36;
+
+  Widget _buildSuggestionCard(Item item, CartController cartController) {
+    final bool hasVariations =
+        (item.foodVariations?.isNotEmpty ?? false) ||
+        (item.choiceOptions?.isNotEmpty ?? false) ||
+        ProducePreference.asks(item.prepOption);
+    // A plain item already in the basket: "+" bumps that line. An item with
+    // variations always opens its sheet — which of its lines would it bump?
+    final int cartIndex =
+        hasVariations
+            ? -1
+            : cartController.cartList.indexWhere((c) => c.item?.id == item.id);
+
+    return GestureDetector(
+      onTap: () => _openItemSheet(item),
+      child: SizedBox(
+        width: _railImage + Dimensions.paddingSizeSmall,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: _railImage + Dimensions.paddingSizeSmall,
+              height: _railImage,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: _railImage,
+                    height: _railImage,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      // Teal wash rather than a black scrim: the chip sits on
-                      // mint, where black reads as a smudge.
-                      color: WaddyColors.primary.withValues(alpha: 0.12),
+                      color: WaddyColors.surfaceWarm,
+                      border: Border.all(color: WaddyColors.divider),
                       borderRadius: BorderRadius.circular(
-                        Dimensions.radiusExtraLarge,
+                        Dimensions.radiusDefault,
                       ),
                     ),
-                    // The word "Subtotal" rides with the number so the figure
-                    // can never be mistaken for the final charge. Small and
-                    // lighter — it qualifies the price, it isn't the message.
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'subtotal'.tr,
-                          style: waddyRegular.copyWith(
-                            color: WaddyColors.primary.withValues(alpha: 0.75),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(width: Dimensions.paddingSizeExtraSmall),
-                        Text(
-                          PriceConverter.convertPrice(subTotal),
-                          style: waddyBold.copyWith(
-                            color: WaddyColors.primary,
-                            fontSize: 15,
-                          ),
-                          textDirection: TextDirection.ltr,
-                        ),
-                      ],
+                    child: CustomImage(
+                      image: item.imageFullUrl ?? '',
+                      height: _railImage,
+                      width: _railImage,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  // Inside the image's bottom-end corner: a 36 chip drawn 4
+                  // in from the corner, in a 44 hit box flush with it.
+                  PositionedDirectional(
+                    bottom: 0,
+                    end: Dimensions.paddingSizeSmall,
+                    child: _buildSuggestionAdd(
+                      item,
+                      hasVariations,
+                      cartController,
+                      cartIndex,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // "Waddy! you're saving  [X saved]" — the same treatment the cart
-            // bar uses, so the savings story reads identically on both
-            // surfaces: coins animation, the pun, then the mint chip.
-            if (cartController.itemDiscountPrice > 0)
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: Dimensions.paddingSizeMedium,
+            const SizedBox(height: Dimensions.paddingSizeSmall),
+            SizedBox(
+              width: _railImage,
+              child: Text(
+                item.name ?? '',
+                style: waddyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: Dimensions.fontSizeExtraSmall,
+                  height: 1.3,
+                  color: WaddyColors.ink,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: WaddyColors.mintSurface,
-                        shape: BoxShape.circle,
-                      ),
-                      padding: const EdgeInsets.all(
-                        Dimensions.paddingSizeExtraSmall,
-                      ),
-                      child: Lottie.asset(
-                        'assets/animation/off.json',
-                        // Clearing a discount is worth celebrating, so this one
-                        // loops — unlike the cart bar's static states.
-                        repeat: true,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(width: Dimensions.paddingSizeMedium),
-                    Flexible(
-                      child: Text(
-                        'youre_saving'.tr,
-                        style: waddyBold.copyWith(
-                          fontSize: 14.5,
-                          color: WaddyColors.ink,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: Dimensions.paddingSizeSmall),
-                    // "X saved" — mint chip, teal ink, as on the cart bar.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: Dimensions.paddingSizeSmall,
-                        vertical: Dimensions.paddingSizeExtraSmall,
-                      ),
-                      decoration: BoxDecoration(
-                        color: WaddyColors.mint,
-                        // Pill, matching the total chip inside the CTA — a
-                        // square corner here reads as an unfinished edge next
-                        // to the button and the circular coin badge.
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusExtraLarge,
-                        ),
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: PriceConverter.convertPrice(
-                                cartController.itemDiscountPrice,
-                              ),
-                              style: waddyBold.copyWith(
-                                fontSize: 12,
-                                color: WaddyColors.primary,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ' ${'saved'.tr}',
-                              style: waddyRegular.copyWith(
-                                fontSize: 12,
-                                color: WaddyColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        maxLines: 1,
-                        softWrap: false,
-                      ),
-                    ),
-                  ],
-                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-
-            const SizedBox(height: Dimensions.paddingSizeMedium),
+            ),
+            const SizedBox(height: Dimensions.paddingSizeExtraSmall),
+            // Mint ink, like the basket's price chips: the price column's
+            // mint rhythm carries on into the rail.
+            Text(
+              PriceConverter.convertPrice(
+                item.price,
+                discount: item.discount,
+                discountType: item.discountType,
+              ),
+              style: waddyBold.copyWith(
+                fontSize: Dimensions.fontSizeExtraSmall,
+                color: WaddyColors.mintInk,
+              ),
+              textDirection: TextDirection.ltr,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDidYouForgetSection(List<CartModel> cartList) {
-    return GetBuilder<StoreController>(
-      builder: (storeController) {
-        List<Item>? suggestedItems;
-        if (storeController.cartSuggestItemModel != null) {
-          suggestedItems = [];
-          List<int> cartIds = [];
-          for (CartModel cartItem in cartList) {
-            cartIds.add(cartItem.item!.id!);
-          }
-          for (Item item in storeController.cartSuggestItemModel!.items!) {
-            if (!cartIds.contains(item.id)) {
-              suggestedItems.add(item);
-            }
-          }
+  Widget _buildSuggestionAdd(
+    Item item,
+    bool hasVariations,
+    CartController cartController,
+    int cartIndex,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        if (hasVariations) {
+          _openItemSheet(item);
+        } else if (cartIndex >= 0) {
+          // Already a line: add one to it. A fresh add of the same item is
+          // refused by the server as a duplicate line.
+          final CartModel line = cartController.cartList[cartIndex];
+          cartController.forcefullySetModule(line.item!.moduleId!);
+          cartController.setQuantity(
+            true,
+            cartIndex,
+            line.stock,
+            line.quantityLimit,
+          );
+        } else {
+          _quickAdd(item);
         }
-        if (storeController.cartSuggestItemModel == null ||
-            suggestedItems == null ||
-            suggestedItems.isEmpty) {
-          return const SizedBox();
-        }
-
-        // Full-bleed white on the design's sheet, not an inset rounded card,
-        // so it reads as another section of the same page.
-        return Container(
-          padding: const EdgeInsets.fromLTRB(
-            0,
-            Dimensions.paddingSizeDefault,
-            0,
-            Dimensions.paddingSizeDefault,
-          ),
-          color: WaddyColors.surface,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header: "Did you forget?" + "See all"
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'did_you_forget'.tr,
-                      style: waddyBold.copyWith(
-                        fontSize: 17,
-                        letterSpacing: -0.2,
-                        color: WaddyColors.ink,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        // Navigate to store page to see all items
-                        if (cartList.isNotEmpty) {
-                          Get.find<StoreController>().getStoreDetails(
-                            Store(id: cartList[0].item!.storeId, name: null),
-                            false,
-                          );
-                          Get.toNamed(
-                            RouteHelper.getStoreRoute(
-                              id: cartList[0].item!.storeId!,
-                              page: 'item',
-                            ),
-                          );
-                        }
-                      },
-                      child: Text(
-                        'see_all'.tr,
-                        style: waddyBold.copyWith(
-                          fontSize: 15,
-                          color: WaddyColors.mintInk,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Horizontal scroll of suggested item cards
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: suggestedItems.length,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Dimensions.paddingSizeDefault,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = suggestedItems![index];
-                    double? discount = item.discount;
-                    String? discountType = item.discountType;
-                    bool hasVariations =
-                        (item.foodVariations != null &&
-                            item.foodVariations!.isNotEmpty) ||
-                        (item.choiceOptions != null &&
-                            item.choiceOptions!.isNotEmpty);
-
-                    return GestureDetector(
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (con) => ItemBottomSheet(itemId: item.id!),
-                        );
-                      },
-                      child: Container(
-                        width: 140,
-                        margin: const EdgeInsets.only(
-                          right: Dimensions.paddingSizeMedium,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Image card with + overlay
-                            Stack(
-                              children: [
-                                Container(
-                                  width: 140,
-                                  height: 130,
-                                  decoration: BoxDecoration(
-                                    color: WaddyColors.surfaceWarm,
-                                    borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(
-                                      Dimensions.radiusDefault,
-                                    ),
-                                    child: CustomImage(
-                                      image: item.imageFullUrl ?? '',
-                                      height: 130,
-                                      width: 140,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                // + button overlay bottom-right
-                                Positioned(
-                                  bottom: 8,
-                                  right: 8,
-                                  child: GestureDetector(
-                                    onTap: () async {
-                                      if (hasVariations) {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder:
-                                              (con) => ItemBottomSheet(
-                                                itemId: item.id!,
-                                              ),
-                                        );
-                                      } else {
-                                        double price =
-                                            PriceConverter.convertWithDiscount(
-                                              item.price!,
-                                              discount,
-                                              discountType,
-                                            ) ??
-                                            item.price!;
-                                        OnlineCart onlineCart = OnlineCart(
-                                          null,
-                                          item.id,
-                                          null,
-                                          price.toString(),
-                                          '',
-                                          null,
-                                          null,
-                                          1,
-                                          [],
-                                          null,
-                                          [],
-                                          'Item',
-                                        );
-                                        // Guest fallback so this quick-add lands
-                                        // in the local cart instead of 401ing.
-                                        CartModel suggestedCartModel =
-                                            CartModel(
-                                              null,
-                                              item.price,
-                                              price,
-                                              [],
-                                              [],
-                                              (item.price! - price),
-                                              1,
-                                              [],
-                                              [],
-                                              item.availableDateStarts != null,
-                                              item.stock,
-                                              item,
-                                              item.quantityLimit,
-                                            );
-                                        // No toast: this quick-add fires from the
-                                        // suggestion strip ON the cart screen, so
-                                        // the new line lands in the list right
-                                        // behind it, in view.
-                                        await Get.find<CartController>()
-                                            .addToCartOnline(
-                                              onlineCart,
-                                              localFallback: suggestedCartModel,
-                                            );
-                                      }
-                                    },
-                                    child: Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.1,
-                                            ),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 1),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.add_rounded,
-                                          size: 18,
-                                          color: WaddyColors.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            // Item name
-                            Text(
-                              item.name ?? '',
-                              style: waddyBold.copyWith(
-                                fontSize: 15,
-                                color: WaddyColors.ink,
-                                height: 1.25,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            // Price
-                            Text(
-                              PriceConverter.convertPrice(
-                                item.price,
-                                discount: discount,
-                                discountType: discountType,
-                              ),
-                              style: waddyBold.copyWith(
-                                fontSize: 15,
-                                color: WaddyColors.ink,
-                              ),
-                              textDirection: TextDirection.ltr,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
       },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: _railChip,
+            height: _railChip,
+            decoration: BoxDecoration(
+              color: WaddyColors.surface,
+              border: Border.all(color: WaddyColors.divider),
+              borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
+              boxShadow: const [
+                BoxShadow(
+                  color: WaddyColors.shadowTeal,
+                  blurRadius: Dimensions.paddingSizeExtraSmall,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              size: Dimensions.paddingSizeLarge,
+              color: WaddyColors.mintInk,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openItemSheet(Item item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (con) => ItemBottomSheet(itemId: item.id!),
+    );
+  }
+
+  /// One-tap add for a suggestion with no variations to choose.
+  Future<void> _quickAdd(Item item) async {
+    final double price =
+        PriceConverter.convertWithDiscount(
+          item.price!,
+          item.discount,
+          item.discountType,
+        ) ??
+        item.price!;
+    final OnlineCart onlineCart = OnlineCart(
+      null,
+      item.id,
+      null,
+      price.toString(),
+      '',
+      null,
+      null,
+      1,
+      [],
+      null,
+      [],
+      'Item',
+    );
+    // Guest fallback so this quick-add lands in the local cart instead of
+    // 401ing.
+    final CartModel localCart = CartModel(
+      null,
+      item.price,
+      price,
+      [],
+      [],
+      (item.price! - price),
+      1,
+      [],
+      [],
+      item.availableDateStarts != null,
+      item.stock,
+      item,
+      item.quantityLimit,
+    );
+    // No toast: the new line lands in the basket right above, and the "+"
+    // turns into a stepper in place.
+    await Get.find<CartController>().addToCartOnline(
+      onlineCart,
+      localFallback: localCart,
     );
   }
 
@@ -1059,4 +1244,37 @@ class _CartScreenState extends State<CartScreen> {
       showCustomSnackBar(text, isError: false);
     }
   }
+}
+
+/// The small solid "▸" after "Checkout", mirrored for RTL.
+class _PlayArrow extends StatelessWidget {
+  const _PlayArrow();
+
+  @override
+  Widget build(BuildContext context) {
+    final bool rtl = Directionality.of(context) == TextDirection.rtl;
+    return Transform.flip(
+      flipX: rtl,
+      child: const CustomPaint(size: Size(7, 9), painter: _TrianglePainter()),
+    );
+  }
+}
+
+class _TrianglePainter extends CustomPainter {
+  const _TrianglePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 0)
+        ..lineTo(size.width, size.height / 2)
+        ..lineTo(0, size.height)
+        ..close(),
+      Paint()..color = WaddyColors.primary,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

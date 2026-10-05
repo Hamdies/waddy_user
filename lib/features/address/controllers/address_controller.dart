@@ -87,15 +87,19 @@ class AddressController extends GetxController implements GetxService {
     int? storeZoneId,
   ) async {
     if (responseModel.isSuccess) {
-      if (fromCheckout && !responseModel.zoneIds!.contains(storeZoneId)) {
+      // No store zone to compare against means nothing to reject — a null here
+      // used to fail every save as "different zone".
+      if (fromCheckout &&
+          storeZoneId != null &&
+          !responseModel.zoneIds!.contains(storeZoneId)) {
         responseModel = ResponseModel(
           false,
           (Get.find<SplashController>()
-                  .configModel
-                  .moduleConfig!
-                  .module!
-                  .showRestaurantText ??
-                      false
+                      .configModel
+                      .moduleConfig!
+                      .module!
+                      .showRestaurantText ??
+                  false
               ? 'your_selected_location_is_from_different_zone'.tr
               : 'your_selected_location_is_from_different_zone_store'.tr),
         );

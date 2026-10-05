@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/store/domain/models/buy_again_line.dart';
+import 'package:waddy_app/features/category/domain/models/category_model.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
@@ -9,6 +11,7 @@ import 'package:waddy_app/features/store/domain/models/store_bundle_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/location/domain/models/zone_response_model.dart';
 import 'package:waddy_app/features/store/domain/repositories/store_repository_interface.dart';
+import 'package:waddy_app/features/store/domain/services/store_details_cache.dart';
 import 'package:waddy_app/features/store/domain/services/store_service_interface.dart';
 import 'package:waddy_app/helper/address_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -16,6 +19,19 @@ import 'package:waddy_app/util/app_constants.dart';
 class StoreService implements StoreServiceInterface {
   final StoreRepositoryInterface storeRepositoryInterface;
   StoreService({required this.storeRepositoryInterface});
+
+  /// Lives as long as the service, which DI keeps for the app's lifetime.
+  final StoreDetailsCache _detailsCache = StoreDetailsCache();
+
+  String _detailsKey(int storeId, String languageCode) {
+    final address = AddressHelper.getUserAddressFromSharedPref();
+    return StoreDetailsCache.keyFor(
+      storeId,
+      languageCode: languageCode,
+      latitude: address?.latitude,
+      longitude: address?.longitude,
+    );
+  }
 
   @override
   Future<StoreModel?> getStoreList(
@@ -109,6 +125,34 @@ class StoreService implements StoreServiceInterface {
       moduleId,
     );
   }
+
+  @override
+  Future<Store?> getCachedStoreDetails(
+    int storeId, {
+    required String languageCode,
+    int? moduleId,
+    bool fromCart = false,
+    Duration? maxAge,
+  }) {
+    return _detailsCache.get(
+      _detailsKey(storeId, languageCode),
+      () => getStoreDetails(
+        storeId.toString(),
+        fromCart,
+        '',
+        languageCode,
+        moduleId,
+      ),
+      maxAge: maxAge,
+    );
+  }
+
+  @override
+  Store? peekStoreDetails(int storeId, {required String languageCode}) =>
+      _detailsCache.peek(_detailsKey(storeId, languageCode));
+
+  @override
+  void clearStoreDetailsCache() => _detailsCache.clear();
 
   @override
   Future<ItemModel?> getStoreItemList({
@@ -232,6 +276,12 @@ class StoreService implements StoreServiceInterface {
   }
 
   @override
+  Future<List<CategoryModel>?> getStoreSubCategories(
+    int? storeId,
+    int? categoryId,
+  ) => storeRepositoryInterface.getStoreSubCategories(storeId, categoryId);
+
+  @override
   Future<List<StoreBundleModel>?> getStoreBundleList(
     int? storeId, {
     int offset = 1,
@@ -243,6 +293,15 @@ class StoreService implements StoreServiceInterface {
       limit: limit,
     );
   }
+
+  @override
+  Future<({int orderCount, List<BuyAgainLine> lines})?> getBuyAgainItems(
+    int storeId,
+  ) => storeRepositoryInterface.getBuyAgainItems(storeId);
+
+  @override
+  Future<List<Item>?> getPairedItems(int itemId) =>
+      storeRepositoryInterface.getPairedItems(itemId);
 
   @override
   String filterRestaurantLinkUrl(String slug, Store store) {

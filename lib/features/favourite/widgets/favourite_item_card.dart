@@ -1,3 +1,6 @@
+import 'package:waddy_app/common/widgets/add_to_cart_control.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
+import 'package:waddy_app/common/widgets/price_tag.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
@@ -6,7 +9,6 @@ import 'package:waddy_app/features/favourite/controllers/favourite_controller.da
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_favourite_widget.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/util/dimensions.dart';
 
@@ -18,17 +20,7 @@ class FavouriteItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasDiscount =
-        item.discount != null &&
-        item.discount! > 0 &&
-        item.discountType != null;
-    final double originalPrice = item.price ?? 0;
-    final String formattedPrice = PriceConverter.convertPrice(
-      originalPrice,
-      discount: item.discount,
-      discountType: item.discountType,
-    );
-    final String originalFormatted = PriceConverter.convertPrice(originalPrice);
+    final ItemPrice price = ItemPrice.of(item);
 
     return GestureDetector(
       onTap: () {
@@ -75,30 +67,16 @@ class FavouriteItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Discount tag
-                if (hasDiscount)
-                  Positioned(
+                if (price.onSale)
+                  PositionedDirectional(
                     top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
-                        borderRadius: BorderRadius.circular(
-                          Dimensions.radiusSmall,
-                        ),
-                      ),
-                      child: Text(
-                        '${item.discount}${item.discountType == 'percent' ? '%' : 'LE'} OFF',
-                        style: waddyBold.copyWith(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
+                    start: -4,
+                    child:
+                        OfferCollarBadge.forPrice(
+                          price,
+                          compact: true,
+                          onPhoto: true,
+                        )!,
                   ),
               ],
             ),
@@ -132,29 +110,7 @@ class FavouriteItemCard extends StatelessWidget {
                     ),
                   const SizedBox(height: 6),
 
-                  // Price
-                  Row(
-                    children: [
-                      Text(
-                        formattedPrice,
-                        style: waddyBold.copyWith(
-                          fontSize: 13,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                      if (hasDiscount) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          originalFormatted,
-                          style: waddyRegular.copyWith(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                  PriceTag(price: price),
                 ],
               ),
             ),
@@ -178,22 +134,10 @@ class FavouriteItemCard extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 50),
-                GestureDetector(
-                  onTap: () {
-                    Get.find<ItemController>().navigateToItemPage(
-                      item,
-                      context,
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(6),
-                    child: const Icon(Icons.add, color: Colors.white, size: 20),
-                  ),
+                const SizedBox(height: 36),
+                SizedBox(
+                  height: Dimensions.minTapTarget,
+                  child: AddToCartControl(item: item, inset: 0),
                 ),
               ],
             ),

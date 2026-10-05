@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/home/widgets/components/popular_store_card_widget.dart';
 import 'package:waddy_app/helper/route_helper.dart';
@@ -17,7 +17,8 @@ class PopularStoreView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
         vertical: Dimensions.paddingSizeDefault,
       ),
-      child: GetBuilder<StoreController>(
+      child: GetBuilder<StoreListController>(
+        id: StoreListController.popularId,
         builder: (storeController) {
           List<Store>? storeList = storeController.popularStoreList;
 

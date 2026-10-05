@@ -1,3 +1,5 @@
+import 'package:waddy_app/theme/light_theme.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:waddy_app/features/banner/controllers/banner_controller.dart';
@@ -10,7 +12,6 @@ import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
-import 'package:waddy_app/features/store/screens/store_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
@@ -94,20 +95,9 @@ class BannerView extends StatelessWidget {
                                       // `zoneData`, set it again, and could
                                       // hand the app a module that is not in
                                       // `moduleList` at all.
-                                      if (isFeatured) {
-                                        Get.find<SplashController>()
-                                            .activateModuleFor(store!.moduleId);
-                                      }
-                                      Get.toNamed(
-                                        RouteHelper.getStoreRoute(
-                                          id: store!.id,
-                                          page:
-                                              isFeatured ? 'module' : 'banner',
-                                        ),
-                                        arguments: StoreScreen(
-                                          store: store,
-                                          fromModule: isFeatured,
-                                        ),
+                                      StoreNavigator.open(
+                                        store!,
+                                        page: isFeatured ? 'module' : 'banner',
                                       );
                                     } else if (bannerDataList[index]
                                         is BasicCampaignModel) {
@@ -219,18 +209,41 @@ class BannerView extends StatelessWidget {
                           ),
                         ],
                       )
+                      // Shaped like the carousel it stands in for: the
+                      // 85% centre slide, its neighbours peeking either side.
                       : Shimmer(
                         duration: const Duration(seconds: 2),
                         enabled: bannerList == null,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: Dimensions.paddingSizeSmall,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              Dimensions.radiusSmall,
-                            ),
-                            color: Colors.grey[300],
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.width * 0.32,
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final double slide = constraints.maxWidth * 0.85;
+                              final double peek =
+                                  (constraints.maxWidth - slide) / 2 - 8;
+                              Widget block(double width, double inset) =>
+                                  Container(
+                                    width: width,
+                                    margin: EdgeInsets.symmetric(
+                                      vertical: inset,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(
+                                        Dimensions.radiusDefault,
+                                      ),
+                                      color: WaddyColors.divider,
+                                    ),
+                                  );
+                              return Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  block(peek, 14),
+                                  block(slide, 4),
+                                  block(peek, 14),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ),

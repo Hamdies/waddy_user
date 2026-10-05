@@ -16,9 +16,10 @@ import 'package:waddy_app/util/app_constants.dart';
 import 'package:waddy_app/common/widgets/no_internet_screen.dart';
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/features/location/domain/models/prediction_model.dart';
+import 'package:waddy_app/features/location/domain/repositories/location_repository.dart'
+    show kUnknownAddressSentinel;
 import 'package:waddy_app/features/address/controllers/address_controller.dart';
 import 'package:waddy_app/features/auth/controllers/auth_controller.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
@@ -99,9 +100,30 @@ class LocationController extends GetxController implements GetxService {
   // discarded instead of overwriting _pickAddress with a stale address.
   int _positionRequestId = 0;
 
-  // Set around a programmatic camera move so the onCameraIdle it provokes does
-  // not kick off a redundant lookup for a position we already resolved.
-  int _suppressIdleCount = 0;
+  // Where a camera move WE made will settle, so the onCameraIdle it provokes
+  // doesn't start a redundant lookup for a position we already resolved.
+  //
+  // A target, not a count: this used to be a shared counter, and a move that
+  // never produced an idle (a map offscreen under the picker, a no-op move to
+  // where the camera already was, a denied GPS) left it stranded above zero.
+  // The next REAL pan — in whichever map fired next — was then swallowed, so
+  // "Change" on the address screen came back with the old location. Matching
+  // on the target means a stale expectation can only ever skip a lookup for
+  // the spot it already describes.
+  LatLng? _expectedIdleTarget;
+
+  /// Call before moving a map camera yourself; the idle it fires at that
+  /// spot is then skipped instead of re-geocoding over a known address.
+  void expectIdleAt(double lat, double lng) =>
+      _expectedIdleTarget = LatLng(lat, lng);
+
+  /// ~5 m. Camera animations land a hair off the requested target.
+  bool _isExpectedIdle(LatLng target) {
+    final LatLng? expected = _expectedIdleTarget;
+    if (expected == null) return false;
+    return (target.latitude - expected.latitude).abs() < 0.00005 &&
+        (target.longitude - expected.longitude).abs() < 0.00005;
+  }
 
   String? _address = '';
   String? get address => _address;
@@ -566,7 +588,7 @@ class LocationController extends GetxController implements GetxService {
   Future<String?> _resolveLabel(double lat, double lng) async {
     try {
       final String label = await _geocode(LatLng(lat, lng));
-      if (label.isEmpty || label == 'Unknown Location Found') return null;
+      if (label.isEmpty || label == kUnknownAddressSentinel) return null;
       return label;
     } catch (_) {
       return null;
@@ -600,7 +622,7 @@ class LocationController extends GetxController implements GetxService {
     return _geocodeInFlight[key] ??= locationServiceInterface
         .getAddressFromGeocode(latLng)
         .then((address) {
-          if (address.isNotEmpty && address != 'Unknown Location Found') {
+          if (address.isNotEmpty && address != kUnknownAddressSentinel) {
             _geocodeCache[key] = address;
             _geocodeCacheAt[key] = DateTime.now();
           }
@@ -674,8 +696,6 @@ class LocationController extends GetxController implements GetxService {
   bool _showLocationSuggestion = true;
   bool get showLocationSuggestion => _showLocationSuggestion;
 
-  bool _changeAddress = true;
-
   int _addressTypeIndex = 0;
   int get addressTypeIndex => _addressTypeIndex;
 
@@ -708,9 +728,9 @@ class LocationController extends GetxController implements GetxService {
   void setAddAddressData() {
     _position = _pickPosition;
     _address = _pickAddress;
-    // The add-address map opens centred on the position just picked, which
-    // fires one onCameraIdle for a location whose address we already hold.
-    _suppressIdleCount++;
+    // The add-address map is moved to the position just picked, which fires
+    // an onCameraIdle for a location whose address we already hold.
+    expectIdleAt(_pickPosition.latitude, _pickPosition.longitude);
     update();
   }
 
@@ -778,7 +798,7 @@ class LocationController extends GetxController implements GetxService {
       // already resolving right here. Swallow that one idle event so it does not
       // start a duplicate lookup that races this one.
       if (mapController != null) {
-        _suppressIdleCount++;
+        expectIdleAt(myPosition.latitude, myPosition.longitude);
       }
       locationServiceInterface.handleMapAnimation(mapController, myPosition);
       String addressFromGeocode = await getAddressFromGeocode(
@@ -923,8 +943,8 @@ class LocationController extends GetxController implements GetxService {
     // A camera move we made ourselves (getCurrentLocation's animation, or the
     // add-address screen seeding the map) is not a user pan — the position it
     // settles on is already being resolved by whoever moved it.
-    if (_suppressIdleCount > 0) {
-      _suppressIdleCount--;
+    if (_isExpectedIdle(position.target)) {
+      _expectedIdleTarget = null;
       return;
     }
     _beginLoading(markerLoad: true);
@@ -966,19 +986,15 @@ class LocationController extends GetxController implements GetxService {
       // perfectly served address.
       _inZone = responseModel.isSuccess;
       _buttonDisabled = !responseModel.isSuccess;
-      if (_changeAddress) {
-        String addressFromGeocode = await getAddressFromGeocode(
-          LatLng(position.target.latitude, position.target.longitude),
-        );
-        // Same guard after the geocode await: the address shown under the pin
-        // must come from the last pan, not an earlier one that resolved late.
-        if (requestId == _positionRequestId) {
-          fromAddress
-              ? _address = addressFromGeocode
-              : _pickAddress = addressFromGeocode;
-        }
-      } else {
-        _changeAddress = true;
+      String addressFromGeocode = await getAddressFromGeocode(
+        LatLng(position.target.latitude, position.target.longitude),
+      );
+      // Same guard after the geocode await: the address shown under the pin
+      // must come from the last pan, not an earlier one that resolved late.
+      if (requestId == _positionRequestId) {
+        fromAddress
+            ? _address = addressFromGeocode
+            : _pickAddress = addressFromGeocode;
       }
     } catch (e) {
       debugPrint('[Waddy] updatePosition failed: $e');
@@ -1148,13 +1164,16 @@ class LocationController extends GetxController implements GetxService {
         headingAccuracy: 1,
       );
 
+      // The search result's own name is kept: the idle its camera move fires
+      // is expected below and skipped, so no geocode overwrites it. (This
+      // used to clear a flag instead, which also skipped the geocode for the
+      // user's NEXT pan — the pin moved, the address text didn't.)
       _pickAddress = address;
-      _changeAddress = false;
 
       if (mapController != null) {
         // Our own camera move; the getZone below already resolves this target,
         // so the idle event it fires must not start a competing lookup.
-        _suppressIdleCount++;
+        expectIdleAt(latLng.latitude, latLng.longitude);
         try {
           await mapController.animateCamera(
             CameraUpdate.newCameraPosition(
@@ -1372,7 +1391,14 @@ class LocationController extends GetxController implements GetxService {
     }
   }
 
-  Future<void> setStoreAddressToUserAddress(LatLng storeAddress) async {
+  /// [moduleId] is the store's module, passed in rather than read back from
+  /// `StoreController.store` after four awaits: another store opening in the
+  /// meantime nulls that field for its own fetch, and the bang here threw
+  /// (ST-15).
+  Future<void> setStoreAddressToUserAddress(
+    LatLng storeAddress, {
+    int? moduleId,
+  }) async {
     Position storePosition = Position(
       latitude: storeAddress.latitude,
       longitude: storeAddress.longitude,
@@ -1412,9 +1438,7 @@ class LocationController extends GetxController implements GetxService {
     // activateModuleFor does nothing — which is the honest outcome, and better
     // than the old loop, which kept scanning after a match and could set the
     // module twice.
-    await Get.find<SplashController>().activateModuleFor(
-      Get.find<StoreController>().store!.moduleId,
-    );
+    await Get.find<SplashController>().activateModuleFor(moduleId);
   }
 
   Future<bool> checkInternet() async {

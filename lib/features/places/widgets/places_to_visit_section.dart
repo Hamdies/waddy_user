@@ -18,6 +18,9 @@ import 'package:waddy_app/util/styles.dart';
 class PlacesToVisitSection extends StatelessWidget {
   const PlacesToVisitSection({super.key});
 
+  /// Scroll target for "pick a spot" affordances elsewhere on the screen.
+  static final GlobalKey anchorKey = GlobalKey(debugLabel: 'spotsList');
+
   @override
   Widget build(BuildContext context) {
     // Two builders, not one: the chip rail reads the category list and the
@@ -25,6 +28,7 @@ class PlacesToVisitSection extends StatelessWidget {
     // Sharing a builder meant the categories response rebuilt every place
     // card and vice versa.
     return Column(
+      key: anchorKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GetBuilder<PlacesController>(

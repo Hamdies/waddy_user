@@ -1,3 +1,7 @@
+import 'package:waddy_app/features/xp/domain/models/reward_state.dart';
+import 'package:waddy_app/features/xp/domain/models/xp_json.dart';
+import 'package:waddy_app/features/xp/domain/models/prize_kind.dart';
+
 class PrizeModel {
   final List<Prize> prizes;
   final List<Prize> usablePrizes;
@@ -16,62 +20,49 @@ class PrizeModel {
   });
 
   factory PrizeModel.fromJson(Map<String, dynamic> json) {
-    List<Prize> allPrizes = [];
-    List<Prize> usable = [];
-    List<Prize> used = [];
-    List<Prize> expired = [];
+    List<Prize> parse(dynamic v) => xpMapList(v).map(Prize.fromJson).toList();
 
-    // Parse grouped format: usable_prizes, used_prizes, expired_prizes
-    if (json['usable_prizes'] != null) {
-      usable =
-          (json['usable_prizes'] as List)
-              .map((p) => Prize.fromJson(p))
-              .toList();
-      allPrizes.addAll(usable);
-    }
-    if (json['used_prizes'] != null) {
-      used =
-          (json['used_prizes'] as List).map((p) => Prize.fromJson(p)).toList();
-      allPrizes.addAll(used);
-    }
-    if (json['expired_prizes'] != null) {
-      expired =
-          (json['expired_prizes'] as List)
-              .map((p) => Prize.fromJson(p))
-              .toList();
-      allPrizes.addAll(expired);
-    }
+    // Grouped format: usable_prizes, used_prizes, expired_prizes.
+    final usable = parse(json['usable_prizes']);
+    final used = parse(json['used_prizes']);
+    final expired = parse(json['expired_prizes']);
+    // Owned but held back right now (a period limit). Without this group the
+    // server dropped them entirely (X-32); [RewardState] places them.
+    final waiting = parse(json['waiting_prizes']);
+    var allPrizes = [...usable, ...waiting, ...used, ...expired];
 
-    // Fallback: flat prizes array
-    if (allPrizes.isEmpty && json['prizes'] != null) {
-      allPrizes =
-          (json['prizes'] as List).map((p) => Prize.fromJson(p)).toList();
-    }
+    // Fallback: flat prizes array.
+    if (allPrizes.isEmpty) allPrizes = parse(json['prizes']);
 
+    // `/prizes` sends no totals, so these used to read 0 beside a full list.
+    // Derive them when absent.
     return PrizeModel(
       prizes: allPrizes,
       usablePrizes: usable,
       usedPrizes: used,
       expiredPrizesRaw: expired,
-      totalUnlocked: json['total_unlocked'] ?? 0,
-      totalClaimed: json['total_claimed'] ?? 0,
+      totalUnlocked: xpIntOrNull(json['total_unlocked']) ?? allPrizes.length,
+      totalClaimed:
+          xpIntOrNull(json['total_claimed']) ??
+          allPrizes.where((p) => p.isClaimed || p.isUsed).length,
     );
   }
 
-  List<Prize> get claimablePrizes =>
-      usablePrizes.isNotEmpty
-          ? usablePrizes.where((p) => p.canClaim).toList()
-          : prizes.where((p) => p.canClaim).toList();
+  /// Rewards the user can act on right now: claim, or spend. Not badges, not
+  /// used, not expired. What the XP hero counts and the nav badge points at.
+  List<Prize> get livePrizes =>
+      _owned.where((p) => p.rewardState.isLive).toList();
 
-  List<Prize> get claimedPrizes =>
-      usablePrizes.isNotEmpty
-          ? usablePrizes.where((p) => p.isClaimed).toList()
-          : prizes.where((p) => p.isClaimed).toList();
+  /// Prizes where claiming *does* something (a wallet credit pays out, a
+  /// discount mints its coupon). A free delivery is spent at checkout as it
+  /// is, so it never waits on a claim (X-26).
+  List<Prize> get needsClaimPrizes =>
+      _owned.where((p) => p.rewardState == RewardState.claim).toList();
 
-  List<Prize> get expiredPrizes =>
-      expiredPrizesRaw.isNotEmpty
-          ? expiredPrizesRaw
-          : prizes.where((p) => p.isExpired).toList();
+  /// Every owned prize. `fromJson` fills [prizes] with all groups; a model
+  /// built directly may carry only [usablePrizes].
+  List<Prize> get _owned => prizes.isNotEmpty ? prizes : usablePrizes;
+
 }
 
 class Prize {
@@ -119,39 +110,27 @@ class Prize {
   });
 
   factory Prize.fromJson(Map<String, dynamic> json) {
-    final status = json['status'] ?? 'locked';
+    final status = xpStr(json['status']) ?? 'locked';
     return Prize(
-      id: json['id'] ?? 0,
-      prizeId: json['prize_id'],
-      level: json['level'] ?? 1,
-      levelName: json['level_name'],
-      type: json['type'] ?? json['prize_type'] ?? 'badge',
-      title: json['title'] ?? '',
-      description: json['description'],
-      value: json['value']?.toDouble(),
-      minOrderAmount: json['min_order_amount']?.toDouble(),
-      usageLimit: json['usage_limit'],
-      couponCode: json['coupon_code'],
+      id: xpInt(json['id']),
+      prizeId: xpIntOrNull(json['prize_id']),
+      level: xpInt(json['level'], 1),
+      levelName: xpStr(json['level_name']),
+      type: xpStr(json['type']) ?? xpStr(json['prize_type']) ?? 'badge',
+      title: xpStr(json['title']) ?? '',
+      description: xpStr(json['description']),
+      value: xpDoubleOrNull(json['value']),
+      minOrderAmount: xpDoubleOrNull(json['min_order_amount']),
+      usageLimit: xpIntOrNull(json['usage_limit']),
+      couponCode: xpStr(json['coupon_code']),
       status: status,
-      isClaimed: json['is_claimed'] ?? status == 'claimed',
-      isUsable: json['is_usable'] ?? false,
-      unlockedAt:
-          json['unlocked_at'] != null
-              ? DateTime.tryParse(json['unlocked_at'].toString())
-              : null,
-      claimedAt:
-          json['claimed_at'] != null
-              ? DateTime.tryParse(json['claimed_at'].toString())
-              : null,
-      expiresAt:
-          json['expires_at'] != null
-              ? DateTime.tryParse(json['expires_at'].toString())
-              : null,
-      usedAt:
-          json['used_at'] != null
-              ? DateTime.tryParse(json['used_at'].toString())
-              : null,
-      icon: json['icon'],
+      isClaimed: xpBool(json['is_claimed'], status == 'claimed'),
+      isUsable: xpBool(json['is_usable']),
+      unlockedAt: xpDate(json['unlocked_at']),
+      claimedAt: xpDate(json['claimed_at']),
+      expiresAt: xpDate(json['expires_at']),
+      usedAt: xpDate(json['used_at']),
+      icon: xpStr(json['icon']),
     );
   }
 
@@ -184,6 +163,12 @@ class Prize {
     if (expiresAt == null) return false;
     return DateTime.now().isAfter(expiresAt!);
   }
+
+  PrizeKind get kind => PrizeKind.parse(type);
+
+  /// See [RewardState.of].
+  RewardState get rewardState =>
+      RewardState.of(type: type, status: status, expiresAt: expiresAt);
 
   /// Prize can be claimed if status is "unlocked" and not expired
   bool get canClaim => status == 'unlocked' && !isExpired;

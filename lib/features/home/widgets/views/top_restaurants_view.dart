@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:waddy_app/common/models/module_model.dart';
+import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/trailing_fade.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/store/controllers/store_controller.dart';
+import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/store/screens/food_store_screen.dart';
@@ -389,7 +389,7 @@ class StoreRailView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _RailHeader(
+        HomeRailHeader(
           headline: thin ? (thinHeadline ?? headline) : headline,
           subtitle: thin ? thinSubtitle : subtitle,
           // A see-all arrow onto a list of one or two is a dead end.
@@ -399,7 +399,11 @@ class StoreRailView extends StatelessWidget {
           _CardsShimmer(ranked: ranked)
         else if (thin)
           for (int i = 0; i < count; i++)
-            StaggeredEntrance(index: i, child: _StoreListRow(store: source[i]))
+            StaggeredEntrance(
+              group: 'home-rail-list',
+              index: i,
+              child: _StoreListRow(store: source[i]),
+            )
         else
           TrailingFade(
             child: SizedBox(
@@ -428,6 +432,7 @@ class StoreRailView extends StatelessWidget {
                     ),
                 itemBuilder: (context, index) {
                   return StaggeredEntrance(
+                    group: 'home-rail-cards',
                     index: index,
                     child:
                         ranked
@@ -450,6 +455,10 @@ class StoreRailView extends StatelessWidget {
 /// worth asserting rather than eyeballing.
 @visibleForTesting
 List<Store> rankFeaturedForTest(List<Store> stores) => _rankFeatured(stores);
+
+/// [_rankFeatured] for the other rails fed by the admin's featured flag
+/// (grocery's top-brands grid).
+List<Store> rankFeaturedStores(List<Store> stores) => _rankFeatured(stores);
 
 /// Puts the chart in the order someone actually chose.
 ///
@@ -486,7 +495,8 @@ class TopRestaurantsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetBuilder<StoreController>(
+    return GetBuilder<StoreListController>(
+      id: StoreListController.featuredId,
       builder: (storeController) {
         List<Store>? allStores = storeController.featuredStoreList;
         List<Store>? restaurantList;
@@ -560,12 +570,20 @@ class TopRestaurantsView extends StatelessWidget {
 
 /// Section header: one chunky sentence-case headline in near-black ink, an
 /// optional quiet subtitle, and an optional circular "see all" arrow.
-class _RailHeader extends StatelessWidget {
+///
+/// Public so the grocery home's "Top brands" grid wears the same header as
+/// food's ranked rail — two module homes, one section voice.
+class HomeRailHeader extends StatelessWidget {
   final String headline;
   final String? subtitle;
   final VoidCallback? onSeeAll;
 
-  const _RailHeader({required this.headline, this.subtitle, this.onSeeAll});
+  const HomeRailHeader({
+    super.key,
+    required this.headline,
+    this.subtitle,
+    this.onSeeAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1135,6 +1153,7 @@ class _RankedStoreCard extends StatelessWidget {
         label: '${discount.toInt()}% ${'off'.tr}',
         color: _kSale,
         bg: WaddyColors.coralSurface,
+        collarTone: OfferCollarTone.sale,
       );
     }
     if (store.freeDelivery == true) {
@@ -1143,6 +1162,7 @@ class _RankedStoreCard extends StatelessWidget {
         label: 'free_delivery'.tr,
         color: WaddyColors.primary,
         bg: WaddyColors.mintSurface,
+        collarTone: OfferCollarTone.delivery,
       );
     }
     final double km = (store.distance ?? 0) / 1000;
@@ -1720,23 +1740,7 @@ _Perk? _offerPerk(Store store) {
 /// the cart bar. The generic [StoreScreen] is the grocery/pharmacy shape, and
 /// routing there gave a restaurant a shelf-browser it has no shelves for.
 void _openStore(Store store) {
-  final splashController = Get.find<SplashController>();
-  final ModuleModel? matched = splashController.moduleById(store.moduleId);
-  splashController.activateModuleFor(store.moduleId);
-
-  // Trust the module type when the payload carried one; otherwise fall back to
-  // food, since this rail only ever renders restaurants. A store whose
-  // `module_id` the payload omitted is a thin payload, not a grocer.
-  final String? type = matched?.moduleType?.toLowerCase();
-  final bool isFood = type == null || type == AppConstants.food.toLowerCase();
-
-  Get.toNamed(
-    RouteHelper.getStoreRoute(id: store.id, page: 'module'),
-    arguments:
-        isFood
-            ? FoodStoreScreen(store: store, fromModule: true)
-            : StoreScreen(store: store, fromModule: true),
-  );
+  StoreNavigator.open(store, page: 'module');
 }
 
 /// Filled mint disc with a white star — the rating row's only splash of

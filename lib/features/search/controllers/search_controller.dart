@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/search/domain/models/global_search_model.dart';
 import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
 import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -18,6 +19,7 @@ class SearchController extends GetxController implements GetxService {
   void onClose() {
     _searchDebounce?.cancel();
     _suggestionDebounce?.cancel();
+    _globalDebounce?.cancel();
     super.onClose();
   }
 
@@ -199,6 +201,7 @@ class SearchController extends GetxController implements GetxService {
       _storeRating = -1;
       _upperValue = 0;
       _lowerValue = 0;
+      resetGlobal(canUpdate: false);
     }
     if (_isStore) {
       _isStore = !_isStore;
@@ -421,4 +424,129 @@ class SearchController extends GetxController implements GetxService {
     _popularCategoryList = await searchServiceInterface.getPopularCategories();
     update();
   }
+
+  // ---- Global search (the module-less Home dashboard) -------------------
+
+  /// Null while a search is in flight, empty for "no matches".
+  List<GlobalSearchStore>? _globalStores;
+  List<GlobalSearchStore>? get globalStores => _globalStores;
+
+  bool _globalFailed = false;
+  bool get globalFailed => _globalFailed;
+
+  /// The active tab; null is "All".
+  SearchKind? _globalKind;
+  SearchKind? get globalKind => _globalKind;
+
+  bool _globalOffersOnly = false;
+  bool get globalOffersOnly => _globalOffersOnly;
+
+  bool _globalFreeOnly = false;
+  bool get globalFreeOnly => _globalFreeOnly;
+
+  bool _globalTopOnly = false;
+  bool get globalTopOnly => _globalTopOnly;
+
+  /// Bumped per request so a slow answer to "pi" cannot land over "pizza".
+  int _globalRequest = 0;
+  Timer? _globalDebounce;
+
+  /// Runs the live search. Typed text is debounced; a picked term or a submit
+  /// ([immediate]) goes straight out. History only records terms the user
+  /// committed to — not every prefix passed on the way to one.
+  void searchGlobal(
+    String query, {
+    bool immediate = false,
+    bool saveHistory = false,
+  }) {
+    final String q = query.trim();
+    _globalDebounce?.cancel();
+    // The field is rewritten from this on every rebuild, so it keeps what was
+    // typed — trailing space included — rather than the trimmed query.
+    _searchText = query;
+    if (q.isEmpty) {
+      resetGlobal();
+      return;
+    }
+    _isSearchMode = false;
+    _globalStores = null;
+    _globalFailed = false;
+    update();
+
+    Future<void> run() async {
+      final int request = ++_globalRequest;
+      if (saveHistory) {
+        _historyList.remove(q);
+        _historyList.insert(0, q);
+        searchServiceInterface.saveSearchHistory(_historyList);
+      }
+      final List<GlobalSearchStore>? stores = await searchServiceInterface
+          .getGlobalSearch(q);
+      if (request != _globalRequest) return;
+      _globalFailed = stores == null;
+      _globalStores = stores ?? <GlobalSearchStore>[];
+      update();
+    }
+
+    if (immediate) {
+      run();
+    } else {
+      _globalDebounce = Timer(_debounceDuration, run);
+    }
+  }
+
+  void resetGlobal({bool canUpdate = true}) {
+    _globalDebounce?.cancel();
+    _globalRequest++;
+    _globalStores = null;
+    _globalFailed = false;
+    _globalKind = null;
+    _globalOffersOnly = false;
+    _globalFreeOnly = false;
+    _globalTopOnly = false;
+    if (canUpdate) {
+      _isSearchMode = true;
+      update();
+    }
+  }
+
+  void setGlobalKind(SearchKind? kind) {
+    _globalKind = kind;
+    update();
+  }
+
+  void toggleGlobalOffers() {
+    _globalOffersOnly = !_globalOffersOnly;
+    update();
+  }
+
+  void toggleGlobalTop() {
+    _globalTopOnly = !_globalTopOnly;
+    update();
+  }
+
+  void toggleGlobalFree() {
+    _globalFreeOnly = !_globalFreeOnly;
+    update();
+  }
+
+  /// Stores passing the filter chips, before the tab narrows them: the tab
+  /// counts are computed from this so they stay honest as chips change.
+  List<GlobalSearchStore> get globalFiltered =>
+      (_globalStores ?? const <GlobalSearchStore>[])
+          .where(
+            (s) =>
+                (!_globalOffersOnly || s.hasOffer) &&
+                (!_globalFreeOnly || s.freeDelivery) &&
+                (!_globalTopOnly || s.isTopRated),
+          )
+          .toList();
+
+  List<GlobalSearchStore> get globalVisible =>
+      globalFiltered
+          .where((s) => _globalKind == null || s.kind == _globalKind)
+          .toList();
+
+  int globalCount(SearchKind? kind) =>
+      globalFiltered.where((s) => kind == null || s.kind == kind).length;
 }

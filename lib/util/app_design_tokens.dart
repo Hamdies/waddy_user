@@ -146,44 +146,4 @@ class AppDesignTokens {
 
   /// Spring animation for bouncy effects
   static const Duration animSpring = Duration(milliseconds: 600);
-
-  // ============================================
-  // REWARD TYPE ICONS
-  // ============================================
-
-  /// Get emoji icon for reward type
-  static String getRewardIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'free_delivery':
-        return '🚚';
-      case 'discount':
-        return '💰';
-      case 'wallet_credit':
-        return '💳';
-      case 'badge':
-        return '🏅';
-      case 'free_item':
-        return '🎁';
-      default:
-        return '🎯';
-    }
-  }
-
-  /// Get readable name for reward type
-  static String getRewardName(String type) {
-    switch (type.toLowerCase()) {
-      case 'free_delivery':
-        return 'Free Delivery';
-      case 'discount':
-        return 'Discount';
-      case 'wallet_credit':
-        return 'Wallet Credit';
-      case 'badge':
-        return 'Badge';
-      case 'free_item':
-        return 'Free Item';
-      default:
-        return 'Reward';
-    }
-  }
 }

@@ -86,6 +86,7 @@ class OrderPayloadBuilder {
           addOnQtyList,
           'Item',
           itemType: isCampaign ? 'AppModelsItemCampaign' : null,
+          preference: cart.preference,
         ),
       );
     }

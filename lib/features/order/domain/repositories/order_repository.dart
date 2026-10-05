@@ -36,6 +36,17 @@ class OrderRepository implements OrderRepositoryInterface {
   }
 
   @override
+  Future<Response> getRiderLocation(
+    String orderID, {
+    String? contactNumber,
+  }) async {
+    return await apiClient.getData(
+      '${AppConstants.riderLocationUri}$orderID'
+      '${contactNumber != null ? '&contact_number=$contactNumber' : ''}',
+    );
+  }
+
+  @override
   Future<Response> switchToCOD(String? orderID, {String? guestId}) async {
     Map<String, String> data = {'_method': 'put', 'order_id': orderID!};
     return await apiClient.postData(AppConstants.codSwitchUri, data);
@@ -127,8 +138,18 @@ class OrderRepository implements OrderRepositoryInterface {
     bool fromDashboard,
   ) async {
     PaginatedOrderModel? runningOrderModel;
+    // `fromDashboard` asks for a COUNT, not a list.
+    //
+    // It used to request 50 — 37.3 KB on every home load and every refresh —
+    // so the dashboard could evaluate `runningOrderModel!.orders!.isNotEmpty`
+    // and light a badge. One order answers that question as well as fifty, and
+    // `total_size` in the response carries the real count for anything that
+    // needs it.
+    //
+    // The order screen still asks for 10: it renders the list.
+    final int limit = fromDashboard ? 1 : 10;
     Response response = await apiClient.getData(
-      '${AppConstants.runningOrderListUri}?offset=$offset&limit=${fromDashboard ? 50 : 10}',
+      '${AppConstants.runningOrderListUri}?offset=$offset&limit=$limit',
     );
     if (response.statusCode == 200) {
       runningOrderModel = PaginatedOrderModel.fromJson(response.body);

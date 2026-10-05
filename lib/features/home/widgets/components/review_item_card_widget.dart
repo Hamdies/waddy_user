@@ -1,3 +1,4 @@
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/models/module_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,7 +14,6 @@ import 'package:waddy_app/util/styles.dart';
 import 'package:waddy_app/common/widgets/add_favourite_view.dart';
 import 'package:waddy_app/common/widgets/cart_count_view.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
-import 'package:waddy_app/common/widgets/discount_tag.dart';
 import 'package:waddy_app/common/widgets/organic_tag.dart';
 
 class ReviewItemCard extends StatelessWidget {
@@ -80,12 +80,7 @@ class ReviewItemCard extends StatelessWidget {
 
                       AddFavouriteView(item: item!),
 
-                      DiscountTag(
-                        isFloating: true,
-                        discount: Get.find<ItemController>().getDiscount(item!),
-                        discountType: Get.find<ItemController>()
-                            .getDiscountType(item!),
-                      ),
+                      OfferCollarBadge.itemCorner(item!),
                     ],
                   ),
                 ),
@@ -253,13 +248,7 @@ class ReviewItemCard extends StatelessWidget {
                         )
                         : const SizedBox(),
 
-                    DiscountTag(
-                      isFloating: true,
-                      discount: Get.find<ItemController>().getDiscount(item!),
-                      discountType: Get.find<ItemController>().getDiscountType(
-                        item!,
-                      ),
-                    ),
+                    OfferCollarBadge.itemCorner(item!),
 
                     OrganicTag(item: item!, placeInImage: false),
 

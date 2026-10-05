@@ -100,6 +100,17 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
+  Future<Response> getRiderLocation(
+    String orderID, {
+    String? contactNumber,
+  }) async {
+    return await orderRepositoryInterface.getRiderLocation(
+      orderID,
+      contactNumber: contactNumber,
+    );
+  }
+
+  @override
   Future<bool> cancelOrder(
     String orderID,
     String? reason, {

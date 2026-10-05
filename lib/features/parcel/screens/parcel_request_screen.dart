@@ -1247,7 +1247,7 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
                                                               .configModel
                                                               .activePaymentMethodList
                                                               ?.length ??
-                                                                  0,
+                                                          0,
                                                       shrinkWrap: true,
                                                       physics:
                                                           const NeverScrollableScrollPhysics(),

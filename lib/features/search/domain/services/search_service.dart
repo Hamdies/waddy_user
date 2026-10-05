@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
+import 'package:waddy_app/features/search/domain/models/global_search_model.dart';
 import 'package:waddy_app/features/search/domain/models/popular_categories_model.dart';
 import 'package:waddy_app/features/search/domain/models/search_suggestion_model.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
@@ -217,5 +218,10 @@ class SearchService implements SearchServiceInterface {
   @override
   Future<List<PopularCategoryModel?>?> getPopularCategories() async {
     return await searchRepositoryInterface.getPopularCategories();
+  }
+
+  @override
+  Future<List<GlobalSearchStore>?> getGlobalSearch(String query) async {
+    return await searchRepositoryInterface.getGlobalSearch(query);
   }
 }
