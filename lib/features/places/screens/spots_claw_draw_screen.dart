@@ -697,10 +697,18 @@ class _SpotsClawDrawScreenState extends State<SpotsClawDrawScreen>
     );
   }
 
-  String get _eyebrow => 'spots_claw_eyebrow'.trParams({
-    'zone': widget.zoneName ?? '',
-    'week': '${widget.week ?? ''}',
-  });
+  String get _eyebrow {
+    // A payload without a venue or a parseable week would otherwise print
+    // " · Week  · Voter draw" — dangling separators around nothing.
+    final zone = widget.zoneName?.trim() ?? '';
+    if (zone.isEmpty || widget.week == null) {
+      return 'spots_claw_eyebrow_short'.tr;
+    }
+    return 'spots_claw_eyebrow'.trParams({
+      'zone': zone,
+      'week': '${widget.week}',
+    });
+  }
 
   /// The cabinet: deep-teal shell, mint brow, glass, prize chute, controls.
   ///

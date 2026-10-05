@@ -8,6 +8,7 @@ import 'package:waddy_app/features/places/domain/models/place_review_model.dart'
 import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_winner_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
+import 'package:waddy_app/features/places/domain/models/spots_draw_round_model.dart';
 import 'package:waddy_app/features/places/domain/repositories/places_repository_interface.dart';
 import 'package:waddy_app/features/places/domain/services/places_service_interface.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
@@ -240,6 +241,27 @@ class PlacesService implements PlacesServiceInterface {
       }
     }
     return null;
+  }
+
+  @override
+  Future<({SpotsDrawRound? round, int? statusCode})> getDraw({
+    String? period,
+  }) async {
+    final Response response = await placesRepositoryInterface.getDraw(
+      period: period,
+    );
+    if (response.statusCode == 200 && response.body is Map<String, dynamic>) {
+      try {
+        return (
+          round: SpotsDrawRound.fromJson(response.body as Map<String, dynamic>),
+          statusCode: response.statusCode,
+        );
+      } catch (e) {
+        debugPrint('❌ [SERVICE] getDraw() - Parse error: $e');
+        return (round: null, statusCode: response.statusCode);
+      }
+    }
+    return (round: null, statusCode: response.statusCode);
   }
 
   @override
