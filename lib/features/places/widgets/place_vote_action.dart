@@ -45,21 +45,31 @@ Future<void> unvotePlace(int placeId) async {
   }, reason: 'unvote');
 }
 
-Future<void> _castVote(int placeId) async {
-  final controller = Get.find<PlacesController>();
+/// A second tap while the first vote is still on its round trips would post
+/// twice and fire a second confetti.
+bool _casting = false;
 
-  // Already backing this spot? A second tap is a mis-tap, not a second vote —
-  // the vote is idempotent server-side, so say so instead of re-posting.
-  await controller.getVoteStatus(placeId);
-  if (controller.voteStatus?.hasVoted ?? false) {
-    _showVoteToast('already_backing_this_spot'.tr, placeId: placeId);
-    return;
+Future<void> _castVote(int placeId) async {
+  if (_casting) return;
+  _casting = true;
+  try {
+    await _castVoteOnce(placeId);
+  } finally {
+    _casting = false;
   }
+}
+
+Future<void> _castVoteOnce(int placeId) async {
+  final controller = Get.find<PlacesController>();
 
   // `silent` suppresses the controller's own success toast: the undo snackbar
   // below is the confirmation, and two stacked toasts hide the undo action.
   final success = await controller.submitVote(placeId, null, silent: true);
-  if (success) {
+  if (success && controller.lastVoteAction == 'unchanged') {
+    // Already backing this spot: a second tap is a mis-tap, not a second vote.
+    // The server is idempotent, so it answers rather than us asking first.
+    _showVoteToast('already_backing_this_spot'.tr, placeId: placeId);
+  } else if (success) {
     // The vote is the app's core act and it landed with no acknowledgement
     // beyond a count changing. The burst is the payoff.
     showSpotsConfetti();
@@ -142,11 +152,7 @@ void _showVoteToast(
               ? SnackBarAction(
                 label: displayCaps('undo'.tr),
                 textColor: Spots.mint,
-                onPressed:
-                    () => Get.find<PlacesController>().removeVote(
-                      placeId,
-                      silent: true,
-                    ),
+                onPressed: () => Get.find<PlacesController>().undoVote(placeId),
               )
               : null,
     ),

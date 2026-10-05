@@ -18,6 +18,7 @@ import 'package:waddy_app/features/places/domain/models/place_winner_model.dart'
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
+import 'package:waddy_app/features/places/domain/models/spots_draw_round_model.dart';
 import 'package:waddy_app/features/places/domain/services/places_service_interface.dart';
 import 'package:waddy_app/features/places/domain/spots_stage.dart';
 import 'package:waddy_app/features/places/widgets/vote_switch_dialog.dart';
@@ -49,6 +50,18 @@ class PlacesController extends GetxController implements GetxService {
   /// `GoogleMap` twice. See `S-05`.
   static const String idReviews = 'places_reviews';
 
+  /// The two prize screens (My Prizes and a prize's details).
+  ///
+  /// Both used to be id-less `GetBuilder`s, and an id-less builder is not in
+  /// any id's listener group — so once `getMyPrizes` notified only
+  /// [idMasthead], neither screen ever repainted after its first frame. A
+  /// winner opening the prize push landed on "no prizes yet" and stayed
+  /// there. Same defect `module_view.dart` already fixed for the home card.
+  static const String idPrizes = 'places_prizes';
+
+  /// The home's claw-draw entry card.
+  static const String idDraw = 'places_draw';
+
   /// Every home section at once — for the init/refresh cycle, where the
   /// loading flags of all of them flip together.
   static const List<String> idAllHome = [
@@ -58,6 +71,7 @@ class PlacesController extends GetxController implements GetxService {
     idWinners,
     idMasthead,
     idFilters,
+    idDraw,
   ];
 
   // ─── Categories ───
@@ -366,13 +380,58 @@ class PlacesController extends GetxController implements GetxService {
     if (_prizes != null && !reload) return;
     if (notify) {
       _isPrizesLoading = true;
-      update([idMasthead]);
+      update([idMasthead, idPrizes]);
     }
 
-    _prizes = await placesServiceInterface.getMyPrizes();
+    // A failed refresh keeps the vouchers already on screen: the service
+    // answers null for "the request failed", which is not "you have none".
+    final PlacePrizeList? fetched = await placesServiceInterface.getMyPrizes();
+    if (fetched != null) _prizes = fetched;
     _isPrizesLoading = false;
     await _syncCelebratedPrizes();
-    update([idMasthead]);
+    update([idMasthead, idPrizes]);
+  }
+
+  // ─── The claw draw ───
+  // After a round closes the server crowns the champion and, in the same
+  // transaction, draws `winners_per_week` voters **of that venue** at random.
+  // The claw replays that draw; this is where the client fetches it.
+
+  /// The last closed round's draw, for the home's entry card. Null until
+  /// fetched, and also when there is no draw to show.
+  SpotsDrawRound? _latestDraw;
+  SpotsDrawRound? get latestDraw => _latestDraw;
+  bool _isLatestDrawLoading = false;
+  bool get isLatestDrawLoading => _isLatestDrawLoading;
+
+  /// Fetch the last closed round's draw for the home card.
+  ///
+  /// Per-user (`is_me`, `my_prize_id`), so a reload is the normal call after
+  /// sign-in or pull-to-refresh. A failed request keeps whatever was there;
+  /// a 404 (no round has closed with a draw yet) clears it.
+  Future<void> getLatestDraw({bool reload = false}) async {
+    if (_isLatestDrawLoading) return;
+    if (_latestDraw != null && !reload) return;
+    _isLatestDrawLoading = true;
+
+    final result = await placesServiceInterface.getDraw();
+    if (result.round != null) {
+      _latestDraw = result.round;
+    } else if (result.statusCode == 404) {
+      _latestDraw = null;
+    }
+    _isLatestDrawLoading = false;
+    update([idDraw]);
+  }
+
+  /// One draw by [period] (null → last closed), for the claw screen itself.
+  ///
+  /// Deliberately not stored: the screen owns the round it is replaying, so
+  /// opening an old week from a voucher cannot repaint the home card with it.
+  Future<({SpotsDrawRound? round, int? statusCode})> fetchDraw({
+    String? period,
+  }) {
+    return placesServiceInterface.getDraw(period: period);
   }
 
   // ─── Win-card celebration gate ───
@@ -413,8 +472,8 @@ class PlacesController extends GetxController implements GetxService {
     } catch (e) {
       debugPrint('⚠️ [PLACES] celebrated prizes write error: $e');
     }
-    // Only the masthead's prize badge reads this.
-    update([idMasthead]);
+    // The masthead's prize badge and the prize screens read this.
+    update([idMasthead, idPrizes]);
   }
 
   // ─── Live Standings (race mode) ───
@@ -437,6 +496,12 @@ class PlacesController extends GetxController implements GetxService {
   // are five places that write `_placeList` or `_leaderboardList`, and a memo
   // that depends on remembering to clear it at all five is a memo that will be
   // stale the first time someone adds a sixth. See `S-08`.
+  List<Place> _unfilteredFallback = const [];
+  bool get _hasPlaceFilters =>
+      _selectedCategoryId != null ||
+      _searchQuery.isNotEmpty ||
+      _selectedTagIds.isNotEmpty;
+
   List<Place>? _standingsMemo;
   PlaceList? _standingsFromPlaces;
   PlaceList? _standingsFromBoard;
@@ -450,10 +515,19 @@ class PlacesController extends GetxController implements GetxService {
       return _standingsMemo!;
     }
 
-    final source =
-        (leaderboard != null && leaderboard!.isNotEmpty)
-            ? leaderboard!
-            : (places ?? []).where((p) => p.votesCount > 0).toList();
+    final List<Place> source;
+    if (leaderboard != null && leaderboard!.isNotEmpty) {
+      source = leaderboard!;
+    } else if (_hasPlaceFilters) {
+      // `places` is the *filtered* list. Ranking it would make the weekly
+      // board change with the category chip and write that into the rank
+      // snapshot, so keep the last board built from the unfiltered list.
+      source = _unfilteredFallback;
+    } else {
+      source =
+          _unfilteredFallback =
+              (places ?? []).where((p) => p.votesCount > 0).toList();
+    }
     final list = List<Place>.from(source);
     list.sort((a, b) {
       final byVotes = b.votesCount.compareTo(a.votesCount);
@@ -538,9 +612,9 @@ class PlacesController extends GetxController implements GetxService {
   Future<void> refreshRankDeltas() async {
     final standings = liveStandings;
     if (standings.isEmpty) return;
-    final current = <int, int>{
-      for (int i = 0; i < standings.length; i++) standings[i].id: i + 1,
-    };
+    // Competition rank, the same number the cards print. List position would
+    // show ▲/▼ on spots that are tied and labelled "T2".
+    final current = <int, int>{for (final p in standings) p.id: rankOf(p.id)!};
     try {
       final prefs = await SharedPreferences.getInstance();
       Map<int, int>? previous = _lastComputedRanks;
@@ -563,10 +637,20 @@ class PlacesController extends GetxController implements GetxService {
         }
       });
       _lastComputedRanks = current;
+      final String key = _standingsSnapshotKey;
       await prefs.setString(
-        _standingsSnapshotKey,
+        key,
         jsonEncode(current.map((k, v) => MapEntry(k.toString(), v))),
       );
+      // One snapshot per week per zone was written and never read again once
+      // the week passed. Keep only this week's.
+      final String weekPrefix = key.substring(0, key.lastIndexOf('_') + 1);
+      for (final String k in prefs.getKeys().toList()) {
+        if (k.startsWith('places_rank_snapshot_') &&
+            !k.startsWith(weekPrefix)) {
+          await prefs.remove(k);
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ [PLACES] refreshRankDeltas error: $e');
     }
@@ -623,6 +707,7 @@ class PlacesController extends GetxController implements GetxService {
       _zones = fetched;
       _zonesLoaded = true;
     }
+    if (fetched == null) _initFailures++;
     if (_zones == null || _zones!.isEmpty) {
       debugPrint('⚠️ [PLACES] zones response is null or empty');
     }
@@ -642,13 +727,17 @@ class PlacesController extends GetxController implements GetxService {
       update([idFilters]);
     }
 
-    _categories = await placesServiceInterface.getCategories(source: source);
+    final fetched = await placesServiceInterface.getCategories(source: source);
+    if (fetched == null) _initFailures++;
+    _categories = fetched ?? _categories;
     if (_categories == null || _categories!.isEmpty) {
       debugPrint('⚠️ [PLACES] categories response is null or empty');
     }
     _isCategoriesLoading = false;
     if (notify) update([idFilters]);
   }
+
+  int _placesSeq = 0;
 
   /// Fetch places with filters
   Future<void> getPlaces({
@@ -671,8 +760,13 @@ class PlacesController extends GetxController implements GetxService {
     // the same page and all of them get merged in.
     if (!isFirstPage && _isLoadingMorePlaces) return;
 
+    // A first page starts a new list (new zone / sort / category), so it
+    // outdates everything still in flight — including a page-2 asked for under
+    // the old filters, which would otherwise be merged into the new list.
+    final int seq = isFirstPage ? ++_placesSeq : _placesSeq;
     if (isFirstPage) {
       _isPlacesLoading = true;
+      _isLoadingMorePlaces = false;
       _placesPage = 1;
     } else {
       _isLoadingMorePlaces = true;
@@ -698,7 +792,9 @@ class PlacesController extends GetxController implements GetxService {
       offset: offset,
       source: source,
     );
+    if (seq != _placesSeq) return;
 
+    if (result == null) _initFailures++;
     if (result != null) {
       _placesPage = result.offset ?? offset;
       if (isFirstPage) {
@@ -738,12 +834,16 @@ class PlacesController extends GetxController implements GetxService {
     _isLeaderboardLoading = true;
     if (notify) update([idLeaderboard]);
 
-    _leaderboardList = await placesServiceInterface.getLeaderboard(
+    final fetched = await placesServiceInterface.getLeaderboard(
       period: period,
       zoneId: zoneId ?? _selectedZoneId,
       limit: limit,
       source: source,
     );
+    // null = the call failed (the service never throws); keep the cached
+    // board instead of blanking it, and let init see the failure.
+    if (fetched == null) _initFailures++;
+    _leaderboardList = fetched ?? _leaderboardList;
     if (_leaderboardList == null || _leaderboardList!.places.isEmpty) {
       debugPrint('⚠️ [PLACES] leaderboard response is null or empty');
     }
@@ -763,11 +863,13 @@ class PlacesController extends GetxController implements GetxService {
     _isTopVotersLoading = true;
     if (notify) update([idTopVoters]);
 
-    _topVotersList = await placesServiceInterface.getTopVoters(
+    final fetched = await placesServiceInterface.getTopVoters(
       zoneId: zoneId ?? _selectedZoneId,
       limit: limit,
       source: source,
     );
+    if (fetched == null) _initFailures++;
+    _topVotersList = fetched ?? _topVotersList;
     if (_topVotersList == null || _topVotersList!.voters.isEmpty) {
       debugPrint('⚠️ [PLACES] top-voters response is null or empty');
     }
@@ -843,7 +945,13 @@ class PlacesController extends GetxController implements GetxService {
   bool _isDetailsPartial = false;
   bool get isDetailsPartial => _isDetailsPartial;
 
+  /// Bumped by every details fetch. The details slot is app-wide, so a slow
+  /// answer for spot A must not land after the user has moved on to spot B —
+  /// the vote bar reads its place id from that slot.
+  int _detailsSeq = 0;
+
   Future<void> getPlaceDetails(int placeId) async {
+    final int seq = ++_detailsSeq;
     PlacesAnalytics.log(
       'details_view',
       placeId: placeId,
@@ -860,6 +968,8 @@ class PlacesController extends GetxController implements GetxService {
     update([idDetails]);
 
     final result = await placesServiceInterface.getPlaceDetails(placeId);
+    // Superseded while in flight: the newer call owns the slot and the flags.
+    if (seq != _detailsSeq) return;
     if (result.place != null) {
       _placeDetails = result.place;
       _isDetailsPartial = false;
@@ -871,6 +981,8 @@ class PlacesController extends GetxController implements GetxService {
     _isDetailsLoading = false;
     update([idDetails]);
   }
+
+  int _reviewsSeq = 0;
 
   /// Fetch paginated reviews for a place
   Future<void> getPlaceReviews(
@@ -884,6 +996,11 @@ class PlacesController extends GetxController implements GetxService {
     // for the same page and both get appended.
     if (!isFirstPage && _isLoadingMoreReviews) return;
 
+    // Only a first page starts a new list; a later page belongs to the list
+    // that was current when it was asked for.
+    final int seq = isFirstPage ? ++_reviewsSeq : _reviewsSeq;
+    if (isFirstPage) _isLoadingMoreReviews = false;
+
     if (isFirstPage) {
       _isReviewsLoading = true;
       _reviewsPage = 1;
@@ -896,6 +1013,7 @@ class PlacesController extends GetxController implements GetxService {
       placeId,
       offset: offset,
     );
+    if (seq != _reviewsSeq) return;
 
     if (result != null) {
       _reviewsPage = result.offset ?? offset;
@@ -929,10 +1047,20 @@ class PlacesController extends GetxController implements GetxService {
   // ═══════════════════════════════════════════════════════════════
 
   /// Check vote status
+  int _voteStatusSeq = 0;
+
   Future<void> getVoteStatus(int placeId) async {
-    _voteStatus = await placesServiceInterface.getVoteStatus(placeId);
+    final int seq = ++_voteStatusSeq;
+    final status = await placesServiceInterface.getVoteStatus(placeId);
+    if (seq != _voteStatusSeq) return;
+    _voteStatus = status;
     update([idDetails]);
   }
+
+  /// The server's `action` for the last accepted vote: `created`, `switched`
+  /// or `unchanged` (the user already backed this spot).
+  String? _lastVoteAction;
+  String? get lastVoteAction => _lastVoteAction;
 
   /// Submit vote (now supports photo).
   /// One vote per user per week — a 409 means the vote is parked on another
@@ -964,8 +1092,13 @@ class PlacesController extends GetxController implements GetxService {
         response.body?['code'] == 'already_voted_this_week') {
       final currentTitle =
           response.body?['current_vote']?['place_title']?.toString() ?? '';
-      final confirmed = await showVoteSwitchDialog(currentTitle);
+      final confirmed = await confirmVoteSwitch(currentTitle);
       if (confirmed == true) {
+        // Remember where the vote came from: the switch deletes it
+        // server-side, and Undo has to put it back.
+        _switchedFromPlaceId = int.tryParse(
+          '${response.body?['current_vote']?['place_id']}',
+        );
         return submitVote(
           placeId,
           rating,
@@ -979,13 +1112,39 @@ class PlacesController extends GetxController implements GetxService {
     }
 
     if (response.statusCode == 200) {
+      // A plain vote has nothing to restore; a switch keeps the origin that
+      // the 409 branch recorded for [undoVote].
+      if (!switchVote) _switchedFromPlaceId = null;
       // A silent vote is announced by the undo snackbar the caller shows;
       // stacking a second toast on top of it just covers the undo action.
+      final String? action = response.body?['action']?.toString();
+      _lastVoteAction = action;
+      // The server already held this exact vote and changed nothing, so there
+      // is nothing to refresh and nothing to celebrate.
+      if (action == 'unchanged') return true;
+
       if (!silent) {
         showCustomSnackBar('vote_submitted_successfully'.tr, isError: false);
       }
-      await getPlaceDetails(placeId);
-      await getVoteStatus(placeId);
+      // The server has confirmed, so the answer is known: return now and let
+      // the refreshes land behind it. They used to be awaited in turn
+      // (details, then status), which held the confetti for two more round
+      // trips. They also fetched details for *this* spot even when the user
+      // was voting from a home card, overwriting the app-wide details slot
+      // and logging a details_view for a page nobody opened — so only refresh
+      // the spot that is actually open.
+      if (_placeDetails?.id == placeId) {
+        _voteStatus = VoteStatus(
+          hasVoted: true,
+          hasReviewed: _voteStatus?.hasReviewed ?? false,
+          vote: _voteStatus?.vote,
+          weeklyVotePlaceId: placeId,
+          weeklyVotePlaceTitle: _placeDetails?.title,
+        );
+        update([idDetails]);
+        unawaited(getPlaceDetails(placeId));
+        unawaited(getVoteStatus(placeId));
+      }
       // Refresh rankings so podium/top voters reflect the new vote,
       // then recompute ▲/▼ movement once fresh data is in.
       //
@@ -1070,6 +1229,29 @@ class PlacesController extends GetxController implements GetxService {
     return false;
   }
 
+  /// Asks the user to confirm moving their weekly vote. A field so the vote
+  /// flow can be tested without a navigator; the app uses the Spots dialog.
+  Future<bool?> Function(String currentPlaceTitle) confirmVoteSwitch =
+      showVoteSwitchDialog;
+
+  /// The spot the vote sat on before the last confirmed switch, or null.
+  int? _switchedFromPlaceId;
+
+  /// Undo for a vote just cast on [placeId].
+  ///
+  /// After a switch the server holds only the new vote, so removing it alone
+  /// would leave the user with none — their original backing would be lost.
+  /// Undo therefore removes the new vote and puts the vote back on the spot it
+  /// came from. The old vote's rating and comment are gone (the switch deleted
+  /// them), so it returns as a plain vote.
+  Future<bool> undoVote(int placeId) async {
+    final int? previous = _switchedFromPlaceId;
+    _switchedFromPlaceId = null;
+    final removed = await removeVote(placeId, silent: true);
+    if (!removed || previous == null || previous == placeId) return removed;
+    return submitVote(previous, null, silent: true);
+  }
+
   /// Remove vote
   Future<bool> removeVote(int placeId, {bool silent = false}) async {
     // See `submitVote`: `_isVoting` has no readers, so it notifies nothing.
@@ -1083,7 +1265,12 @@ class PlacesController extends GetxController implements GetxService {
         showCustomSnackBar('vote_removed_successfully'.tr, isError: false);
       }
       _voteStatus = VoteStatus(hasVoted: false);
-      await getPlaceDetails(placeId);
+      // Only the open spot needs its details refreshed, and not before the
+      // caller hears the vote is gone. See `submitVote`.
+      if (_placeDetails?.id == placeId) {
+        update([idDetails]);
+        unawaited(getPlaceDetails(placeId));
+      }
       Future.wait([
         getLeaderboard(limit: 3, reload: true, notify: false),
         getTopVoters(reload: true, notify: false),
@@ -1442,11 +1629,13 @@ class PlacesController extends GetxController implements GetxService {
     _reviewList = null;
     _reviewsPage = 1;
     _voteStatus = null;
+    _switchedFromPlaceId = null;
     _favoritesList = null;
     _submissionsList = null;
     _topVotersList = null;
     _latestWinner = null;
     _winnersHistory = null;
+    _latestDraw = null;
     _rankDeltas = {};
     _newEntries = {};
     _lastComputedRanks = null;
@@ -1456,7 +1645,11 @@ class PlacesController extends GetxController implements GetxService {
     _sortBy = 'rating';
     _currentBannerIndex = 0;
     _zonesLoaded = false;
+    // Voucher codes and QR codes are per user: without this the next account
+    // on the device opens the last one's prizes (same class as X-10).
+    _prizes = null;
+    _isPrizesLoading = false;
     // Everything on the home is now empty, so every home section repaints.
-    update(idAllHome);
+    update([...idAllHome, idPrizes]);
   }
 }

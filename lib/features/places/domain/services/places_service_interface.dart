@@ -5,6 +5,7 @@ import 'package:waddy_app/features/places/domain/models/place_banner_model.dart'
 import 'package:waddy_app/features/places/domain/models/place_vote_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_winner_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
+import 'package:waddy_app/features/places/domain/models/spots_draw_round_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_review_model.dart';
 import 'package:waddy_app/features/places/domain/models/place_submission_model.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
@@ -70,6 +71,13 @@ abstract class PlacesServiceInterface {
   Future<PlacePrizeList?> getMyPrizes();
 
   Future<List<RecentWinner>?> getRecentWinners({int limit = 10});
+
+  /// The claw draw for [period], or the last closed period when omitted.
+  ///
+  /// The status code rides along so a caller can tell "no draw for that week"
+  /// (404) from "the request failed" — the first is an answer, the second
+  /// deserves a retry.
+  Future<({SpotsDrawRound? round, int? statusCode})> getDraw({String? period});
 
   /// Submit or update vote (now supports photo)
   Future<Response> submitVote(

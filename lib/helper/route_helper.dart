@@ -89,6 +89,8 @@ import 'package:waddy_app/features/places/screens/place_submission_screen.dart';
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
 import 'package:waddy_app/features/places/domain/spots_draw.dart';
 import 'package:waddy_app/features/places/screens/spots_claw_draw_screen.dart';
+import 'package:waddy_app/features/places/screens/spots_claw_draw_loader_screen.dart';
+import 'package:waddy_app/features/places/domain/models/spots_draw_round_model.dart';
 import 'package:waddy_app/features/places/screens/spots_prize_details_screen.dart';
 import 'package:waddy_app/features/places/screens/spots_prizes_screen.dart';
 import 'package:waddy_app/features/places/domain/models/place_model.dart';
@@ -111,6 +113,14 @@ class RouteHelper {
     final String? raw = Get.parameters[key];
     if (raw == null || raw.isEmpty || raw == 'null') return fallback;
     return int.tryParse(raw) ?? fallback;
+  }
+
+  /// A string parameter, with the same missing / `'null'` handling as
+  /// [_paramIntOrNull]. Callers still validate the shape themselves.
+  static String? _paramStringOrNull(String key) {
+    final String? raw = Get.parameters[key];
+    if (raw == null || raw.isEmpty || raw == 'null') return null;
+    return raw;
   }
 
   /// Nullable variant, for parameters that are genuinely optional.
@@ -1409,21 +1419,22 @@ class RouteHelper {
     ),
     GetPage(
       name: spotsClawDraw,
-      // The draw rides in Get.arguments. Until `CLAW-Z2` lands there is no
-      // endpoint to fetch one from, so a push with no argument shows the empty
-      // state rather than a spinner that never resolves — see
-      // docs/spots_claw_draw_plan.md §9.
+      // Three ways in. A bare `SpotsDraw` in the arguments is the debug
+      // launcher's in-memory demo, played as-is. A `SpotsDrawRound` is the
+      // home card handing over the round it already fetched. Anything else —
+      // the round-close push, a voucher's "watch the draw" — fetches by
+      // `?period=` (absent → the last closed round).
       page:
           () => getRoute(
-            SpotsClawDrawScreen(
-              draw:
-                  Get.arguments is SpotsDraw
-                      ? Get.arguments as SpotsDraw
-                      : SpotsDraw.fromServer(
-                        entrants: const [],
-                        winnerIds: const [],
-                      ),
-            ),
+            Get.arguments is SpotsDraw
+                ? SpotsClawDrawScreen(draw: Get.arguments as SpotsDraw)
+                : SpotsClawDrawLoaderScreen(
+                  period: _paramStringOrNull('period'),
+                  initialRound:
+                      Get.arguments is SpotsDrawRound
+                          ? Get.arguments as SpotsDrawRound
+                          : null,
+                ),
           ),
     ),
   ];

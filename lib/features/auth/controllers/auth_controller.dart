@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/pets/controllers/pet_controller.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:waddy_app/common/models/response_model.dart';
@@ -253,6 +254,10 @@ class AuthController extends GetxController implements GetxService {
     Get.find<XpController>().clearXpData();
     // Same for pets: the next account must not open the shop on this one's cat.
     Get.find<PetController>().clearOnLogout();
+    // And Spots: prizes carry voucher codes, votes and favourites are personal.
+    if (Get.isRegistered<PlacesController>()) {
+      Get.find<PlacesController>().clearPlacesData();
+    }
     return await authServiceInterface.clearSharedData(removeToken: removeToken);
   }
 

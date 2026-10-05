@@ -28,11 +28,10 @@ class SpotsRound {
   static DateTime lockAt([DateTime? from]) {
     final now = from ?? DateTime.now();
     final daysToMonday = 8 - now.weekday; // 1 (Sun) .. 7 (Mon)
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).add(Duration(days: daysToMonday));
+    // Calendar arithmetic, not `.add(Duration(days: n))`: a Duration is n×24h
+    // of elapsed time, so in a week where the clocks change it lands on 23:00
+    // or 01:00 instead of midnight. DateTime normalises an overflowing day.
+    return DateTime(now.year, now.month, now.day + daysToMonday);
   }
 
   static Duration remaining([DateTime? from]) {

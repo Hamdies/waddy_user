@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:waddy_app/util/swallow.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/places/widgets/claw_draw_entry_card.dart';
 import 'package:waddy_app/features/places/widgets/places_to_visit_section.dart';
 import 'package:waddy_app/features/places/widgets/recent_winners_strip.dart';
 import 'package:waddy_app/features/places/widgets/round_countdown_bar.dart';
@@ -166,6 +168,11 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   Future<void> _loadData() async {
     final controller = Get.find<PlacesController>();
     await controller.initializePlacesData();
+    // Last closed round's claw draw. Per-user (`is_me`, `my_prize_id`), so it
+    // is re-asked on every open rather than trusted from an earlier session,
+    // and it is not part of the init batch: the card is news about last week,
+    // and this week's board must not wait on it.
+    unawaited(controller.getLatestDraw(reload: true));
     if (AuthHelper.isLoggedIn()) {
       controller.getFavorites();
       // Drives the masthead's prize badge — a won voucher has to be findable
@@ -207,9 +214,11 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   Future<void> _refresh() async {
     final controller = Get.find<PlacesController>();
     await controller.initializePlacesData(reload: true);
-    if (AuthHelper.isLoggedIn()) {
-      await controller.getMyPrizes(reload: true, notify: false);
-    }
+    await Future.wait([
+      controller.getLatestDraw(reload: true),
+      if (AuthHelper.isLoggedIn())
+        controller.getMyPrizes(reload: true, notify: false),
+    ]);
   }
 
   @override
@@ -248,6 +257,9 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
                         // The countdown is client-side — it survives outages.
                         const RoundCountdownBar(),
                         const SizedBox(height: Spots.sectionGap),
+                        // Last week's champion's voters, through the claw.
+                        // Collapses to nothing until a round has a draw.
+                        const ClawDrawEntryCard(),
                         // Everything between the countdown and the venue list
                         // is earned, not fixed. See [_RaceSections].
                         _RaceSections(onBrowseSpots: _scrollToSpots),

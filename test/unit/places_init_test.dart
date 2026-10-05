@@ -19,6 +19,10 @@ class _FakePlacesService implements PlacesServiceInterface {
   /// Endpoints that should throw instead of returning.
   final Set<String> failing = <String>{};
 
+  /// Endpoints that return null, as the real service does on any non-200 or
+  /// parse failure. It never throws, so this is the failure that happens.
+  final Set<String> nulling = <String>{};
+
   /// Endpoints that have a cached (local-source) payload available.
   final Set<String> cached = <String>{};
 
@@ -30,6 +34,7 @@ class _FakePlacesService implements PlacesServiceInterface {
   T? _serve<T>(String name, DataSourceEnum source, T value) {
     calls.add('$name:${source.name}');
     if (failing.contains(name)) throw Exception('$name failed');
+    if (source == DataSourceEnum.client && nulling.contains(name)) return null;
     if (source == DataSourceEnum.local && !cached.contains(name)) return null;
     return value;
   }
@@ -188,4 +193,41 @@ void main() {
     expect(controller.isLeaderboardLoading, isFalse);
     expect(controller.isTopVotersLoading, isFalse);
   });
+
+  test(
+    'offline (service returns null) is an error, not a fresh success',
+    () async {
+      final _FakePlacesService service =
+          _FakePlacesService()
+            ..nulling.addAll(<String>[
+              'zones',
+              'categories',
+              'places',
+              'leaderboard',
+              'topVoters',
+            ]);
+      final PlacesController controller = controllerFor(service);
+
+      await controller.initializePlacesData();
+
+      expect(controller.hasAnyHomeData, isFalse);
+      expect(controller.hasInitError, isTrue);
+    },
+  );
+
+  test(
+    'a failed refresh keeps the cached board instead of wiping it',
+    () async {
+      final _FakePlacesService service =
+          _FakePlacesService()
+            ..cached.addAll(<String>['leaderboard', 'places'])
+            ..nulling.addAll(<String>['leaderboard', 'places']);
+      final PlacesController controller = controllerFor(service);
+
+      await controller.initializePlacesData();
+
+      expect(controller.leaderboard, isNotNull);
+      expect(controller.places, hasLength(2));
+    },
+  );
 }

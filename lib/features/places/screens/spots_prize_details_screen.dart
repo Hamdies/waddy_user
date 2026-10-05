@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/helper/route_helper.dart';
 // intl exports its own bidi TextDirection, which shadows Flutter's and breaks
 // TextDirection.ltr — hide it, DateFormat is all this screen needs.
 import 'package:intl/intl.dart' hide TextDirection;
@@ -11,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
+import 'package:waddy_app/features/places/domain/models/spots_draw_round_model.dart';
 import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/util/styles.dart';
@@ -41,7 +43,11 @@ class _SpotsPrizeDetailsScreenState extends State<SpotsPrizeDetailsScreen> {
     super.initState();
     if (widget.prize == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.find<PlacesController>().getMyPrizes();
+        final controller = Get.find<PlacesController>();
+        // Arriving from the win push, the prize is new by definition — a list
+        // loaded before the draw ran does not have it. Only skip the round
+        // trip when the cached list already knows this id.
+        controller.getMyPrizes(reload: _resolve(controller) == null);
       });
     }
   }
@@ -80,6 +86,9 @@ class _SpotsPrizeDetailsScreenState extends State<SpotsPrizeDetailsScreen> {
     return Scaffold(
       backgroundColor: Spots.paper,
       body: GetBuilder<PlacesController>(
+        // `getMyPrizes` only notifies ids; without one this screen never
+        // repainted once the fetch landed. See `PlacesController.idPrizes`.
+        id: PlacesController.idPrizes,
         builder: (controller) {
           final prize = _resolve(controller);
 
@@ -525,6 +534,23 @@ class _PrizeBody extends StatelessWidget {
                       filled: true,
                       height: 56,
                     ),
+                    // The round this voucher came out of. Winning is the one
+                    // result worth watching twice, and a voucher is the only
+                    // place a past week's draw can be reached from.
+                    if (SpotsDrawRound.isValidPeriod(prize.period)) ...[
+                      const SizedBox(height: Spots.s12 - 1),
+                      _ActionButton(
+                        label: 'spots_claw_watch_draw'.tr,
+                        onTap:
+                            () => Get.toNamed(
+                              RouteHelper.getSpotsClawDrawRoute(
+                                period: prize.period,
+                              ),
+                            ),
+                        filled: false,
+                        height: 48,
+                      ),
+                    ],
                     const SizedBox(height: Spots.s12 - 1),
                     _ActionButton(
                       label: 'spots_prize_back_to_prizes'.tr,

@@ -100,6 +100,10 @@ void _forNotificationRouteProcess(NotificationBodyModel? notificationBody) {
               ? RouteHelper.getSpotsPrizeDetailsRoute(notificationBody!.index!)
               : RouteHelper.getSpotsPrizesRoute(),
         ),
+    NotificationType.spots_draw:
+        () => Get.toNamed(
+          RouteHelper.getSpotsClawDrawRoute(period: notificationBody?.period),
+        ),
     NotificationType.level_up:
         () => _exitSplashThen(
           () => Get.offAllNamed(RouteHelper.getMainRoute('levels')),

@@ -80,6 +80,9 @@ class _SpotsPrizesScreenState extends State<SpotsPrizesScreen> {
                 color: Spots.teal,
                 backgroundColor: Spots.mint,
                 child: GetBuilder<PlacesController>(
+                  // Id-scoped: `getMyPrizes` notifies ids only, so an id-less
+                  // builder here never saw the fetch land.
+                  id: PlacesController.idPrizes,
                   builder: (controller) {
                     if (controller.isPrizesLoading &&
                         !controller.hasPrizesLoaded) {
