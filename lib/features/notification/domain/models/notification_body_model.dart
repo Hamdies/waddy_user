@@ -21,6 +21,11 @@ enum NotificationType {
   //ignore: constant_identifier_names
   spots_prize,
 
+  /// A Spots round closed and the claw drew from the champion's voters —
+  /// opens the claw replay for that period.
+  //ignore: constant_identifier_names
+  spots_draw,
+
   /// Reached a new XP level — opens the XP tab, which plays the celebration.
   //ignore: constant_identifier_names
   level_up,
@@ -47,6 +52,10 @@ class NotificationBodyModel {
   String? name;
   String? receiverType;
 
+  /// Spots round period (`2026-W27`) for [NotificationType.spots_draw]. A
+  /// string, so it cannot ride in [index].
+  String? period;
+
   NotificationBodyModel({
     this.notificationType,
     this.orderId,
@@ -59,6 +68,7 @@ class NotificationBodyModel {
     this.image,
     this.name,
     this.receiverType,
+    this.period,
   });
 
   NotificationBodyModel.fromJson(Map<String, dynamic> json) {
@@ -73,6 +83,7 @@ class NotificationBodyModel {
     image = json['image'];
     name = json['name'];
     receiverType = json['receiver_type'];
+    period = json['period'];
   }
 
   Map<String, dynamic> toJson() {
@@ -88,6 +99,7 @@ class NotificationBodyModel {
     data['image'] = image;
     data['name'] = name;
     data['receiver_type'] = receiverType;
+    data['period'] = period;
     return data;
   }
 
@@ -106,6 +118,7 @@ class NotificationBodyModel {
       NotificationType.loyalty_point.toString(): NotificationType.loyalty_point,
       NotificationType.trip.toString(): NotificationType.trip,
       NotificationType.spots_prize.toString(): NotificationType.spots_prize,
+      NotificationType.spots_draw.toString(): NotificationType.spots_draw,
       NotificationType.level_up.toString(): NotificationType.level_up,
       NotificationType.challenge_complete.toString():
           NotificationType.challenge_complete,

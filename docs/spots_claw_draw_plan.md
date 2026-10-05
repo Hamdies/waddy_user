@@ -795,3 +795,34 @@ initials fallback is always on screen.
    The screen has only ever been fed fixtures and the debug demo. Closing this
    is one controller method plus a loading state, and it is the last thing
    between the feature and a real round.
+
+### 11.7 Wired end to end — 2026-10-05
+
+§11.6 item 7 is closed. The chain is now endpoint → repository →
+**service (`getDraw`) → controller (`getLatestDraw` / `fetchDraw`)** → screen.
+
+- **Who is in the machine:** the voters of the week's winning venue — the pool
+  `PrizeDrawService::eligiblePool()` already draws from. `SpotsDrawRound`
+  carries the venue and period around the untouched `SpotsDraw`, and the
+  masthead eyebrow names the venue.
+- **Entry points:**
+  - Spots home — `ClawDrawEntryCard` under the countdown, for the last closed
+    round. "The claw picked you!" / "You were in the machine" / "The claw has
+    picked", by outcome. Hidden until a round has entrants.
+  - Round-close push — `spots_draw_ready` (period as `data_id`) →
+    `NotificationType.spots_draw` → `/spots/draw?period=…`, in all three
+    dispatch tables (foreground, background-open, cold start).
+  - Voucher — "Watch the draw" on the prize details screen, for that prize's
+    period.
+- **`SpotsClawDrawLoaderScreen`** owns loading / not-found (404) / failed +
+  retry, then hands a finished draw to the claw. A malformed period (the legacy
+  `9`, `2026-07`) never reaches the request path.
+- **Prize screens repaint again.** Both were id-less `GetBuilder`s while
+  `getMyPrizes` notified only `idMasthead`, so a winner opening the prize push
+  stayed on "no prizes". New `idPrizes`; the push open reloads when the cached
+  list lacks the id; a failed refresh no longer erases vouchers.
+- Tests: `test/unit/spots_draw_wiring_test.dart` (13) and
+  `test/widget/spots_claw_entry_test.dart` (7).
+
+Still owed from §11.6: items 1–6 (curl the live endpoint, the backfill, a
+device run, the `9` prizes, exercising CLAW-Z3's push, the golden).

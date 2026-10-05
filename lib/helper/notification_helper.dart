@@ -95,6 +95,10 @@ class NotificationHelper {
                         ? RouteHelper.getSpotsPrizeDetailsRoute(payload.index!)
                         : RouteHelper.getSpotsPrizesRoute(),
                   ),
+              NotificationType.spots_draw:
+                  () => Get.toNamed(
+                    RouteHelper.getSpotsClawDrawRoute(period: payload.period),
+                  ),
               NotificationType.level_up:
                   () => RouteHelper.goToTab(RouteHelper.tabRewards),
               NotificationType.challenge_complete:
@@ -269,6 +273,12 @@ class NotificationHelper {
                         notificationBody.index!,
                       )
                       : RouteHelper.getSpotsPrizesRoute(),
+                ),
+            NotificationType.spots_draw:
+                () => Get.toNamed(
+                  RouteHelper.getSpotsClawDrawRoute(
+                    period: notificationBody.period,
+                  ),
                 ),
             NotificationType.level_up:
                 () => RouteHelper.goToTab(RouteHelper.tabRewards),
@@ -548,6 +558,13 @@ class NotificationHelper {
           // The backend sends the prize id as data_id (the FCM helper only
           // forwards a fixed key list — a prize_id key would be dropped).
           index: int.tryParse('${data['data_id']}'),
+        );
+      case 'spots_draw_ready':
+        return NotificationBodyModel(
+          notificationType: NotificationType.spots_draw,
+          // Same constraint as `spots_prize_won`: the FCM helper forwards a
+          // fixed key list, so the period travels as data_id.
+          period: data['data_id']?.toString(),
         );
       case 'level_up':
         return NotificationBodyModel(
