@@ -1,4 +1,5 @@
 import 'package:waddy_app/features/pets/domain/models/user_pet_model.dart';
+import 'package:waddy_app/util/parse.dart';
 
 /// One vet on a clinic's page ("Meet the vets"). No photo yet: the page
 /// shows their initial.
@@ -93,11 +94,16 @@ class VetClinicModel {
     this.services = const [],
   });
 
-  factory VetClinicModel.fromJson(Map<String, dynamic> json) {
+  /// Null when the clinic has no readable id: it cannot be opened or keyed, so
+  /// it is dropped (and reported by [Parse.strictInt]) rather than taking the
+  /// whole list down with a [FormatException].
+  static VetClinicModel? fromJson(Map<String, dynamic> json) {
+    final int? id = Parse.strictInt(json['id'], 'vet_clinic.id');
+    if (id == null) return null;
     double? toDouble(dynamic v) => v == null ? null : double.tryParse('$v');
     final dynamic today = json['today_hours'];
     return VetClinicModel(
-      id: json['id'] is int ? json['id'] : int.parse('${json['id']}'),
+      id: id,
       name: '${json['name'] ?? ''}',
       description: json['description']?.toString(),
       address: json['address']?.toString(),

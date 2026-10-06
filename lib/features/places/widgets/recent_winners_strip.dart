@@ -49,7 +49,7 @@ class RecentWinnersStrip extends StatelessWidget {
             ),
             const SizedBox(height: Spots.s12),
             SizedBox(
-              height: 92,
+              height: 100,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.zero,

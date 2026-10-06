@@ -30,9 +30,17 @@ class _StreakRiveBadgeState extends State<StreakRiveBadge> {
 
   ViewModelInstance? _viewModel;
 
+  // FileLoader.file() awaits the asset decode, then does
+  // `_loadCompleter!.complete(file)`. If dispose() runs first it nulls that
+  // completer, and the still-pending await crashes with a null-check error
+  // when it resumes (rive 0.14.11, file_loader.dart:91). Only dispose the
+  // loader once the load has actually settled; otherwise leak this one small
+  // in-flight loader rather than risk the crash. See [[spots-marks]].
+  bool _settled = false;
+
   @override
   void dispose() {
-    _fileLoader.dispose();
+    if (_settled) _fileLoader.dispose();
     super.dispose();
   }
 
@@ -70,10 +78,14 @@ class _StreakRiveBadgeState extends State<StreakRiveBadge> {
     return RiveWidgetBuilder(
       fileLoader: _fileLoader,
       dataBind: DataBind.byName('Instance'),
-      onLoaded: (state) => _bind(state.viewModelInstance),
-      onFailed:
-          (error, stackTrace) =>
-              debugPrint('StreakRiveBadge failed to load $_asset: $error'),
+      onLoaded: (state) {
+        _settled = true;
+        _bind(state.viewModelInstance);
+      },
+      onFailed: (error, stackTrace) {
+        _settled = true;
+        debugPrint('StreakRiveBadge failed to load $_asset: $error');
+      },
       builder:
           (context, state) => switch (state) {
             RiveLoaded() => RiveWidget(

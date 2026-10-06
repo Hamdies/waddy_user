@@ -75,10 +75,7 @@ class SpotsMasthead extends StatelessWidget {
 
                     // Area filter trigger — reads as a quiet sub-line, but the
                     // hit box is padded up to a ≥44px touch target.
-                    _AreaTrigger(
-                      zoneName: zoneName,
-                      onTap: () => _openAreaSheet(context),
-                    ),
+                   
                   ],
                 ),
               ),

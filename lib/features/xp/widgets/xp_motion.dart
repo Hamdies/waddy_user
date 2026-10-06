@@ -47,6 +47,9 @@ class XpMotion {
   /// How long the play input is held before it is released.
   static const Duration playHold = Duration(milliseconds: 1200);
 
+  /// How often the looping XP icons (missions, ways to earn, rewards) replay.
+  static const Duration loop = Duration(seconds: 3);
+
   /// Gap between icons revealed together, so a list doesn't fire in unison.
   static const Duration stagger = Duration(milliseconds: 80);
 }
@@ -75,37 +78,14 @@ enum XpIcon {
 
   const XpIcon(this.asset, this.artboard, this.glyph);
 
-  /// The icon for a prize kind (XM-02).
-  static XpIcon forPrize(PrizeKind kind) {
-    switch (kind) {
-      case PrizeKind.freeDelivery:
-        return XpIcon.flash;
-      case PrizeKind.discount:
-        return XpIcon.diamond;
-      case PrizeKind.walletCredit:
-        return XpIcon.coin;
-      case PrizeKind.badge:
-        return XpIcon.crown;
-      case PrizeKind.other:
-        return XpIcon.starAlt;
-    }
-  }
+  /// The icon for a reward. Every reward is the gem, whatever it pays out:
+  /// one "you've got something" mark instead of a glyph per kind.
+  static XpIcon forPrize(PrizeKind kind) => XpIcon.diamond;
 
-  /// The icon for a quest's `challenge_type`, or null for a type with no
-  /// mapping (the card then keeps the backend's emoji).
-  static XpIcon? forChallengeType(String type) {
-    switch (type) {
-      case 'complete_order':
-      case 'multiple_orders':
-        return XpIcon.coin;
-      case 'min_order_amount':
-        return XpIcon.diamond;
-      case 'new_store':
-        return XpIcon.star;
-      default:
-        return null;
-    }
-  }
+  /// The icon for a quest. Every mission is the flash: one recognisable
+  /// "go do this" mark rather than a different glyph per quest type, and no
+  /// backend emoji standing in for types the table doesn't know.
+  static XpIcon forChallengeType(String type) => XpIcon.flash;
 }
 
 /// One animated icon that plays once, never loops on its own, and falls back
@@ -126,6 +106,11 @@ class XpRiveIcon extends StatefulWidget {
   /// celebrate (e.g. "ready", a claim count). Null never plays on change.
   final Object? playWhen;
 
+  /// Replay on this period after the first play. Null (the default) plays
+  /// once, as every XP surface does; a card that should feel alive passes one.
+  /// It must be longer than [XpMotion.playHold] or the replays overlap.
+  final Duration? repeatEvery;
+
   const XpRiveIcon({
     super.key,
     required this.icon,
@@ -134,6 +119,7 @@ class XpRiveIcon extends StatefulWidget {
     this.size = 24,
     this.playOnReveal = Duration.zero,
     this.playWhen,
+    this.repeatEvery,
   });
 
   @override
@@ -156,12 +142,20 @@ class _XpRiveIconState extends State<XpRiveIcon> {
   bool _failed = false;
   Timer? _reveal;
   Timer? _release;
+  Timer? _loop;
 
   void _onLoaded(RiveLoaded state) {
     _controller = state.controller;
     final delay = widget.playOnReveal;
     if (delay != null) {
-      _reveal = Timer(delay, _play);
+      _reveal = Timer(delay, () {
+        _play();
+        final every = widget.repeatEvery;
+        if (every != null) {
+          _loop?.cancel();
+          _loop = Timer.periodic(every, (_) => _play());
+        }
+      });
     }
   }
 
@@ -202,6 +196,7 @@ class _XpRiveIconState extends State<XpRiveIcon> {
   void dispose() {
     _reveal?.cancel();
     _release?.cancel();
+    _loop?.cancel();
     super.dispose();
   }
 

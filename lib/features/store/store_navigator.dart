@@ -41,24 +41,30 @@ enum StoreLayout {
   /// `is_supermarket` is set by the backend's store formatter on every store
   /// list, but a store known only by id (an item's store link, XP, a deep
   /// link, an ad) does not carry it.
-  static StoreLayout? of(Store store) {
-    final ModuleType? type = _typeOf(store);
+  static StoreLayout? of(Store store) =>
+      resolve(_typeOf(store), store.isSupermarket);
+
+  /// The decision itself, with nothing from GetX: [moduleType] is the store's
+  /// module, [isSupermarket] the backend's flag (null when the store is known
+  /// only by id). Null means "cannot tell yet".
+  static StoreLayout? resolve(ModuleType? moduleType, bool? isSupermarket) {
     // Decided by the module, not the payload: a pet shop's `is_supermarket`
     // is false like any specialty shop's.
-    if (type == ModuleType.pets) return pets;
-    final bool? supermarket = store.isSupermarket;
-    if (supermarket == null) return null;
-    if (supermarket) return aisles;
-    return type == ModuleType.grocery ? specialty : menu;
+    if (moduleType == ModuleType.pets) return pets;
+    if (isSupermarket == null) return null;
+    if (isSupermarket) return aisles;
+    return moduleType == ModuleType.grocery ? specialty : menu;
   }
 
   /// For a store whose payload still does not say — an older backend, or a
   /// details fetch that failed: supermarkets are the grocery module's default
   /// shape, anything else reads as a menu.
-  static StoreLayout fallback(Store store) {
-    final ModuleType? type = _typeOf(store);
-    if (type == ModuleType.pets) return pets;
-    return type == ModuleType.grocery ? aisles : menu;
+  static StoreLayout fallback(Store store) => resolveFallback(_typeOf(store));
+
+  /// [fallback] without GetX.
+  static StoreLayout resolveFallback(ModuleType? moduleType) {
+    if (moduleType == ModuleType.pets) return pets;
+    return moduleType == ModuleType.grocery ? aisles : menu;
   }
 }
 

@@ -68,8 +68,8 @@ void main() {
   const List<String> sensitiveRoutes = <String>[
     // Money and orders
     'order',
+    // Tracking lives in orderDetails now; there is no orderTracking route.
     'orderDetails',
-    'orderTracking',
     'refund',
     'wallet',
     'checkout',

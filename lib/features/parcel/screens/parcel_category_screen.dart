@@ -46,13 +46,6 @@ class _ParcelCategoryScreenState extends State<ParcelCategoryScreen> {
         builder: (parcelController) {
           return GetBuilder<BannerController>(
             builder: (bannerController) {
-              bool showVideoAndServices =
-                  parcelController.videoContentDetails != null &&
-                  (parcelController.videoContentDetails!.bannerVideo != null ||
-                      parcelController
-                              .videoContentDetails!
-                              .bannerImageFullUrl !=
-                          null);
               return Stack(
                 clipBehavior: Clip.none,
                 children: [

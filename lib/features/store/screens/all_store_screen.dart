@@ -1,4 +1,3 @@
-import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -51,8 +50,6 @@ class _AllStoreScreenState extends State<AllStoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isFood = Get.find<SplashController>().module?.type == ModuleType.food;
-
     return GetBuilder<StoreListController>(
       id: StoreListController.allStoresId,
       builder: (storeController) {

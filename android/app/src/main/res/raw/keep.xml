@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The notification icon and sound are looked up by NAME at runtime from Dart
+     (flutter_local_notifications: 'notification_icon', 'notification'), which
+     the resource shrinker cannot see. Without this a release build strips them
+     and notifications fall back to no icon / the default sound. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/notification_icon,@raw/notification" />

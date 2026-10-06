@@ -203,16 +203,6 @@ class NotificationHelper {
           }
         }
       }
-
-      Map<String, String> payloadData = {
-        'title': '${message.data['title']}',
-        'body': '${message.data['body']}',
-        'order_id': '${message.data['order_id']}',
-        'image': '${message.data['image']}',
-        'type': '${message.data['type']}',
-      };
-
-      PayloadModel payload = PayloadModel.fromJson(payloadData);
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {

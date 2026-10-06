@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The 10-second tracking poll must not repaint on every tick.
 ///
+/// Tracking now lives in the order details screen (the standalone tracking
+/// screen was deleted), so the screen-side checks read that file.
+///
 /// While a tracking screen is open, `timerTrackOrder` fires every 10s and used
 /// to call a bare `update()` each time — rebuilding all 15
 /// `GetBuilder<OrderController>` trees, the map included, on ticks where the
@@ -22,7 +25,7 @@ void main() {
       'lib/features/order/controllers/order_controller.dart',
     ).readAsStringSync();
     screen = File(
-      'lib/features/order/screens/order_tracking_screen.dart',
+      'lib/features/order/screens/order_details_screen.dart',
     ).readAsStringSync();
     repository = File(
       'lib/features/order/domain/repositories/order_repository.dart',
@@ -48,7 +51,7 @@ void main() {
 
   group('the poll only rebuilds on a real change', () {
     test('timerTrackOrder compares before updating', () {
-      final String body = methodBody(controller, 'timerTrackOrder(');
+      final String body = methodBody(controller, 'Future<ResponseModel?> timerTrackOrder(');
       expect(
         body,
         contains('if (changed) update()'),
@@ -57,7 +60,7 @@ void main() {
     });
 
     test('the comparison covers what a user can see', () {
-      final String body = methodBody(controller, 'timerTrackOrder(');
+      final String body = methodBody(controller, 'Future<ResponseModel?> timerTrackOrder(');
       // Rider position changes most often; status and driver identity change
       // rarely but visibly. Miss one and the screen goes stale.
       expect(body, contains('orderStatus'));
@@ -66,7 +69,7 @@ void main() {
     });
 
     test('a failed poll still updates — the error state must show', () {
-      final String body = methodBody(controller, 'timerTrackOrder(');
+      final String body = methodBody(controller, 'Future<ResponseModel?> timerTrackOrder(');
       final int elseAt = body.indexOf('} else {');
       expect(elseAt, isNot(-1));
       expect(
@@ -81,7 +84,11 @@ void main() {
     test('the poll awaits the fetch before moving the marker', () {
       // Un-awaited, updateMarker ran against the PREVIOUS tick's data, so
       // every rider position was drawn ten seconds late.
-      expect(screen, contains('await Get.find<OrderController>().timerTrackOrder'));
+      expect(
+        screen,
+        contains('await orderController.timerTrackOrder'),
+        reason: 'the periodic poll and the refresh button must both await it',
+      );
     });
 
     test('a null track model is handled, not banged through', () {

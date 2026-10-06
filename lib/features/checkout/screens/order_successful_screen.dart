@@ -52,12 +52,12 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
   // ── Receipt print ──
   // The receipt feeds out of the printer slot, then the thank-you and the
   // CTAs arrive and the page scrolls down to them.
-  static const Duration _printDuration = Duration(milliseconds: 3200);
-  static const Duration _printDelay = Duration(milliseconds: 450);
+  static const Duration _printDuration = Duration(milliseconds: 1600);
+  static const Duration _printDelay = Duration(milliseconds: 150);
 
   /// How long the print waits for the item lines before starting without
   /// them, so a slow details call never holds the whole screen hostage.
-  static const Duration _detailsWait = Duration(seconds: 2);
+  static const Duration _detailsWait = Duration(milliseconds: 1000);
 
   /// Bottom edge of the printer slot (6pt gap + slot). The scroll area starts
   /// 8pt above it so the paper visibly emerges from under the slot.
@@ -251,11 +251,11 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     if (!mounted || _done) return;
     setState(() => _done = true);
     if (MediaQuery.disableAnimationsOf(context)) return;
-    _scrollTimer = Timer(const Duration(milliseconds: 700), () {
+    _scrollTimer = Timer(const Duration(milliseconds: 250), () {
       if (!mounted || !_scroll.hasClients) return;
       _scroll.animateTo(
         _scroll.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 900),
+        duration: const Duration(milliseconds: 500),
         curve: WaddyMotion.easeInOut,
       );
     });
@@ -500,7 +500,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
             child: _reveal(
               slide: 0.12,
               curve: const Interval(0.25, 1, curve: WaddyMotion.easeOut),
-              duration: const Duration(milliseconds: 600),
+              duration: const Duration(milliseconds: 350),
               child: _ctas(loyaltyPts, bottomInset),
             ),
           ),
@@ -514,7 +514,7 @@ class _OrderSuccessfulScreenState extends State<OrderSuccessfulScreen>
     required Widget child,
     required double slide,
     Curve curve = WaddyMotion.easeOut,
-    Duration duration = const Duration(milliseconds: 500),
+    Duration duration = const Duration(milliseconds: 300),
   }) {
     return AnimatedOpacity(
       opacity: _done ? 1 : 0,

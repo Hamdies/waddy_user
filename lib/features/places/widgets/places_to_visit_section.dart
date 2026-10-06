@@ -1,3 +1,5 @@
+import 'package:waddy_app/features/places/domain/spots_vibe.dart';
+import 'package:waddy_app/features/xp/widgets/xp_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
@@ -16,10 +18,13 @@ import 'package:waddy_app/util/styles.dart';
 /// but pitched quieter than the leaderboard hero — thinner border and a smaller
 /// shadow — so the loud board above stays the hero. Mirrors `.chips` / `.places`.
 class PlacesToVisitSection extends StatelessWidget {
-  const PlacesToVisitSection({super.key});
+  const PlacesToVisitSection({super.key, required this.anchorKey});
 
-  /// Scroll target for "pick a spot" affordances elsewhere on the screen.
-  static final GlobalKey anchorKey = GlobalKey(debugLabel: 'spotsList');
+  /// Scroll target for "pick a spot" affordances on the screen that owns this
+  /// section. Owned by that screen's State, not static: the Spots home is
+  /// mounted as a dashboard tab *and* inside the module home, and one static
+  /// GlobalKey in two live trees is a "Duplicate GlobalKey" error.
+  final GlobalKey anchorKey;
 
   @override
   Widget build(BuildContext context) {
@@ -135,11 +140,7 @@ class PlacesToVisitSection extends StatelessWidget {
                 // End of the rail: the user has seen what we have, so this is
                 // where asking for a spot we don't have makes sense (`S-02`).
                 // Only once there is no more to load, or it sits mid-list.
-                if (!controller.hasMorePlaces)
-                  const Padding(
-                    padding: EdgeInsets.only(top: Spots.s16),
-                    child: SubmitSpotCta(),
-                  ),
+               
               ],
             );
           },
@@ -323,14 +324,13 @@ class _PlaceCard extends StatelessWidget {
     final badge = _badge(place);
     final crowns = place.titlesCount;
     final isLtr = Directionality.of(context) == TextDirection.ltr;
-    // "New this week" means never seen before. A spot with weekly crowns to
-    // its name has been here for weeks, so claiming both at once (which the
-    // card did — "6× 🏆" beside "New this week") is simply false. With no
-    // votes yet and a history behind it, say nothing about novelty.
+    // Only a real fact goes here. "New this week" said nothing about the
+    // place, and was false for a spot with a crowned history; with no votes
+    // the vibe icon above already gives the card its personality.
     final today =
         place.votesCount > 0
             ? '▲ ${trPlural('spots_vote_count', place.votesCount)}'
-            : (crowns > 0 ? null : 'spots_new_this_week'.tr);
+            : null;
 
     return Stack(
       clipBehavior: Clip.none,
@@ -435,129 +435,154 @@ class _PlaceCard extends StatelessWidget {
                 ),
                 const SizedBox(width: Spots.s12),
 
-                // Body
+                // Body — as tall as the photo and centred against it, so a card
+                // with no badge has even space above and below its text instead
+                // of a reserved empty slot above the title.
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Reserved slot: the badge is optional per spot, but without a
-                      // fixed-height row the title of a badge-less card rides up and
-                      // the list loses its shared baseline (see Dunkin vs Starbucks).
-                      //
-                      // The badge itself went missing: `_badge(place)` was still
-                      // computed on every card and dropped on the floor, so
-                      // "CURRENT CHAMPION" / "TOP 3" / "FIRST APPEARANCE" were
-                      // classified per spot and never drawn. Same shape as `S-01`
-                      // — a comment describing a control, and an empty slot where
-                      // it should be. See `S-13`.
-                      SizedBox(
-                        height: 18,
-                        child:
-                            badge == null
-                                ? null
-                                : Align(
-                                  alignment: AlignmentDirectional.centerStart,
-                                  child: _BadgeChip(badge: badge),
+                  child: ConstrainedBox(
+                    // A minimum, not a fixed height: at large text sizes the
+                    // card grows instead of overflowing.
+                    constraints: const BoxConstraints(minHeight: 112),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // The status chip (champion / top 3) only takes room when a
+                        // spot has one. It used to reserve a fixed row on every
+                        // card so titles shared a baseline, which left an empty
+                        // band above most of them. See `S-13`.
+                        if (badge != null) ...[
+                          _BadgeChip(badge: badge),
+                          const SizedBox(height: Spots.s8),
+                        ],
+                        // Keeps clear of the weekly-crown badge pinned to the
+                        // card's top corner.
+                        Padding(
+                          padding: EdgeInsetsDirectional.only(
+                            end: crowns > 0 ? 76 : 0,
+                          ),
+                          child: Text(
+                            place.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Spots.display(
+                              18,
+                              color: Spots.ink,
+                            ).copyWith(height: 1),
+                          ),
+                        ),
+                        const SizedBox(height: Spots.s4),
+                        Row(
+                          children: [
+                            if (cat != null)
+                              Flexible(
+                                child: Text(
+                                  cat,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _metaStyle,
                                 ),
-                      ),
-                      const SizedBox(height: Spots.s8),
-                      Text(
-                        place.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Spots.display(
-                          18,
-                          color: Spots.ink,
-                        ).copyWith(height: 1),
-                      ),
-                      const SizedBox(height: Spots.s4),
-                      Row(
-                        children: [
-                          if (cat != null)
-                            Flexible(
-                              child: Text(
-                                cat,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _metaStyle,
+                              ),
+                            if (cat != null && zone != null)
+                              Text(' · ', style: _metaStyle),
+                            if (zone != null) ...[
+                              const Icon(
+                                Icons.place_rounded,
+                                size: 13,
+                                color: Spots.ink3,
+                              ),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  zone,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _metaStyle,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: Spots.s12),
+                        Row(
+                          children: [
+                            // The card's vibe, looping, at the start of the row.
+                            // The artboards carry a lot of padding, so the icon
+                            // is drawn at 84 inside a 52-wide box that lets it
+                            // spill vertically: big on screen, without making
+                            // the row any taller than the vote button.
+                            SizedBox(
+                              width: 52,
+                              height: 36,
+                              child: OverflowBox(
+                                maxWidth: 84,
+                                maxHeight: 84,
+                                child: XpRiveIcon(
+                                  icon: SpotsVibe.forPlace(place),
+                                  size: 40,
+                                  fallbackColor: Spots.teal,
+                                  playOnReveal: Duration(
+                                    milliseconds: 160 * (place.id.abs() % 7),
+                                  ),
+                                  repeatEvery: const Duration(seconds: 3),
+                                ),
                               ),
                             ),
-                          if (cat != null && zone != null)
-                            Text(' · ', style: _metaStyle),
-                          if (zone != null) ...[
-                            const Icon(
-                              Icons.place_rounded,
-                              size: 13,
-                              color: Spots.ink3,
-                            ),
-                            const SizedBox(width: 2),
-                            Flexible(
-                              child: Text(
-                                zone,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _metaStyle,
+                            const SizedBox(width: Spots.s4),
+                            // Nothing truthful to say about this spot's week —
+                            // the Spacer still holds the vote button at the end.
+                            if (today == null)
+                              const Spacer()
+                            else
+                              Expanded(
+                                child: Text(
+                                  today,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: waddyBlack.copyWith(
+                                    fontSize: 13,
+                                    color:
+                                        place.votesCount > 0
+                                            ? Spots.green
+                                            : Spots.ink3,
+                                  ),
+                                ),
+                              ),
+                            SpotsPressable(
+                              onTap: () => openVoteSheet(place.id),
+                              dx: 2,
+                              dy: 2,
+                              radius: Spots.radiusMd,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Spots.teal,
+                                  border: Border.all(
+                                    color: Spots.border,
+                                    width: Spots.borderThin,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    Spots.radiusMd,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: Spots.s16,
+                                  vertical: Spots.s8,
+                                ),
+                                child: Text(
+                                  '${displayCaps('spots_vote_cta'.tr)} ${isLtr ? '→' : '←'}',
+                                  style: waddyBlack.copyWith(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    letterSpacing: displayTracking(0.03 * 12),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: Spots.s12),
-                      Row(
-                        children: [
-                          // Nothing truthful to say about this spot's week —
-                          // the Spacer still holds the vote button at the end.
-                          if (today == null)
-                            const Spacer()
-                          else
-                            Expanded(
-                              child: Text(
-                                today,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: waddyBlack.copyWith(
-                                  fontSize: 13,
-                                  color:
-                                      place.votesCount > 0
-                                          ? Spots.green
-                                          : Spots.ink3,
-                                ),
-                              ),
-                            ),
-                          SpotsPressable(
-                            onTap: () => openVoteSheet(place.id),
-                            dx: 2,
-                            dy: 2,
-                            radius: Spots.radiusMd,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Spots.teal,
-                                border: Border.all(
-                                  color: Spots.border,
-                                  width: Spots.borderThin,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  Spots.radiusMd,
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: Spots.s16,
-                                vertical: Spots.s8,
-                              ),
-                              child: Text(
-                                '${displayCaps('spots_vote_cta'.tr)} ${isLtr ? '→' : '←'}',
-                                style: waddyBlack.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  letterSpacing: displayTracking(0.03 * 12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -589,15 +614,6 @@ class _PlaceCard extends StatelessWidget {
         Spots.red,
         Colors.white,
         SpotsMark.flame,
-      );
-    }
-    // Only a spot with no votes *and* no history is a first appearance.
-    if (p.votesCount == 0 && p.titlesCount == 0) {
-      return _Badge(
-        displayCaps('spots_badge_first_appearance'.tr),
-        Spots.mint,
-        Spots.teal,
-        SpotsMark.bolt,
       );
     }
     return null;

@@ -1,3 +1,8 @@
+// The guest-checkout branches sit behind `const isGuestLoggedIn = false` on purpose:
+// scaffolding for docs/guest_mode_plan.md (specified, not built). See the note
+// at the declaration. Do not delete them to satisfy dead_code.
+// ignore_for_file: dead_code
+
 import 'package:flutter/material.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -19,6 +24,7 @@ import 'package:waddy_app/common/widgets/custom_dropdown.dart';
 import 'package:waddy_app/features/checkout/widgets/coupon_section.dart';
 import 'package:waddy_app/features/checkout/widgets/delivery_instruction_view.dart';
 import 'package:waddy_app/features/checkout/widgets/delivery_section.dart';
+import 'package:waddy_app/features/checkout/widgets/prize_selection_widget.dart';
 import 'package:waddy_app/features/checkout/widgets/deliveryman_tips_section.dart';
 import 'package:waddy_app/features/store/widgets/camera_button_sheet_widget.dart';
 import 'dart:io';
@@ -57,6 +63,9 @@ class TopSection extends StatelessWidget {
   final double variationPrice;
   final String deliveryChargeForView;
 
+  /// The amount XP prizes are matched against (see `prizeEligibleAmount`).
+  final double prizeOrderAmount;
+
   const TopSection({
     super.key,
     required this.deliveryCharge,
@@ -85,6 +94,7 @@ class TopSection extends StatelessWidget {
     required this.guestConfirmPasswordNode,
     required this.variationPrice,
     required this.deliveryChargeForView,
+    required this.prizeOrderAmount,
   });
 
   @override
@@ -97,7 +107,7 @@ class TopSection extends StatelessWidget {
     // scaffolding that plan assumes. Becomes live when guest checkout is
     // wired; until then the analyzer's warnings here are expected and should
     // not be "fixed" by deletion.
-    bool isGuestLoggedIn = false;
+    const bool isGuestLoggedIn = false;
     const gap = SizedBox(height: Dimensions.paddingSizeDefault);
 
     return Column(
@@ -378,7 +388,11 @@ class TopSection extends StatelessWidget {
             addOns: addOns,
             deliveryCharge: deliveryCharge,
             variationPrice: variationPrice,
+            offerPrizes: !takeAway,
           ),
+
+          /// XP prizes, directly under the code field they sit beside.
+          if (!takeAway) CheckoutPrizeSection(orderAmount: prizeOrderAmount),
         ],
       ],
     );

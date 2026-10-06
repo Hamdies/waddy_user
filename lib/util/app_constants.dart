@@ -6,7 +6,7 @@ import 'package:waddy_app/util/images.dart';
 
 class AppConstants {
   static const String appName = 'Waddy';
-  static const double appVersion = 3.3;
+  static const double appVersion = 1.0;
 
   ///Flutter sdk 3.32.8
 

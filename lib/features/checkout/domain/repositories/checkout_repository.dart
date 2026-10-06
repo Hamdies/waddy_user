@@ -89,8 +89,10 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
     String note,
     List<MultipartBody> orderAttachment,
     String dmTips,
-    String deliveryInstruction,
-  ) async {
+    String deliveryInstruction, {
+    String? idempotencyKey,
+    String? deviceFingerprint,
+  }) async {
     Map<String, String> body = {
       'store_id': storeId.toString(),
       'distance': distance.toString(),
@@ -102,6 +104,8 @@ class CheckoutRepository implements CheckoutRepositoryInterface {
       'delivery_instruction': deliveryInstruction,
       'payment_method': 'cash_on_delivery',
       'order_type': 'delivery',
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
     };
     return await apiClient.postMultipartData(
       AppConstants.placePrescriptionOrderUri,

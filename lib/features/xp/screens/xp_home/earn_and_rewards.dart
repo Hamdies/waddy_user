@@ -79,35 +79,35 @@ class _XpSourcesSection extends StatelessWidget {
       if (val('order', config.xpPerOrder) > 0)
         _SourceData(
           Icons.shopping_bag_outlined,
-          XpIcon.coin,
+          XpIcon.flash,
           '+${val('order', config.xpPerOrder)} XP',
           'xp_source_order'.tr,
         ),
       if (val('vote', 0) > 0)
         _SourceData(
           Icons.how_to_vote_outlined,
-          XpIcon.heart,
+          XpIcon.flash,
           '+${val('vote', 0)} XP',
           'xp_source_vote'.tr,
         ),
       if (val('review', config.xpPerReview) > 0)
         _SourceData(
           Icons.star_outline_rounded,
-          XpIcon.star,
+          XpIcon.flash,
           '+${val('review', config.xpPerReview)} XP',
           'xp_source_review'.tr,
         ),
       if (val('place_submission', 0) > 0)
         _SourceData(
           Icons.add_location_alt_outlined,
-          null, // no pin in the icon set
+          XpIcon.flash,
           '+${val('place_submission', 0)} XP',
           'xp_source_add_place'.tr,
         ),
       if (val('streak_bonus', config.streakBonusXp) > 0)
         _SourceData(
           Icons.local_fire_department_outlined,
-          XpIcon.fire,
+          XpIcon.flash,
           '+${val('streak_bonus', config.streakBonusXp)} XP',
           'xp_source_streak'.tr,
         ),
@@ -121,6 +121,7 @@ class _SourceData {
   final IconData icon;
   final String amount;
   final String label;
+
   /// The animated version, or null to keep [icon] static.
   final XpIcon? motion;
   const _SourceData(this.icon, this.motion, this.amount, this.label);
@@ -157,6 +158,7 @@ class _SourceRow extends StatelessWidget {
                       fallback: data.icon,
                       fallbackColor: _Xp.mint,
                       playOnReveal: XpMotion.stagger * index,
+                      repeatEvery: XpMotion.loop,
                     )
                     : Icon(data.icon, size: 18, color: _Xp.mint),
           ),
@@ -368,6 +370,7 @@ class _RewardRow extends StatelessWidget {
                         fallbackColor: accent,
                         playOnReveal: XpMotion.stagger * index,
                         playWhen: state,
+                        repeatEvery: XpMotion.loop,
                       )
                       : Icon(
                         state == RewardState.locked

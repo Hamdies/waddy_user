@@ -54,7 +54,6 @@ class XpService implements XpServiceInterface {
     return await xpRepositoryInterface.getXpConfig();
   }
 
-
   @override
   Future<XpLeaderboardModel?> getLeaderboard({
     String type = 'global',

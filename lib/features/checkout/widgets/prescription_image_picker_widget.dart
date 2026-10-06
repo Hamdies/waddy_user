@@ -50,7 +50,7 @@ class PrescriptionImagePickerWidget extends StatelessWidget {
 
                 CustomToolTip(
                   message: 'upload_jpg_png_jpeg_maximum_2_MB'.tr,
-                  iconColor: WaddyColors.ink!,
+                  iconColor: WaddyColors.ink,
                 ),
               ],
             ),

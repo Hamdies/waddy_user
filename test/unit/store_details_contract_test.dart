@@ -105,7 +105,7 @@ void main() {
       expect(methodBody(source), contains('slug.isNotEmpty'));
     });
 
-    test('only the two store screens call it', () {
+    test('only the store page screens call it', () {
       final List<String> callers = <String>[];
       for (final FileSystemEntity f in Directory(
         'lib',
@@ -121,8 +121,12 @@ void main() {
         }
       }
       callers.sort();
+      // One per StoreLayout: menu, aisles, specialty and pets. Each page owns
+      // a StorePageController and fetches its own store.
       expect(callers, <String>[
+        'lib/features/pets/screens/pet_store_screen.dart',
         'lib/features/store/screens/food_store_screen.dart',
+        'lib/features/store/screens/specialty_store_screen.dart',
         'lib/features/store/screens/store_screen.dart',
       ]);
     });
@@ -237,6 +241,12 @@ void main() {
       ).listSync(recursive: true)) {
         if (f is! File || !f.path.endsWith('.dart')) continue;
         if (f.path.startsWith('lib/features/store/')) continue;
+        // The pets module's store page is a store page like the others
+        // (StoreLayout.pets); it lives under pets/ only because its module
+        // does. It reads its own page's controller.
+        if (f.path == 'lib/features/pets/screens/pet_store_screen.dart') {
+          continue;
+        }
         final int n = RegExp(r'StorePageController\b')
             .allMatches(stripComments(f.readAsStringSync()))
             .length;

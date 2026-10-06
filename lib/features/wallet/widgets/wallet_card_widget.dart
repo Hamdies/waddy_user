@@ -203,8 +203,6 @@ class _WalletCardWidgetState extends State<WalletCardWidget> {
 
   Widget _buildAnimatedPreviewButton(WalletController walletController) {
     final previewAppearance = CardAppearances.options[_previewColorIndex];
-    final currentAppearance =
-        CardAppearances.options[walletController.selectedCardAppearance];
 
     return GestureDetector(
       onTap: () => _showAppearanceBottomSheet(walletController),

@@ -1,7 +1,7 @@
 name: waddy_app
 description: A Multi-vendor1 Food. Grocery, eCommerce, Pharmacy & Parcel service.
 publish_to: 'none' #
-version: 1.0.0+2
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.7.2 <4.0.0'

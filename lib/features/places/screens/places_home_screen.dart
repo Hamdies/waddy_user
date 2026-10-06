@@ -88,6 +88,7 @@ class _RaceSections extends StatelessWidget {
 
 class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _spotsAnchor = GlobalKey(debugLabel: 'spotsList');
   ScrollDirection _lastDirection = ScrollDirection.idle;
 
   /// Brings the spots list into view. The list is a lazy sliver item, so on a
@@ -96,7 +97,7 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
   Future<void> _scrollToSpots() async {
     for (var i = 0; i < 8; i++) {
       if (!mounted || !_scrollController.hasClients) return;
-      final ctx = PlacesToVisitSection.anchorKey.currentContext;
+      final ctx = _spotsAnchor.currentContext;
       if (ctx != null && ctx.mounted) {
         await Scrollable.ensureVisible(
           ctx,
@@ -263,7 +264,7 @@ class _PlacesHomeScreenState extends State<PlacesHomeScreen> {
                         // Everything between the countdown and the venue list
                         // is earned, not fixed. See [_RaceSections].
                         _RaceSections(onBrowseSpots: _scrollToSpots),
-                        const PlacesToVisitSection(),
+                        PlacesToVisitSection(anchorKey: _spotsAnchor),
                         // Extra room so the last card clears the floating
                         // bottom nav bar once it slides back in at rest.
                         const SizedBox(height: 90),

@@ -174,8 +174,10 @@ class CheckoutService implements CheckoutServiceInterface {
     String note,
     List<MultipartBody> orderAttachment,
     String dmTips,
-    String deliveryInstruction,
-  ) async {
+    String deliveryInstruction, {
+    String? idempotencyKey,
+    String? deviceFingerprint,
+  }) async {
     return await checkoutRepositoryInterface.placePrescriptionOrder(
       storeId,
       distance,
@@ -186,6 +188,8 @@ class CheckoutService implements CheckoutServiceInterface {
       orderAttachment,
       dmTips,
       deliveryInstruction,
+      idempotencyKey: idempotencyKey,
+      deviceFingerprint: deviceFingerprint,
     );
   }
 

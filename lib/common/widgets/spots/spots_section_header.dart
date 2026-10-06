@@ -36,12 +36,7 @@ class SpotsSectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                displayCaps(kicker),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Spots.kicker(10),
-              ),
+              
               const SizedBox(height: Spots.s4),
               Text(
                 title,

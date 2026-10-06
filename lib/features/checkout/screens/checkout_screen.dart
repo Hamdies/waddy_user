@@ -715,6 +715,8 @@ class CheckoutScreenState extends State<CheckoutScreen> {
                                                       : 0,
                                               deliveryChargeForView:
                                                   _deliveryChargeForView,
+                                              prizeOrderAmount:
+                                                  prizeEligibleAmount,
                                             ),
                                             const SizedBox(
                                               height:

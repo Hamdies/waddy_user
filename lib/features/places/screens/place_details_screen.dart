@@ -59,9 +59,34 @@ class PlaceDetailsScreen extends StatefulWidget {
 }
 
 class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
+  final ScrollController _scroll = ScrollController();
+
+  /// 0 while the hero is on screen, 1 once it has scrolled away: how opaque
+  /// the pinned bar is. A notifier, so scrolling repaints the bar and nothing
+  /// else.
+  final ValueNotifier<double> _barOpacity = ValueNotifier<double>(0);
+
+  /// The hero is 290 + the status bar tall; the bar starts to appear a little
+  /// before its bottom edge reaches the top and is solid by the time it has.
+  void _onScroll() {
+    final double top = MediaQuery.of(context).padding.top;
+    final double start = 290 + top - kToolbarHeight - top - 60;
+    final double value = ((_scroll.offset - start) / 60).clamp(0.0, 1.0);
+    if (value != _barOpacity.value) _barOpacity.value = value;
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    _barOpacity.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     final c = Get.find<PlacesController>();
     // Seeded synchronously, before the first build: going through the
     // post-frame callback would still have flashed one skeleton frame.
@@ -149,59 +174,125 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen> {
           // review card on the first frame and on every rebuild. Slivers build
           // as they approach the viewport. Same move as `G-03` on the grocery
           // store screen. See `S-05`.
-          body: SafeArea(
-            top: false,
-            bottom: false,
-            child: CustomScrollView(
-              slivers: [
-                // The fixed sections stay eager — they are above the fold and
-                // a hero that builds lazily is a hero that flashes.
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _hero(context, c, place),
-                      const SizedBox(height: Spots.s32),
-                      _statsOrPitch(place),
+          body: Stack(
+            children: [
+              SafeArea(
+                top: false,
+                bottom: false,
+                child: CustomScrollView(
+                  controller: _scroll,
+                  slivers: [
+                    // The fixed sections stay eager — they are above the fold and
+                    // a hero that builds lazily is a hero that flashes.
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _hero(context, c, place),
+                          const SizedBox(height: Spots.s32),
+                          _statsOrPitch(place),
 
-                      // A heading over a lone em-dash is worse than no
-                      // heading: it promises a description and delivers
-                      // punctuation.
-                      if (place.description?.isNotEmpty == true)
-                        _section(
-                          title: 'about'.tr,
-                          child: Text(
-                            place.description!,
-                            style: const TextStyle(
-                              fontFamily: _fontBody,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              height: 1.55,
-                              color: _ink2,
+                          // A heading over a lone em-dash is worse than no
+                          // heading: it promises a description and delivers
+                          // punctuation.
+                          if (place.description?.isNotEmpty == true)
+                            _section(
+                              title: 'about'.tr,
+                              child: Text(
+                                place.description!,
+                                style: const TextStyle(
+                                  fontFamily: _fontBody,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.55,
+                                  color: _ink2,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
 
-                      _photosSection(context, place),
+                          _photosSection(context, place),
 
-                      _findThemSection(place),
-                    ],
-                  ),
+                          _findThemSection(place),
+                        ],
+                      ),
+                    ),
+
+                    // Its own builder, so appending a page of reviews cannot
+                    // repaint the cover photo or re-inflate the GoogleMap above.
+                    GetBuilder<PlacesController>(
+                      id: PlacesController.idReviews,
+                      builder: (rc) => _reviewsSliver(context, rc, place.id),
+                    ),
+
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: Spots.s32),
+                    ),
+                  ],
                 ),
-
-                // Its own builder, so appending a page of reviews cannot
-                // repaint the cover photo or re-inflate the GoogleMap above.
-                GetBuilder<PlacesController>(
-                  id: PlacesController.idReviews,
-                  builder: (rc) => _reviewsSliver(context, rc, place.id),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: Spots.s32)),
-              ],
-            ),
+              ),
+              _stickyBar(context, place),
+            ],
           ),
         );
       },
+    );
+  }
+
+  /// The bar that takes over from the hero once it has scrolled away: back
+  /// button and the spot's name, pinned. Invisible (and untouchable) while the
+  /// hero's own back button is on screen, so there are never two.
+  Widget _stickyBar(BuildContext context, Place place) {
+    final double top = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: ValueListenableBuilder<double>(
+        valueListenable: _barOpacity,
+        builder: (context, opacity, _) {
+          return IgnorePointer(
+            ignoring: opacity < 0.5,
+            child: Opacity(
+              opacity: opacity,
+              child: Container(
+                height: top + kToolbarHeight,
+                padding: EdgeInsets.only(top: top, left: 14, right: 14),
+                decoration: const BoxDecoration(
+                  color: Spots.teal900,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Spots.border,
+                      width: Spots.borderThin,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    _heroNavButton(
+                      onTap: () => Get.back(),
+                      semanticLabel: 'back'.tr,
+                      child: const Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: Spots.s12),
+                    Expanded(
+                      child: Text(
+                        place.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Spots.display(18, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 

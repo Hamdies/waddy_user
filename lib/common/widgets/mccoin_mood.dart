@@ -74,9 +74,18 @@ class _McCoinMoodAnimationState extends State<McCoinMoodAnimation> {
     riveFactory: rive.Factory.rive,
   );
 
+  // FileLoader.file() awaits the asset decode, then does
+  // `_loadCompleter!.complete(file)`. If dispose() runs first it nulls that
+  // completer, and the still-pending await crashes with a null-check error
+  // when it resumes (rive 0.14.11, file_loader.dart:91). Only dispose the
+  // loader once the load has actually settled; otherwise leak this one small
+  // in-flight loader rather than risk the crash. See the matching comment on
+  // [[spots-marks]]'s SpotsTrophyGlyph, which hit this in practice.
+  bool _settled = false;
+
   @override
   void dispose() {
-    _fileLoader.dispose();
+    if (_settled) _fileLoader.dispose();
     super.dispose();
   }
 
@@ -108,19 +117,23 @@ class _McCoinMoodAnimationState extends State<McCoinMoodAnimation> {
             child: rive.RiveWidgetBuilder(
               fileLoader: _fileLoader,
               artboardSelector: rive.ArtboardNamed(widget.mood.artboard),
-              onFailed:
-                  (error, stackTrace) => debugPrint(
-                    'McCoinMoodAnimation failed to load $_asset '
-                    '(${widget.mood.artboard}): $error',
-                  ),
-              builder:
-                  (context, state) => switch (state) {
-                    rive.RiveLoaded() => rive.RiveWidget(
-                      controller: state.controller,
-                      fit: rive.Fit.contain,
-                    ),
-                    _ => const SizedBox.shrink(),
-                  },
+              onFailed: (error, stackTrace) {
+                _settled = true;
+                debugPrint(
+                  'McCoinMoodAnimation failed to load $_asset '
+                  '(${widget.mood.artboard}): $error',
+                );
+              },
+              builder: (context, state) {
+                if (state is rive.RiveLoaded) {
+                  _settled = true;
+                  return rive.RiveWidget(
+                    controller: state.controller,
+                    fit: rive.Fit.contain,
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
           ),
         ),

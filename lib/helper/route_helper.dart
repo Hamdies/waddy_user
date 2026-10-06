@@ -1371,7 +1371,10 @@ class RouteHelper {
     ),
 
     /// XP & Leveling System
-    GetPage(name: xpLevels, page: () => getRoute(const XpLevelsScreen())),
+    GetPage(
+      name: xpLevels,
+      page: () => getRoute(const XpLevelsScreen(showBack: true)),
+    ),
     GetPage(
       name: xpChallenges,
       page: () => getRoute(const XpChallengesScreen()),

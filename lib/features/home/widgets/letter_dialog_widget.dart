@@ -217,7 +217,6 @@ class _LetterDialogWidgetState extends State<LetterDialogWidget>
   // ── Tap-to-open hint ──
 
   Widget _buildTapHint(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.paddingSizeDefault,

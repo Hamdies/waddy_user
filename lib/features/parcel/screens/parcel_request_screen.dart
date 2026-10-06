@@ -663,6 +663,7 @@ class _ParcelRequestScreenState extends State<ParcelRequestScreen> {
                                             ),
 
                                             isGuestLoggedIn
+                                            // ignore: dead_code — guest-mode scaffolding, see docs/guest_mode_plan.md
                                                 ? GuestCreateAccount(
                                                   guestPasswordController:
                                                       _guestPasswordController,

@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:uuid/uuid.dart';
+import 'package:get/get.dart';
+import 'package:waddy_app/helper/order_attempt_key.dart';
 
 /// Provides security measures to protect against fake/fraudulent orders.
 ///
 /// - Rate limiting: prevents rapid-fire order submissions
-/// - Idempotency key: prevents duplicate order submissions (server-enforced)
+/// - Idempotency key: prevents duplicate order submissions (server-enforced).
+///   [attempt] holds it stable across retries; see [OrderAttemptKey].
 /// - Device fingerprint: fraud telemetry, not a control
 ///
 /// There is deliberately no client-generated order signature. A client cannot
@@ -24,8 +26,11 @@ class OrderSecurityHelper {
 
   static const _minOrderIntervalSeconds = 30;
 
+  /// The key of the order being attempted. One slot: a customer places one
+  /// order at a time, and a different order has a different fingerprint.
+  final OrderAttemptKey attempt = OrderAttemptKey();
+
   DateTime? _lastOrderTime;
-  String? _lastIdempotencyKey;
   String? _cachedDeviceFingerprint;
 
   /// Check if enough time has passed since the last order.
@@ -47,15 +52,6 @@ class OrderSecurityHelper {
   void recordOrderPlaced() {
     _lastOrderTime = DateTime.now();
   }
-
-  /// Generate a unique idempotency key for this order attempt.
-  String generateIdempotencyKey() {
-    _lastIdempotencyKey = const Uuid().v4();
-    return _lastIdempotencyKey!;
-  }
-
-  /// Get the last generated idempotency key.
-  String? get lastIdempotencyKey => _lastIdempotencyKey;
 
   /// Get or compute a device fingerprint for fraud detection.
   String getDeviceFingerprint() {
@@ -89,13 +85,15 @@ class OrderSecurityHelper {
     required String? token,
   }) {
     if (token == null || token.isEmpty) {
-      return 'Authentication required to place orders';
+      return 'order_requires_sign_in'.tr;
     }
     if (orderAmount <= 0) {
-      return 'Invalid order amount';
+      return 'order_amount_invalid'.tr;
     }
     if (!canPlaceOrder()) {
-      return 'Please wait ${secondsUntilNextOrder()} seconds before placing another order';
+      return 'order_wait_seconds'.trParams(<String, String>{
+        'seconds': '${secondsUntilNextOrder()}',
+      });
     }
     return null;
   }

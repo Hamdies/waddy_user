@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:get/get_connect/http/src/response/response.dart';
+import 'package:waddy_app/api/api_checker.dart';
 import 'package:waddy_app/api/api_client.dart';
 import 'package:waddy_app/api/local_client.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
@@ -227,11 +228,19 @@ class PlacesRepository implements PlacesRepositoryInterface {
     String? imagePath,
     bool switchVote = false,
   }) async {
+    // `handleError: false` is load-bearing. With the default, ApiClient turns
+    // every non-200 into an empty `Response()` — statusCode and body gone — so
+    // the controller could never see the server's 409 `already_voted_this_week`
+    // and the "switch your vote?" dialog never opened; the user got a generic
+    // failure toast instead. The raw response comes back here, and anything
+    // that is not a 200 or that expected 409 still goes through the shared
+    // checker (401 handling) without its toast, since the caller words its own.
+    final Response response;
     // A bare vote carries no rating: the backend validates `rating` as
     // nullable, but a literal `null` in the body still fails `integer|min:1`,
     // so the key must be absent rather than empty.
     if (imagePath != null && imagePath.isNotEmpty) {
-      return await apiClient.postMultipartData(
+      response = await apiClient.postMultipartData(
         '${AppConstants.placesUri}/$placeId/vote',
         {
           if (rating != null) 'rating': rating.toString(),
@@ -239,13 +248,23 @@ class PlacesRepository implements PlacesRepositoryInterface {
           if (switchVote) 'switch': '1',
         },
         [MultipartBody('image', XFile(imagePath))],
+        handleError: false,
+      );
+    } else {
+      response = await apiClient.postData(
+        '${AppConstants.placesUri}/$placeId/vote',
+        {
+          if (rating != null) 'rating': rating,
+          if (comment != null && comment.isNotEmpty) 'review': comment,
+          if (switchVote) 'switch': 1,
+        },
+        handleError: false,
       );
     }
-    return await apiClient.postData('${AppConstants.placesUri}/$placeId/vote', {
-      if (rating != null) 'rating': rating,
-      if (comment != null && comment.isNotEmpty) 'review': comment,
-      if (switchVote) 'switch': 1,
-    });
+    if (response.statusCode != 200 && response.statusCode != 409) {
+      ApiChecker.checkApi(response, showError: false);
+    }
+    return response;
   }
 
   @override

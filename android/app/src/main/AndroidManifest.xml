@@ -67,6 +67,16 @@
             <meta-data
                 android:name="com.google.firebase.messaging.default_notification_channel_id"
                 android:value="6ammart" />
+            <!-- Icon/colour for FCM "notification" messages shown by the
+                 system while the app is backgrounded or killed. Without these
+                 Android falls back to the launcher icon, which renders as a
+                 grey square. -->
+            <meta-data
+                android:name="com.google.firebase.messaging.default_notification_icon"
+                android:resource="@drawable/notification_icon" />
+            <meta-data
+                android:name="com.google.firebase.messaging.default_notification_color"
+                android:resource="@color/background_color" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

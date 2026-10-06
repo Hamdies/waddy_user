@@ -34,6 +34,7 @@ import 'package:waddy_app/features/checkout/widgets/partial_pay_dialog_widget.da
 import 'package:waddy_app/features/home/screens/home_screen.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/date_converter.dart';
+import 'package:waddy_app/helper/order_attempt_key.dart';
 import 'package:waddy_app/helper/order_security_helper.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -728,9 +729,12 @@ class CheckoutController extends GetxController implements GetxService {
     String orderID = '';
     String userID = '';
 
-    // Idempotency key: the server rejects a replay of the same key, which is
-    // what actually stops a double-tap or a retry from creating two orders.
-    // The device fingerprint is fraud *telemetry*, not a control.
+    // Idempotency key, held stable across retries (OrderAttemptKey): if this
+    // request times out the order may still have been created, and tapping
+    // again must land on that order, not make a second one. The server answers
+    // a repeated key with the original order and rejects nothing it has not
+    // already placed. The device fingerprint is fraud *telemetry*, not a
+    // control.
     //
     // There used to be an HMAC `order_signature` here as well. It was removed:
     // the signing secret had to ship inside the app for the client to sign
@@ -742,12 +746,19 @@ class CheckoutController extends GetxController implements GetxService {
     // idempotency key blocks duplicates. If tamper-evidence is wanted later,
     // it has to be server-issued — the server signs a short-lived quote token
     // with its own secret and the client echoes it back.
-    placeOrderBody.idempotencyKey = security.generateIdempotencyKey();
     placeOrderBody.deviceFingerprint = security.getDeviceFingerprint();
 
-    Response response = await checkoutServiceInterface.placeOrder(
-      placeOrderBody,
-      multiParts,
+    Response response = await sendOrderAttempt(
+      attemptKey: security.attempt,
+      fields: placeOrderBody.toJson(),
+      attachments: <String>[
+        for (final XFile file in orderAttachment) file.path,
+        if (_voiceInstructionPath != null) _voiceInstructionPath!,
+      ],
+      send: (String key) {
+        placeOrderBody.idempotencyKey = key;
+        return checkoutServiceInterface.placeOrder(placeOrderBody, multiParts);
+      },
     );
     _isLoading = false;
     if (response.statusCode == 200) {
@@ -783,7 +794,7 @@ class CheckoutController extends GetxController implements GetxService {
       if (!isOfflinePay) {
         callback(
           false,
-          response.statusText,
+          orderFailureMessage(response),
           '-1',
           zoneID,
           amount,
@@ -794,7 +805,7 @@ class CheckoutController extends GetxController implements GetxService {
           userID,
         );
       } else {
-        showCustomSnackBar(response.statusText);
+        showCustomSnackBar(orderFailureMessage(response));
       }
     }
     update();
@@ -824,16 +835,36 @@ class CheckoutController extends GetxController implements GetxService {
     }
     _isLoading = true;
     update();
-    Response response = await checkoutServiceInterface.placePrescriptionOrder(
-      storeId,
-      distance,
-      address,
-      longitude,
-      latitude,
-      note,
-      multiParts,
-      dmTips,
-      deliveryInstruction,
+    final security = OrderSecurityHelper();
+    final String fingerprint = security.getDeviceFingerprint();
+    Response response = await sendOrderAttempt(
+      attemptKey: security.attempt,
+      fields: <String, String>{
+        'kind': 'prescription',
+        'store_id': '$storeId',
+        'distance': '$distance',
+        'address': address,
+        'longitude': longitude,
+        'latitude': latitude,
+        'order_note': note,
+        'dm_tips': dmTips,
+        'delivery_instruction': deliveryInstruction,
+      },
+      attachments: <String>[for (final XFile file in orderAttachment) file.path],
+      send:
+          (String key) => checkoutServiceInterface.placePrescriptionOrder(
+            storeId,
+            distance,
+            address,
+            longitude,
+            latitude,
+            note,
+            multiParts,
+            dmTips,
+            deliveryInstruction,
+            idempotencyKey: key,
+            deviceFingerprint: fingerprint,
+          ),
     );
     _isLoading = false;
     if (response.statusCode == 200) {
@@ -859,7 +890,7 @@ class CheckoutController extends GetxController implements GetxService {
     } else {
       callback(
         false,
-        response.statusText,
+        orderFailureMessage(response),
         '-1',
         zoneID,
         orderAmount,

@@ -1,3 +1,5 @@
+import 'package:waddy_app/helper/order_attempt_key.dart';
+import 'package:waddy_app/helper/order_security_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -424,7 +426,19 @@ class ParcelController extends GetxController implements GetxService {
     _isLoading = true;
     update();
     String orderID = '';
-    Response response = await parcelServiceInterface.placeOrder(placeOrderBody);
+    // A parcel order takes the same retry-stable key as any other (see
+    // OrderAttemptKey): a request that timed out may have created the order,
+    // and the tap that follows must find it rather than make a second one.
+    final security = OrderSecurityHelper();
+    placeOrderBody.deviceFingerprint = security.getDeviceFingerprint();
+    Response response = await sendOrderAttempt(
+      attemptKey: security.attempt,
+      fields: placeOrderBody.toJson(),
+      send: (String key) {
+        placeOrderBody.idempotencyKey = key;
+        return parcelServiceInterface.placeOrder(placeOrderBody);
+      },
+    );
     _isLoading = false;
     if (response.statusCode == 200) {
       String? message = response.body['message'];
@@ -451,7 +465,7 @@ class ParcelController extends GetxController implements GetxService {
       if (!isOfflinePay) {
         parcelCallback(
           false,
-          response.statusText,
+          orderFailureMessage(response),
           '-1',
           zoneID,
           amount,
@@ -460,7 +474,7 @@ class ParcelController extends GetxController implements GetxService {
           placeOrderBody.contactPersonNumber,
         );
       } else {
-        showCustomSnackBar(response.statusText);
+        showCustomSnackBar(orderFailureMessage(response));
       }
     }
     update();

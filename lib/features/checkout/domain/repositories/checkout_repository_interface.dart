@@ -27,8 +27,10 @@ abstract class CheckoutRepositoryInterface extends RepositoryInterface {
     String note,
     List<MultipartBody> orderAttachment,
     String dmTips,
-    String deliveryInstruction,
-  );
+    String deliveryInstruction, {
+    String? idempotencyKey,
+    String? deviceFingerprint,
+  });
   Future<Response> getOrderTax(PlaceOrderBodyModel placeOrderBody);
   Future<SurgePriceModel?> getSurgePrice({
     required String zoneId,

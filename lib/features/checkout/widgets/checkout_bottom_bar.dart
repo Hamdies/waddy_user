@@ -339,7 +339,9 @@ class CheckoutBottomBar extends StatelessWidget {
                 )
                 : Row(
                   children: [
-                    Flexible(
+                    // Expanded, not Flexible beside a Spacer: those split the
+                    // free width evenly, which squeezed the number back down.
+                    Expanded(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: AlignmentDirectional.centerStart,
@@ -349,14 +351,13 @@ class CheckoutBottomBar extends StatelessWidget {
                           ),
                           textDirection: TextDirection.ltr,
                           style: waddyBold.copyWith(
-                            fontSize: Dimensions.fontSizeLarge,
+                            fontSize: Dimensions.fontSizeOverLarge,
                             color: WaddyColors.primary,
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: Dimensions.paddingSizeSmall),
-                    const Spacer(),
                     Text(
                       'place_order'.tr,
                       style: waddyBold.copyWith(

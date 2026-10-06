@@ -14,10 +14,8 @@ import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/features/store/domain/store_rules.dart';
-import 'package:waddy_app/features/store/helpers/store_delivery_fee.dart';
-import 'package:waddy_app/helper/address_helper.dart';
+import 'package:waddy_app/features/store/widgets/store_stats_strip.dart';
 import 'package:waddy_app/helper/date_converter.dart';
-import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/helper/analytics_helper.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
@@ -758,6 +756,8 @@ class StoreHeroBannerWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: Dimensions.paddingSizeSmall),
                 _StoreSearchBar(store: store, onFilterTap: onFilterTap),
+                const SizedBox(height: Dimensions.paddingSizeSmall),
+                StoreStatsStrip(store: store, isShop: true, onHero: true),
                 if (chips.isNotEmpty) ...[
                   const SizedBox(height: Dimensions.paddingSizeMedium),
                   SingleChildScrollView(
@@ -1100,82 +1100,12 @@ class _StoreInfoChip extends StatelessWidget {
 
   const _StoreInfoChip({required this.icon, required this.label});
 
-  /// Delivery time, the fee (or free delivery), the minimum order and the
-  /// rating — each only when the store has it to say. Free delivery follows
-  /// the cart bar's rules: the store's own flag, else the admin's "over an
-  /// amount" threshold; a takeaway-only store promises none. The fee is
-  /// [StoreDeliveryFee]'s, which returns null rather than guess, and then
-  /// the chip is simply not drawn.
-  ///
-  /// The minimum is here because it is the one rule that blocks an order,
-  /// and before it was first met in the cart bar — after the first add.
+  /// The rating, when the store has one. Delivery time, courier and fee
+  /// moved to [StoreStatsStrip], which every store page shares.
   static List<Widget> forStore(Store store) {
-    final String? time = store.deliveryTime?.trim();
     final double rating = store.avgRating ?? 0;
-    final double minimum = store.minimumOrder ?? 0;
-
-    String? freeDelivery;
-    if (store.delivery != false) {
-      final admin =
-          Get.find<SplashController>().configModelOrNull?.adminFreeDelivery;
-      final bool adminOn = admin?.status == true;
-      if (store.freeDelivery == true ||
-          (adminOn && admin?.type == 'free_delivery_to_all_store')) {
-        freeDelivery = 'free_delivery'.tr;
-      } else if (adminOn &&
-          admin?.type == 'free_delivery_by_order_amount' &&
-          (admin?.freeDeliveryOver ?? 0) > 0) {
-        freeDelivery = 'free_over_amount'.trParams({
-          'amount': PriceConverter.convertPrice(admin!.freeDeliveryOver),
-        });
-      }
-    }
-
-    final double? fee =
-        freeDelivery == null && store.delivery != false
-            ? StoreDeliveryFee.estimate(
-              store: store,
-              address: AddressHelper.getUserAddressFromSharedPref(),
-            )
-            : null;
 
     return [
-      if (time != null && time.isNotEmpty)
-        _StoreInfoChip(
-          icon: const Icon(
-            Icons.schedule_rounded,
-            size: 13,
-            color: WaddyColors.primaryLight,
-          ),
-          label: time,
-        ),
-      if (freeDelivery != null)
-        _StoreInfoChip(
-          icon: const Icon(
-            Icons.local_shipping_outlined,
-            size: 14,
-            color: WaddyColors.primaryLight,
-          ),
-          label: freeDelivery,
-        )
-      else if (fee != null)
-        _StoreInfoChip(
-          icon: const Icon(
-            Icons.local_shipping_outlined,
-            size: 14,
-            color: WaddyColors.primaryLight,
-          ),
-          label: '${'delivery_fee'.tr} ${PriceConverter.convertPrice(fee)}',
-        ),
-      if (minimum > 0)
-        _StoreInfoChip(
-          icon: const Icon(
-            Icons.shopping_basket_outlined,
-            size: 14,
-            color: WaddyColors.primaryLight,
-          ),
-          label: '${'min_order'.tr} ${PriceConverter.convertPrice(minimum)}',
-        ),
       if (rating > 0)
         _StoreInfoChip(
           icon: const Icon(

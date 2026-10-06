@@ -59,7 +59,6 @@ class _SpecialOfferViewState extends State<SpecialOfferView>
   static const double kOriginalPriceSize = 11.0;
   static const double kDiscountPriceSize = 16.0;
   static const double kDiscountBadgeSize = 12.0;
-  static const double kAddButtonTextSize = 11.0;
   static const double kBannerTextSize = 13.0;
   static const double kDecorativeTextSize = 15.0;
 

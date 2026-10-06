@@ -34,9 +34,6 @@ enum _DateFilter { all, today, week, month }
 enum _PriceSort { none, lowToHigh, highToLow }
 
 class _OrderViewWidgetState extends State<OrderViewWidget> {
-  // Track expanded state for each order
-  final Map<int, bool> _expandedOrders = {};
-
   // Filter state only (no search)
   _DateFilter _dateFilter = _DateFilter.all;
   _PriceSort _priceSort = _PriceSort.none;
@@ -588,8 +585,6 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
     final dateStr = _formatOrderDate(order.createdAt);
     final itemCount = order.detailsCount ?? cachedDetails.length;
 
-    // Check if this order is expanded
-    final bool isExpanded = _expandedOrders[order.id] ?? false;
 
     // Get first item for memory trigger
     String? firstItemImage;
@@ -972,37 +967,17 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       etaText = order.store!.deliveryTime!;
     }
 
-    // Journey step: 0=placed 1=preparing 2=on-the-way 3=delivered
-    int journeyStep = 0;
-    if (status.contains('confirmed') || status.contains('processing')) {
-      journeyStep = 1;
-    } else if (status.contains('handover') ||
-        status.contains('picked_up') ||
-        status.contains('out_for_delivery')) {
-      journeyStep = 2;
-    } else if (status.contains('delivered')) {
-      journeyStep = 3;
-    }
-
-    // Determine track button text and icon
     String trackButtonText;
-    IconData trackButtonIcon;
     if (status.contains('pending')) {
       trackButtonText = 'view_status'.tr;
-      trackButtonIcon = Icons.visibility_rounded;
     } else if (status.contains('processing') || status.contains('confirmed')) {
       trackButtonText = 'track_live'.tr;
-      trackButtonIcon = Icons.radar_rounded;
     } else if (status.contains('out_for_delivery') ||
         status.contains('handover')) {
       trackButtonText = 'track_rider'.tr;
-      trackButtonIcon = Icons.delivery_dining_rounded;
     } else {
       trackButtonText = isParcel ? 'track_delivery'.tr : 'track_order'.tr;
-      trackButtonIcon = Icons.my_location_rounded;
     }
-
-    final bool isLive = journeyStep == 2;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.paddingSizeMedium),
@@ -1155,13 +1130,6 @@ class _OrderViewWidgetState extends State<OrderViewWidget> {
       status.isNotEmpty ? status.replaceAll('_', ' ') : null,
     );
 
-    // Green dot for in-transit/active statuses
-    bool showGreenDot =
-        status.contains('confirmed') ||
-        status.contains('processing') ||
-        status.contains('handover') ||
-        status.contains('picked_up') ||
-        status.contains('out_for_delivery');
 
     return Container(
       padding: const EdgeInsets.symmetric(

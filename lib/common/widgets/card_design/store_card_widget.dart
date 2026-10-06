@@ -67,11 +67,7 @@ class _StoreCardWidgetState extends State<StoreCardWidget> {
             ],
           ),
           child: CustomInkWell(
-            onTap: () {
-              if (store != null) {
-                StoreNavigator.open(store, page: 'item');
-              }
-            },
+            onTap: () => StoreNavigator.open(store, page: 'item'),
             radius: 16,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(Dimensions.radiusLarge),

@@ -56,6 +56,14 @@ class LevelUpRiveBurstState extends State<LevelUpRiveBurst> {
 
   ViewModelInstance? _viewModel;
 
+  // FileLoader.file() awaits the asset decode, then does
+  // `_loadCompleter!.complete(file)`. If dispose() runs first it nulls that
+  // completer, and the still-pending await crashes with a null-check error
+  // when it resumes (rive 0.14.11, file_loader.dart:91). Only dispose the
+  // loader once the load has actually settled; otherwise leak this one small
+  // in-flight loader rather than risk the crash. See [[spots-marks]].
+  bool _settled = false;
+
   String get _instanceName {
     final code = Get.locale?.languageCode;
     final name = _instanceByLanguage[code] ?? 'Instance';
@@ -65,7 +73,7 @@ class LevelUpRiveBurstState extends State<LevelUpRiveBurst> {
 
   @override
   void dispose() {
-    _fileLoader.dispose();
+    if (_settled) _fileLoader.dispose();
     super.dispose();
   }
 
@@ -115,12 +123,16 @@ class LevelUpRiveBurstState extends State<LevelUpRiveBurst> {
       // opens — this screen is a one-shot dialog (see LevelUpScreen.showQueue),
       // not a long-lived surface someone would language-switch underneath.
       dataBind: DataBind.byName(_instanceName),
-      onLoaded: (state) => _bind(state.viewModelInstance),
+      onLoaded: (state) {
+        _settled = true;
+        _bind(state.viewModelInstance);
+      },
       // A failed load must not take the celebration down with it — the screen's
       // own confetti and button still carry the moment.
-      onFailed:
-          (error, stackTrace) =>
-              debugPrint('LevelUpRiveBurst failed to load $_asset: $error'),
+      onFailed: (error, stackTrace) {
+        _settled = true;
+        debugPrint('LevelUpRiveBurst failed to load $_asset: $error');
+      },
       builder:
           (context, state) => switch (state) {
             RiveLoaded() => RiveWidget(

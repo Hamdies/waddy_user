@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:waddy_app/util/swallow.dart';
 import 'package:get/get.dart';
-import 'package:rive/rive.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/domain/models/place_model.dart';
@@ -12,6 +11,7 @@ import 'package:waddy_app/common/widgets/spots/spots_section_header.dart';
 import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
+import 'package:waddy_app/features/xp/widgets/xp_motion.dart';
 import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/util/styles.dart';
 
@@ -124,14 +124,8 @@ class _LeaderCrown extends StatefulWidget {
 
 class _LeaderCrownState extends State<_LeaderCrown>
     with TickerProviderStateMixin {
-  static const String _asset = 'assets/animation/crown.riv';
-
   late final AnimationController _drop;
   late final AnimationController _float;
-  late final FileLoader _fileLoader = FileLoader.fromAsset(
-    _asset,
-    riveFactory: Factory.rive,
-  );
 
   @override
   void initState() {
@@ -150,7 +144,6 @@ class _LeaderCrownState extends State<_LeaderCrown>
   void dispose() {
     _drop.dispose();
     _float.dispose();
-    _fileLoader.dispose();
     super.dispose();
   }
 
@@ -182,24 +175,13 @@ class _LeaderCrownState extends State<_LeaderCrown>
     );
   }
 
+  /// The icon set's `21_Crown`, played once as the crown lands. The same
+  /// artboard the XP surfaces use, so the app has one crown.
   Widget _riveCrown() {
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: RiveWidgetBuilder(
-        fileLoader: _fileLoader,
-        onFailed:
-            (error, stackTrace) =>
-                debugPrint('_LeaderCrown failed to load $_asset: $error'),
-        builder:
-            (context, state) => switch (state) {
-              RiveLoaded() => RiveWidget(
-                controller: state.controller,
-                fit: Fit.contain,
-              ),
-              _ => const SizedBox.shrink(),
-            },
-      ),
+    return const XpRiveIcon(
+      icon: XpIcon.crown,
+      size: 65,
+      fallbackColor: Spots.mint,
     );
   }
 }

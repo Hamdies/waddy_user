@@ -101,7 +101,6 @@ class XpRepository implements XpRepositoryInterface {
     );
   }
 
-
   @override
   Future<XpLeaderboardModel?> getLeaderboard({
     String type = 'global',

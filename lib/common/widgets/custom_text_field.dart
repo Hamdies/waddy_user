@@ -326,10 +326,7 @@ class CustomTextFieldState extends State<CustomTextField>
                       horizontal: widget.isPhone ? 4 : 20,
                       vertical: 18,
                     ),
-                    hintText:
-                        widget.hintText.isEmpty || true
-                            ? widget.titleText
-                            : widget.hintText,
+                    hintText: widget.titleText,
 
                     fillColor: Theme.of(context).cardColor,
 

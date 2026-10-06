@@ -1,38 +1,64 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get/get.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/features/splash/domain/services/splash_service_interface.dart';
-import 'package:waddy_app/features/store/domain/models/store_model.dart';
+import 'package:waddy_app/common/models/module_model.dart';
 import 'package:waddy_app/features/store/store_navigator.dart';
 
 /// Phase 5 (ST-04, ST-05, ST-06): one rule for which page a store gets, and
 /// one way into it. Decided 09-30: restaurants and every non-supermarket store
 /// get the menu page; supermarkets get the aisle page.
 void main() {
-  group('StoreLayout', () {
+  group('StoreLayout.resolve', () {
     test('a supermarket gets the aisle page', () {
-      expect(StoreLayout.of(Store(isSupermarket: true)), StoreLayout.aisles);
+      expect(StoreLayout.resolve(ModuleType.grocery, true), StoreLayout.aisles);
     });
 
-    test('everything else gets the menu page', () {
-      // Restaurants, butchers, dairies — the backend formats them all with
-      // is_supermarket: false.
-      expect(StoreLayout.of(Store(isSupermarket: false)), StoreLayout.menu);
+    test('a restaurant gets the menu page', () {
+      expect(StoreLayout.resolve(ModuleType.food, false), StoreLayout.menu);
+    });
+
+    test('a non-supermarket grocery store gets the specialty page', () {
+      // Butchers, dairies, greengrocers — is_supermarket: false inside the
+      // grocery module.
+      expect(
+        StoreLayout.resolve(ModuleType.grocery, false),
+        StoreLayout.specialty,
+      );
+    });
+
+    test('every pets store gets the pets page, whatever the payload says', () {
+      for (final bool? flag in <bool?>[true, false, null]) {
+        expect(StoreLayout.resolve(ModuleType.pets, flag), StoreLayout.pets);
+      }
     });
 
     test('a store known only by id is undecided, so the shell fetches it', () {
-      expect(StoreLayout.of(Store(id: 33)), isNull);
+      expect(StoreLayout.resolve(ModuleType.food, null), isNull);
+      expect(StoreLayout.resolve(ModuleType.grocery, null), isNull);
+      expect(StoreLayout.resolve(null, null), isNull);
+    });
+
+    test('an unknown module treats a flagged store by its flag alone', () {
+      expect(StoreLayout.resolve(null, true), StoreLayout.aisles);
+      expect(StoreLayout.resolve(null, false), StoreLayout.menu);
+    });
+  });
+
+  group('StoreLayout.resolveFallback', () {
+    test('grocery defaults to the aisles', () {
+      expect(
+        StoreLayout.resolveFallback(ModuleType.grocery),
+        StoreLayout.aisles,
+      );
+    });
+
+    test('pets stays pets', () {
+      expect(StoreLayout.resolveFallback(ModuleType.pets), StoreLayout.pets);
     });
 
     test('with nothing to go on, the fallback is the menu page', () {
-      Get.reset();
-      Get.put<SplashController>(
-        SplashController(splashServiceInterface: _StubSplashService()),
-      );
-      expect(StoreLayout.fallback(Store(id: 33)), StoreLayout.menu);
-      Get.reset();
+      expect(StoreLayout.resolveFallback(null), StoreLayout.menu);
+      expect(StoreLayout.resolveFallback(ModuleType.food), StoreLayout.menu);
     });
   });
 
@@ -84,9 +110,4 @@ void main() {
       },
     );
   });
-}
-
-class _StubSplashService implements SplashServiceInterface {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
 }

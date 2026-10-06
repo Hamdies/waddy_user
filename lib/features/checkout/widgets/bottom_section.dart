@@ -9,19 +9,17 @@ import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/checkout/widgets/checkout_card.dart';
 import 'package:waddy_app/features/checkout/widgets/payment_section.dart';
 import 'package:waddy_app/features/checkout/widgets/prescription_image_picker_widget.dart';
-import 'package:waddy_app/features/checkout/widgets/prize_selection_widget.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
 import 'package:waddy_app/features/profile/controllers/profile_controller.dart';
 import 'package:waddy_app/common/models/config_model.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
-import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 
-/// The lower half of checkout: XP prize, "Pay with", and the payment
+/// The lower half of checkout: "Pay with", and the payment
 /// summary. Each block is a direct child of the page's column so the spacing
 /// between them is the page's, not nested paddings'.
 class BottomSection extends StatelessWidget {
@@ -85,17 +83,10 @@ class BottomSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool takeAway = checkoutController.orderType == 'take_away';
-    bool isGuestLoggedIn = false;
-    const gap = SizedBox(height: Dimensions.paddingSizeDefault);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        /// XP Prize Selection (for logged in users, delivery orders only)
-        if (!isGuestLoggedIn && !takeAway && storeId == null) ...[
-          CheckoutPrizeSection(orderAmount: orderAmount),
-        ],
-
         const SizedBox(height: Dimensions.paddingSizeExtraLarge),
         CheckoutSectionTitle('pay_with'.tr, key: payWithKey),
         const SizedBox(height: Dimensions.paddingSizeMedium),
@@ -473,46 +464,4 @@ class _DashPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DashPainter old) => false;
-}
-
-/// Keeps the XP prize list in step with the cart's current value.
-///
-/// Eligibility depends on the order amount, so this re-syncs whenever the
-/// amount changes rather than fetching once — see `syncCheckoutPrizes`. The
-/// trigger lives in lifecycle callbacks and not in a builder: firing a fetch
-/// from inside `build` is what the controller's `Future.microtask(update)`
-/// workarounds existed to tolerate.
-class CheckoutPrizeSection extends StatefulWidget {
-  const CheckoutPrizeSection({super.key, required this.orderAmount});
-
-  final double orderAmount;
-
-  @override
-  State<CheckoutPrizeSection> createState() => _CheckoutPrizeSectionState();
-}
-
-class _CheckoutPrizeSectionState extends State<CheckoutPrizeSection> {
-  @override
-  void initState() {
-    super.initState();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(CheckoutPrizeSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.orderAmount != widget.orderAmount) _sync();
-  }
-
-  void _sync() {
-    final amount = widget.orderAmount;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Get.find<XpController>().syncCheckoutPrizes(amount);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      PrizeSelectionWidget(orderAmount: widget.orderAmount);
 }

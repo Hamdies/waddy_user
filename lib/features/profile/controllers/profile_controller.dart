@@ -36,7 +36,7 @@ class ProfileController extends GetxController implements GetxService {
       // affected users from this, which is the difference between "one user
       // hitting this 40 times" and "40 users hitting it once". Only the id —
       // no name, phone or email.
-      unawaited(CrashContext.setUser(userInfoModel?.id));
+      unawaited(CrashContext.setUser(userInfoModel.id));
     }
     update();
   }

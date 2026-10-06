@@ -473,10 +473,6 @@ class _QuestCardState extends State<_QuestCard>
     final claimed = challenge.isClaimed;
     final canClaim = challenge.canClaim;
     final pct = challenge.progressPercentage.clamp(0.0, 1.0);
-    final emoji =
-        (challenge.icon != null && challenge.icon!.isNotEmpty)
-            ? challenge.icon!
-            : _fallbackEmoji(challenge);
 
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -497,19 +493,16 @@ class _QuestCardState extends State<_QuestCard>
         children: [
           Row(
             children: [
-              // Known quest types get the animated icon, which plays on reveal
-              // and again when the quest completes or is claimed (XM-05).
-              // Unknown types keep the backend's emoji.
-              if (XpIcon.forChallengeType(challenge.challengeType)
-                  case final XpIcon motion)
-                XpRiveIcon(
-                  icon: motion,
-                  size: 30,
-                  fallbackColor: XpTokens.mint,
-                  playWhen: challenge.status,
-                )
-              else
-                Text(emoji, style: const TextStyle(fontSize: 20)),
+              // Every quest is the flash: plays on reveal, loops, and plays
+              // again when the quest completes or is claimed (XM-05). The
+              // backend's emoji is only the glyph shown while it loads.
+              XpRiveIcon(
+                icon: XpIcon.forChallengeType(challenge.challengeType),
+                size: 30,
+                fallbackColor: XpTokens.mint,
+                playWhen: challenge.status,
+                repeatEvery: XpMotion.loop,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -661,20 +654,6 @@ class _QuestCardState extends State<_QuestCard>
     if (c.canClaim) return 'xp_challenge_claimable'.tr;
     if (c.isCompleted) return 'xp_challenge_complete'.tr;
     return 'xp_challenge_in_progress'.tr;
-  }
-
-  String _fallbackEmoji(Challenge c) {
-    switch (c.challengeType) {
-      case 'multiple_orders':
-        return '🎯';
-      case 'min_order_amount':
-        return '💰';
-      case 'new_store':
-        return '🗺️';
-      case 'complete_order':
-      default:
-        return '🍔';
-    }
   }
 }
 

@@ -10,8 +10,6 @@ import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/custom_snackbar.dart';
 import 'package:waddy_app/util/dimensions.dart';
 
-const Color _orange = Color(0xFFF96D2B);
-
 class AddFundScreen extends StatefulWidget {
   const AddFundScreen({super.key});
 

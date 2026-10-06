@@ -613,7 +613,10 @@ class XpController extends GetxController implements GetxService {
   int? lastOrderXpEstimate;
 
   /// Fetch merged level details (replaces separate getCurrentLevel + getAllLevels)
-  Future<void> getLevelDetails({bool reload = false, bool fresh = false}) async {
+  Future<void> getLevelDetails({
+    bool reload = false,
+    bool fresh = false,
+  }) async {
     if (_currentLevel != null && _levelsListModel != null && !reload) return;
     return _single(idLevel, _fetchLevelDetails, fresh: fresh);
   }

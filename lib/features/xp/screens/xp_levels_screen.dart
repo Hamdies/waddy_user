@@ -44,7 +44,13 @@ part 'xp_home/states.dart';
 /// Lives as the "XP" tab inside the dashboard, so it renders scroll content
 /// only: the app's own bottom nav owns the tab bar the mock draws at the base.
 class XpLevelsScreen extends StatefulWidget {
-  const XpLevelsScreen({super.key});
+  const XpLevelsScreen({super.key, this.showBack = false});
+
+  /// True when this was pushed (from the menu, the profile or the cart) rather
+  /// than hosted as the dashboard's Rewards tab. A tab has the nav bar to go
+  /// elsewhere; a pushed screen has nothing but a back gesture, which people
+  /// don't always find.
+  final bool showBack;
 
   @override
   State<XpLevelsScreen> createState() => _XpLevelsScreenState();
@@ -190,10 +196,7 @@ class _XpLevelsScreenState extends State<XpLevelsScreen>
                                 const _XpSourcesSection(),
                                 const SizedBox(height: _Xp.sXl),
                                 const _RewardsSection(),
-                                if (kDebugMode) ...[
-                                  const SizedBox(height: _Xp.sXl),
-                                  _SimulateLevelUpButton(xp: xp),
-                                ],
+                              
                                 const SizedBox(height: 90),
                               ]
                               .map(
@@ -237,7 +240,27 @@ class _XpLevelsScreenState extends State<XpLevelsScreen>
 
     return Scaffold(
       backgroundColor: _Xp.panel,
-      body: SafeArea(bottom: false, child: body),
+      body: SafeArea(
+        bottom: false,
+        child:
+            widget.showBack
+                ? Column(
+                  children: [
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: IconButton(
+                        tooltip:
+                            MaterialLocalizations.of(context).backButtonTooltip,
+                        icon: const BackButtonIcon(),
+                        color: _Xp.onDark,
+                        onPressed: () => Get.back(),
+                      ),
+                    ),
+                    Expanded(child: body),
+                  ],
+                )
+                : body,
+      ),
     );
   }
 }

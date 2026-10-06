@@ -191,50 +191,6 @@ class _AddressScreenState extends State<AddressScreen> {
     );
   }
 
-  Widget _buildAddAddressCard(BuildContext context) {
-    return InkWell(
-      onTap: () => Get.toNamed(RouteHelper.getAddAddressRoute(false, false, 0)),
-      borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-          border: Border.all(
-            color: Theme.of(context).primaryColor.withValues(alpha: 0.12),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              HugeIcon(
-                icon: HugeIcons.strokeRoundedAddCircle,
-                color: Theme.of(context).primaryColor,
-                size: 28,
-                strokeWidth: 2,
-              ),
-              const SizedBox(height: Dimensions.paddingSizeSmall),
-              Text(
-                'add_new_address'.tr,
-                style: waddyMedium.copyWith(
-                  color: Theme.of(context).primaryColor,
-                  fontSize: Dimensions.fontSizeSmall,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildAddressCard(
     BuildContext context,
     AddressModel address,

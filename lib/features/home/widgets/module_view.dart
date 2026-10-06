@@ -1,5 +1,4 @@
 import 'package:shimmer_animation/shimmer_animation.dart';
-import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/section_error_view.dart';
 import 'package:waddy_app/features/home/controllers/home_controller.dart';
 import 'package:waddy_app/features/home/screens/home_screen.dart';
@@ -12,7 +11,6 @@ import 'package:waddy_app/common/widgets/spots/spots_marks.dart';
 import 'package:waddy_app/common/widgets/spots/spots_theme.dart';
 import 'package:waddy_app/features/item/controllers/item_controller.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
-import 'package:waddy_app/helper/auth_helper.dart';
 import 'package:waddy_app/helper/price_converter.dart';
 import 'package:waddy_app/helper/route_helper.dart';
 import 'package:waddy_app/util/app_constants.dart';
@@ -32,7 +30,6 @@ import 'package:waddy_app/features/home/widgets/views/recommended_store_view.dar
 import 'package:waddy_app/features/home/widgets/views/top_restaurants_view.dart';
 import 'package:waddy_app/features/home/widgets/views/grocery_shelf_view.dart';
 import 'package:waddy_app/features/store/controllers/store_list_controller.dart';
-import 'package:waddy_app/features/store/domain/models/store_model.dart';
 import 'package:waddy_app/theme/light_theme.dart';
 
 /// Vertical rhythm for the home feed.
@@ -454,12 +451,6 @@ class _ModuleTile extends StatelessWidget {
   }
 }
 
-/// Opens a store from the aggregated dashboard: the target module must be
-/// activated first (dashboard has none selected), then route to the store.
-void _openStoreFromDashboard(Store store) {
-  StoreNavigator.open(store, page: 'module');
-}
-
 /// A section that has no content: an error row if the fetch failed, nothing at
 /// all if it simply came back empty.
 ///
@@ -593,159 +584,6 @@ class _GrocerySection extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Order Again — compact chips of recently-ordered stores, the shortcut for
-/// the repeat order. Header stays quiet (eyebrow only); this row just has to
-/// be findable in a glance.
-class _OrderAgainRow extends StatelessWidget {
-  const _OrderAgainRow();
-
-  @override
-  Widget build(BuildContext context) {
-    if (!AuthHelper.isLoggedIn()) return const SizedBox.shrink();
-    return GetBuilder<StoreListController>(
-      id: StoreListController.visitAgainId,
-      builder: (storeController) {
-        // The dashboard's own list: every module's stores, not whichever
-        // module home loaded last.
-        final stores =
-            storeController.dashboardVisitAgainStoreList ?? <Store>[];
-        if (stores.isEmpty) return const SizedBox.shrink();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(18, 0, 18, 12),
-              child: Text(
-                displayCaps('order_again'.tr),
-                style: TextStyle(
-                  fontFamily: AppConstants.fontFamily,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                  letterSpacing: displayTracking(0.8),
-                  color: WaddyColors.primary.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 64,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeMedium,
-                ),
-                itemCount: stores.length > 8 ? 8 : stores.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder:
-                    (context, index) => _OrderAgainChip(
-                      store: stores[index],
-                      onTap: () => _openStoreFromDashboard(stores[index]),
-                    ),
-              ),
-            ),
-            // Trails into the chart below it, which is the section this one
-            // sets up — the feed owns the outer gaps, this is only the seam
-            // between "your usual" and "what's fastest right now".
-            const SizedBox(height: _Gap.section),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _OrderAgainChip extends StatelessWidget {
-  final Store store;
-  final VoidCallback onTap;
-  const _OrderAgainChip({required this.store, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: '${'order_again'.tr}: ${store.name ?? ''}',
-      scale: WaddyMotion.pressTile,
-      child: Container(
-        padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 14, 8),
-        decoration: BoxDecoration(
-          color: WaddyColors.surface,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: WaddyColors.divider),
-          boxShadow: const [
-            BoxShadow(
-              color: WaddyColors.shadowTeal,
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: WaddyColors.surfaceRaised,
-                border: Border.all(
-                  color: WaddyColors.primarySurface,
-                  width: 1.5,
-                ),
-              ),
-              child: ClipOval(
-                child: CustomImage(
-                  image: store.logoFullUrl ?? '',
-                  fit: BoxFit.cover,
-                  width: 44,
-                  height: 44,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 140),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    store.name ?? '',
-                    // No height override: waddyBold already carries 1.3, and
-                    // the only reason to reach past it here would be to fit a
-                    // box this text comfortably fits anyway.
-                    style: waddyBold.copyWith(
-                      fontSize: 12.5,
-                      color: WaddyColors.ink,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (store.deliveryTime != null &&
-                      store.deliveryTime!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      store.deliveryTime!,
-                      style: waddyRegular.copyWith(
-                        fontSize: 11,
-                        color: WaddyColors.inkLight,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -904,8 +742,22 @@ class _PlacesTicketCardState extends State<_PlacesTicketCard>
                 // replaced it with a live 1v1 that had been running all week. The
                 // one card whose entire job is to say "this is happening right now"
                 // opened by claiming nothing was happening.
+                //
+                // The two fetches are independent (idLeaderboard/idPlaces each
+                // rebuild on their own), so checking "not currently loading"
+                // instead of "has resolved at least once" let the card render
+                // _noEntrants() the instant the faster call finished while the
+                // slower one was still in flight — mounting SpotsTrophyGlyph's
+                // Rive sticker only to tear it down a beat later once the
+                // second call landed a real leader. The sticker's ~1MB asset
+                // was still decoding when that happened, which crashed inside
+                // the rive package itself (see spots_marks.dart). Waiting for
+                // both to have resolved at least once keeps the card on the
+                // skeleton for that whole window instead of flashing the
+                // empty state in between.
+                final bool settled = c.leaderboard != null && c.places != null;
                 if (standings.isEmpty &&
-                    (c.isLeaderboardLoading || c.isPlacesLoading)) {
+                    (!settled || c.isLeaderboardLoading || c.isPlacesLoading)) {
                   return _matchCard(null, null, loading: true);
                 }
                 final leader = standings.isNotEmpty ? standings[0] : null;

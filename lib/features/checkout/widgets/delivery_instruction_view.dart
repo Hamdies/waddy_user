@@ -26,7 +26,9 @@ class DeliveryInstructionView extends StatefulWidget {
 
 class _DeliveryInstructionViewState extends State<DeliveryInstructionView> {
   static const double _tileWidth = 88;
-  static const double _tileHeight = 84;
+  // The voice tile's recorded state (corner button + title + time) needs
+  // ~72pt inside the 8pt padding; 84 overflowed it by 4.
+  static const double _tileHeight = 92;
   static const double _tileGap = Dimensions.paddingSizeSmall;
   static const double _notch = 14;
 

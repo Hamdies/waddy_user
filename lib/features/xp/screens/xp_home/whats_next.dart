@@ -137,10 +137,7 @@ class _WhatsNextSection extends StatelessWidget {
                 if (reward == null) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: _Xp.sSm),
-                  child: _RewardTile(
-                    reward: reward,
-                    level: xp.nextRewardLevel,
-                  ),
+                  child: _RewardTile(reward: reward, level: xp.nextRewardLevel),
                 );
               },
             ),
@@ -188,9 +185,13 @@ class _ChallengeTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(
-                  challenge.icon?.isNotEmpty == true ? challenge.icon! : '🎯',
-                  style: const TextStyle(fontSize: 20),
+                XpRiveIcon(
+                  icon: XpIcon.forChallengeType(challenge.challengeType),
+                  size: 30,
+                  fallback: Icons.bolt_rounded,
+                  fallbackColor: _Xp.mint,
+                  playWhen: challenge.status,
+                  repeatEvery: XpMotion.loop,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -402,12 +403,13 @@ class _RewardTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(_Xp.rMd),
                     ),
                     alignment: Alignment.center,
-                    // The gift, played once on reveal (XM-03).
+                    // The gem, looping — every reward wears it.
                     child: XpRiveIcon(
-                      icon: XpIcon.gift,
+                      icon: XpIcon.forPrize(reward.kind),
                       size: 38,
                       fallback: reward.kind.icon,
                       fallbackColor: _Xp.gold,
+                      repeatEvery: XpMotion.loop,
                     ),
                   ),
                   Positioned(

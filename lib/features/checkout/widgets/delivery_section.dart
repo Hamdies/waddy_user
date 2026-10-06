@@ -1,3 +1,8 @@
+// The guest-checkout branches sit behind `const isGuestLoggedIn = false` on purpose:
+// scaffolding for docs/guest_mode_plan.md (specified, not built). See the note
+// at the declaration. Do not delete them to satisfy dead_code.
+// ignore_for_file: dead_code
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -37,7 +42,7 @@ class DeliverySection extends StatelessWidget {
     // Pinned false — the guest-checkout address form. Same story as
     // top_section.dart: kept against docs/guest_mode_plan.md, not dead code to
     // delete. See CS-10.
-    bool isGuestLoggedIn = false;
+    const bool isGuestLoggedIn = false;
     bool takeAway = (checkoutController.orderType == 'take_away');
     return Column(
       children: [

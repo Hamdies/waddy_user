@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_app_bar.dart';
+import 'package:waddy_app/common/widgets/mccoin_mood.dart';
 import 'package:waddy_app/features/places/controllers/places_controller.dart';
 import 'package:waddy_app/features/places/domain/models/place_prize_model.dart';
 import 'package:waddy_app/features/places/domain/spots_draw.dart';
@@ -102,10 +103,7 @@ class _SpotsPrizesScreenState extends State<SpotsPrizesScreen> {
                         // compile-time constant, so this row and everything it
                         // reaches is tree-shaken out of release builds — it
                         // cannot ship, and there is no flag to remember.
-                        if (kDebugMode)
-                          _ClawDebugBar(
-                            prize: active.isNotEmpty ? active.first : null,
-                          ),
+
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                             Spots.gutter,
@@ -260,8 +258,10 @@ class _PrizesEmpty extends StatelessWidget {
       padding: const EdgeInsets.all(Spots.s32),
       children: [
         const SizedBox(height: Spots.s32),
+        // McCoin, sad: nothing here yet. The same face the app's other empty
+        // screens use, instead of a trophy that promised a prize.
         const Center(
-          child: SpotsGlyph(SpotsMark.trophy, size: 52, color: Spots.teal),
+          child: McCoinMoodAnimation(mood: McCoinMood.sad, size: 140),
         ),
         const SizedBox(height: Spots.s16),
         Text(

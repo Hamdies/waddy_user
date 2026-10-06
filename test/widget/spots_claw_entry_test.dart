@@ -114,7 +114,7 @@ void main() {
 
     testWidgets('renders nothing before a round has a draw', (tester) async {
       await _pump(tester, host());
-      expect(find.text('SPOTS_CLAW_WATCH_DRAW'), findsNothing);
+      expect(find.text('🎰'), findsNothing);
     });
 
     testWidgets('renders nothing for a round nobody voted in', (tester) async {
@@ -122,7 +122,7 @@ void main() {
       await _pump(tester, host());
       await controller.getLatestDraw();
       await tester.pump();
-      expect(find.text('SPOTS_CLAW_WATCH_DRAW'), findsNothing);
+      expect(find.text('🎰'), findsNothing);
     });
 
     testWidgets('appears once the draw lands, and congratulates a winner', (
@@ -133,7 +133,7 @@ void main() {
       await controller.getLatestDraw();
       await tester.pump();
 
-      expect(find.text('SPOTS_CLAW_WATCH_DRAW'), findsOneWidget);
+      expect(find.text('🎰'), findsOneWidget);
       expect(find.text('SPOTS_CLAW_CARD_TITLE_WON'), findsOneWidget);
     });
 

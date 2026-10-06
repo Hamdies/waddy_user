@@ -454,9 +454,27 @@ class PlacesController extends GetxController implements GetxService {
   }
 
   /// A live prize the user hasn't been congratulated for yet, if any.
+  ///
+  /// A prize from an ISO-week draw is skipped here: the claw is how that win
+  /// is revealed, and the card pops up when the claw finishes
+  /// ([celebrationAfterDraw]). Offering it on open spoiled the reveal — the
+  /// winner saw "I WON A FREE ITEM" before the machine had picked anyone.
   PlacePrize? get uncelebratedPrize {
     for (final prize in activePrizes) {
-      if (!_celebratedPrizeIds.contains(prize.id)) return prize;
+      if (_celebratedPrizeIds.contains(prize.id)) continue;
+      if (SpotsDrawRound.isValidPeriod(prize.period)) continue;
+      return prize;
+    }
+    return null;
+  }
+
+  /// The prize to celebrate once the claw has revealed [prizeId] as the
+  /// viewer's win, or null if it was already celebrated or is unknown.
+  Future<PlacePrize?> celebrationAfterDraw(int prizeId) async {
+    await getMyPrizes();
+    if (_celebratedPrizeIds.contains(prizeId)) return null;
+    for (final prize in activePrizes) {
+      if (prize.id == prizeId) return prize;
     }
     return null;
   }

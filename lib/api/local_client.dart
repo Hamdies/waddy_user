@@ -1,6 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waddy_app/common/enums/data_source_enum.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:waddy_app/helper/db_helper.dart';
@@ -13,7 +11,6 @@ class LocalClient {
     String? responseBody,
     Map<String, String>? header,
   ) async {
-    SharedPreferences sharedPreferences = Get.find();
     switch (source) {
       case DataSourceEnum.client:
         try {

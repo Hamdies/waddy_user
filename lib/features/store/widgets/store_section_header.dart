@@ -39,12 +39,6 @@ class StoreSectionHeader extends StatelessWidget {
             : onMint
             ? WaddyColors.primary
             : WaddyColors.ink;
-    final Color subtitleColor =
-        onDark
-            ? Colors.white.withValues(alpha: 0.78)
-            : onMint
-            ? WaddyColors.inkMid
-            : WaddyColors.inkLight;
     final Color actionColor = onDark ? WaddyColors.mint : WaddyColors.primary;
     final bool rtl = Directionality.of(context) == TextDirection.rtl;
 

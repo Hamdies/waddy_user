@@ -154,10 +154,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   double _bodySize(BuildContext context) =>
       _r<double>(context, mobile: 15, tab: 17, desktop: 18);
 
-  /// Fluid logo size (SVG).
-  double _logoSize(BuildContext context) =>
-      _r<double>(context, mobile: 70, tab: 90, desktop: 100);
-
   // ─────────────────────────────────────────────────────────────────────────
 
   @override
@@ -240,7 +236,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    for (String asset in _svgAssets) {}
 
     _reduceMotion = MediaQuery.of(context).disableAnimations;
     if (!_motionSetupDone) {
@@ -752,7 +747,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
 
   Widget _buildAnimatedFirstScreen(BuildContext context, int pageCount) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final logoSz = _logoSize(context);
 
     // Card sits below the logo; text block below the card. Text sits a touch
     // lower than before now that the progress dots are gone, so the button
@@ -769,12 +763,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
       tab: 0.56,
       desktop: 0.54,
     );
-    final logoEndY = _r<double>(
-      context,
-      mobile: 50.0,
-      tab: 60.0,
-      desktop: 70.0,
-    );
 
     return AnimatedBuilder(
       animation: Listenable.merge([
@@ -783,11 +771,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
         _morphController,
       ]),
       builder: (context, child) {
-        final logoMoveProgress = Curves.easeOutCubic.transform(
-          (_entranceController.value * 1.8).clamp(0.0, 1.0),
-        );
-        final logoStartY = screenHeight * 0.32;
-        final logoY = logoStartY + (logoEndY - logoStartY) * logoMoveProgress;
 
         final cardsOpacity = Curves.easeOut.transform(
           ((_entranceController.value - 0.25) / 0.35).clamp(0.0, 1.0),

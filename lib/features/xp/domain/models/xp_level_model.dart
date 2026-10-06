@@ -219,8 +219,7 @@ class LevelPrize {
   /// The user-prize status, or one rebuilt from the flags for a payload that
   /// predates `status`. Null means not unlocked yet.
   String? get effectiveStatus =>
-      status ??
-      (isClaimed ? 'claimed' : (isUnlocked ? 'unlocked' : null));
+      status ?? (isClaimed ? 'claimed' : (isUnlocked ? 'unlocked' : null));
 
   /// See [RewardState.of]. The level payload carries no expiry, so an expired
   /// prize is known only once the server flips its status.

@@ -165,17 +165,6 @@ class _MenuScreenState extends State<MenuScreen> {
                               : '${profileController.userInfoModel?.loyaltyPoint ?? 0} ${'points'.tr}',
                       onTap: () => Get.toNamed(RouteHelper.getLoyaltyRoute()),
                     ),
-                  if (isLoggedIn &&
-                      profileController.userInfoModel?.refCode != null)
-                    _buildFlatItem(
-                      context,
-                      icon: HugeIcons.strokeRoundedUserGroup,
-                      title: 'Invite Friends',
-                      suffix: 'Earn rewards',
-                      onTap:
-                          () => Get.toNamed(RouteHelper.getReferAndEarnRoute()),
-                    ),
-
                   // ════════════════════════════════════════════════
                   //  PREFERENCES
                   // ════════════════════════════════════════════════
@@ -370,73 +359,13 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap:
-                            () => Get.toNamed(
-                              RouteHelper.getHtmlRoute('privacy-policy'),
-                            ),
-                        child: Text(
-                          'privacy_policy'.tr,
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Dimensions.paddingSizeSmall,
-                        ),
-                        child: Text(
-                          '|',
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: _subtitleColor.withOpacity(0.4),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap:
-                            () => Get.toNamed(
-                              RouteHelper.getHtmlRoute('terms-and-condition'),
-                            ),
-                        child: Text(
-                          'terms_conditions'.tr,
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: Dimensions.paddingSizeSmall,
-                        ),
-                        child: Text(
-                          '|',
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: _subtitleColor.withOpacity(0.4),
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap:
-                            () => Get.toNamed(
-                              RouteHelper.getHtmlRoute('about-us'),
-                            ),
-                        child: Text(
-                          'about_us'.tr,
-                          style: waddyRegular.copyWith(
-                            fontSize: 12,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
+                  _buildFooterLinks(
+                    primaryColor,
+                    showShippingPolicy:
+                        Get.find<SplashController>()
+                            .configModel
+                            .shippingPolicyStatus ==
+                        1,
                   ),
 
                   const SizedBox(height: 12),
@@ -905,7 +834,7 @@ class _MenuScreenState extends State<MenuScreen> {
           _QuickAction(
             icon: HugeIcons.strokeRoundedHeadset,
             label: 'Get Help',
-            onTap: () => Get.toNamed(RouteHelper.getConversationRoute()),
+            onTap: () => Get.toNamed(RouteHelper.getSupportRoute()),
           ),
         ];
 
@@ -987,7 +916,6 @@ class _MenuScreenState extends State<MenuScreen> {
         final appearance =
             CardAppearances.options[walletController.selectedCardAppearance];
         final symbolIndex = walletController.selectedCardSymbol;
-        final balance = profileController.userInfoModel?.walletBalance ?? 0;
 
         return GestureDetector(
           onTap: () => Get.toNamed(RouteHelper.getWalletRoute()),
@@ -1057,6 +985,99 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
         );
       },
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FOOTER LINKS — two intentional, centered rows keep the legal links easy
+  // to scan without relying on unpredictable wrapping.
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildFooterLinks(
+    Color primaryColor, {
+    required bool showShippingPolicy,
+  }) {
+    final links = <_FooterLink>[
+      _FooterLink(
+        'privacy_policy'.tr,
+        () => Get.toNamed(RouteHelper.getHtmlRoute('privacy-policy')),
+      ),
+      _FooterLink(
+        'terms_conditions'.tr,
+        () => Get.toNamed(RouteHelper.getHtmlRoute('terms-and-condition')),
+      ),
+      if (showShippingPolicy)
+        _FooterLink(
+          'shipping_policy'.tr,
+          () => Get.toNamed(RouteHelper.getHtmlRoute('shipping-policy')),
+        ),
+      _FooterLink(
+        'about_us'.tr,
+        () => Get.toNamed(RouteHelper.getHtmlRoute('about-us')),
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.paddingSizeDefault,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: _buildFooterLinkRow(links.take(2).toList(), primaryColor),
+          ),
+          const SizedBox(height: 2),
+          Center(
+            child: _buildFooterLinkRow(links.skip(2).toList(), primaryColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterLinkRow(List<_FooterLink> links, Color primaryColor) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (int index = 0; index < links.length; index++) ...[
+          if (index > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeSmall,
+              ),
+              child: Text(
+                '•',
+                style: waddyMedium.copyWith(
+                  fontSize: 12,
+                  color: _subtitleColor.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+          Semantics(
+            button: true,
+            label: links[index].label,
+            child: TextButton(
+              onPressed: links[index].onTap,
+              style: TextButton.styleFrom(
+                foregroundColor: primaryColor,
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.paddingSizeExtraSmall,
+                  vertical: Dimensions.paddingSizeExtraSmall,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(
+                links[index].label,
+                style: waddyMedium.copyWith(fontSize: 12, color: primaryColor),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1257,4 +1278,10 @@ class _QuickAction {
     required this.label,
     required this.onTap,
   });
+}
+
+class _FooterLink {
+  final String label;
+  final VoidCallback onTap;
+  const _FooterLink(this.label, this.onTap);
 }

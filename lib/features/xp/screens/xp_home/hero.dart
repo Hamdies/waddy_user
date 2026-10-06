@@ -539,20 +539,7 @@ class _JustEarnedToastState extends State<_JustEarnedToast>
       },
       child: chip,
     );
-    // A one-shot coin burst behind the chip (XM-03). Outside the layout, so
-    // the chip keeps its size.
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        const Positioned(
-          child: IgnorePointer(
-            child: XpLottieOnce(asset: XpMotion.coinBurst, size: 72),
-          ),
-        ),
-        popped,
-      ],
-    );
+    return popped;
   }
 }
 

@@ -12,6 +12,8 @@ import 'package:waddy_app/features/places/domain/spots_draw.dart';
 import 'package:waddy_app/features/places/domain/spots_draw_fixtures.dart';
 import 'package:waddy_app/features/places/domain/spots_draw_geometry.dart';
 import 'package:waddy_app/features/places/domain/spots_draw_timeline.dart';
+import 'package:waddy_app/features/places/controllers/places_controller.dart';
+import 'package:waddy_app/features/places/widgets/spots_win_card.dart';
 import 'package:waddy_app/features/places/widgets/claw/claw_cabinet.dart';
 import 'package:waddy_app/features/places/widgets/claw/claw_chute.dart';
 import 'package:waddy_app/features/places/widgets/claw/claw_header_strip.dart';
@@ -393,6 +395,18 @@ class _SpotsClawDrawScreenState extends State<SpotsClawDrawScreen>
     }
   }
 
+  Future<void> _offerWinCard(int prizeId) async {
+    if (!Get.isRegistered<PlacesController>()) return;
+    final controller = Get.find<PlacesController>();
+    final prize = await controller.celebrationAfterDraw(prizeId);
+    if (prize == null) return;
+    // Let the reveal land before the card covers it.
+    await Future<void>.delayed(const Duration(milliseconds: 1800));
+    if (!mounted) return;
+    controller.markPrizeCelebrated(prize.id);
+    SpotsWinCardSheet.show(context, prize);
+  }
+
   void _onDone() {
     // Confetti when the machine finishes, per the design's `allDone`.
     //
@@ -414,6 +428,13 @@ class _SpotsClawDrawScreenState extends State<SpotsClawDrawScreen>
     // sends it and well below where this screen's result lands.
     if (_draw.winners.isNotEmpty) {
       showSpotsConfetti(from: context, originY: 0.62);
+    }
+
+    // The share card is the last beat of a win, not the first: it appears once
+    // the machine has revealed the viewer as a winner, after the confetti and
+    // the sting have had a moment on their own.
+    if (_draw.outcome == DrawOutcome.won && _draw.hasVoucher) {
+      unawaited(_offerWinCard(_draw.myPrizeId!));
     }
 
     // The result sting. This is the one funnel every ending passes through —

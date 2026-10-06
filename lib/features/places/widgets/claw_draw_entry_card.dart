@@ -41,13 +41,6 @@ class _Card extends StatelessWidget {
 
   final SpotsDrawRound round;
 
-  String get _kicker {
-    final week = round.week;
-    return week == null
-        ? 'spots_claw_card_kicker'.tr
-        : 'spots_claw_card_kicker_week'.trParams({'week': '$week'});
-  }
-
   String get _title {
     switch (round.draw.outcome) {
       case DrawOutcome.won:
@@ -59,19 +52,13 @@ class _Card extends StatelessWidget {
     }
   }
 
-  String get _body {
-    final draw = round.draw;
-    final place = round.placeTitle;
-    final params = {
-      'place': place ?? '',
-      'count': '${draw.displayTotal}',
-      'pulls': '${draw.effectivePulls}',
-    };
-    return (place == null
-            ? 'spots_claw_card_body_no_place'
-            : 'spots_claw_card_body')
-        .trParams(params);
-  }
+  /// One short line. The venue, the week and the full sentence lived here
+  /// once; the draw screen says all of that, and a card that tries to is the
+  /// loudest thing on a screen whose job is the board below it.
+  String get _sub => 'spots_claw_card_sub'.trParams({
+    'pulls': '${round.draw.effectivePulls}',
+    'count': '${round.draw.displayTotal}',
+  });
 
   void _open() {
     Get.toNamed(
@@ -83,37 +70,24 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool won = round.draw.outcome == DrawOutcome.won;
-
     return Semantics(
       button: true,
-      label: '$_title. $_body',
+      label: '$_title. $_sub. ${'spots_claw_watch_draw'.tr}',
       excludeSemantics: true,
       child: SpotsPressable(
         onTap: _open,
         child: Container(
           width: double.infinity,
-          decoration: Spots.card(fill: Spots.panel, dx: 0, dy: 0),
-          padding: const EdgeInsets.all(Spots.s16),
+          // A slim mint strip: the claw is news, not a section, so it sits as
+          // one line of colour between the countdown and the board.
+          decoration: Spots.card(fill: Spots.mint, dx: 0, dy: 0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Spots.s12,
+            vertical: Spots.s8,
+          ),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: won ? Spots.mint : Spots.teal,
-                  border: Border.all(
-                    color: Spots.mint,
-                    width: Spots.borderThin,
-                  ),
-                  borderRadius: BorderRadius.circular(Spots.radiusMd),
-                ),
-                child: Icon(
-                  won ? Icons.emoji_events_rounded : Icons.toys_rounded,
-                  size: 28,
-                  color: won ? Spots.teal : Spots.mint,
-                ),
-              ),
+              const Text('🎰', style: TextStyle(fontSize: 26, height: 1)),
               const SizedBox(width: Spots.s12),
               Expanded(
                 child: Column(
@@ -121,36 +95,19 @@ class _Card extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      displayCaps(_kicker),
+                      displayCaps(_title),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Spots.kicker(10, color: Spots.mint),
+                      style: Spots.display(15, color: Spots.teal),
                     ),
-                    const SizedBox(height: Spots.s4),
                     Text(
-                      displayCaps(_title),
-                      maxLines: 2,
+                      _sub,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Spots.display(18, color: Colors.white),
-                    ),
-                    const SizedBox(height: Spots.s4),
-                    Text(
-                      _body,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: waddyRegular.copyWith(
-                        fontSize: 12.5,
-                        color: Colors.white.withValues(alpha: 0.8),
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: Spots.s8),
-                    Text(
-                      displayCaps('spots_claw_watch_draw'.tr),
-                      style: Spots.kicker(
-                        11,
-                        color: Spots.mint,
-                        tracking: 0.08,
+                      style: waddyMedium.copyWith(
+                        fontSize: 12,
+                        color: Spots.teal.withValues(alpha: 0.75),
+                        height: 1.3,
                       ),
                     ),
                   ],
@@ -158,8 +115,8 @@ class _Card extends StatelessWidget {
               ),
               const Icon(
                 Icons.chevron_right_rounded,
-                color: Spots.mint,
-                size: 26,
+                color: Spots.teal,
+                size: 24,
               ),
             ],
           ),

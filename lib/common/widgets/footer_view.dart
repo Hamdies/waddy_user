@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:waddy_app/features/splash/controllers/splash_controller.dart';
-import 'package:waddy_app/common/models/config_model.dart';
 import 'package:waddy_app/util/dimensions.dart';
 import 'package:waddy_app/util/styles.dart';
 import 'package:url_launcher/url_launcher_string.dart';
@@ -22,9 +20,6 @@ class FooterView extends StatefulWidget {
 }
 
 class _FooterViewState extends State<FooterView> {
-  final TextEditingController _newsLetterController = TextEditingController();
-  final ConfigModel? _config = Get.find<SplashController>().configModel;
-
   @override
   Widget build(BuildContext context) {
     return Column(

@@ -78,6 +78,7 @@ class PetRepository implements PetRepositoryInterface {
     return (response.body as List)
         .whereType<Map>()
         .map((e) => VetClinicModel.fromJson(Map<String, dynamic>.from(e)))
+        .whereType<VetClinicModel>()
         .toList();
   }
 

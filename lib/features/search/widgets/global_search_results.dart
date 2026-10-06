@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
+import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/widgets/pressable.dart';
 import 'package:waddy_app/features/item/domain/models/item_model.dart';
 import 'package:waddy_app/features/item/screens/mart_product_screen.dart';
@@ -465,16 +466,18 @@ class _StoreBlock extends StatelessWidget {
                               runSpacing: 4,
                               children: [
                                 if (store.hasOffer)
-                                  _Perk(
+                                  OfferCollarBadge(
                                     label: 'gs_offer_select_items'.trParams({
                                       'pct': '${store.offerPercent}',
                                     }),
-                                    filled: true,
+                                    tone: OfferCollarTone.sale,
+                                    compact: true,
                                   ),
                                 if (store.freeDelivery)
-                                  _Perk(
+                                  OfferCollarBadge(
                                     label: 'free_delivery'.tr,
-                                    filled: false,
+                                    tone: OfferCollarTone.delivery,
+                                    compact: true,
                                   ),
                               ],
                             ),
@@ -489,58 +492,34 @@ class _StoreBlock extends StatelessWidget {
 
           if (store.items.isNotEmpty) ...[
             const SizedBox(height: Dimensions.paddingSizeMedium),
-            SizedBox(
-              height: StoreProductCard.railHeight(context),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.paddingSizeDefault,
-                ),
-                itemCount: store.items.length,
-                separatorBuilder:
-                    (_, _) =>
+            // Sized by the cards, not by `StoreProductCard.railHeight`: that
+            // number is a worst-case reserve for a rail that cannot measure
+            // its own cards, and on a result with one matched product it left
+            // a column of empty card under the name. A result holds a handful
+            // of products, so measuring them is cheap.
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.paddingSizeDefault,
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < store.items.length; i++) ...[
+                      if (i > 0)
                         const SizedBox(width: Dimensions.paddingSizeSmall),
-                itemBuilder:
-                    (context, i) => StoreProductCard(
-                      item: store.items[i],
-                      onOpen: () => _openItem(store.items[i]),
-                    ),
+                      StoreProductCard(
+                        item: store.items[i],
+                        onOpen: () => _openItem(store.items[i]),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// "25% off select items" on deep teal, "Free delivery" on mint.
-class _Perk extends StatelessWidget {
-  final String label;
-  final bool filled;
-  const _Perk({required this.label, required this.filled});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color:
-            filled
-                ? AppDesignTokens.primaryDark
-                : GlobalSearchResults._mintFill,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        style: waddyBold.copyWith(
-          fontSize: 11,
-          color:
-              filled ? AppDesignTokens.secondaryNeon : const Color(0xFF1D706A),
-        ),
       ),
     );
   }

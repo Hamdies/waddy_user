@@ -444,13 +444,18 @@ class _FoodHomeScreenState extends State<FoodHomeScreen> {
           ),
           const SizedBox(height: _kSectionGapTight),
           // ─── Compact horizontal item cards ───
+          // Tall enough for the info column at its worst: a two-line dish
+          // name, the store row, then the price row with the 44pt add square
+          // (~108pt) inside the card's padding and border. 110 overflowed by
+          // 16. The vertical padding also gives the card's shadow room.
           SizedBox(
-            height: 110,
+            height: 138,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(
                 horizontal: Dimensions.paddingSizeDefault,
+                vertical: Dimensions.paddingSizeExtraSmall,
               ),
               itemCount: displayItems.length,
               itemBuilder:

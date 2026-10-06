@@ -62,7 +62,6 @@ class PrizeModel {
   /// Every owned prize. `fromJson` fills [prizes] with all groups; a model
   /// built directly may carry only [usablePrizes].
   List<Prize> get _owned => prizes.isNotEmpty ? prizes : usablePrizes;
-
 }
 
 class Prize {

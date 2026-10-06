@@ -74,6 +74,42 @@ void main() {
       expect(config.businessName, 'Waddy');
       expect(config.country, 'EG');
       expect(config.digitAfterDecimalPoint, 2);
+      expect(
+        config.iosZoneRestrictionEnabled,
+        isTrue,
+        reason: 'an older backend must leave delivery zones protected',
+      );
+    });
+
+    test('the iOS zone setting accepts every admin serializer shape', () {
+      expect(
+        ConfigModel.fromJson(<String, dynamic>{
+          ...sparseConfigJson(),
+          'ios_zone_restriction_enabled': false,
+        }).iosZoneRestrictionEnabled,
+        isFalse,
+      );
+      expect(
+        ConfigModel.fromJson(<String, dynamic>{
+          ...sparseConfigJson(),
+          'ios_zone_restriction_enabled': 0,
+        }).iosZoneRestrictionEnabled,
+        isFalse,
+      );
+      expect(
+        ConfigModel.fromJson(<String, dynamic>{
+          ...sparseConfigJson(),
+          'ios_zone_restriction_enabled': 'off',
+        }).iosZoneRestrictionEnabled,
+        isFalse,
+      );
+      expect(
+        ConfigModel.fromJson(<String, dynamic>{
+          ...sparseConfigJson(),
+          'ios_zone_restriction_enabled': 1,
+        }).iosZoneRestrictionEnabled,
+        isTrue,
+      );
     });
   });
 

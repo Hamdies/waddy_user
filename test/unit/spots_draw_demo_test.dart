@@ -62,7 +62,7 @@ void main() {
       expect(draw.winners.first.isMe, isTrue);
       expect(draw.winners.first.rank, 1);
       expect(draw.winners.skip(1).every((w) => !w.isMe), isTrue);
-      expect(draw.winners.length, 5);
+      expect(draw.winners.length, SpotsDrawDemo.defaultPulls);
     });
 
     test('no entrant is pulled twice', () {
@@ -107,7 +107,7 @@ void main() {
 
     test('it still pulls a full set of winners', () {
       final draw = SpotsDrawDemo.losing().start().finish();
-      expect(draw.winners.length, 5);
+      expect(draw.winners.length, SpotsDrawDemo.defaultPulls);
     });
   });
 

@@ -840,7 +840,7 @@ class _AisleGroupState extends State<_AisleGroup> {
 
     return mint
         ? Container(
-          margin: const EdgeInsets.fromLTRB(12, 32, 12, 0),
+          margin: const EdgeInsets.fromLTRB(0, 32, 0, 0),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -848,7 +848,7 @@ class _AisleGroupState extends State<_AisleGroup> {
               end: Alignment.bottomCenter,
               colors: [WaddyColors.mintSurfaceDeep, WaddyColors.mintSurface],
             ),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(0),
           ),
           child: body,
         )

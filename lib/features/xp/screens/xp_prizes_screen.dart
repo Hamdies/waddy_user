@@ -76,7 +76,9 @@ class _XpPrizesScreenState extends State<XpPrizesScreen> {
                             return _ErrorState(onRetry: _refresh);
                           }
                           return const Center(
-                            child: CircularProgressIndicator(color: XpTokens.mint),
+                            child: CircularProgressIndicator(
+                              color: XpTokens.mint,
+                            ),
                           );
                         }
 
@@ -359,6 +361,7 @@ class _PrizeCard extends StatelessWidget {
                           fallback: prize.kind.icon,
                           fallbackColor: accent,
                           playWhen: prize.status,
+                          repeatEvery: XpMotion.loop,
                         )
                         : Icon(prize.kind.icon, color: accent),
               ),
@@ -432,10 +435,7 @@ class _PrizeCard extends StatelessWidget {
                   label: 'claim'.tr,
                   icon: Icons.redeem_outlined,
                   busy: claiming,
-                  onTap:
-                      claiming
-                          ? null
-                          : onClaim,
+                  onTap: claiming ? null : onClaim,
                 )
                 : _ActionButton(
                   label:

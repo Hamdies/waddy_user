@@ -58,9 +58,19 @@ class _SpotsDiamondGlyphState extends State<SpotsDiamondGlyph> {
     riveFactory: rive.Factory.rive,
   );
 
+  // FileLoader.file() awaits the asset decode, then does
+  // `_loadCompleter!.complete(file)`. If dispose() runs first it nulls that
+  // completer, and the still-pending await crashes with a null-check error
+  // when it resumes (rive 0.14.11, file_loader.dart:91) — this widget is
+  // swapped out the moment real standings data supersedes the "no entrants"
+  // placeholder, often before the ~1MB sticker sheet finishes decoding. Only
+  // dispose the loader once we know the load has actually settled; otherwise
+  // leak this one small in-flight loader rather than risk the crash.
+  bool _settled = false;
+
   @override
   void dispose() {
-    _fileLoader.dispose();
+    if (_settled) _fileLoader.dispose();
     super.dispose();
   }
 
@@ -71,17 +81,20 @@ class _SpotsDiamondGlyphState extends State<SpotsDiamondGlyph> {
       height: widget.size,
       child: rive.RiveWidgetBuilder(
         fileLoader: _fileLoader,
-        onFailed:
-            (error, stackTrace) =>
-                debugPrint('SpotsDiamondGlyph failed to load $_asset: $error'),
-        builder:
-            (context, state) => switch (state) {
-              rive.RiveLoaded() => rive.RiveWidget(
-                controller: state.controller,
-                fit: rive.Fit.contain,
-              ),
-              _ => const SizedBox.shrink(),
-            },
+        onFailed: (error, stackTrace) {
+          _settled = true;
+          debugPrint('SpotsDiamondGlyph failed to load $_asset: $error');
+        },
+        builder: (context, state) {
+          if (state is rive.RiveLoaded) {
+            _settled = true;
+            return rive.RiveWidget(
+              controller: state.controller,
+              fit: rive.Fit.contain,
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -107,9 +120,16 @@ class _SpotsTrophyGlyphState extends State<SpotsTrophyGlyph> {
     riveFactory: rive.Factory.rive,
   );
 
+  // See the matching comment in _SpotsDiamondGlyphState above: this widget
+  // sits in the Places ticket card's "no entrants" empty state, which is
+  // replaced the moment the independent leaderboard/places calls resolve a
+  // real standing — frequently before the sticker sheet finishes decoding.
+  // Disposing the loader mid-load crashes inside the rive package itself.
+  bool _settled = false;
+
   @override
   void dispose() {
-    _fileLoader.dispose();
+    if (_settled) _fileLoader.dispose();
     super.dispose();
   }
 
@@ -121,17 +141,20 @@ class _SpotsTrophyGlyphState extends State<SpotsTrophyGlyph> {
       child: rive.RiveWidgetBuilder(
         fileLoader: _fileLoader,
         artboardSelector: const rive.ArtboardNamed('Artboard 4'),
-        onFailed:
-            (error, stackTrace) =>
-                debugPrint('SpotsTrophyGlyph failed to load $_asset: $error'),
-        builder:
-            (context, state) => switch (state) {
-              rive.RiveLoaded() => rive.RiveWidget(
-                controller: state.controller,
-                fit: rive.Fit.contain,
-              ),
-              _ => const SizedBox.shrink(),
-            },
+        onFailed: (error, stackTrace) {
+          _settled = true;
+          debugPrint('SpotsTrophyGlyph failed to load $_asset: $error');
+        },
+        builder: (context, state) {
+          if (state is rive.RiveLoaded) {
+            _settled = true;
+            return rive.RiveWidget(
+              controller: state.controller,
+              fit: rive.Fit.contain,
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

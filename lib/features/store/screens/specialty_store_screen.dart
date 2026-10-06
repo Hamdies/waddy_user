@@ -743,64 +743,6 @@ class _SpecialtyStoreScreenState extends State<SpecialtyStoreScreen> {
       ),
     );
   }
-
-  /// Checkout takes an order note; this says so where the question comes
-  /// up — when what you want isn't quite on the counter.
-  Widget _buildNoteCard(Store store) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 32, 16, 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: WaddyColors.surface,
-          borderRadius: BorderRadius.circular(Dimensions.radiusLarge),
-          border: Border.all(color: WaddyColors.divider),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: WaddyColors.primarySurface,
-                borderRadius: BorderRadius.circular(Dimensions.radiusDefault),
-              ),
-              child: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 18,
-                color: WaddyColors.primary,
-              ),
-            ),
-            const SizedBox(width: Dimensions.paddingSizeMedium),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'need_something_specific'.tr,
-                    style: waddyBold.copyWith(
-                      fontSize: 14,
-                      color: WaddyColors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'leave_note_at_checkout'.trParams({
-                      'store': store.name ?? '',
-                    }),
-                    style: waddyRegular.copyWith(
-                      fontSize: 12,
-                      color: WaddyColors.inkLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════

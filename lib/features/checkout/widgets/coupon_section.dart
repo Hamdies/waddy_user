@@ -8,6 +8,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:waddy_app/features/checkout/widgets/checkout_card.dart';
 import 'package:get/get.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
+import 'package:waddy_app/features/xp/controllers/xp_controller.dart';
 import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/helper/date_converter.dart';
 import 'package:waddy_app/helper/price_converter.dart';
@@ -44,6 +45,10 @@ class CouponSection extends StatefulWidget {
   /// What item discounts already take off, when the caller's [discount] does
   /// not carry it (the cart passes 0 there). Used only for the heading.
   final double? itemSavings;
+
+  /// Checkout only: the XP prize list sits right under this card, so when the
+  /// user holds any the heading offers them alongside the code field.
+  final bool offerPrizes;
   const CouponSection({
     super.key,
     this.storeId,
@@ -56,6 +61,7 @@ class CouponSection extends StatefulWidget {
     required this.variationPrice,
     this.cartStoreId,
     this.itemSavings,
+    this.offerPrizes = false,
   });
 
   @override
@@ -173,19 +179,7 @@ class _CouponSectionState extends State<CouponSection> {
                     ),
                     // With a saving already on the order, lead with the
                     // number: a code adds to it, it does not replace it.
-                    child: Text(
-                      _alreadySaved > 0 && !applied
-                          ? 'amount_off_add_a_code_for_more'.trParams({
-                            'amount': PriceConverter.convertPrice(
-                              _alreadySaved,
-                            ),
-                          })
-                          : 'dont_miss_out_on_our_promo_code'.tr,
-                      style: waddyBold.copyWith(
-                        fontSize: Dimensions.fontSizeDefault,
-                        color: WaddyColors.primary,
-                      ),
-                    ),
+                    child: _heading(applied),
                   ),
                   Container(
                     padding: const EdgeInsets.all(
@@ -206,6 +200,36 @@ class _CouponSectionState extends State<CouponSection> {
           ),
         );
       },
+    );
+  }
+
+  Widget _heading(bool applied) {
+    Widget text(String value) => Text(
+      value,
+      style: waddyBold.copyWith(
+        fontSize: Dimensions.fontSizeDefault,
+        color: WaddyColors.primary,
+      ),
+    );
+
+    String plain() =>
+        _alreadySaved > 0 && !applied
+            ? 'amount_off_add_a_code_for_more'.trParams({
+              'amount': PriceConverter.convertPrice(_alreadySaved),
+            })
+            : 'dont_miss_out_on_our_promo_code'.tr;
+
+    if (!widget.offerPrizes || applied || !Get.isRegistered<XpController>()) {
+      return text(plain());
+    }
+    return GetBuilder<XpController>(
+      id: XpController.idCheckoutPrizes,
+      builder:
+          (xp) => text(
+            xp.checkoutPrizes.isNotEmpty
+                ? 'add_a_code_or_use_your_prizes'.tr
+                : plain(),
+          ),
     );
   }
 

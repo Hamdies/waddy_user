@@ -11,7 +11,6 @@ import 'package:waddy_app/features/business/controllers/business_controller.dart
 import 'package:waddy_app/features/cart/controllers/cart_controller.dart';
 import 'package:waddy_app/features/category/controllers/category_controller.dart';
 import 'package:waddy_app/features/chat/controllers/chat_controller.dart';
-import 'package:waddy_app/features/checkout/controllers/checkout_controller.dart';
 import 'package:waddy_app/features/coupon/controllers/coupon_controller.dart';
 import 'package:waddy_app/features/favourite/controllers/favourite_controller.dart';
 import 'package:waddy_app/features/flash_sale/controllers/flash_sale_controller.dart';

@@ -158,7 +158,8 @@ class OrderTrackingNotificationManager(private val context: Context) {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_package)
+            .setSmallIcon(R.drawable.notification_icon)
+            .setColor(0xFF1EF2A0.toInt())
             .setCustomContentView(collapsedView)
             .setCustomBigContentView(expandedView)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
