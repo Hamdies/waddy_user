@@ -523,6 +523,17 @@ class _PrizeBody extends StatelessWidget {
                         height: 1.6,
                       ),
                     ),
+                    // Store review (App Store 5.3) wants the sponsor named on
+                    // the prize itself, not only in a terms page.
+                    const SizedBox(height: Spots.s4),
+                    Text(
+                      'spots_sponsor_note'.tr,
+                      style: waddyRegular.copyWith(
+                        fontSize: 10.5,
+                        color: Spots.ink3,
+                        height: 1.6,
+                      ),
+                    ),
 
                     // Pushes the actions to the bottom when content is short
                     const Spacer(),

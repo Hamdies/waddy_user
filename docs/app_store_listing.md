@@ -224,3 +224,39 @@ Play uses the same long description (limit 4,000). It also needs:
    Breadfast are deliberately left out.
 6. **Reviewer access.** Out-of-zone users can browse but can't check out, so put
    a test account with an in-zone address in App Review Information.
+7. **Contest rules (Guideline 5.3).** The Spots draw and prize screens show
+   `spots_sponsor_note` ("Waddy runs this draw. Apple and Google are not
+   sponsors…") next to the odds and one-prize rules. Keep it if that copy is edited.
+8. **Screenshots.** The phone in every screenshot must show real UI from the
+   submitted build. Don't upload the Arabic screenshot set until it uses Arabic
+   app screens, or Apple can flag it as mixed-language.
+
+---
+
+## App Review notes (paste into App Store Connect → App Review Information)
+
+Fill in the `<…>` values before submitting. The account must have an address
+inside the Maadi zone, or the reviewer sees an empty store list.
+
+```
+Waddy is a delivery app for Maadi, Cairo (Egypt). Stores and checkout only
+appear for addresses inside our delivery zone, so please use the demo account.
+
+Demo account
+  Phone: <+20 …>     OTP / password: <…>
+  Saved address: <street, Maadi> (inside the zone)
+
+How to reach each feature
+  1. Food / Groceries: Home → Food or Groceries tile → any store.
+  2. Ripeness choice: Groceries → <store> → Bananas → "Ripeness".
+  3. Pet Care: Home → Pets tile → "Everything <pet> needs" → vet clinics and pet shops.
+  4. Live tracking + delivery PIN: the demo account has an order in progress
+     (<order #…>). Orders → open it to see the live map, ETA and PIN.
+  5. Spots: Home → Spots. Vote for a spot; the round closes Friday 00:00
+     Cairo time. Prize draw rules and the sponsor note are on the draw and
+     prize screens.
+
+Spots prize draw: Waddy is the sole sponsor. Apple and Google are not
+sponsors and are not involved. Entry is free (one vote per user per week),
+winners are picked at random, one prize per person per round.
+```

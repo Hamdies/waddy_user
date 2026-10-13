@@ -870,6 +870,16 @@ class _SpotsClawDrawScreenState extends State<SpotsClawDrawScreen>
                 color: Colors.white.withValues(alpha: 0.45),
               ),
             ),
+            const SizedBox(height: Spots.s4),
+            Text(
+              'spots_sponsor_note'.tr,
+              textAlign: TextAlign.center,
+              style: waddyRegular.copyWith(
+                fontSize: 10,
+                height: 1.35,
+                color: Colors.white.withValues(alpha: 0.45),
+              ),
+            ),
           ],
         ],
       ),
