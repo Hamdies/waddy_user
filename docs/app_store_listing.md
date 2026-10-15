@@ -89,20 +89,10 @@ so they are left out here.
 restaurant,supermarket,pets,vet,maadi,cairo,egypt,meals,burger,pizza,shawarma,coffee,cafe,deals
 ```
 
-### What's New (version 1.0.0) [609 / 4,000]
+### What's New (version 1.0.0) [43 / 4,000]
 
 ```
-A big one. Here's what's new:
-
-• A fresh home: food, groceries and pet care, all in one place
-• Pet care: add your pet and get a shop that fits them, plus vet clinics and pet shops nearby
-• Pick your ripeness: ready to eat today, or ripe in 2–3 days
-• Live tracking: watch your rider on the map, then give your delivery PIN at the door
-• Waddy Spots: vote each week, crown Maadi's favorite spot, and watch the draw for the champion's voters
-• Arabic, rewritten from scratch to read naturally
-• Faster loading and a smoother checkout
-
-Thanks for ordering with Waddy. Tell us what you think from inside the app.
+Small fixes and polish to get things ready.
 ```
 
 ---
@@ -185,20 +175,10 @@ spells the brand **وددى**, matching the app's own `assets/language/ar.json`
 مطاعم,سوبرماركت,حيوانات,بيطري,المعادي,القاهرة,مصر,وجبات,برجر,بيتزا,شاورما,قهوة,مقهى,كافيه,عروض,أكل
 ```
 
-### What's New (version 1.0.0) [557 / 4,000]
+### What's New (version 1.0.0) [41 / 4,000]
 
 ```
-تحديث كبير، وهذا الجديد:
-
-• واجهة رئيسية جديدة: الطعام والبقالة ورعاية الحيوانات الأليفة في مكان واحد
-• رعاية الحيوانات الأليفة: أضف حيوانك ليناسبه المتجر، واعثر على العيادات البيطرية ومتاجر الحيوانات القريبة
-• اختر درجة النضج: جاهزة للأكل اليوم، أو تنضج خلال 2–3 أيام
-• التتبّع المباشر: شاهد المندوب على الخريطة، ثم أعطه رمز الاستلام عند الباب
-• أماكن وددى: صوّت كل أسبوع، وتوِّج مكان المعادي المفضل، وشاهد السحب لمصوّتي المكان الفائز
-• ترجمة عربية جديدة بالكامل لتُقرأ بسلاسة
-• تحميل أسرع ودفع أكثر سلاسة
-
-شكرًا لطلبك من وددى. شاركنا رأيك من داخل التطبيق.
+إصلاحات وتحسينات بسيطة استعدادًا للإطلاق.
 ```
 
 ---
