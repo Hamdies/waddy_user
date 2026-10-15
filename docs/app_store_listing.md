@@ -32,57 +32,51 @@ screenshot story: one app for Maadi, ripeness, pets, live tracking, Spots.
 All of Maadi in one app. Food from local favorites, groceries ripe when you want them, all your pet needs. Track your rider live and vote for Maadi's favorite spot.
 ```
 
-### Description [2,028 / 4,000]
+### Description [2,200 / 4,000]
 
 ```
-Waddy! Everything you need, delivered.
+All of Maadi. One app.
 
-Food from the restaurants you love, groceries from the stores around you, and everything your pet needs, all in one app. Track your rider live on the map, earn XP on every order, and help crown the best spot in your neighborhood every week.
+Order food from Maadi's favorite spots, fresh groceries picked the way you like them, and everything your pet needs. Then watch your rider cross Maadi live, right to your door.
 
-FOOD, YOUR WAY
-• Browse restaurants near you by cuisine, rating and offers
-• Add your favorite meals in a tap and customize every item
-• Reorder past favorites in seconds
+FOOD FROM YOUR NEIGHBORHOOD
+• Browse Maadi's top 10, ranked, plus every restaurant by cuisine: Egyptian, burgers, pizza, grills, shawarma and more
+• Customize every item and reorder past favorites in seconds
+• See offers and free delivery spots before you order
 
-GROCERIES, WITHOUT THE TRIP
-• Fresh produce, dairy, snacks, cleaning and home essentials
-• Shop by aisle or search for exactly what you need
-• See clear prices and offers before you add to cart
+GROCERIES, YOUR RULES
+• Fresh produce, dairy, bakery, snacks, cleaning and home essentials from stores around you
+• Choose your ripeness: ready to eat today, or ripe in 2–3 days
+• Shop by aisle or search for exactly what you need, with clear prices before you add to cart
 
-FOR YOUR PET, TOO
-• Tell us about your cat, dog, bird or fish and get a feed that fits them
-• Order food, treats, litter, toys and grooming from pet shops
-• Find nearby vet clinics: call, WhatsApp or get directions in one tap
-• Set a reminder every few weeks so you never run out of their usual
+MADE FOR YOUR PET
+• Add your cat, dog, bird or fish and get a shop that fits them
+• Order food, treats, litter, toys and grooming from pet shops nearby
+• Find vet clinics near you: call, WhatsApp or get directions in one tap
+• Set a reminder so you never run out of their usual
 
-TRACK EVERY STEP
+NO MORE "WHERE ARE YOU?"
 • Follow your order from placed to prepared to on the way
-• When your rider is close, watch them arrive on a live map
-• Honest ETAs, with no fake "running late" alarms
+• Watch your rider arrive on a live map, with a live ETA
+• Your rider asks for your delivery PIN at the door, so your order reaches you and only you
 
-LEVEL UP WITH XP
-• Earn XP on every order and climb through the levels
-• Complete weekly quests and keep your streak alive
-• Unlock rewards you can use at checkout
+WADDY SPOTS: WHO'S RULING MAADI?
+• Vote for your favorite café, restaurant or hangout: one vote per person, every week
+• When the round closes, the spot with the most votes is crowned champion of the week
+• Five of the champion's voters are picked at random to win a voucher for a free item there
+• Watch the draw live, and climb the top voters board week after week
+Waddy runs the Spots draw. Apple and Google are not sponsors and are not involved in any way. Full rules are in the app.
 
-WADDY SPOTS: THE WEEKLY CROWN
-• Vote for the best cafe, restaurant or hangout in your area
-• One vote a week; switch it any time before Sunday night
-• Every Monday the winner gets the real Waddy trophy on its counter
-• Voters get a shot at weekly prizes
-
-MORE WAYS TO SAVE
+LEVEL UP AND SAVE
+• Earn XP on every order, complete weekly quests and unlock rewards
 • Coupons and offers from your favorite stores
-• A scratch card in your bag: scratch it, then type the code at your next checkout
 • Invite friends and earn rewards when they order
 • Pay cash on delivery or with your Waddy wallet
 
-NOT IN YOUR AREA YET?
-Browse everything anyway. Tell us where you are and we'll let you know the day Waddy arrives.
+NOT IN MAADI YET?
+Browse everything anyway. Tell us where you are and we'll let you know the day Waddy reaches you.
 
-Available in English and Arabic, in light and dark mode.
-
-Questions? Reach our support team from inside the app.
+Available in English and Arabic, in light and dark mode. Questions? Reach our support team from inside the app.
 ```
 
 ### Keywords [95 / 100]
@@ -128,57 +122,51 @@ spells the brand **وددى**, matching the app's own `assets/language/ar.json`
 المعادي كلها في تطبيق واحد. اطلب الطعام والبقالة ومستلزمات حيوانك الأليف من أماكن حيّك، واختر درجة نضج الفاكهة، وتابع طلبك مباشرة، وصوّت كل أسبوع لأفضل مكان في المعادي.
 ```
 
-### Description [1,884 / 4,000]
+### Description [2,083 / 4,000]
 
 ```
-وددى! كل ما تحتاجه يصلك إلى بابك.
+المعادي كلها. في تطبيق واحد.
 
-طعام من مطاعمك المفضلة، وبقالة من المتاجر القريبة منك، وكل ما يحتاجه حيوانك الأليف، في تطبيق واحد. تابع المندوب على الخريطة لحظة بلحظة، واجمع نقاط الخبرة (XP) مع كل طلب، وشارك كل أسبوع في اختيار أفضل مكان في حيّك.
+اطلب الطعام من أماكن المعادي المفضلة، والبقالة الطازجة كما تحبها، وكل ما يحتاجه حيوانك الأليف. ثم تابع المندوب وهو يعبر المعادي مباشرةً حتى باب بيتك.
 
-طعامك كما تحب
-• اكتشف المطاعم القريبة حسب نوع المطبخ والتقييم والعروض
-• أضف وجبتك المفضلة بلمسة واحدة وخصّص كل صنف كما تريد
-• أعد طلب وجباتك السابقة في ثوانٍ
+طعام من حيّك
+• تصفّح أفضل ١٠ أماكن في المعادي مرتبة، وكل المطاعم حسب نوع المطبخ: مصري، برجر، بيتزا، مشويات، شاورما والمزيد
+• خصّص كل صنف كما تريد، وأعد طلب وجباتك السابقة في ثوانٍ
+• اطّلع على العروض والأماكن التي توفر توصيلًا مجانيًا قبل أن تطلب
 
-البقالة دون عناء الخروج
-• خضروات وفواكه وألبان ووجبات خفيفة ومنظفات وكل مستلزمات المنزل
-• تسوّق حسب القسم أو ابحث عمّا تحتاجه بالضبط
-• أسعار وعروض واضحة قبل الإضافة إلى السلة
+البقالة على طريقتك
+• خضروات وفواكه وألبان ومخبوزات ووجبات خفيفة ومنظفات وكل مستلزمات المنزل من المتاجر القريبة منك
+• اختر درجة النضج: جاهزة للأكل اليوم، أو تنضج خلال 2–3 أيام
+• تسوّق حسب القسم أو ابحث عمّا تحتاجه بالضبط، بأسعار واضحة قبل الإضافة إلى السلة
 
-ولحيوانك الأليف أيضًا
-• عرّفنا بقطتك أو كلبك أو طائرك أو سمكتك، ليناسبه كل ما تراه في التطبيق
-• اطلب الطعام والمكافآت والرمل والألعاب ومستلزمات العناية من متاجر الحيوانات الأليفة
+مصمَّم لحيوانك الأليف
+• أضف قطتك أو كلبك أو طائرك أو سمكتك، ليناسبه كل ما تراه في المتجر
+• اطلب الطعام والمكافآت والرمل والألعاب ومستلزمات العناية من متاجر الحيوانات القريبة
 • اعثر على العيادات البيطرية القريبة: اتصل أو راسلهم عبر واتساب أو احصل على الاتجاهات بلمسة واحدة
-• فعّل تذكيرًا كل بضعة أسابيع حتى لا ينفد طعامه المعتاد أبدًا
+• فعّل تذكيرًا حتى لا ينفد طعامه المعتاد أبدًا
 
-تابع كل خطوة
+وداعًا لسؤال «أين أنت؟»
 • تابع طلبك من التأكيد إلى التحضير حتى يصبح في الطريق إليك
-• عندما يقترب المندوب، شاهده يصل على الخريطة مباشرةً
-• وقت وصول حقيقي، دون تنبيهات تأخير زائفة
+• شاهد المندوب يصل على الخريطة مباشرةً، مع وقت وصول محدَّث لحظة بلحظة
+• يطلب المندوب رمز الاستلام عند الباب، ليصل طلبك إليك أنت فقط
 
-ارتقِ مع نقاط الخبرة
-• اجمع نقاط الخبرة مع كل طلب وارتقِ من مستوى إلى آخر
-• أكمل المهام الأسبوعية وحافظ على سلسلتك
-• افتح مكافآت يمكنك استخدامها عند الدفع
+أماكن وددى: مَن يتصدّر المعادي؟
+• صوّت لمقهاك أو مطعمك أو مكانك المفضل: صوت واحد لكل شخص كل أسبوع
+• عند انتهاء الجولة، يُتوَّج المكان الحاصل على أكبر عدد من الأصوات بطلًا للأسبوع
+• يُختار خمسة من مصوّتي المكان الفائز عشوائيًا، ويربح كل منهم قسيمة لصنف مجاني منه
+• شاهد السحب مباشرةً، وتقدّم في قائمة أكثر المصوّتين أسبوعًا بعد أسبوع
+وددى هي الجهة المنظِّمة لسحب أماكن وددى، وشركتا Apple وGoogle ليستا راعيتين له ولا علاقة لهما به. الشروط الكاملة داخل التطبيق.
 
-أماكن وددى: تاج الأسبوع
-• صوّت لأفضل مقهى أو مطعم أو مكان للخروج في منطقتك
-• صوت واحد كل أسبوع، ويمكنك تغييره حتى نهاية يوم الأحد
-• كل يوم اثنين، يحصل المكان الفائز على كأس وددى الحقيقي ليُعرض لديه
-• للمصوّتين فرصة للفوز بجوائز كل أسبوع
-
-طرق أكثر للتوفير
+ارتقِ ووفّر
+• اجمع نقاط الخبرة مع كل طلب، وأكمل المهام الأسبوعية، وافتح المكافآت
 • قسائم وعروض من متاجرك المفضلة
-• بطاقة كشط في كيس طلبك: اكشطها وأدخل الرمز في طلبك التالي
 • ادعُ أصدقاءك واحصل على مكافآت عندما يطلبون
 • ادفع نقدًا عند الاستلام أو من محفظة وددى
 
 لم نصل إلى منطقتك بعد؟
 تصفّح كل شيء كالمعتاد. أخبرنا بموقعك وسنُعلمك فور وصول وددى إليك.
 
-متوفر باللغتين العربية والإنجليزية، وبالوضعين الفاتح والداكن.
-
-لديك سؤال؟ تواصل مع فريق الدعم من داخل التطبيق.
+متوفر باللغتين العربية والإنجليزية، وبالوضعين الفاتح والداكن. لديك سؤال؟ تواصل مع فريق الدعم من داخل التطبيق.
 ```
 
 ### Keywords [98 / 100]
