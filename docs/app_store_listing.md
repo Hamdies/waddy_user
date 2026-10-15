@@ -23,12 +23,13 @@ Waddy: Food & Grocery Delivery
 Order, track live & win prizes
 ```
 
-### Promotional text [158 / 170]
+### Promotional text [164 / 170]
 
-Editable any time without a new build, so use it for campaigns.
+Editable any time without a new build, so use it for campaigns. Matches the
+screenshot story: one app for Maadi, ripeness, pets, live tracking, Spots.
 
 ```
-Hungry? Out of milk? Pet food running low? Waddy brings it to your door, then pays you back with XP, rewards and a weekly vote for the best spot in your area.
+All of Maadi in one app. Food from local favorites, groceries ripe when you want them, all your pet needs. Track your rider live and vote for Maadi's favorite spot.
 ```
 
 ### Description [2,028 / 4,000]
@@ -121,10 +122,10 @@ spells the brand **وددى**, matching the app's own `assets/language/ar.json`
 اطلب، تابع مباشرة، واربح جوائز
 ```
 
-### Promotional text [133 / 170]
+### Promotional text [168 / 170]
 
 ```
-جائع؟ نفد الحليب؟ أوشك طعام قطتك على النفاد؟ وددى يوصل طلبك إلى بابك، ويكافئك بنقاط الخبرة وجوائز وتصويت أسبوعي لأفضل مكان في منطقتك.
+المعادي كلها في تطبيق واحد. اطلب الطعام والبقالة ومستلزمات حيوانك الأليف من أماكن حيّك، واختر درجة نضج الفاكهة، وتابع طلبك مباشرة، وصوّت كل أسبوع لأفضل مكان في المعادي.
 ```
 
 ### Description [1,884 / 4,000]
