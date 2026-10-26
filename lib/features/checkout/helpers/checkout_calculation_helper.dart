@@ -647,6 +647,10 @@ class CheckoutCalculationHelper {
         }
       }
     }
+    // XS-7: the server asks this customer to prepay.
+    if (Get.find<ProfileController>().userInfoModel?.codAllowed == false) {
+      return false;
+    }
     return isCashOnDeliveryActive;
   }
 

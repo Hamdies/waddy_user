@@ -10,6 +10,9 @@ class UserInfoModel {
   String? createdAt;
   String? password;
   int? orderCount;
+  /// False when the server requires this customer to prepay (XS-7: repeated
+  /// undelivered cash orders). Older servers do not send it: allowed.
+  bool codAllowed = true;
   int? memberSinceDays;
   double? walletBalance;
   int? loyaltyPoint;
@@ -65,6 +68,7 @@ class UserInfoModel {
     createdAt = json['created_at'];
     password = json['password'];
     orderCount = json['order_count'];
+    codAllowed = json['cod_allowed'] != false;
     memberSinceDays = json['member_since_days'];
     walletBalance = json['wallet_balance'].toDouble();
     loyaltyPoint = json['loyalty_point'];
