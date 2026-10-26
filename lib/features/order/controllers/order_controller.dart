@@ -6,6 +6,7 @@ import 'package:waddy_app/features/order/domain/models/order_cancellation_body.d
 import 'package:waddy_app/features/order/domain/models/order_details_model.dart';
 import 'package:waddy_app/features/order/domain/models/order_model.dart';
 import 'package:waddy_app/features/order/domain/services/order_service_interface.dart';
+import 'package:waddy_app/helper/auth_helper.dart';
 
 class OrderController extends GetxController implements GetxService {
   final OrderServiceInterface orderServiceInterface;
@@ -284,6 +285,19 @@ class OrderController extends GetxController implements GetxService {
   Future<void> getSupportReasons() async {
     _supportReasons = await orderServiceInterface.getSupportReasonsList();
     update();
+  }
+
+  /// XS-4: the customer's answer about a sold-out item. Reloads the items so
+  /// the card goes away.
+  Future<bool> respondUnavailableItem(int orderId, int orderDetailId, String choice) async {
+    final bool ok = await orderServiceInterface.respondUnavailableItem(
+      orderId, orderDetailId, choice,
+      guestId: AuthHelper.isLoggedIn() ? null : AuthHelper.getGuestId(),
+    );
+    if (ok) {
+      await getOrderDetails(orderId.toString());
+    }
+    return ok;
   }
 
   Future<List<OrderDetailsModel>?> getOrderDetails(String orderID) async {

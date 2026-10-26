@@ -27,6 +27,7 @@ import 'package:waddy_app/theme/light_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/features/order/widgets/order_details/item_unavailable_card.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final OrderModel? orderModel;
@@ -732,6 +733,12 @@ class OrderDetailsScreenState extends State<OrderDetailsScreen>
     // Fixed slot order across every stage, so a glance lands in the same
     // place: what needs doing now → who is bringing it → where → what → help.
     final cards = <Widget>[
+      // XS-4: a sold-out item waiting for the customer's answer comes first.
+      for (final OrderDetailsModel item in items.where((d) => d.unavailableStatus == 'waiting' && d.id != null && order.id != null))
+        ItemUnavailableCard(
+          itemName: item.itemDetails?.name ?? '',
+          onAnswer: (choice) => orderController.respondUnavailableItem(order.id!, item.id!, choice),
+        ),
       if (showOtp) OrderPinCard(otp: order.otp!),
       if (stage == OrderStage.delivered)
         OrderEndingCard(

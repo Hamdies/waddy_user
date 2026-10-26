@@ -3185,5 +3185,9 @@
     "gs_no_stores": "لا توجد متاجر",
     "order_requires_sign_in": "سجّل الدخول أولًا لتقديم طلب",
     "order_amount_invalid": "إجمالي الطلب غير صحيح. يُرجى مراجعة السلة.",
-    "order_wait_seconds": "يُرجى الانتظار @seconds ثانية قبل تقديم طلب جديد"
+    "order_wait_seconds": "يُرجى الانتظار @seconds ثانية قبل تقديم طلب جديد",
+  "od_item_unavailable_title": "نفد @item",
+  "od_item_unavailable_body": "المتجر نفد منه بعد طلبك. تكمل بدونه (وتدفع أقل) أم تلغي الطلب؟",
+  "od_item_unavailable_continue": "أكمل بدونه",
+  "od_item_unavailable_cancel": "إلغاء الطلب"
 }

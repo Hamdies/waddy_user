@@ -87,6 +87,16 @@ class OrderRepository implements OrderRepositoryInterface {
     return success;
   }
 
+  /// XS-4: 'remove' (continue without the item) or 'cancel'.
+  @override
+  Future<bool> respondUnavailableItem(int orderId, int orderDetailId, String choice, {String? guestId}) async {
+    final Response response = await apiClient.postData(AppConstants.unavailableItemRespondUri, {
+      'order_id': orderId, 'order_detail_id': orderDetailId, 'choice': choice,
+      if (guestId != null) 'guest_id': guestId,
+    });
+    return response.statusCode == 200;
+  }
+
   @override
   Future get(String? id, {String? guestId}) async {
     return await _getOrderDetails(id!, guestId);

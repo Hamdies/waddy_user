@@ -111,6 +111,11 @@ class OrderService implements OrderServiceInterface {
   }
 
   @override
+  Future<bool> respondUnavailableItem(int orderId, int orderDetailId, String choice, {String? guestId}) {
+    return orderRepositoryInterface.respondUnavailableItem(orderId, orderDetailId, choice, guestId: guestId);
+  }
+
+  @override
   Future<bool> cancelOrder(
     String orderID,
     String? reason, {

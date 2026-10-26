@@ -4,6 +4,8 @@ import 'package:waddy_app/util/parse.dart';
 class OrderDetailsModel {
   int? id;
   int? itemId;
+  /// XS-4: 'waiting' while the store asks what to do about a sold-out item.
+  String? unavailableStatus;
   int? orderId;
   double? price;
   Item? itemDetails;
@@ -52,6 +54,7 @@ class OrderDetailsModel {
   OrderDetailsModel.fromJson(Map<String, dynamic> json) {
     id = json['id'];
     itemId = json['item_id'];
+    unavailableStatus = json['unavailable_status']?.toString();
     orderId = json['order_id'];
     price = json['price'].toDouble();
     itemDetails =

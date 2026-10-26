@@ -3199,5 +3199,9 @@
     "order_requires_sign_in": "Sign in to place an order",
     "order_amount_invalid": "This order's total isn't valid. Please check your cart.",
     "order_wait_seconds": "Please wait @seconds seconds before placing another order",
-    "order_in_progress": "Your order is being placed, hold on a moment"
+    "order_in_progress": "Your order is being placed, hold on a moment",
+  "od_item_unavailable_title": "@item is out of stock",
+  "od_item_unavailable_body": "The store ran out of it after you ordered. Continue without it (you pay less), or cancel the order?",
+  "od_item_unavailable_continue": "Continue without it",
+  "od_item_unavailable_cancel": "Cancel order"
 }

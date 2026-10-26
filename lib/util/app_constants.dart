@@ -84,6 +84,7 @@ class AppConstants {
       '/api/v1/customer/order/running-orders';
   static const String historyOrderListUri = '/api/v1/customer/order/list';
   static const String orderCancelUri = '/api/v1/customer/order/cancel';
+  static const String unavailableItemRespondUri = '/api/v1/customer/order/item-unavailable/respond';
   static const String codSwitchUri = '/api/v1/customer/order/payment-method';
   static const String orderDetailsUri =
       '/api/v1/customer/order/details?order_id=';
