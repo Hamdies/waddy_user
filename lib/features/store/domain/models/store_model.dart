@@ -1,5 +1,6 @@
 import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/features/category/domain/models/category_model.dart';
+import 'package:waddy_app/features/store/domain/models/store_offer.dart';
 import 'package:waddy_app/util/parse.dart';
 
 class StoreModel {
@@ -111,6 +112,8 @@ class Store {
   int? moduleId;
   int? orderPlaceToScheduleInterval;
   Discount? discount;
+  /// Offers the store runs and pays for (amount off, free delivery, %).
+  List<StoreOffer> activeOffers = const [];
   List<Schedules>? schedules;
   int? vendorId;
   bool? prescriptionOrder;
@@ -204,6 +207,7 @@ class Store {
         json['minimum_order'] == null ? 0 : json['minimum_order']?.toDouble();
     currency = json['currency'];
     freeDelivery = json['free_delivery'];
+    activeOffers = StoreOffer.listFromJson(json['active_offers']);
     maxItemDiscount =
         num.tryParse('${json['max_item_discount'] ?? ''}')?.round();
     coverPhotoFullUrl = json['cover_photo_full_url'] ?? '';
@@ -301,6 +305,15 @@ class Store {
     storeBusinessModel = json['store_business_model'];
     distance = json['distance']?.toDouble();
     storeOpeningTime = json['current_opening_time'];
+  }
+
+  /// The store's offer of [type] that applies at [now], or null.
+  StoreOffer? liveOffer(String type, {DateTime? now}) {
+    final DateTime at = now ?? DateTime.now();
+    for (final StoreOffer o in activeOffers) {
+      if (o.type == type && o.isLive(at)) return o;
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {

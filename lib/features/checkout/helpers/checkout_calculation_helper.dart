@@ -547,11 +547,19 @@ class CheckoutCalculationHelper {
                 orderAmount >=
                     configModel.adminFreeDelivery!.freeDeliveryOver!)) ||
         Get.find<CouponController>().freeDelivery ||
-        hasXpFreeDelivery) {
+        hasXpFreeDelivery ||
+        _storeFreeDelivery(store, orderAmount)) {
       deliveryCharge = 0;
     }
 
     return PriceConverter.toFixed(deliveryCharge);
+  }
+
+  /// The store's own free delivery over X (store app → Offers). The server
+  /// checks before the coupon, so this is never more generous than it.
+  bool _storeFreeDelivery(Store? store, double orderAmount) {
+    final offer = store?.liveOffer('free_delivery');
+    return offer != null && orderAmount >= offer.minOrder;
   }
 
   double calculateTotal({

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/helper/store_offer_label.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/card_design/store_list_card.dart'
     show kMinRatingsToShow;
@@ -318,13 +319,13 @@ class _Details extends StatelessWidget {
 
             final double? charge = store.minimumShippingCharge;
             final bool hasFreeDelivery =
-                store.freeDelivery == true || charge == 0;
+                store.freeDelivery == true || charge == 0 || StoreOfferLabel.freeDelivery(store) != null;
             final bool hasPaidFee =
                 !hasFreeDelivery && charge != null && charge > 0;
 
             final discount = store.discount;
             final bool hasDiscount =
-                discount?.discount != null && discount!.discount! > 0;
+                (discount?.discount != null && discount!.discount! > 0) || StoreOfferLabel.amountOff(store) != null;
 
             final bool canInline =
                 hasFreeDelivery && !hasDiscount && !hasPaidFee;
@@ -633,10 +634,13 @@ class _OfferChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final discount = store.discount;
-    final bool hasDiscount =
+    final bool hasPercent =
         discount?.discount != null && discount!.discount! > 0;
+    final String? amountOff = hasPercent ? null : StoreOfferLabel.amountOff(store);
+    final bool hasDiscount = hasPercent || amountOff != null;
+    final String? offerDelivery = StoreOfferLabel.freeDelivery(store);
     final bool hasFreeDelivery =
-        store.freeDelivery == true || store.minimumShippingCharge == 0;
+        store.freeDelivery == true || store.minimumShippingCharge == 0 || offerDelivery != null;
 
     if (!hasDiscount && !hasFreeDelivery) return const SizedBox();
 
@@ -655,10 +659,10 @@ class _OfferChips extends StatelessWidget {
           if (hasDiscount)
             Flexible(
               child: OfferCollarBadge(
-                label:
-                    discount.discountType == 'percent'
+                label: amountOff ??
+                    (discount!.discountType == 'percent'
                         ? '${discount.discount!.toInt()}% ${'off'.tr}'
-                        : '${PriceConverter.convertPrice(discount.discount!)} ${'off'.tr}',
+                        : '${PriceConverter.convertPrice(discount.discount!)} ${'off'.tr}'),
                 tone: OfferCollarTone.sale,
                 compact: true,
               ),
@@ -668,7 +672,7 @@ class _OfferChips extends StatelessWidget {
           if (hasFreeDelivery)
             Flexible(
               child: OfferCollarBadge(
-                label: 'free_delivery'.tr,
+                label: store.freeDelivery == true || store.minimumShippingCharge == 0 ? 'free_delivery'.tr : offerDelivery!,
                 tone: OfferCollarTone.delivery,
                 compact: true,
               ),

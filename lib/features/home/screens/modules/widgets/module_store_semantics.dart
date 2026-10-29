@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:waddy_app/helper/store_offer_label.dart';
 import 'package:waddy_app/features/store/domain/models/store_model.dart';
 
 /// Builds the screen-reader announcement for a store card.
@@ -37,6 +38,10 @@ String moduleStoreSemanticLabel(Store store) {
   if (discount != null && discount > 0) {
     parts.add('${discount.toInt()}% ${'off'.tr}');
   }
+  final String? amountOff = StoreOfferLabel.amountOff(store);
+  if (amountOff != null) parts.add(amountOff);
+  final String? offerDelivery = store.freeDelivery == true ? null : StoreOfferLabel.freeDelivery(store);
+  if (offerDelivery != null) parts.add(offerDelivery);
 
   return parts.join(', ');
 }

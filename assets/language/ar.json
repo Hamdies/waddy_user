@@ -3189,5 +3189,7 @@
   "od_item_unavailable_title": "نفد @item",
   "od_item_unavailable_body": "المتجر نفد منه بعد طلبك. تكمل بدونه (وتدفع أقل) أم تلغي الطلب؟",
   "od_item_unavailable_continue": "أكمل بدونه",
-  "od_item_unavailable_cancel": "إلغاء الطلب"
+  "od_item_unavailable_cancel": "إلغاء الطلب",
+  "offer_amount_off": "خصم @amount",
+  "offer_free_delivery_over": "توصيل مجاني فوق @amount"
 }

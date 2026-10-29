@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:waddy_app/helper/store_offer_label.dart';
 import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/models/image_variants.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
@@ -1156,10 +1157,30 @@ class _RankedStoreCard extends StatelessWidget {
         collarTone: OfferCollarTone.sale,
       );
     }
+    final String? amountOff = StoreOfferLabel.amountOff(store);
+    if (amountOff != null) {
+      return _Perk(
+        icon: HugeIcons.strokeRoundedFire,
+        label: amountOff,
+        color: _kSale,
+        bg: WaddyColors.coralSurface,
+        collarTone: OfferCollarTone.sale,
+      );
+    }
     if (store.freeDelivery == true) {
       return _Perk(
         icon: HugeIcons.strokeRoundedMotorbike02,
         label: 'free_delivery'.tr,
+        color: WaddyColors.primary,
+        bg: WaddyColors.mintSurface,
+        collarTone: OfferCollarTone.delivery,
+      );
+    }
+    final String? offerDelivery = StoreOfferLabel.freeDelivery(store);
+    if (offerDelivery != null) {
+      return _Perk(
+        icon: HugeIcons.strokeRoundedMotorbike02,
+        label: offerDelivery,
         color: WaddyColors.primary,
         bg: WaddyColors.mintSurface,
         collarTone: OfferCollarTone.delivery,
@@ -1720,10 +1741,30 @@ _Perk? _offerPerk(Store store) {
       collarTone: OfferCollarTone.sale,
     );
   }
+  final String? amountOff = StoreOfferLabel.amountOff(store);
+  if (amountOff != null) {
+    return _Perk(
+      icon: HugeIcons.strokeRoundedFire,
+      label: amountOff,
+      color: _kSale,
+      bg: WaddyColors.coralSurface,
+      collarTone: OfferCollarTone.sale,
+    );
+  }
   if (store.freeDelivery == true) {
     return _Perk(
       icon: HugeIcons.strokeRoundedMotorbike02,
       label: 'free_delivery'.tr,
+      color: WaddyColors.primary,
+      bg: WaddyColors.mintSurface,
+      collarTone: OfferCollarTone.delivery,
+    );
+  }
+  final String? offerDelivery = StoreOfferLabel.freeDelivery(store);
+  if (offerDelivery != null) {
+    return _Perk(
+      icon: HugeIcons.strokeRoundedMotorbike02,
+      label: offerDelivery,
       color: WaddyColors.primary,
       bg: WaddyColors.mintSurface,
       collarTone: OfferCollarTone.delivery,

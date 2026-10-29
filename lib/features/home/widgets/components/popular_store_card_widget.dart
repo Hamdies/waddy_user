@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:waddy_app/helper/store_offer_label.dart';
 import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
 import 'package:waddy_app/common/widgets/custom_ink_well.dart';
@@ -53,10 +54,12 @@ class _PopularStoreCardState extends State<PopularStoreCard>
 
   @override
   Widget build(BuildContext context) {
-    final hasDiscount =
+    final hasPercent =
         widget.store.discount != null &&
         widget.store.discount!.discount != null &&
         widget.store.discount!.discount! > 0;
+    final String? amountOff = hasPercent ? null : StoreOfferLabel.amountOff(widget.store);
+    final hasDiscount = hasPercent || amountOff != null;
 
     return GestureDetector(
       onTapDown: _onTapDown,
@@ -110,7 +113,7 @@ class _PopularStoreCardState extends State<PopularStoreCard>
                       top: 10,
                       left: 10,
                       child: OfferCollarBadge(
-                        label:
+                        label: amountOff ??
                             '${widget.store.discount!.discount!.toInt()}% ${'off'.tr}',
                         tone: OfferCollarTone.sale,
                         compact: true,

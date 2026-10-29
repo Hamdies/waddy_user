@@ -3203,5 +3203,7 @@
   "od_item_unavailable_title": "@item is out of stock",
   "od_item_unavailable_body": "The store ran out of it after you ordered. Continue without it (you pay less), or cancel the order?",
   "od_item_unavailable_continue": "Continue without it",
-  "od_item_unavailable_cancel": "Cancel order"
+  "od_item_unavailable_cancel": "Cancel order",
+  "offer_amount_off": "@amount OFF",
+  "offer_free_delivery_over": "Free delivery over @amount"
 }

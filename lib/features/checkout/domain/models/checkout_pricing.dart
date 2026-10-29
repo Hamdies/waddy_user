@@ -161,16 +161,19 @@ class CheckoutPricing {
       storeDiscount,
       itemDiscount,
     );
-    final double discount = helper.getDiscountPrice(
-      storeDiscount,
-      itemDiscount,
-    );
     final double subTotal = helper.calculateSubTotal(
       price: price,
       addOns: addOns,
       variations: variations,
       cartList: cartList,
     );
+    // A store's amount-off offer applies when it beats the item / % discount,
+    // the same rule the server prices the order by (StoreOfferService).
+    final double offerDiscount = store?.liveOffer('amount')?.amountOff(subTotal) ?? 0;
+    final double discount = [
+      helper.getDiscountPrice(storeDiscount, itemDiscount),
+      offerDiscount,
+    ].reduce((a, b) => a > b ? a : b);
     final double referralDiscount = helper.calculateReferralDiscount(
       subTotal,
       discount,

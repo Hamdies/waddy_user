@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shimmer_animation/shimmer_animation.dart';
+import 'package:waddy_app/helper/store_offer_label.dart';
 import 'package:waddy_app/features/store/store_navigator.dart';
 import 'package:waddy_app/common/widgets/custom_image.dart';
 import 'package:waddy_app/common/widgets/offer_collar_badge.dart';
@@ -1054,10 +1055,28 @@ _Perk? _perkFor(Store store) {
       collarTone: OfferCollarTone.sale,
     );
   }
+  final String? amountOff = StoreOfferLabel.amountOff(store);
+  if (amountOff != null) {
+    return _Perk(
+      icon: Icons.local_offer_rounded,
+      label: amountOff,
+      color: _kSale,
+      collarTone: OfferCollarTone.sale,
+    );
+  }
   if (store.freeDelivery == true) {
     return _Perk(
       icon: Icons.delivery_dining_rounded,
       label: 'free_delivery'.tr,
+      color: WaddyColors.mintInk,
+      collarTone: OfferCollarTone.delivery,
+    );
+  }
+  final String? offerDelivery = StoreOfferLabel.freeDelivery(store);
+  if (offerDelivery != null) {
+    return _Perk(
+      icon: Icons.delivery_dining_rounded,
+      label: offerDelivery,
       color: WaddyColors.mintInk,
       collarTone: OfferCollarTone.delivery,
     );
