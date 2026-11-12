@@ -42,10 +42,10 @@ brochure.
 |---|---|
 | `[Monthly Advertising Budget]` | Decide whether to print a figure at all. A range or "ongoing investment" is safer than a number you may change |
 | `[Campaign Frequency]` | How often platform campaigns run |
-| `[Targeting Radius / Areas]` | The geographic targeting actually used in Meta ads |
-| `[Partner Spotlight Selection Criteria]` | How partners are chosen: rotation, performance, category balance, launch partners first |
-| `[Spotlight Schedule]` | How many spotlights per period. Do not print a per-partner promise unless it is approved |
-| `[Production Services Included]` | Whether Waddy shoots photo/video for partners, at whose cost, and who owns the content |
+| `[Targeting Radius / Areas]` | No longer printed; still decide the targeting used in Meta ads |
+| `[Partner Spotlight Selection Criteria]` (no longer printed) | How partners are chosen: rotation, performance, category balance, launch partners first |
+| `[Spotlight Schedule]` (no longer printed) | How many spotlights per period. Do not print a per-partner promise unless it is approved |
+| `[Production Services Included]` (no longer printed) | Whether Waddy shoots photo/video for partners, at whose cost, and who owns the content |
 
 ## Operations
 
@@ -60,11 +60,11 @@ brochure.
 These come from the brief and are presented as fact. Confirm each is true at
 launch.
 
-- Waddy operates its own rider network (pages 2, 4, 5, 17).
-- A Partner App exists for orders, products, availability and operations (pages 2, 18).
-- Launch covers Maadi and surrounding areas including Degla (page 5).
-- Riders collect cash on delivery on the partner's behalf (page 17).
-- Sponsored placements are always labelled as sponsored (page 14).
+- Waddy operates its own rider network (pages 2, 4, 13).
+- A Partner App exists for orders, products, availability and operations (pages 2, 14).
+- Launch covers Maadi (throughout); the Degla mention and area map are no longer printed.
+- Riders collect cash on delivery on the partner's behalf (pages 5, 13).
+- Sponsored placements are always labelled as sponsored (page 9).
 - Standard listing never requires buying advertising (page 9).
 
 ## Status chips
