@@ -8,6 +8,7 @@
 // [Bracketed] amber text is an editable placeholder for a figure or policy
 // nobody has confirmed yet. See docs/unconfirmed_commercial_info.md.
 const mock = require('./mockups');
+const TERMS = require('./terms');
 
 const STATUS = {
   live: 'Live in the app',
@@ -17,7 +18,7 @@ const STATUS = {
 };
 const ph = (t) => `<span class="ph">[${t}]</span>`;
 
-module.exports = (icon, asset, vertical = 'all') => {
+module.exports = (icon, asset, vertical = 'all', length = 'full') => {
   const phoneHtml = (name) => mock[name](icon);
   const tilt = (inner, cap) => `<div class="f-art" data-raster><div class="tiltcard"></div>${inner}</div>${cap ? `<div class="cap">${cap}</div>` : ''}`;
   const rw = (i, h, p, lab, amber) => `<div class="rw"><span class="ico">${icon(i, 24)}</span><div><b>${h}</b><p>${p}</p></div>${lab ? `<span class="lab ${amber ? 'amber' : ''}">${lab}</span>` : ''}</div>`;
@@ -48,6 +49,7 @@ module.exports = (icon, asset, vertical = 'all') => {
     </div></div></div>`;
 
   const P = [];
+  const term = (k, label) => (TERMS[k] ? TERMS[k].en : ph(label));
   const page = (tone, status, html, cls = '') => P.push({ tone, status, html, cls: `${cls} p${P.length + 1}` });
 
   // 1 ── cover
@@ -58,6 +60,7 @@ module.exports = (icon, asset, vertical = 'all') => {
       <h1>Grow Your Business <u>Beyond the Counter.</u></h1>
       <p class="lede">Meet Waddy, the neighborhood delivery and growth platform built for Maadi.</p>
       <div class="chips"><span>Restaurants</span><span>Cafés</span><span>Grocery</span><span>Pet shops</span></div>
+      <div class="offer"><b>Founding partners</b><span>No setup fee</span><span>Reduced launch commission</span><span>Keep your other apps</span></div>
     </div>
     <div class="devices" data-raster>
       <div class="dv-a" style="position:absolute;left:0;top:70px;transform:scale(.86);transform-origin:top left">${partnerPhone}</div>
@@ -184,10 +187,10 @@ module.exports = (icon, asset, vertical = 'all') => {
   // 7 ── ecosystem
   const pillars = [
     ['Discover', 'Customers find nearby restaurants, cafés, grocery stores and pet shops.', 'Page 08'],
-    ['Promote', 'Local advertising, social content, Partner Spotlights and neighborhood campaigns.', 'Pages 09–14'],
-    ['Deliver', 'Waddy’s own riders carry the order, tracked live to the door.', 'Page 17'],
-    ['Retain', 'Rewards, weekly quests, scratch cards and wallet bring customers back.', 'Page 15'],
-    ['Grow', 'Your Partner App and available insights help you run and understand your business.', 'Page 18'],
+    ['Promote', 'Local advertising, social content, Partner Spotlights and neighborhood campaigns.', 'Pages 09–10'],
+    ['Deliver', 'Waddy’s own riders carry the order, tracked live to the door.', 'Page 13'],
+    ['Retain', 'Rewards, weekly quests, scratch cards and wallet bring customers back.', 'Page 11'],
+    ['Grow', 'Your Partner App and available insights help you run and understand your business.', 'Page 14'],
   ];
   page('mint', null, `
     <div class="eyebrow">The Waddy local growth ecosystem</div>
@@ -219,14 +222,15 @@ module.exports = (icon, asset, vertical = 'all') => {
     <div class="split">
       <div class="col">
         <div class="eyebrow">2 · Promote</div>
-        <h2 style="font-size:40px">We Invest in Making Waddy <u>Visible in Maadi.</u></h2>
-        <p class="lede" style="font-size:17px">Waddy builds awareness for the platform and the businesses on it, in the areas we serve. Here is who does what.</p>
-        <div class="rows" style="margin-top:20px">
-          ${rw('bolt', 'A · Platform-led marketing', 'Waddy-funded Instagram and Facebook advertising, organic social content, neighborhood and seasonal campaigns, Waddy Spots.', 'Funded by Waddy')}
-          ${rw('star', 'B · Partner promotion', 'Selected partners are featured in Waddy’s content and campaigns, such as Partner Spotlight.', 'By selection')}
-          ${rw('tag', 'C · Optional paid promotion', 'Sponsored in-app placements and partner-specific paid social campaigns.', 'Optional', true)}
+        <h2 style="font-size:38px">We Don’t Just List You. <u>We Promote You in Maadi.</u></h2>
+        <p class="lede" style="font-size:16.500px">Waddy advertises in the areas it serves, and puts its partners in front of the people who live there.</p>
+        <div class="rows" style="margin-top:16px">
+          ${rw('bolt', 'A · Waddy-funded local ads', 'Instagram and Facebook campaigns targeted to Maadi: food discovery, coffee, weekly grocery, pet essentials, new on Waddy.', 'Funded by Waddy')}
+          ${rw('star', 'B · Partner Spotlight and Waddy Spots', 'Selected partners are featured in Waddy’s content, and every week Maadi votes for its favorite places.', 'By selection')}
+          ${rw('tag', 'C · Optional paid visibility', 'Sponsored home-screen and category placements, always labelled, if you want extra reach.', 'Optional', true)}
         </div>
-        <p class="note" style="margin-top:14px">Standard marketplace visibility is part of joining; you never have to buy advertising to be listed. Budget: ${ph('Monthly Advertising Budget')} · Cadence: ${ph('Campaign Frequency')}</p>
+        <div class="flow4"><span>Pick partners</span><i>→</i><span>Create content</span><i>→</i><span>Target Maadi</span><i>→</i><span>Review results</span></div>
+        <p class="note" style="margin-top:10px">You never have to buy ads to be listed. Ad concepts shown are proposals, not past campaigns; results vary and are not guaranteed. Budget: ${ph('Monthly Advertising Budget')} · Cadence: ${ph('Campaign Frequency')}</p>
       </div>
       <div style="flex:none">
         <div class="ads" data-raster>
@@ -385,7 +389,7 @@ module.exports = (icon, asset, vertical = 'all') => {
           ${pt('pin', 'Waddy’s own riders', 'A delivery network that works inside the neighborhood.')}
           ${pt('clock', 'Live tracking for the customer', 'A live map and ETA, so they watch the order instead of calling you.')}
           ${pt('lock', 'A delivery PIN at the door', 'The rider asks for it, so the order reaches the right person.')}
-          ${pt('bag', 'Cash handled for you', `Riders collect cash on delivery. Settlement: ${ph('Settlement Schedule')}.`)}
+          ${pt('bag', 'Cash handled for you', 'Riders collect cash on delivery; it is included in your payout (page 05).')}
         </ul>
         <div class="win"><em>What it means for you</em><span>Fewer phone calls, fewer disputes, and a strong last impression.</span></div>
       </div>
@@ -430,56 +434,67 @@ module.exports = (icon, asset, vertical = 'all') => {
     </div>
     <p class="note">An indicative roadmap. Actual timing depends on your catalogue and readiness: ${ph('Onboarding Timeline')}</p>`);
 
-  // 20 ── commercial partnership
-  const terms = [
-    ['Commission', 'What Waddy earns on each completed order.', 'Commission Structure'],
-    ['Delivery', 'Who pays the delivery fee and how it is set.', 'Delivery Fee Model'],
-    ['Subscription', 'Any fixed monthly fee for being on Waddy.', 'Monthly Subscription, if any'],
-    ['Settlement', 'When and how your sales are paid out, including cash orders.', 'Settlement Schedule'],
-    ['Refunds', 'How cancellations, refunds and order issues are handled.', 'Refund & Cancellation Policy'],
-    ['Advertising', 'Optional paid promotion, priced separately.', 'Sponsored Placement Pricing'],
-    ['Agreement', 'Contract length and notice period.', 'Contract Term & Notice'],
-  ];
-  page('paper', 'policy', `
-    <div class="eyebrow">Commercial partnership</div>
-    <h2>Clear Terms. <u>A Transparent Partnership.</u></h2>
-    <p class="lede">Everything that affects what you earn is written down before you start. No surprises after you join.</p>
-    <div class="terms">${terms.map(([k, d, p]) => `<div class="k">${k}</div><div>${d}</div><div>${ph(p)}</div>`).join('')}</div>`);
-
-  // 21 ── why join now
-  page('teal', null, `
-    <div class="eyebrow">Why join now</div>
-    <h2 style="font-size:54px">Build Your Position <u>in Maadi Early.</u></h2>
-    <p class="lede">Waddy is assembling its first neighborhood partner network. Joining at the start has simple, practical advantages.</p>
-    <div class="bigpts">
-      <div class="bigpt"><span class="bn">1</span><div class="rule"></div><b>Be there on day one</b><p>Customers form habits early. The first places they order from are the ones they return to.</p></div>
-      <div class="bigpt"><span class="bn">2</span><div class="rule"></div><b>Be part of the launch story</b><p>Waddy’s launch marketing introduces the platform through the businesses on it.</p></div>
-      <div class="bigpt"><span class="bn">3</span><div class="rule"></div><b>Start building your record</b><p>Your catalogue, your Spots votes and your regulars start accumulating from your first week.</p></div>
+  // 20 → p05 ── the offer: what it costs, what you keep, how to start risk-free
+  const pct = TERMS.commission && parseFloat(TERMS.commission.en);
+  const keep = Number.isFinite(pct) ? `${100 - pct}%` : ph('100% minus commission');
+  const tick = (h, p) => `<li>${icon('check', 18)}<div><b>${h}</b><p>${p}</p></div></li>`;
+  page('paper', TERMS.commission && TERMS.settlement ? null : 'policy', `
+    <div class="eyebrow">The offer</div>
+    <h2 style="font-size:42px">What It Costs. What You Keep. <u>How to Start Risk-Free.</u></h2>
+    <div class="offer3">
+      <div class="oc">
+        <span class="ok">What it costs</span>
+        <div class="obig"><b>None</b><span>Setup fee</span></div>
+        <div class="orow"><span>Commission</span><b>${term('commission', 'Rate')} per completed order</b></div>
+        <div class="orow"><span>Monthly fee</span><b>${term('monthlyFee', 'If any')}</b></div>
+        <div class="orow"><span>Delivery fee</span><b>${term('deliveryFee', 'Delivery Fee Model')}</b></div>
+        <div class="orow"><span>Advertising</span><b>Optional, never required</b></div>
+      </div>
+      <div class="oc">
+        <span class="ok">What you keep</span>
+        <div class="obig"><b>${keep}</b><span>of every order’s value</span></div>
+        <div class="orow"><span>Paid out</span><b>${term('settlement', 'Settlement Schedule')}</b></div>
+        <div class="orow"><span>Cash orders</span><b>Collected by our riders, included in your payout</b></div>
+        <div class="orow"><span>Refunds</span><b>${term('refunds', 'Refund Policy')}</b></div>
+      </div>
+      <div class="oc dark">
+        <span class="ok">Start risk-free</span>
+        <ul class="ticks">
+          ${tick('No setup fee', 'Joining, onboarding, catalogue and photos cost nothing.')}
+          ${tick('Reduced launch commission', `${term('launchCommission', 'Rate')} for your first ${term('launchPeriod', 'Period')}.`)}
+          ${tick('Non-exclusive', 'Keep every app you sell on today. Add Waddy alongside them.')}
+          ${tick('Clear exit', term('contract', 'Contract Term & Notice'))}
+        </ul>
+      </div>
     </div>
-    <p class="note" style="margin-top:34px">Waddy does not limit partner numbers or guarantee results for early partners. The advantage is time in the market.</p>`);
+    <div class="band oband">We’re new, so there are no case studies yet. <span>Founding partners get these terms in writing.</span></div>`, 'p-offer');
 
-  // 22 ── join
+  // 22 ── join, WhatsApp first
+  const wa = TERMS.whatsapp ? TERMS.whatsapp.en : null;
   page('mint', null, `
     <div class="join">
       <div style="flex:1">
         <div class="eyebrow">Join Waddy</div>
         <h2 style="font-size:54px">Let’s Grow <u>Maadi Together.</u></h2>
         <div class="steps">
-          <div class="step"><span>1</span><div><b>Talk to us</b><p>Tell us about your business and your branches.</p></div></div>
-          <div class="step"><span>2</span><div><b>Set up your store</b><p>We build your catalogue with you and train your team.</p></div></div>
-          <div class="step"><span>3</span><div><b>Go live in Maadi</b><p>Start receiving orders from your neighborhood.</p></div></div>
+          <div class="step"><span>1</span><div><b>Message us on WhatsApp</b><p>Talk to our partner team directly about your business and your branches.</p></div></div>
+          <div class="step"><span>2</span><div><b>Set up your store, free</b><p>We build your catalogue with you and train your team. No setup fee.</p></div></div>
+          <div class="step"><span>3</span><div><b>Go live in Maadi</b><p>Start receiving orders from your neighborhood. Keep every other app you use.</p></div></div>
         </div>
         <div class="closing">Your brand. Your local branch. Your neighborhood.<br>Your growth partner.</div>
       </div>
-      <div class="qr">
-        <div class="qtop"><div class="qimg" data-raster><img src="${asset('qr.png')}"></div><div><b>Become a Waddy partner</b><p>Scan to start, or contact your partner manager.</p></div></div>
+      <div class="wa">
+        <div class="wa-top">
+          ${wa ? `<div class="qimg" data-raster><img src="${asset('qr_whatsapp.png')}"></div>` : `<div class="qslot">${ph('WhatsApp QR')}</div>`}
+          <div><span class="wa-k">${icon('chat', 18)}WhatsApp</span><b>Message our partner team</b></div>
+        </div>
+        <div class="wa-num">${wa || ph('Partner WhatsApp')}</div>
+        <div class="wa-offer">Founding partners: no setup fee and a reduced launch commission.</div>
+        <div class="ln"><i>Phone</i>${term('phone', 'Partner Team Phone')}</div>
+        <div class="ln"><i>Email</i>${term('email', 'Partner Email')}</div>
         <div class="ln"><i>Web</i><span>waddyapp.com</span></div>
-        <div class="ln"><i>Phone</i>${ph('Partner Team Phone')}</div>
-        <div class="ln"><i>WhatsApp</i>${ph('Partner WhatsApp')}</div>
-        <div class="ln"><i>Email</i>${ph('Partner Email')}</div>
-        <div class="ln" style="margin-top:18px;font-family:Alexandria;font-weight:700;color:#1EF2A0">Waddy · Made in Maadi, built around you.</div>
       </div>
-    </div>`);
+    </div>`, 'p-join');
 
   // ── editions ──────────────────────────────────────────────────────────────
   // The partner brochure is the master. Each category edition keeps its whole
@@ -581,5 +596,39 @@ module.exports = (icon, asset, vertical = 'all') => {
     if (v.sigB) feature(v.sigB, 15);
   }
 
-  return { pages: P, STATUS, label: v.label, file: v.file, editions: Object.keys(V) };
+  // new · the short version's middle page
+  const own = {
+    all: ['Built for your trade', 'Ripeness choice for grocers, pet profiles for pet shops, a ranked local stage for restaurants.'],
+    restaurants: ['Built for restaurants', 'Top 10 Maadi and weekly Waddy Spots votes put your kitchen on a ranked local stage.'],
+    grocery: ['Built for grocers', 'Ripeness and salad-or-cooking choices let your fresh aisle sell online, with fewer complaints.'],
+    pets: ['Built for pet shops', 'Pet profiles and refill reminders turn every pet into a planned, repeat order.'],
+  }[vertical];
+  const cells = [
+    ['pin', 'Your neighborhood, not the city', 'Customers in Maadi see Maadi. You compete with your street.'],
+    ['bolt', 'We advertise in Maadi', 'Waddy-funded local Instagram and Facebook campaigns. You never have to buy ads to be listed.'],
+    ['bag', 'We deliver', 'Our own riders, live tracking, a PIN at the door, and cash collected for you.'],
+    ['repeat', 'Customers come back', 'XP, weekly quests and scratch cards give them reasons to reorder.'],
+    ['star', own[0], own[1]],
+  ];
+  page('paper', null, `
+    <div class="eyebrow">Waddy in one page</div>
+    <h2 style="font-size:46px">Why Add Waddy? <u>The Short Version.</u></h2>
+    <div class="sumgrid">
+      ${cells.map(([i, h, p]) => `<div class="sc"><span class="ti">${icon(i, 24)}</span><b>${h}</b><p>${p}</p></div>`).join('')}
+      <div class="sc on"><b>Keep every app you’re on.</b><p>Waddy is non-exclusive. Add it alongside the channels you already use.</p></div>
+    </div>
+    <div class="band" style="margin-top:22px">Founding partners: <span>no setup fee and a reduced launch commission.</span> Full offer overleaf.</div>`, 'p-sum');
+
+  // Build order: 0 cover, 1 who, 2 problem, 3 difference, 4 why Maadi, 5 branch,
+  // 6 ecosystem, 7 discover, 8 promote, 9 campaigns, 10 spotlight, 11 how we
+  // advertise, 12 Spots or category page A, 13 sponsored, 14 retention,
+  // 15 every business or category page B, 16 delivery, 17 partner app,
+  // 18 first 90 days, 19 offer, 20 join, 21 short-version summary.
+  // The offer sits right after the comparison (page 05). Campaigns, spotlight,
+  // how-we-advertise and sponsored fold into the promote page; Why Maadi folds
+  // into the comparison and discovery pages.
+  const ORDER = length === 'short'
+    ? [0, 21, 19, 20]
+    : [0, 1, 2, 3, 19, 5, 6, 7, 8, 12, 14, 15, 16, 17, 18, 20];
+  return { pages: ORDER.map((i) => P[i]), STATUS, label: v.label, file: v.file + (length === 'short' ? '-short' : ''), editions: Object.keys(V) };
 };

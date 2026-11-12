@@ -1,7 +1,7 @@
 // Builds every brochure edition in English and Arabic.
 //
 //   node build.js                 all editions, both languages
-//   node build.js grocery ar      one edition / one language (either may be omitted)
+//   node build.js grocery ar short  one edition / language / length (any may be omitted)
 //   FINAL=1 node build.js         hide the internal status chips for print
 //
 // Per edition it writes out/<name>.pdf, plus out/dom/<name>.json and
@@ -22,9 +22,18 @@ const ICONS = require('./icons');
 const icon = (n, s = 22) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 const master = require('./master');
 const AR = fs.existsSync(path.join(__dirname, 'ar.js')) ? require('./ar') : {};
+// Confirmed terms carry their own Arabic.
+const TERMS = require('./terms');
+for (const t of Object.values(TERMS)) if (t && t.en && t.ar) AR[t.en] = t.ar;
+// A WhatsApp number becomes a scannable wa.me QR on the join page.
+if (TERMS.whatsapp) {
+  const digits = TERMS.whatsapp.en.replace(/\D/g, '');
+  require('child_process').execFileSync('python3', ['-c',
+    `import qrcode;q=qrcode.QRCode(border=0,box_size=12);q.add_data('https://wa.me/${digits}');q.make();q.make_image(fill_color='#134E4A',back_color='white').save('${path.join(__dirname, 'assets', 'qr_whatsapp.png')}')`]);
+}
 
-function render(edition) {
-  const { pages, STATUS, label, file } = master(icon, asset, edition);
+function render(edition, length) {
+  const { pages, STATUS, label, file } = master(icon, asset, edition, length);
   const body = pages.map((p, i) => {
     const foot = i === 0 ? '' : `<footer><img src="${asset(p.tone === 'teal' ? 'w_mint.png' : 'w_teal.png')}"><span>Waddy · ${label}</span>${p.status ? `<span class="status ${p.status}">${STATUS[p.status]}</span>` : ''}<b>${String(i + 1).padStart(2, '0')}</b></footer>`;
     return `<section class="slide m ${p.tone} ${p.cls}">${p.html}${foot}</section>`;
@@ -141,8 +150,9 @@ function bounds() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2 });
   const strings = new Set(), untranslated = new Set();
 
-  for (const edition of editions) {
-    const { file, html } = render(edition);
+  const lengths = args.includes('short') ? ['short'] : args.includes('full') ? ['full'] : ['full', 'short'];
+  for (const edition of editions) for (const length of lengths) {
+    const { file, html } = render(edition, length);
     const src = path.join(OUT, file + '.html');
     fs.writeFileSync(src, html);
     for (const lang of langs) {

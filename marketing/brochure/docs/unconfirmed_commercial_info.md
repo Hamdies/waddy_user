@@ -1,26 +1,42 @@
 # Partner brochure: unconfirmed commercial information
 
-Everything in the brochure that still needs a decision or a figure from Waddy
-before it goes to print. Each item appears in the brochure as an amber
-`[placeholder]`. Replace the text in `master.js` (or in the PowerPoint) and
-rebuild.
+**All terms and contact details now live in one file: `terms.js`.** Fill a
+value in there (English and Arabic) and rebuild; it updates the offer page,
+the join page and the short version in every edition and both languages. A
+WhatsApp number there also becomes a scannable wa.me QR code on the join page.
 
-Nothing below has been invented. Where a value is missing, the brochure prints
-the placeholder rather than a guess.
+## Decided (2026-11-12)
 
-## Commercial terms (page 20)
+| Point | Decision | Where it shows |
+|---|---|---|
+| Exclusivity | **Non-exclusive.** Partners keep every other app | Cover, offer page (p05), join page, short version |
+| Setup fee | **None.** Joining, onboarding, catalogue and photos are free | Cover, offer page, join page |
+| Launch offer | **Reduced commission for founding partners** (rate and period still to fill) | Cover, offer page |
+| Proof | **None yet.** Framed honestly as "we're new; founding partners get these terms in writing" | Offer page |
 
-| Placeholder | What is needed |
+## Still needed before print (in `terms.js`)
+
+| Key | What is needed |
 |---|---|
-| `[Commission Structure]` | Rate per order, whether it differs by category or by delivery/pickup, and any launch rate |
-| `[Delivery Fee Model]` | Who pays delivery (customer, partner, shared), how the fee is set, any free-delivery funding rule |
-| `[Monthly Subscription, if any]` | Whether a fixed fee exists; if not, replace with "None" |
-| `[Settlement Schedule]` | Payout frequency, method, and how cash-on-delivery orders are reconciled (also printed on page 17) |
-| `[Refund & Cancellation Policy]` | Who bears the cost of a refund in each case: store error, rider error, customer cancellation |
-| `[Sponsored Placement Pricing]` | Price per placement type and period (also printed on page 14) |
-| `[Contract Term & Notice]` | Contract length, renewal, notice period, any exclusivity |
+| `commission` | Standard rate per completed order. "What you keep" is calculated from it |
+| `launchCommission`, `launchPeriod` | The founding-partner rate and how long it lasts |
+| `monthlyFee` | Fixed monthly fee, or "None" |
+| `deliveryFee` | Who pays delivery and how it is set |
+| `settlement` | Payout schedule and method, including cash orders |
+| `refunds` | Who bears the cost of a refund, by cause |
+| `contract` | Term and notice period. Printed as "Clear exit" under *Start risk-free*, so a short notice period helps most |
+| `whatsapp` | A number a real person on the partner team answers. It is the main call to action |
+| `phone`, `email` | Secondary contacts |
 
-## Marketing commitments (pages 9–12)
+The offer page carries a "confirm before print" chip until `commission` and
+`settlement` are filled.
+
+---
+
+The rest of this document lists the remaining placeholders elsewhere in the
+brochure.
+
+## Marketing commitments (page 09)
 
 | Placeholder | What is needed |
 |---|---|
@@ -35,19 +51,9 @@ the placeholder rather than a guess.
 
 | Placeholder | Page | What is needed |
 |---|---|---|
-| `[Confirmed Launch Service Areas]` | 5 | The exact launch zones. The map names Maadi, Degla and Sarayat for illustration |
-| `[Confirmed Placement Formats]` | 14 | Which sponsored formats are sold at launch |
-| `[Confirmed Analytics: …]` | 18 | Which insights the Partner App really shows |
-| `[Onboarding Timeline]` | 19 | Realistic days from signature to go-live |
-
-## Contact details (page 22)
-
-| Placeholder | What is needed |
-|---|---|
-| `[Partner Team Phone]` | Sales / partner line |
-| `[Partner WhatsApp]` | WhatsApp number |
-| `[Partner Email]` | Partner inbox |
-| QR code | Currently encodes `https://waddyapp.com` (the site referenced in the app). Replace `assets/qr.png` with a QR for the partner sign-up form when one exists |
+| `[Confirmed Placement Formats]` | – (no longer printed) | Which sponsored formats are sold at launch |
+| `[Confirmed Analytics: …]` | 14 | Which insights the Partner App really shows |
+| `[Onboarding Timeline]` | 15 | Realistic days from signature to go-live |
 
 ## Statements made on your instruction, not verified in code
 
