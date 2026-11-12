@@ -74,7 +74,7 @@ module.exports = {
   petProfile: (icon) => phone(`
     <div class="s-head" style="padding-bottom:22px">
       <small>Pets</small><b>Everything<br>Luna needs</b>
-      <div style="position:absolute;right:18px;top:40px"><div class="polaroid"><div class="ph">${icon('paw', 40)}</div><b>Luna</b></div></div>
+      <div class="pol" style="position:absolute;right:18px;top:40px"><div class="polaroid"><div class="ph">${icon('paw', 40)}</div><b>Luna</b></div></div>
     </div>
     <div class="s-body" style="padding-top:20px">
       <div class="s-label">Luna's profile</div>

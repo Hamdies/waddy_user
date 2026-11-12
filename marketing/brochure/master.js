@@ -17,7 +17,7 @@ const STATUS = {
 };
 const ph = (t) => `<span class="ph">[${t}]</span>`;
 
-module.exports = (icon, asset) => {
+module.exports = (icon, asset, vertical = 'all') => {
   const phoneHtml = (name) => mock[name](icon);
   const tilt = (inner, cap) => `<div class="f-art" data-raster><div class="tiltcard"></div>${inner}</div>${cap ? `<div class="cap">${cap}</div>` : ''}`;
   const rw = (i, h, p, lab, amber) => `<div class="rw"><span class="ico">${icon(i, 24)}</span><div><b>${h}</b><p>${p}</p></div>${lab ? `<span class="lab ${amber ? 'amber' : ''}">${lab}</span>` : ''}</div>`;
@@ -37,13 +37,13 @@ module.exports = (icon, asset) => {
     </div></div></div>`;
 
   const sponsoredPhone = `<div class="phone"><div class="notch"></div><div class="screen">
-    <div class="s-head"><small>Food · Maadi</small><b>What are you craving?</b></div>
+    <div class="s-head"><small>Home · Maadi</small><b>Featured near you</b></div>
     <div class="s-body">
       <div class="hero-prod" style="background:#134E4A;color:#fff;height:112px"><div><span class="pill amber">Sponsored</span><b style="display:block;margin-top:6px">Your brand</b><small style="color:#CFE9E5">Home-screen placement</small></div><span class="sw" style="width:52px;height:52px">${icon('star', 24)}</span></div>
       <div class="s-label">Featured</div>
       <div class="row on"><span class="sw teal">Y</span><div class="grow"><b>Your business</b><p>Featured rail</p></div><span class="pill amber">Sponsored</span></div>
-      <div class="row"><span class="sw">G</span><div class="grow"><b>Grill house</b><p>Grills · Egyptian</p></div></div>
-      <div class="s-label">Burgers</div>
+      <div class="row"><span class="sw">A</span><div class="grow"><b>Another store</b><p>Nearby</p></div></div>
+      <div class="s-label">Your category</div>
       <div class="row"><span class="sw amber">Y</span><div class="grow"><b>Your business</b><p>Category placement</p></div><span class="pill amber">Sponsored</span></div>
     </div></div></div>`;
 
@@ -60,8 +60,8 @@ module.exports = (icon, asset) => {
       <div class="chips"><span>Restaurants</span><span>Cafés</span><span>Grocery</span><span>Pet shops</span></div>
     </div>
     <div class="devices" data-raster>
-      <div style="position:absolute;left:0;top:70px;transform:scale(.86);transform-origin:top left">${partnerPhone}</div>
-      <div style="position:absolute;left:214px;top:0">${phoneHtml('top10')}</div>
+      <div class="dv-a" style="position:absolute;left:0;top:70px;transform:scale(.86);transform-origin:top left">${partnerPhone}</div>
+      <div class="dv-b" style="position:absolute;left:214px;top:0">${phoneHtml('top10')}</div>
     </div>
     <div class="tagline">Made in Maadi · Built around you</div>`, 'm-cover');
 
@@ -481,5 +481,105 @@ module.exports = (icon, asset) => {
       </div>
     </div>`);
 
-  return { pages: P, STATUS };
+  // ── editions ──────────────────────────────────────────────────────────────
+  // The partner brochure is the master. Each category edition keeps its whole
+  // commercial story and swaps in the pages that are specific to that trade.
+  const V = {
+    all: { file: 'waddy-partner-brochure', label: 'Partner brochure' },
+    restaurants: {
+      file: 'waddy-for-restaurants', label: 'For restaurants & cafés', art: 'burger.webp', coverMock: 'top10',
+      h1: 'Grow Your Restaurant <u>Beyond the Counter.</u>',
+      lede: 'Meet Waddy, the neighborhood delivery and growth platform that puts Maadi’s restaurants and cafés in front of Maadi.',
+      chips: ['Top 10 Maadi', 'Waddy Spots', 'Local advertising', 'Our own riders'],
+      postTx: 'New on Waddy: one of Maadi’s favorite kitchens, now delivering to your door.', postH: 'New on Waddy: <em>Your Brand</em>', postFt: 'Restaurants in Maadi',
+      spot: 'kitchens',
+      sigB: ['tint', 'live', 'Built for restaurants · Your menu', 'Your Menu, <u>Exactly How They Like It.</u>',
+        'An order that arrives right is an order that gets repeated. Waddy makes it easy for customers to ask for it properly the first time.',
+        [['sliders', 'Every item customizable', 'Extras, removals and choices are set by the customer, not guessed by your kitchen.'],
+          ['repeat', 'Reorder in seconds', 'Last Friday’s order is one tap away. Habits form around the places that make it easy.'],
+          ['eye', 'Clear before checkout', 'Prices, offers and delivery are visible before they commit.']],
+        'Fewer wrong orders, fewer refunds, and regulars who order again and again.', 'menu', false],
+    },
+    grocery: {
+      file: 'waddy-for-grocery-stores', label: 'For supermarkets & grocers', art: 'fresh_market.webp', coverMock: 'aisles',
+      h1: 'Grow Your Store <u>Beyond the Counter.</u>',
+      lede: 'Meet Waddy, the neighborhood delivery and growth platform that lets your fresh aisle sell online the way it sells in store.',
+      chips: ['Ripeness choice', 'Salad or cooking', 'Local advertising', 'Our own riders'],
+      storyH: 'Your weekly grocery, picked your way.', spot: 'grocers',
+      discover: ['Be Where Your <u>Neighborhood Shops.</u>', 'Your store on Waddy is laid out the way people already shop it, in front of the households around you.',
+        [['grid', 'Shop by aisle', 'Produce, dairy, bakery, snacks, cleaning and home essentials, each with its own shelf.'],
+          ['search', 'Search that stays local', 'Customers who know what they want find it at a store nearby.'],
+          ['eye', 'Clear prices before the cart', 'What they see is what they pay. Trust builds basket by basket.'],
+          ['tag', 'Your offers, shown up front', 'Offers and free delivery appear on your listing before the store opens.']],
+        'They came for milk and found the rest of your store.', 'aisles'],
+      sigA: ['teal', 'live', 'Built for grocery · Only on Waddy', 'Ripe Today, or Ripe Thursday. <u>Salad, or Sauce.</u>',
+        'Nobody trusts a stranger to pick their tomatoes. Waddy asks the question a good greengrocer asks across the counter, before the item reaches the cart.',
+        [['clock', 'Ripeness, on fruit', 'Ready to eat today, or ripe in 2–3 days.'],
+          ['leaf', 'Use it for, on vegetables', 'For salad: firm and crisp. For cooking: riper and softer.'],
+          ['sliders', 'Only where it is needed', 'Fruit and vegetables ask. Milk and rice ask nothing, so shopping stays fast.']],
+        'Customers trust you with fresh produce online, and fresh is what fills a weekly basket.', 'ripeness', true],
+      sigB: ['tint', 'live', 'Built for grocery · On your side of the counter', 'One Question for Them. <u>Zero Guessing for You.</u>',
+        'The customer’s answer travels with the item, all the way to whoever picks the order in your store.',
+        [['tag', 'Written on the order line', '“Bananas · Ripe in 2–3 days.” The instruction sits next to the item it belongs to.'],
+          ['lock', 'Never touches price or stock', 'It is a picking note, not a new product. Nothing extra to manage in your catalogue.'],
+          ['bag', 'Sell the whole crate', 'Softer produce goes to the cooks who want it instead of staying on the shelf.']],
+        'Fewer complaints and refunds for you, and less waste on your shelf.', 'ticket', false],
+    },
+    pets: {
+      file: 'waddy-for-pet-shops', label: 'For pet shops & vet clinics', art: 'pets.webp', coverMock: 'petProfile',
+      h1: 'Grow Your Pet Shop <u>Beyond the Counter.</u>',
+      lede: 'Meet Waddy, the neighborhood delivery and growth platform that knows every pet by name and sends their owner to your shop.',
+      chips: ['Pet profiles', 'Refill reminders', 'Local advertising', 'Our own riders'],
+      storyH: 'Everything Luna needs, at your door.', spot: 'pet shops',
+      postTx: 'New on Waddy: a pet shop that knows your pet by name.', postH: 'New on Waddy: <em>Your Pet Shop</em>', postFt: 'Pet supplies in Maadi',
+      discover: ['Be Where Your <u>Neighborhood Shops.</u>', 'Waddy’s pet home puts shops and clinics in front of the pet owners who live around them.',
+        [['grid', 'Shelves by species, then by need', 'Cats, dogs, birds, fish and small pets. Food, treats, litter, toys, grooming and health.'],
+          ['paw', 'Picked for their pet', 'A cat owner sees cat food, litter and treats first. Nothing to scroll past.'],
+          ['phone', 'Vet clinics, one tap away', 'Clinics are listed with call, WhatsApp and directions, and tags such as open now and home visits.'],
+          ['tag', 'Your offers, shown up front', 'Offers and free delivery appear on your listing before the shop opens.']],
+        'You are in the pocket of every pet owner nearby.', 'clinic'],
+      sigA: ['teal', 'live', 'Built for pet shops · Only on Waddy', 'We Don’t Meet a Customer. <u>We Meet Luna.</u>',
+        'Before they shop, owners introduce their pet. From then on, the pet section is built around that animal.',
+        [['paw', 'A real profile, per pet', 'Name, species, age and diet, down to “picky eater”. More than one pet per household.'],
+          ['sliders', 'A shop that fits them', 'Your products reach the owners who actually need them, at the top of the screen.'],
+          ['chat', 'Spoken like someone who knows them', 'Waddy talks about the pet by name, in English and in Arabic.']],
+        'Your catalogue meets the right owner, not every owner.', 'petProfile', true],
+      sigB: ['tint', 'live', 'Built for pet shops · The usual', '“Luna’s Food Runs Out <u>Thursday.</u>”',
+        'Pet supplies are the most repeatable purchase there is. Waddy turns that rhythm into planned orders for your shop.',
+        [['repeat', 'Their usual, one tap', 'An “order again” card with the pet’s name on it, ready on the pet home.'],
+          ['bell', 'Reminders they choose', 'Every 2, 3, 4 or 6 weeks. The owner sets it once and stops running out.'],
+          ['cake', 'Moments that matter', 'A nudge before the bag is empty, on the pet’s birthday, and when it is time for adult food.']],
+        'The late-night emergency becomes a planned order, and it comes to you.', 'petUsual', false],
+    },
+  };
+  const v = V[vertical];
+  const sub = (i, from, to) => { if (!P[i].html.includes(from)) throw new Error(`edition text not found on page ${i + 1}: ${from}`); P[i].html = P[i].html.split(from).join(to); };
+  const feature = ([tone, status, eyebrow, h2, lede, pts, win, mk, flip], i) => {
+    const art = `<div style="flex:none">${tilt(phoneHtml(mk))}</div>`;
+    const col = `<div class="col"><div class="eyebrow">${eyebrow}</div><h2 style="font-size:40px">${h2}</h2><p class="lede">${lede}</p>
+      <ul class="points">${pts.map((q) => pt(...q)).join('')}</ul>
+      <div class="win"><em>What it means for you</em><span>${win}</span></div></div>`;
+    P[i] = { tone, status, cls: ` p${i + 1}`, html: `<div class="split">${flip ? art + col : col + art}</div>` };
+  };
+
+  sub(5, 'The order goes to the right kitchen', 'The order goes to the right branch');
+  sub(0, '<i>Partner brochure</i>', `<i>${v.label}</i>`);
+  if (vertical !== 'all') {
+    sub(0, 'Grow Your Business <u>Beyond the Counter.</u>', v.h1);
+    sub(0, 'Meet Waddy, the neighborhood delivery and growth platform built for Maadi.', v.lede);
+    sub(0, '<span>Restaurants</span><span>Cafés</span><span>Grocery</span><span>Pet shops</span>', v.chips.map((c) => `<span>${c}</span>`).join(''));
+    if (v.coverMock !== 'top10') sub(0, phoneHtml('top10'), phoneHtml(v.coverMock));
+    if (v.discover) { const [h2, lede, pts, win, mk] = v.discover; feature(['paper', 'live', '1 · Discover', h2, lede, pts, win, mk, false], 7); }
+    if (v.storyH) { sub(8, 'Maadi’s burgers, at your door.', v.storyH); sub(8, 'burger.webp', v.art); }
+    if (v.postTx) {
+      sub(8, 'Your weekly grocery, picked the way you like it. From stores around you.', v.postTx);
+      sub(8, '<div class="img"><h4>Ripe today, <em>or ripe Thursday.</em></h4>', `<div class="img dark"><h4>${v.postH}</h4>`);
+      sub(8, 'fresh_market.webp', v.art); sub(8, 'Groceries in Maadi', v.postFt);
+    }
+    sub(10, 'favorite kitchens', `favorite ${v.spot}`); sub(10, 'burger.webp', v.art);
+    if (v.sigA) feature(v.sigA, 12);
+    if (v.sigB) feature(v.sigB, 15);
+  }
+
+  return { pages: P, STATUS, label: v.label, file: v.file, editions: Object.keys(V) };
 };

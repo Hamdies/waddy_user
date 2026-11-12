@@ -1,7 +1,7 @@
 """Editable PowerPoint for the partner brochure.
 
-Reads out/master_dom.json and out/raster/*.png (written by build_master.js)
-and rebuilds every page as native PowerPoint objects: headlines, body copy,
+Reads out/dom/<name>.json and out/raster/<name>/*.png (written by build.js)
+and rebuilds every page of every edition as native PowerPoint objects: headlines, body copy,
 placeholders and boxes are real text boxes and shapes you can edit. Phone
 mockups, maps, ad creatives and icons are pictures.
 
@@ -97,6 +97,8 @@ def add_text(slide, it):
     x, w = it['x'], it['w'] + pad
     if it['al'] == 'c':
         x -= pad / 2
+    elif it['al'] == 'r':
+        x -= pad  # right-aligned Arabic: the slack goes on the left
     tb = slide.shapes.add_textbox(emu(x), emu(it['y']), emu(w), emu(max(it['h'], it['lh'])))
     tf = tb.text_frame
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
@@ -105,7 +107,9 @@ def add_text(slide, it):
     p = tf.paragraphs[0]
 
     def style(par):
-        par.alignment = PP_ALIGN.CENTER if it['al'] == 'c' else PP_ALIGN.LEFT
+        par.alignment = {'c': PP_ALIGN.CENTER, 'r': PP_ALIGN.RIGHT}.get(it['al'], PP_ALIGN.LEFT)
+        if it.get('rtl'):
+            par._p.get_or_add_pPr().set('rtl', '1')
         par.line_spacing = Pt(round(it['lh'] * 0.75, 1))
 
     style(p)
@@ -120,6 +124,9 @@ def add_text(slide, it):
         f.name, f.bold = face(r['ff'], r['fw'])
         f.color.rgb = rgb(r['c'])
         rpr = run._r.get_or_add_rPr()
+        if it.get('rtl'):  # Arabic is a complex script: it needs its own typeface entry
+            rpr.set('lang', 'ar-EG')
+            rpr.append(rpr.makeelement(qn('a:cs'), {'typeface': f.name}))
         if r['ls']:
             rpr.set('spc', str(int(round(r['ls'] * 75))))
         if r.get('hl'):  # amber [placeholder] chips stay visibly highlighted
@@ -128,14 +135,16 @@ def add_text(slide, it):
             hl.append(c)
             # schema order: ln, fill, effect, highlight, ... latin
             anchor = rpr.find(qn('a:latin'))
+            if anchor is None:
+                anchor = rpr.find(qn('a:cs'))
             if anchor is not None:
                 anchor.addprevious(hl)
             else:
                 rpr.append(hl)
 
 
-def main():
-    dom = json.load(open(os.path.join(OUT, 'master_dom.json')))
+def build(name):
+    dom = json.load(open(os.path.join(OUT, 'dom', name + '.json')))
     prs = Presentation()
     prs.slide_width, prs.slide_height = emu(1280), emu(720)
     blank = prs.slide_layouts[6]
@@ -148,14 +157,18 @@ def main():
             if it['t'] == 'rect':
                 add_rect(s, it)
             elif it['t'] == 'img':
-                path = os.path.join(OUT, 'raster', '%d.png' % it['id'])
+                path = os.path.join(OUT, 'raster', name, '%d.png' % it['id'])
                 if os.path.exists(path) and it['w'] > 0 and it['h'] > 0:
                     s.shapes.add_picture(path, emu(it['x']), emu(it['y']), emu(it['w']), emu(it['h']))
             else:
                 add_text(s, it)
-    dest = os.path.join(OUT, 'waddy-partner-brochure.pptx')
-    prs.save(dest)
-    print('wrote', dest, len(dom), 'slides')
+    prs.save(os.path.join(OUT, name + '.pptx'))
+    print('wrote', name + '.pptx', len(dom), 'slides')
+
+
+def main():
+    for f in sorted(os.listdir(os.path.join(OUT, 'dom'))):
+        build(f[:-5])
 
 
 if __name__ == '__main__':

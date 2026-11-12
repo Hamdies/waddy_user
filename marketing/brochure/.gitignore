@@ -1,3 +1,6 @@
 out/*.html
 out/raster/
+out/dom/
 out/master_dom.json
+out/strings.json
+out/untranslated.json
