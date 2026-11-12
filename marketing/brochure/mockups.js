@@ -7,7 +7,7 @@ const opt = (on, h, p) => `<div class="row ${on ? 'on' : ''}"><span class="radio
 module.exports = {
   // ── restaurants ──
   top10: () => phone(`
-    ${head('Food · Maadi', 'Top 10 Maadi spots')}
+    ${head('Top 10 Maadi · ranked by Waddy', 'Maadi’s favorites')}
     <div class="s-body">
       ${[['1', 'Your restaurant', 'Burgers · Free delivery', 'on'], ['2', 'Grill house', 'Grills · Egyptian', ''], ['3', 'Pizza corner', 'Pizza · Offers', ''], ['4', 'Shawarma stop', 'Shawarma', '']].map(([n, a, b, on]) => `
         <div class="row ${on}"><span class="rank">${n}</span><span class="sw ${on ? 'teal' : ''}">${a[0]}</span><div class="grow"><b>${a}</b><p>${b}</p></div>${on ? '<span class="pill dark">You</span>' : ''}</div>`).join('')}

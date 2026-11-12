@@ -5,8 +5,9 @@
 // { en: '…', ar: '…' } and rebuild:  node build.js && python3 make_pptx.py
 //
 // Confirmed by Waddy (2026-11-12): partnership is non-exclusive; founding
-// partners pay no setup fee and get a reduced launch commission. Do not
-// print a figure here that has not been approved.
+// partners pay no setup fee and get a reduced launch commission. Rates,
+// delivery fee, settlement, refunds and exit are agreed in the room and are
+// deliberately NOT printed; only monthlyFee and the contacts reach the page.
 module.exports = {
   commission: null,        // e.g. { en: '18%', ar: '18%' }: standard rate per completed order
   launchCommission: null,  // e.g. { en: '10%', ar: '10%' }: founding-partner rate

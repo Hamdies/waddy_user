@@ -296,3 +296,16 @@ body.final .status { display: none; }
 .m-cover .offer { position: static; width: auto; margin-top: 14px; }
 .m-cover .copy { top: 140px; } .m-cover .chips { margin-top: 22px; }
 .rtl .m-cover .offer { right: auto; }
+
+/* where the extra orders come from */
+.xo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 34px; }
+.xc { background: var(--teal); color: #fff; border-radius: 24px; padding: 24px 22px 28px; min-height: 290px; }
+.xh { display: flex; justify-content: space-between; align-items: center; color: var(--mint); margin-bottom: 20px; }
+.xn { font-family: Alexandria; font-weight: 900; font-size: 46px; line-height: 1; }
+.xc b { font-family: Alexandria; font-size: 21px; line-height: 1.2; display: block; }
+.xc p { font-size: 15.500px; line-height: 1.5; color: #CFE9E5; margin-top: 10px; }
+.p-offer .orow b { font-size: 13.500px; }
+.p2 .vflow { gap: 12px; } .p2 .vf { padding: 16px 20px; }
+.cmp > div { padding: 7px 16px; font-size: 14px; } .cmp .h { padding: 10px 16px; }
+.p4 h2 { font-size: 38px; }
+.rtl .p6 .lede { font-size: 15.500px; line-height: 1.6; } .rtl .p6 .vf { padding: 11px 18px; } .rtl .p6 .vflow { margin-top: 14px !important; gap: 8px; }
