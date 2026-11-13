@@ -2,7 +2,7 @@
 //
 //   node build.js                 all editions, both languages
 //   node build.js grocery ar short  one edition / language / length (any may be omitted)
-//   FINAL=1 node build.js         hide the internal status chips for print
+//   DRAFT=1 node build.js         show the internal status chips (live / policy / plan / concept)
 //
 // Per edition it writes out/<name>.pdf, plus out/dom/<name>.json and
 // out/raster/<name>/ which make_pptx.py turns into the PowerPoint.
@@ -34,8 +34,12 @@ if (TERMS.whatsapp) {
 
 function render(edition, length) {
   const { pages, STATUS, label, file } = master(icon, asset, edition, length);
+  // Status chips are for internal review only: DRAFT=1 node build.js shows them.
+  let appN = 0;
   const body = pages.map((p, i) => {
-    const foot = i === 0 ? '' : `<footer><img src="${asset(p.tone === 'teal' ? 'w_mint.png' : 'w_teal.png')}"><span>Waddy · ${label}</span>${p.status ? `<span class="status ${p.status}">${STATUS[p.status]}</span>` : ''}<b>${String(i + 1).padStart(2, '0')}</b></footer>`;
+    const num = p.app ? `Appendix · A${++appN}` : String(i + 1).padStart(2, '0');
+    const chip = process.env.DRAFT && p.status ? `<span class="status ${p.status}">${STATUS[p.status]}</span>` : '';
+    const foot = i === 0 ? '' : `<footer><img src="${asset(p.tone === 'teal' ? 'w_mint.png' : 'w_teal.png')}"><span>Waddy · ${label}</span>${chip}<b>${num}</b></footer>`;
     return `<section class="slide m ${p.tone} ${p.cls}">${p.html}${foot}</section>`;
   }).join('\n');
   return { file, html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Waddy · ${label}</title><style>${css}

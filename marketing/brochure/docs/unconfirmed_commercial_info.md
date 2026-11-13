@@ -17,7 +17,9 @@ WhatsApp number there also becomes a scannable wa.me QR code on the join page.
 | 30-day review | After 30 days Waddy shows the partner every order that came through Waddy | Offer page, roadmap (p15) |
 | Proof | None yet. "We're new, so there are no case studies yet" | Offer page |
 | Waddy Spots | **Out of the merchant pitch.** Keep it for the separate venue pitch | – |
-| Rider areas | Degla, Sarayat, Nerco and Corniche | Pages 2, 4, 11 |
+| Rider areas | Degla, Sarayat, Nerco and Corniche | Pages 2, 3, 6 |
+| Monthly fee | **None** (confirmed 2026-11-13) | Offer page |
+| Delivery PIN | **Live** (confirmed 2026-11-13). `deliveryPin: false` in `terms.js` drops the bullet | Deliver page |
 
 **Before you negotiate:** decide your standard, launch and floor rates
 privately. Owners in one neighborhood compare notes, and very different
@@ -27,8 +29,7 @@ rates will leak.
 
 | Key | What is needed |
 |---|---|
-| `monthlyFee` | Printed as "None" only once confirmed. Until then the offer page shows `[None: confirm]` and a "confirm before print" chip |
-| `whatsapp` | A number a real person on the partner team answers. It becomes the QR code on the join page |
+| `whatsapp` | A number a real person on the partner team answers. It becomes the QR code on the join page. Until set, the join page prints blank write-in lines |
 | `phone`, `email` | Partner line, or the company phone and email until one exists |
 
 The other keys in `terms.js` (commission, settlement…) are no longer printed.
@@ -106,3 +107,19 @@ pages they mark have been confirmed.
   someone owns that report before the first partner reaches day 30.
 - "Faster deliveries" (page 2) is stated as a consequence of short routes.
   Do not upgrade it to "fastest" until you have delivery times to show.
+
+## Claims to keep true (checked against the app code on 2026-11-13)
+
+All of these exist in the customer app's code. Several were built with a
+backend deploy still pending when last documented (`docs/plans_index.md`), so
+confirm each works in the production app before an owner looks for it:
+
+| Claim | Page | Plan status when last documented |
+|---|---|---|
+| XP and weekly quests | 4 | Built; later phases waited on a backend deploy |
+| Scratch card in the bag | 4 | Built 09-28; backend deploy and migration pending |
+| Wallet, referrals, one-tap reorder | 4 | Standard, long-standing |
+| Live tracking and ETA | 6 | Built 10-03; backend deploy and device check pending |
+| Delivery PIN | 6 | Confirmed live by Waddy 2026-11-13. It shows only while `order_delivery_verification` is on in the backend |
+| Pet profiles, refill reminders, vet listings | Pet-shop appendix | Built 10-02; deploy pending, and the pets module is seeded switched off |
+| 30-day order list per partner | 7, 8 | Not a feature: someone must be able to export it by day 30 |

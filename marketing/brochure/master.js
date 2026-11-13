@@ -122,6 +122,7 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
   page('tint', null, `
     <div class="eyebrow">The Waddy difference</div>
     <h2>Big Marketplace Thinking vs. <u>Neighborhood-First Growth.</u></h2>
+    <p class="lede cmp-sub">A citywide list wasn’t built for a business whose customers live a few streets away.</p>
     <div class="cmp">
       <div></div><div class="h a">Citywide marketplace model</div><div class="h b">Waddy: neighborhood-first</div>
       ${cmp.map(([k, a, b]) => `<div class="k">${k}</div><div class="a">${a}</div><div class="b">${b}</div>`).join('')}
@@ -187,20 +188,21 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
       </div>
     </div>`);
 
-  // 7 ── ecosystem
+  // 7 → p04 ── five ways to grow (ecosystem + where the extra orders come from)
   const pillars = [
-    ['Discover', 'Customers find nearby restaurants, cafés, grocery stores and pet shops.', 'Page 09'],
-    ['Promote', 'Local advertising, social content, Partner Spotlights and neighborhood campaigns.', 'Page 10'],
-    ['Deliver', 'Waddy’s own riders carry the order, tracked live to the door.', 'Page 11'],
-    ['Retain', 'Rewards, weekly quests, scratch cards and wallet bring customers back.', 'Page 12'],
-    ['Grow', 'Your Partner App runs your orders, products, prices and opening hours.', 'Page 13'],
+    ['Discover', 'New Maadi customers find you in local discovery, the Top 10 and search that stays local.', 'Page 05'],
+    ['Promote', 'Waddy-funded ads in Maadi, Partner Spotlight, and optional paid visibility.', 'Page 05'],
+    ['Deliver', 'Our riders reach customers beyond walking distance. No rider team to run.', 'Page 06'],
+    ['Retain', 'XP, weekly quests, scratch cards and one-tap reorder bring customers back.', 'Ask for a demo'],
+    ['Grow', 'The Partner App runs your orders, products, prices and opening hours.', 'Ask for a demo'],
   ];
   page('mint', null, `
-    <div class="eyebrow">The Waddy local growth ecosystem</div>
-    <h2 style="font-size:52px">One neighborhood. <u>Five ways to grow.</u></h2>
+    <div class="eyebrow">Where the extra orders come from</div>
+    <h2 style="font-size:50px">One Neighborhood. <u>Five Ways to Grow.</u></h2>
     <div class="pillars">${pillars.map(([h, p, g], i) => `
       <div class="pillar"><span class="pn">${i + 1}</span><b>${h.toUpperCase()}</b><p>${p}</p><span class="pg">${g}</span></div>`).join('')}
-    </div>`);
+    </div>
+    <p class="note" style="margin-top:20px">Waddy is non-exclusive, so these are orders on top of the ones you already get. How many depends on your business; we will show you the real count at your 30-day review.</p>`, 'p-five');
 
   // 8 ── discovery
   page('paper', 'live', `
@@ -385,14 +387,14 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
   page('teal', 'live', `
     <div class="split">
       <div class="col">
-        <div class="eyebrow">3 · Deliver</div>
+        <div class="eyebrow">Deliver</div>
         <h2>We Deliver. <u>You Focus on Your Business.</u></h2>
         <p class="lede">Extend your reach without building and managing a rider team of your own.</p>
         <ul class="points">
           ${pt('pin', 'Waddy’s own riders', 'They only work Degla, Sarayat, Nerco and Corniche: short, familiar routes.')}
           ${pt('clock', 'Live tracking for the customer', 'A live map and ETA, so they watch the order instead of calling you.')}
-          ${pt('lock', 'A delivery PIN at the door', 'The rider asks for it, so the order reaches the right person.')}
-          ${pt('bag', 'Cash handled for you', 'Riders collect cash on delivery; it is included in your payout (page 06).')}
+          ${TERMS.deliveryPin === false ? '' : pt('lock', 'A delivery PIN at the door', 'The rider asks for it, so the order reaches the right person.')}
+          ${pt('bag', 'Cash handled for you', 'Riders collect cash on delivery; it is included in your payout (page 07).')}
         </ul>
         <div class="win"><em>What it means for you</em><span>Fewer phone calls, fewer disputes, and a strong last impression.</span></div>
       </div>
@@ -478,29 +480,35 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
     </div>
     <p class="note" style="margin-top:22px">Waddy is non-exclusive, so these are orders on top of the ones you already get. How many depends on your business; we will show you the real count at your 30-day review.</p>`, 'p-extra');
 
-  // 22 ── join, WhatsApp first
+  // 22 → p08 ── join: WhatsApp first, roadmap as a strip
   const wa = TERMS.whatsapp ? TERMS.whatsapp.en : null;
+  const fill = (k) => (TERMS[k] ? `<span>${TERMS[k].en}</span>` : '<span class="blank"></span>');
+  const road = [
+    ['Days 1–14', 'Set up', 'Catalogue, photos and training. Free.'],
+    ['Days 15–30', 'Launch', 'Live in Maadi from day one.'],
+    ['Day 30', '30-day review', 'Every order that came through Waddy. You decide.'],
+    ['Days 31–90', 'Build', 'Offers and partner promotion, planned together.'],
+  ];
   page('mint', null, `
     <div class="join">
-      <div style="flex:1">
+      <div style="flex:1;min-width:0">
         <div class="eyebrow">Join Waddy</div>
-        <h2 style="font-size:54px">Let’s Grow <u>Maadi Together.</u></h2>
-        <div class="steps">
-          <div class="step"><span>1</span><div><b>Message us on WhatsApp</b><p>Talk to our partner team directly about your business and your branches.</p></div></div>
-          <div class="step"><span>2</span><div><b>Set up your store, free</b><p>We build your catalogue with you and train your team. No setup fee.</p></div></div>
-          <div class="step"><span>3</span><div><b>Go live in Maadi</b><p>Start receiving orders from your neighborhood. Keep every other app you use.</p></div></div>
+        <h2 style="font-size:52px">Let’s Grow <u>Maadi Together.</u></h2>
+        <p class="lede" style="margin-top:10px">Send us a WhatsApp message. Then:</p>
+        <div class="road">${road.map(([w, h, p], i) => `
+          <div class="rs ${i === 2 ? 'on' : ''}"><span>${w}</span><b>${h}</b><p>${p}</p></div>`).join('')}
         </div>
         <div class="closing">Your brand. Your local branch. Your neighborhood.<br>Your growth partner.</div>
       </div>
       <div class="wa">
         <div class="wa-top">
-          ${wa ? `<div class="qimg" data-raster><img src="${asset('qr_whatsapp.png')}"></div>` : `<div class="qslot">${ph('WhatsApp QR')}</div>`}
+          ${wa ? `<div class="qimg" data-raster><img src="${asset('qr_whatsapp.png')}"></div>` : ''}
           <div><span class="wa-k">${icon('chat', 18)}WhatsApp</span><b>Message our partner team</b></div>
         </div>
-        <div class="wa-num">${wa || ph('Partner WhatsApp')}</div>
+        <div class="wa-num">${wa || '<span class="blank wide"></span>'}</div>
         <div class="wa-offer">Founding partners: no setup fee and a reduced launch commission.</div>
-        <div class="ln"><i>Phone</i>${term('phone', 'Partner Team Phone')}</div>
-        <div class="ln"><i>Email</i>${term('email', 'Partner Email')}</div>
+        <div class="ln"><i>Phone</i>${fill('phone')}</div>
+        <div class="ln"><i>Email</i>${fill('email')}</div>
         <div class="ln"><i>Web</i><span>waddyapp.com</span></div>
       </div>
     </div>`, 'p-join');
@@ -593,7 +601,6 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
     sub(0, 'Meet Waddy, the neighborhood delivery and growth platform built for Maadi.', v.lede);
     sub(0, '<span>Restaurants</span><span>Cafés</span><span>Grocery</span><span>Pet shops</span>', v.chips.map((c) => `<span>${c}</span>`).join(''));
     if (v.coverMock !== 'top10') sub(0, phoneHtml('top10'), phoneHtml(v.coverMock));
-    if (v.discover) { const [h2, lede, pts, win, mk] = v.discover; feature(['paper', 'live', '1 · Discover', h2, lede, pts, win, mk, false], 7); }
     if (v.storyH) { sub(8, 'Maadi’s burgers, at your door.', v.storyH); sub(8, 'burger.webp', v.art); }
     if (v.postTx) {
       sub(8, 'Your weekly grocery, picked the way you like it. From stores around you.', v.postTx);
@@ -604,6 +611,29 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
     if (v.sigA) feature(v.sigA, 12);
     if (v.sigB) feature(v.sigB, 15);
   }
+
+  // p05 ── discover + promote, on one page
+  const disc = {
+    all: ['top10', 'trophy', 'Maadi’s favorites sit at the top of the food home. The Waddy team sets the order, and the app says so.'],
+    restaurants: ['top10', 'trophy', 'Maadi’s favorites sit at the top of the food home. The Waddy team sets the order, and the app says so.'],
+    grocery: ['aisles', 'grid', 'Your store is laid out aisle by aisle, the way people already shop it, in front of the households around you.'],
+    pets: ['clinic', 'paw', 'Shelves by species, then by need, put your shop in front of the pet owners who live around you.'],
+  }[vertical];
+  P[7] = { tone: 'paper', status: 'live', cls: ' p-dp', html: `
+    <div class="split">
+      <div style="flex:none">${tilt(phoneHtml(disc[0]))}</div>
+      <div class="col">
+        <div class="eyebrow">Discover + Promote</div>
+        <h2 style="font-size:40px">Found in Maadi. <u>Promoted in Maadi.</u></h2>
+        <div class="dline">${icon(disc[1], 22)}<p>${disc[2]}</p></div>
+        <div class="rows" style="margin-top:14px">
+          ${rw('bolt', 'A · Waddy-funded local ads', 'Instagram and Facebook campaigns targeted to Maadi.', 'Funded by Waddy')}
+          ${rw('star', 'B · Partner Spotlight', 'Selected partners are featured in Waddy’s own content and social channels.', 'By selection')}
+          ${rw('tag', 'C · Optional paid visibility', 'Sponsored placements, always labelled, if you want extra reach.', 'Optional', true)}
+        </div>
+        <p class="note" style="margin-top:12px">You never have to buy ads to be listed. Ad concepts are proposals, not past campaigns; results vary and are not guaranteed.</p>
+      </div>
+    </div>` };
 
   // new · the short version's middle page
   const own = {
@@ -636,9 +666,17 @@ module.exports = (icon, asset, vertical = 'all', length = 'full') => {
   // 22 short-version summary.
   // Spots is out of the merchant pitch (it stays for the venue pitch), so
   // page 12 is only used where a category edition puts its own page there.
-  const catA = vertical !== 'all' && V[vertical].sigA ? [12] : [];
+  // 8 pages: cover, what/why, big apps vs Waddy, five ways, discover+promote,
+  // deliver, offer, join. Then an appendix: the edition's own category pages,
+  // and multi-branch for chains.
+  const appendix = [
+    ...(vertical !== 'all' && V[vertical].sigA ? [12] : []),
+    ...(vertical !== 'all' && V[vertical].sigB ? [15] : []),
+    5,
+  ];
+  appendix.forEach((i) => { P[i].app = true; });
   const ORDER = length === 'short'
     ? [0, 22, 19, 21]
-    : [0, 1, 2, 3, 20, 19, 5, 6, 7, 8, 16, 14, 17, ...catA, 15, 18, 21];
+    : [0, 1, 3, 6, 7, 16, 19, 21, ...appendix];
   return { pages: ORDER.map((i) => P[i]), STATUS, label: v.label, file: v.file + (length === 'short' ? '-short' : ''), editions: Object.keys(V) };
 };

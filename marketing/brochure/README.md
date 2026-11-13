@@ -4,7 +4,7 @@ B2B sales material for onboarding stores, generated from code so copy and
 design stay in one place. Four editions, each in English and Arabic, each as
 a PDF and an editable PowerPoint (`out/`):
 
-| Edition | Full (16–17 pages) | Short (4 pages) |
+| Edition | Full (8 pages + appendix) | Short (4 pages) |
 |---|---|---|
 | Partner brochure (all categories) | `waddy-partner-brochure` | `waddy-partner-brochure-short` |
 | Restaurants and cafés | `waddy-for-restaurants` | `waddy-for-restaurants-short` |
@@ -13,11 +13,14 @@ a PDF and an editable PowerPoint (`out/`):
 
 Add `-ar` for the Arabic edition of any of them (e.g. `waddy-for-pet-shops-short-ar`).
 
-**Full edition**: cover · what is Waddy / why Waddy · the problem · the
-comparison · where the extra orders come from · the offer · multi-branch ·
-ecosystem · discover · promote · deliver · retain · grow · built for every
-business · first 90 days · join. Grocery and pet-shop editions carry two
-category pages instead of "built for every business", so they run 17 pages.
+**Full edition**: cover · what is Waddy / why Waddy · big apps vs Waddy ·
+five ways to grow · discover + promote · deliver · the offer · join (with the
+roadmap as a strip). Then an appendix: each category's own pages (menu;
+ripeness and picker; pet profile and refill reminders) and multi-branch, for
+chains.
+
+Status chips (live / policy / plan / concept) are hidden. `DRAFT=1 node build.js`
+shows them for internal review.
 
 **Short edition**: cover, Waddy in one page, the offer, join. Made to be
 left on the counter.
@@ -30,7 +33,7 @@ proposed campaigns, and capabilities to verify.
 ```sh
 node build.js && python3 make_pptx.py   # everything
 node build.js grocery ar short          # one edition / language / length
-FINAL=1 node build.js                   # hide the internal status chips
+DRAFT=1 node build.js                   # show the internal status chips
 ```
 
 Needs Node with Playwright and Python with `python-pptx`.

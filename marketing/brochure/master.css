@@ -309,3 +309,19 @@ body.final .status { display: none; }
 .cmp > div { padding: 7px 16px; font-size: 14px; } .cmp .h { padding: 10px 16px; }
 .p4 h2 { font-size: 38px; }
 .rtl .p6 .lede { font-size: 15.500px; line-height: 1.6; } .rtl .p6 .vf { padding: 11px 18px; } .rtl .p6 .vflow { margin-top: 14px !important; gap: 8px; }
+
+/* 8-page edition */
+.cmp-sub { margin-top: 8px; font-size: 17px; max-width: none; }
+.p-five .pillar { min-height: 330px; }
+.dline { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; background: var(--mint-100); border-radius: 16px; padding: 14px 18px; }
+.dline .ic { flex: none; margin-top: 2px; } .dline p { font-size: 15.500px; line-height: 1.45; font-weight: 500; }
+.p-dp .rw { padding: 13px 18px; } .p-dp .rw p { font-size: 13.500px; }
+.road { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+.rs { background: #fff; border-radius: 16px; padding: 14px 14px 16px; }
+.rs span { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1.200px; text-transform: uppercase; color: var(--mint-ink); }
+.rs b { display: block; font-family: Alexandria; font-size: 17px; margin: 4px 0 4px; } .rs p { font-size: 13px; line-height: 1.4; color: var(--ink2); }
+.rs.on { background: var(--teal); color: #fff; } .rs.on span { color: var(--mint); } .rs.on p { color: #CFE9E5; }
+.p-join .closing { margin-top: 22px; }
+.blank { display: inline-block; width: 210px; border-bottom: 1.500px solid rgba(126,202,195,.7); height: 18px; }
+.blank.wide { width: 280px; height: 30px; }
+.rtl .rs span { font-size: 12px; }
